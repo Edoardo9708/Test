@@ -45,7 +45,7 @@ public final class MainActivity extends Activity {
             return insets;
         });
         TextView title = new TextView(this);
-        title.setText("Test API video · H.265");
+        title.setText("Test API video · H.265 · v0.2");
         title.setTextSize(24);
         layout.addView(title);
         TextView description = new TextView(this);
@@ -95,7 +95,8 @@ public final class MainActivity extends Activity {
     private void testAll() {
         line(Build.MANUFACTURER + " " + Build.MODEL + " · Android " + Build.VERSION.RELEASE
                 + " · API " + Build.VERSION.SDK_INT);
-        line("Profilo di prova: 1280×720, 30 fps, input Surface, 4 Mbit/s (adattato al range).");
+        line("Versione 0.2 · profilo preferito: 1280×720 a 30 fps. Fallback dai limiti dichiarati.");
+        line("Input Surface, 4 Mbit/s nelle modalità bitrate (adattato al range).");
         int found = 0;
         for (MediaCodecInfo info : new MediaCodecList(MediaCodecList.REGULAR_CODECS).getCodecInfos()) {
             if (!info.isEncoder() || info.isAlias()) continue;
@@ -118,10 +119,27 @@ public final class MainActivity extends Activity {
         boolean surface = false;
         for (int color : caps.colorFormats)
             if (color == MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface) surface = true;
-        boolean size = caps.getVideoCapabilities().areSizeAndRateSupported(1280, 720, 30);
+        MediaCodecInfo.VideoCapabilities video = caps.getVideoCapabilities();
+        boolean size = video.areSizeAndRateSupported(1280, 720, 30);
         line((surface && size ? "OK" : "NON SUPPORTATO") + ": profilo di prova (Surface="
                 + surface + ", 720p30=" + size + ")");
+        line("Limiti dichiarati: larghezza=" + video.getSupportedWidths()
+                + ", altezza=" + video.getSupportedHeights()
+                + ", fps globali=" + video.getSupportedFrameRates());
+        line("Allineamento: larghezza=" + video.getWidthAlignment()
+                + ", altezza=" + video.getHeightAlignment()
+                + " · bitrate=" + video.getBitrateRange());
+        Profile selected = selectProfile(video);
+        if (selected != null) {
+            line("Profilo scelto: " + selected.width + "×" + selected.height
+                    + " a " + selected.fps + " fps"
+                    + (size ? " · preferito" : " · fallback"));
+        } else {
+            line("NON SUPPORTATO: nessuna combinazione trovata nella ricerca limitata; nessuna prova reale.");
+        }
         MediaCodecInfo.EncoderCapabilities enc = caps.getEncoderCapabilities();
+        if (enc.isBitrateModeSupported(MediaCodecInfo.EncoderCapabilities.BITRATE_MODE_CQ))
+            line("CQ: range qualità dichiarato=" + enc.getQualityRange());
         int[] modes = {MediaCodecInfo.EncoderCapabilities.BITRATE_MODE_VBR,
                 MediaCodecInfo.EncoderCapabilities.BITRATE_MODE_CBR,
                 MediaCodecInfo.EncoderCapabilities.BITRATE_MODE_CQ};
@@ -131,10 +149,10 @@ public final class MainActivity extends Activity {
             String name = names[i];
             boolean supported = enc.isBitrateModeSupported(mode);
             line((supported ? "OK" : "NON SUPPORTATO") + ": supporto dichiarato " + name);
-            if (!supported || !surface || !size) continue;
-            MediaFormat format = MediaFormat.createVideoFormat(MIME, 1280, 720);
+            if (!supported || !surface || selected == null) continue;
+            MediaFormat format = MediaFormat.createVideoFormat(MIME, selected.width, selected.height);
             format.setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface);
-            format.setInteger(MediaFormat.KEY_FRAME_RATE, 30);
+            format.setFloat(MediaFormat.KEY_FRAME_RATE, selected.fps);
             format.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 1);
             format.setInteger(MediaFormat.KEY_BITRATE_MODE, mode);
             if (mode == MediaCodecInfo.EncoderCapabilities.BITRATE_MODE_CQ) {
@@ -147,9 +165,79 @@ public final class MainActivity extends Activity {
                 format.setInteger(MediaFormat.KEY_BIT_RATE, bitrate);
                 line("Bitrate richiesto=" + bitrate + " bit/s");
             }
+            line("Supporto del formato completo dichiarato=" + caps.isFormatSupported(format));
             probe(info.getName(), name, format);
             if (destroyed) return;
         }
+    }
+
+    private static final class Profile {
+        final int width, height;
+        final float fps;
+        Profile(int width, int height, float fps) {
+            this.width = width;
+            this.height = height;
+            this.fps = fps;
+        }
+    }
+
+    private Profile selectProfile(MediaCodecInfo.VideoCapabilities video) {
+        Profile selected = null;
+        int[][] sizes = {{1280, 720}, {1920, 1080}, {640, 480}, {640, 360},
+                {320, 240}, {256, 256}, {176, 144}};
+        // Report all candidates, even after a compatible one is found.
+        for (int[] candidate : sizes) {
+            int w = candidate[0], h = candidate[1];
+            if (!video.isSizeSupported(w, h)) {
+                line("Dimensioni " + w + "×" + h + ": NON SUPPORTATO");
+                continue;
+            }
+            Range<Double> rates = video.getSupportedFrameRatesFor(w, h);
+            line("Dimensioni " + w + "×" + h + ": OK · fps=" + rates);
+            Profile profile = compatibleProfile(video, w, h, rates);
+            if (selected == null && profile != null) selected = profile;
+        }
+        if (selected != null) return selected;
+        // Search aligned dimensions inside the published ranges, bounded to 1920×1080.
+        Range<Integer> widths = video.getSupportedWidths();
+        int alignW = video.getWidthAlignment();
+        int alignH = video.getHeightAlignment();
+        int firstW = alignUp(widths.getLower(), alignW);
+        int lastW = Math.min(widths.getUpper(), 1920);
+        for (int w = firstW; w <= lastW; w += alignW) {
+            if (destroyed) return null;
+            Range<Integer> heights;
+            try { heights = video.getSupportedHeightsFor(w); }
+            catch (IllegalArgumentException e) { continue; }
+            int firstH = alignUp(heights.getLower(), alignH);
+            int lastH = Math.min(heights.getUpper(), 1080);
+            // Check a small set of valid heights for each width, no unbounded probing.
+            int[] candidates = {firstH, (lastH / alignH) * alignH,
+                    (heights.clamp(720) / alignH) * alignH};
+            for (int h : candidates) {
+                if (h < firstH || h > lastH || !video.isSizeSupported(w, h)) continue;
+                Profile profile = compatibleProfile(video, w, h,
+                        video.getSupportedFrameRatesFor(w, h));
+                if (profile != null) return profile;
+            }
+        }
+        return null;
+    }
+
+    private static int alignUp(int value, int alignment) {
+        return (int) (((long) value + alignment - 1) / alignment * alignment);
+    }
+
+    private static Profile compatibleProfile(MediaCodecInfo.VideoCapabilities video,
+            int width, int height, Range<Double> rates) {
+        // Positive rates only; global ranges alone do not validate a specific size.
+        double low = Math.max(1.0, rates.getLower());
+        double high = Math.min(60.0, rates.getUpper());
+        if (low > high) return null;
+        float fps = (float) Math.max(low, Math.min(30.0, high));
+        if (!rates.contains((double) fps) || !video.areSizeAndRateSupported(width, height, fps))
+            return null;
+        return new Profile(width, height, fps);
     }
 
     private void probe(String codecName, String modeName, MediaFormat format) {
