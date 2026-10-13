@@ -156,8 +156,8 @@ public final class MainActivity extends Activity {
 
     private void testAll() {
         line("\n*** INIZIO TEST API ANDROID ***");
-        line("STEP 1: elenco encoder HEVC; STEP 2: leggo limiti e scelgo un profilo; STEP 3: provo le modalità compatibili.");
-        line("LEGENDA: supporto dichiarato = capacità riportate da Android; OK = chiamata terminata senza errori. Questo test non invia fotogrammi.");
+        line("STEP 1: elenco encoder HEVC\n• STEP 2: leggo limiti e scelgo un profilo\n• STEP 3: provo le modalità compatibili.");
+        line("LEGENDA: supporto dichiarato = capacità riportate da Android\n• OK = chiamata terminata senza errori. Questo test non invia fotogrammi.");
         line(Build.MANUFACTURER + " " + Build.MODEL + " · Android " + Build.VERSION.RELEASE
                 + " · API " + Build.VERSION.SDK_INT);
         line("Versione 0.4 · profilo preferito: 1280×720 a 30 fps. Fallback dai limiti dichiarati.");
@@ -311,7 +311,7 @@ public final class MainActivity extends Activity {
         boolean started = false;
         String phase = "createByCodecName";
         line("\n*** STEP 3 · PROVA API: " + modeName + " ***");
-        line("Creo encoder → applico formato → preparo superficie di ingresso → avvio → arresto → libero risorse.");
+        line("Creo encoder\n• applico formato\n• preparo superficie di ingresso\n• avvio\n• arresto\n• libero risorse.");
         try {
             line("INIZIO: " + phase + " · creo l'encoder");
             codec = MediaCodec.createByCodecName(codecName);

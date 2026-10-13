@@ -28,8 +28,8 @@ final class X265Probe {
             session.onLog("SESSION BEGIN v0.4 "+Build.MANUFACTURER+" "+Build.MODEL
                     +" Android="+Build.VERSION.RELEASE+" ABI="+Arrays.toString(Build.SUPPORTED_ABIS));
             session.onLog("*** INIZIO TEST X265 SOFTWARE ***");
-            session.onLog("PERCORSO: 1 carico la libreria; per ogni CRF: 2 preparo il file, 3 configuro x265, 4 preparo la traccia, 5 codifico, 6 recupero i fotogrammi in attesa, 7 chiudo MP4, 8 verifico.");
-            session.onLog("LEGENDA GENERALE: [N ms] = tempo trascorso da inizio test; BEGIN/INIZIO = operazione in corso; OK/END = chiamata terminata; ERROR = errore. Una chiamata iniziata senza esito indica dove indagare.");
+            session.onLog("PERCORSO:\n1. carico la libreria\nPer ogni CRF:\n2. preparo il file\n3. configuro x265\n4. preparo la traccia\n5. codifico\n6. recupero i fotogrammi in attesa\n7. chiudo MP4\n8. verifico.");
+            session.onLog("LEGENDA GENERALE: [N ms] = tempo trascorso da inizio test\n• BEGIN/INIZIO = operazione in corso\n• OK/END = chiamata terminata\n• ERROR = errore. Una chiamata iniziata senza esito indica dove indagare.");
             session.onLog("NOTA: 30 fotogrammi sintetici = 1 secondo di video. La verifica controlla la decodifica, non misura la qualità visiva.");
             session.onLog("*** STEP 1 · CARICAMENTO LIBRERIA ***");
             session.onLog("Carico x265 per eseguire la codifica sulla CPU del telefono.");
@@ -164,8 +164,8 @@ final class X265Probe {
             decoder.start(); started=true;
             s.onLog("OK decoder.start");
             s.onLog("*** INIZIO SEQUENZA FOTOGRAMMI DECODIFICATI ***");
-            s.onLog("LEGENDA: output = totale fotogrammi letti; pts_us = posizione nel video in microsecondi (1000000 = 1 secondo); bytes = dimensione del buffer decodificato, incluso eventuale padding.");
-            s.onLog("LEGENDA: flags è una maschera: 1 fotogramma chiave, 2 configurazione codec, 4 fine flusso (EOS). Un buffer EOS vuoto non conta come fotogramma.");
+            s.onLog("LEGENDA: output = totale fotogrammi letti\n• pts_us = posizione nel video in microsecondi (1000000 = 1 secondo)\n• bytes = dimensione del buffer decodificato, incluso eventuale padding.");
+            s.onLog("LEGENDA: flags è una maschera:\n• 1 fotogramma chiave\n• 2 configurazione codec\n• 4 fine flusso (EOS). Un buffer EOS vuoto non conta come fotogramma.");
             s.onLog("EXTRACT/outputFormat = dettagli tecnici del formato; samples = pacchetti inviati al decoder.");
             MediaCodec.BufferInfo info=new MediaCodec.BufferInfo();
             boolean inputEnd=false, outputEnd=false;
