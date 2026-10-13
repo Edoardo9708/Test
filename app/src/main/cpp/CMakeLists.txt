@@ -1,5 +1,13 @@
 cmake_minimum_required(VERSION 3.22)
 project(codecprobe LANGUAGES C CXX)
+# Keep an installable debug APK, but optimize ALL native code including x265.
+set(CMAKE_BUILD_TYPE RelWithDebInfo CACHE STRING "" FORCE)
+set(CMAKE_C_FLAGS_RELWITHDEBINFO "-O3 -g -DNDEBUG" CACHE STRING "" FORCE)
+set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O3 -g -DNDEBUG" CACHE STRING "" FORCE)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+if(ANDROID AND NOT ANDROID_ABI STREQUAL "arm64-v8a")
+    message(FATAL_ERROR "This diagnostic requires arm64-v8a")
+endif()
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 set(ENABLE_SHARED OFF CACHE BOOL "" FORCE)
@@ -24,3 +32,5 @@ endif()
 target_include_directories(${PROBE_TARGET} PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/../../../../vendor/x265/source"
     "${CMAKE_CURRENT_BINARY_DIR}/x265-build")
+
+target_compile_definitions(${PROBE_TARGET} PRIVATE PROBE_BUILD_TYPE="RelWithDebInfo" PROBE_OPT_LEVEL="O3")

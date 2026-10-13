@@ -54,7 +54,7 @@ public final class MainActivity extends Activity {
             return insets;
         });
         TextView title = new TextView(this);
-        title.setText("Test codec video · v0.4");
+        title.setText("Test codec video · v0.5");
         title.setTextSize(24);
         layout.addView(title);
         TextView description = new TextView(this);
@@ -92,6 +92,39 @@ public final class MainActivity extends Activity {
             intent.setType("video/mp4");
             intent.putExtra(Intent.EXTRA_TITLE, exportFile.getName());
             startActivityForResult(intent, 7);
+        });
+        Button saveLog = new Button(this);
+        saveLog.setText("Salva log completo (.txt)");
+        layout.addView(saveLog);
+        saveLog.setOnClickListener(v -> {
+            if (!run.isEnabled()) {
+                Toast.makeText(this, "Attendi la fine del test per salvare il log completo", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            final String snapshot = output.getText().toString();
+            // Freeze the text before opening the picker; a later test cannot replace it.
+            saveLog.setEnabled(false);
+            worker.execute(() -> {
+                try {
+                    java.nio.file.Files.write(new File(getCacheDir(), "log-export.txt").toPath(),
+                            snapshot.getBytes(StandardCharsets.UTF_8));
+                    runOnUiThread(() -> {
+                        if (destroyed) return;
+                        saveLog.setEnabled(true);
+                        Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
+                        intent.addCategory(Intent.CATEGORY_OPENABLE);
+                        intent.setType("text/plain");
+                        intent.putExtra(Intent.EXTRA_TITLE, "CodecProbe-log-"+System.currentTimeMillis()+".txt");
+                        startActivityForResult(intent, 8);
+                    });
+                } catch (Exception error) {
+                    runOnUiThread(() -> {
+                        if (destroyed) return;
+                        saveLog.setEnabled(true);
+                        Toast.makeText(this, "Errore salvataggio log: "+detail(error), Toast.LENGTH_LONG).show();
+                    });
+                }
+            });
         });
         Button copy = new Button(this);
         copy.setText("Copia risultati");
@@ -160,7 +193,7 @@ public final class MainActivity extends Activity {
         line("LEGENDA: supporto dichiarato = capacità riportate da Android\n• OK = chiamata terminata senza errori. Questo test non invia fotogrammi.");
         line(Build.MANUFACTURER + " " + Build.MODEL + " · Android " + Build.VERSION.RELEASE
                 + " · API " + Build.VERSION.SDK_INT);
-        line("Versione 0.4 · profilo preferito: 1280×720 a 30 fps. Fallback dai limiti dichiarati.");
+        line("Versione 0.5 · profilo preferito: 1280×720 a 30 fps. Fallback dai limiti dichiarati.");
         line("Input Surface, 4 Mbit/s nelle modalità bitrate (adattato al range).");
         int found = 0;
         for (MediaCodecInfo info : new MediaCodecList(MediaCodecList.REGULAR_CODECS).getCodecInfos()) {
@@ -371,8 +404,8 @@ public final class MainActivity extends Activity {
 
     @Override protected void onActivityResult(int request, int result, Intent data) {
         super.onActivityResult(request, result, data);
-        if (request != 7 || result != RESULT_OK || data == null || data.getData() == null) return;
-        final File source = exportFile;
+        if ((request != 7 && request != 8) || result != RESULT_OK || data == null || data.getData() == null) return;
+        final File source = request == 8 ? new File(getCacheDir(), "log-export.txt") : exportFile;
         if (source == null) return;
         worker.execute(() -> {
             try (FileInputStream input = new FileInputStream(source);
@@ -382,7 +415,7 @@ public final class MainActivity extends Activity {
                 int count;
                 while ((count = input.read(bytes)) != -1) target.write(bytes, 0, count);
                 runOnUiThread(() -> {
-                    if (!destroyed) Toast.makeText(this, "MP4 esportato", Toast.LENGTH_SHORT).show();
+                    if (!destroyed) Toast.makeText(this, request == 8 ? "Log TXT salvato" : "MP4 esportato", Toast.LENGTH_SHORT).show();
                 });
             } catch (Exception error) {
                 runOnUiThread(() -> {

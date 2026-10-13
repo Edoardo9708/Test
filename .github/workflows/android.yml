@@ -41,6 +41,8 @@ jobs:
           python3 scripts/verify-smoke.py
       - name: Build and lint
         run: gradle --no-daemon :app:assembleDebug :app:lintDebug
+      - name: Verify native optimization and APK architecture
+        run: python3 scripts/verify-native-build.py
       - uses: actions/upload-artifact@v4
         with:
           name: CodecProbe-APK

@@ -40,3 +40,11 @@ La chiave debug di un runner temporaneo può cambiare tra build: se un aggiornam
 JDK 17, Android SDK 35, Gradle 8.11.1:
 `gradle :app:assembleDebug :app:lintDebug`
 Non è incluso un Gradle wrapper: la CI installa esplicitamente la versione sopra.
+
+## v0.5: export and controlled optimization
+
+- Save the complete displayed log (including recovered x265 logs) as UTF-8 TXT through the Android document picker. The export freezes a snapshot before opening the picker.
+- Native x265 and JNI compile as RelWithDebInfo with -O3; the APK remains debug-signed for installation. CI checks actual compiler commands and the APK ELF64 AArch64 header.
+- Keep the pinned x265 version, 30 synthetic frames, CRF 24/32, two threads and assembly disabled to isolate compiler optimization. ARM assembly is a subsequent experiment.
+- Log real pointer size, architecture, optimization macro, x265-only call times and total cycle time. The old upstream build_info labels non-x86 as 32 bit; it is not authoritative on ARM.
+- On the SM-S916B, run the software test with the phone cool and idle, save TXT, and compare total times with v0.3. The short benchmark and historic comparison are indicative, not sustained-performance or quality measurements.
