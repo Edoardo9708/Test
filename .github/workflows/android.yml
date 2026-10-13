@@ -8,7 +8,7 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -23,7 +23,20 @@ jobs:
         with:
           gradle-version: '8.11.1'
       - name: Install Android SDK
-        run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
+        run: sdkmanager "platforms;android-35" "build-tools;35.0.0" "ndk;27.2.12479018" "cmake;3.22.1"
+      - name: Prepare pinned x265 source and license
+        run: bash scripts/prepare-x265.sh
+      - name: Build and run native software smoke test
+        run: |
+          cmake -S app/src/main/cpp -B native-smoke -DCMAKE_BUILD_TYPE=Release
+          cmake --build native-smoke -j2
+          native-smoke/x265probe_smoke > native-smoke.log 2>&1
+          tail -n 5 native-smoke.log
+          for crf in 24 32; do
+            ffmpeg -v error -xerror -i "smoke-${crf}.hevc" -f null -
+            ffprobe -v error -count_frames -select_streams v:0 -show_entries stream=width,height,nb_read_frames -of json "smoke-${crf}.hevc" > "smoke-${crf}.json"
+          done
+          python3 scripts/verify-smoke.py
       - name: Build and lint
         run: gradle --no-daemon :app:assembleDebug :app:lintDebug
       - uses: actions/upload-artifact@v4
@@ -31,3 +44,14 @@ jobs:
           name: CodecProbe-APK
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
+      - name: Package corresponding source
+        run: tar --exclude=.git --exclude=.gradle --exclude=.cxx --exclude=app/build --exclude=native-smoke --exclude=CodecProbe-source.tar.gz -czf CodecProbe-source.tar.gz app scripts vendor build.gradle settings.gradle gradle.properties README.md .github
+      - uses: actions/upload-artifact@v4
+        with:
+          name: CodecProbe-source
+          path: CodecProbe-source.tar.gz
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Native-smoke-log
+          path: native-smoke.log

@@ -2,6 +2,7 @@ package it.edo.codecprobe;
 
 import android.app.Activity;
 import android.content.ClipData;
+import android.content.Intent;
 import android.content.ClipboardManager;
 import android.media.MediaCodec;
 import android.media.MediaCodecInfo;
@@ -19,12 +20,20 @@ import android.widget.TextView;
 import android.widget.Toast;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
 
 public final class MainActivity extends Activity {
     private static final String MIME = "video/hevc";
     private final ExecutorService worker = Executors.newSingleThreadExecutor();
     private TextView output;
     private Button run;
+    private Button software;
+    private final AtomicBoolean cancelled = new AtomicBoolean();
+    private File exportFile;
     private volatile boolean destroyed;
     private final StringBuilder report = new StringBuilder();
 
@@ -45,15 +54,45 @@ public final class MainActivity extends Activity {
             return insets;
         });
         TextView title = new TextView(this);
-        title.setText("Test API video · H.265 · v0.2");
+        title.setText("Test codec video · v0.3");
         title.setTextSize(24);
         layout.addView(title);
         TextView description = new TextView(this);
-        description.setText("Verifica supporto, configurazione e avvio. Non converte ancora video.");
+        description.setText("Test API Android oppure codifica software di un filmato sintetico Full HD.");
         layout.addView(description);
         run = new Button(this);
         run.setText("Esegui test");
         layout.addView(run);
+        software = new Button(this);
+        software.setText("Test x265 software · Full HD / CRF");
+        layout.addView(software);
+        Button cancel = new Button(this);
+        cancel.setText("Interrompi test x265");
+        layout.addView(cancel);
+        cancel.setOnClickListener(v -> {
+            cancelled.set(true);
+            Toast.makeText(this, "Interruzione alla fine della chiamata corrente", Toast.LENGTH_SHORT).show();
+        });
+        Button export = new Button(this);
+        export.setText("Esporta MP4 di prova");
+        layout.addView(export);
+        export.setOnClickListener(v -> {
+            if (!run.isEnabled()) {
+                Toast.makeText(this, "Attendi la fine del test", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            exportFile = X265Probe.outputFile(this, 32);
+            if (!exportFile.isFile()) exportFile = X265Probe.outputFile(this, 24);
+            if (!exportFile.isFile()) {
+                Toast.makeText(this, "Nessun MP4 disponibile", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
+            intent.addCategory(Intent.CATEGORY_OPENABLE);
+            intent.setType("video/mp4");
+            intent.putExtra(Intent.EXTRA_TITLE, exportFile.getName());
+            startActivityForResult(intent, 7);
+        });
         Button copy = new Button(this);
         copy.setText("Copia risultati");
         layout.addView(copy);
@@ -66,6 +105,28 @@ public final class MainActivity extends Activity {
         setContentView(layout);
         layout.requestApplyInsets();
         output.setText("Premi Esegui test per iniziare.");
+        File previous = X265Probe.logFile(this);
+        if (previous.isFile()) {
+            try {
+                output.setText("Ultimo log x265 salvato:\n"
+                        + new String(java.nio.file.Files.readAllBytes(previous.toPath()), StandardCharsets.UTF_8));
+            } catch (Exception error) { output.setText("Errore recupero log: " + detail(error)); }
+        }
+        software.setOnClickListener(v -> {
+            run.setEnabled(false);
+            software.setEnabled(false);
+            cancelled.set(false);
+            report.setLength(0);
+            output.setText("Test x265 in corso…");
+            worker.execute(() -> {
+                try { X265Probe.run(getApplicationContext(), cancelled, this::line); }
+                finally {
+                    runOnUiThread(() -> {
+                        if (!destroyed) { run.setEnabled(true); software.setEnabled(true); }
+                    });
+                }
+            });
+        });
         copy.setOnClickListener(v -> {
             ClipboardManager clipboard = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
             clipboard.setPrimaryClip(ClipData.newPlainText("Test codec", output.getText()));
@@ -73,6 +134,7 @@ public final class MainActivity extends Activity {
         });
         run.setOnClickListener(v -> {
             run.setEnabled(false);
+            software.setEnabled(false);
             report.setLength(0);
             output.setText("Test in corso…");
             worker.execute(() -> {
@@ -80,7 +142,7 @@ public final class MainActivity extends Activity {
                 catch (Exception e) { line("ERRORE generale: " + detail(e)); }
                 finally {
                     line("\nTest terminato. OK = chiamata riuscita, non conversione verificata.");
-                    runOnUiThread(() -> { if (!destroyed) run.setEnabled(true); });
+                    runOnUiThread(() -> { if (!destroyed) { run.setEnabled(true); software.setEnabled(true); } });
                 }
             });
         });
@@ -95,7 +157,7 @@ public final class MainActivity extends Activity {
     private void testAll() {
         line(Build.MANUFACTURER + " " + Build.MODEL + " · Android " + Build.VERSION.RELEASE
                 + " · API " + Build.VERSION.SDK_INT);
-        line("Versione 0.2 · profilo preferito: 1280×720 a 30 fps. Fallback dai limiti dichiarati.");
+        line("Versione 0.3 · profilo preferito: 1280×720 a 30 fps. Fallback dai limiti dichiarati.");
         line("Input Surface, 4 Mbit/s nelle modalità bitrate (adattato al range).");
         int found = 0;
         for (MediaCodecInfo info : new MediaCodecList(MediaCodecList.REGULAR_CODECS).getCodecInfos()) {
@@ -293,7 +355,31 @@ public final class MainActivity extends Activity {
 
     @Override protected void onDestroy() {
         destroyed = true;
+        cancelled.set(true);
         worker.shutdown();
         super.onDestroy();
+    }
+
+    @Override protected void onActivityResult(int request, int result, Intent data) {
+        super.onActivityResult(request, result, data);
+        if (request != 7 || result != RESULT_OK || data == null || data.getData() == null) return;
+        final File source = exportFile;
+        if (source == null) return;
+        worker.execute(() -> {
+            try (FileInputStream input = new FileInputStream(source);
+                 OutputStream target = getContentResolver().openOutputStream(data.getData())) {
+                if (target == null) throw new IllegalStateException("Destinazione non disponibile");
+                byte[] bytes = new byte[8192];
+                int count;
+                while ((count = input.read(bytes)) != -1) target.write(bytes, 0, count);
+                runOnUiThread(() -> {
+                    if (!destroyed) Toast.makeText(this, "MP4 esportato", Toast.LENGTH_SHORT).show();
+                });
+            } catch (Exception error) {
+                runOnUiThread(() -> {
+                    if (!destroyed) Toast.makeText(this, "Errore esportazione: " + detail(error), Toast.LENGTH_LONG).show();
+                });
+            }
+        });
     }
 }

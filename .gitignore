@@ -3,3 +3,8 @@
 local.properties
 .idea/
 *.iml
+.cxx/
+**/.cxx/
+vendor/
+native-smoke/
+smoke-*.hevc

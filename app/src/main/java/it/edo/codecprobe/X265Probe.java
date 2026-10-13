@@ -1,0 +1,184 @@
+package it.edo.codecprobe;
+
+import android.content.Context;
+import android.media.MediaCodec;
+import android.media.MediaExtractor;
+import android.media.MediaFormat;
+import android.media.MediaMuxer;
+import android.os.Build;
+import android.os.SystemClock;
+import android.util.Log;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.PrintWriter;
+import java.io.StringWriter;
+import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Consumer;
+
+final class X265Probe {
+    private static native void encode(Session session, int crf);
+    static File logFile(Context context) { return new File(context.getFilesDir(), "x265-last.log"); }
+    static File outputFile(Context context, int crf) { return new File(context.getFilesDir(), "x265-crf"+crf+".mp4"); }
+
+    static void run(Context context, AtomicBoolean cancelled, Consumer<String> listener) {
+        try (Session session = new Session(context, cancelled, listener)) {
+            session.onLog("SESSION BEGIN v0.3 "+Build.MANUFACTURER+" "+Build.MODEL
+                    +" Android="+Build.VERSION.RELEASE+" ABI="+Arrays.toString(Build.SUPPORTED_ABIS));
+            session.onLog("BEGIN loadLibrary x265probe");
+            System.loadLibrary("x265probe");
+            session.onLog("OK loadLibrary; JNI bridge → x265 C++ → CPU");
+            for (int oldCrf : new int[]{24,32}) {
+                File old = outputFile(context,oldCrf);
+                if (old.exists() && !old.delete()) throw new IllegalStateException("Cannot remove old MP4");
+            }
+            for (int crf : new int[]{24,32}) {
+                if(cancelled.get()) break;
+                session.output = outputFile(context,crf);
+                session.onLog("BEGIN MP4 crf="+crf+" file="+session.output.getName());
+                session.muxer = new MediaMuxer(session.output.getAbsolutePath(),MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4);
+                session.packets=0;
+                try {
+                    encode(session,crf);
+                    session.finishMuxer();
+                    session.onLog("OK MP4 bytes="+session.output.length());
+                    verify(session.output,session);
+                } catch (Throwable error) {
+                    session.onLog("ERROR "+stack(error));
+                    session.finishMuxer();
+                    if(!session.output.delete()) session.onLog("WARN partial MP4 could not be deleted");
+                    break;
+                }
+            }
+            session.onLog("SESSION END cancelled="+cancelled.get()
+                    +"; synthetic input only, no visual-quality validation; ARM assembly disabled");
+        } catch (Throwable error) {
+            String message = "ERROR x265 session: "+stack(error);
+            try (FileOutputStream log = new FileOutputStream(logFile(context),true)) {
+                log.write((message+"\n").getBytes(StandardCharsets.UTF_8));
+            } catch (Exception ignored) { Log.e("CodecProbe","Unable to append failure",ignored); }
+            listener.accept(message);
+        }
+    }
+
+    private static String stack(Throwable error) {
+        StringWriter text=new StringWriter();
+        error.printStackTrace(new PrintWriter(text));
+        return text.toString();
+    }
+
+    // Callbacks are invoked synchronously on the worker thread.
+    private static final class Session implements AutoCloseable {
+        final AtomicBoolean cancelled;
+        final Consumer<String> listener;
+        final FileOutputStream log;
+        final long started=SystemClock.elapsedRealtime();
+        MediaMuxer muxer;
+        boolean muxing;
+        int track, packets;
+        File output;
+        Session(Context context, AtomicBoolean cancelled, Consumer<String> listener) throws Exception {
+            this.cancelled=cancelled; this.listener=listener;
+            log=new FileOutputStream(logFile(context),false);
+        }
+        public void onLog(String message) {
+            String line="["+ (SystemClock.elapsedRealtime()-started)+" ms] "+message;
+            try {
+                log.write((line+"\n").getBytes(StandardCharsets.UTF_8));
+                log.flush();
+            } catch(Exception error) { throw new IllegalStateException("Cannot persist diagnostic log",error); }
+            Log.i("CodecProbe",line);
+            listener.accept(line);
+        }
+        public boolean isCancelled() { return cancelled.get(); }
+        public void onHeaders(byte[] bytes) {
+            onLog("BEGIN muxer.addTrack headers="+bytes.length);
+            MediaFormat format=MediaFormat.createVideoFormat("video/hevc",1920,1080);
+            format.setByteBuffer("csd-0",ByteBuffer.wrap(bytes));
+            format.setInteger(MediaFormat.KEY_FRAME_RATE,30);
+            track=muxer.addTrack(format);
+            muxer.start(); muxing=true;
+            onLog("OK muxer.start track="+track);
+        }
+        public void onPacket(byte[] bytes,long pts,boolean key) {
+            MediaCodec.BufferInfo info=new MediaCodec.BufferInfo();
+            info.set(0,bytes.length,pts,key ? MediaCodec.BUFFER_FLAG_KEY_FRAME : 0);
+            muxer.writeSampleData(track,ByteBuffer.wrap(bytes),info);
+            packets++;
+            onLog("OK muxer.writeSampleData packet="+packets+" pts_us="+pts+" bytes="+bytes.length);
+        }
+        void finishMuxer() {
+            if(muxer==null) return;
+            try { if(muxing) { onLog("BEGIN muxer.stop"); muxer.stop(); onLog("OK muxer.stop"); } }
+            finally { muxer.release(); muxer=null; muxing=false; }
+        }
+        @Override public void close() throws Exception {
+            try { finishMuxer(); } finally { log.close(); }
+        }
+    }
+
+    private static void verify(File file, Session s) throws Exception {
+        s.onLog("BEGIN VERIFY extract+decode all frames; decoder may use hardware (encoding did not)");
+        MediaExtractor extractor=new MediaExtractor();
+        MediaCodec decoder=null;
+        boolean started=false;
+        try {
+            extractor.setDataSource(file.getAbsolutePath());
+            if(extractor.getTrackCount()!=1) throw new IllegalStateException("Expected one video track");
+            MediaFormat format=extractor.getTrackFormat(0);
+            s.onLog("EXTRACT format="+format);
+            if(!"video/hevc".equals(format.getString(MediaFormat.KEY_MIME))
+                    || format.getInteger(MediaFormat.KEY_WIDTH)!=1920
+                    || format.getInteger(MediaFormat.KEY_HEIGHT)!=1080)
+                throw new IllegalStateException("Unexpected codec or size");
+            extractor.selectTrack(0);
+            decoder=MediaCodec.createDecoderByType("video/hevc");
+            s.onLog("BEGIN decoder.configure name="+decoder.getName());
+            decoder.configure(format,null,null,0);
+            decoder.start(); started=true;
+            MediaCodec.BufferInfo info=new MediaCodec.BufferInfo();
+            boolean inputEnd=false, outputEnd=false;
+            int input=0, output=0;
+            long deadline=SystemClock.elapsedRealtime()+60_000;
+            while(!outputEnd) {
+                if(s.isCancelled()) throw new IllegalStateException("CANCELLED during verification");
+                if(SystemClock.elapsedRealtime()>deadline) throw new IllegalStateException("Decoder timeout 60s");
+                if(!inputEnd) {
+                    int index=decoder.dequeueInputBuffer(10_000);
+                    if(index>=0) {
+                        ByteBuffer buffer=decoder.getInputBuffer(index);
+                        if(buffer==null) throw new IllegalStateException("Null decoder input");
+                        buffer.clear();
+                        int size=extractor.readSampleData(buffer,0);
+                        if(size<0) {
+                            decoder.queueInputBuffer(index,0,0,0,MediaCodec.BUFFER_FLAG_END_OF_STREAM);
+                            inputEnd=true; s.onLog("OK decoder input EOS samples="+input);
+                        } else {
+                            long pts=extractor.getSampleTime();
+                            decoder.queueInputBuffer(index,0,size,pts,0);
+                            input++; extractor.advance();
+                        }
+                    }
+                }
+                int index=decoder.dequeueOutputBuffer(info,10_000);
+                if(index>=0) {
+                    if(info.size>0 && (info.flags & MediaCodec.BUFFER_FLAG_CODEC_CONFIG)==0) output++;
+                    outputEnd=(info.flags & MediaCodec.BUFFER_FLAG_END_OF_STREAM)!=0;
+                    s.onLog("DECODE output="+output+" pts_us="+info.presentationTimeUs+" bytes="+info.size+" flags="+info.flags);
+                    decoder.releaseOutputBuffer(index,false);
+                } else if(index==MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
+                    s.onLog("DECODE outputFormat="+decoder.getOutputFormat());
+                }
+            }
+            if(input!=30 || output!=30) throw new IllegalStateException("Count mismatch input="+input+" decoded="+output);
+            s.onLog("OK VERIFY decoded=30/30 Full HD; MP4="+file.getName());
+        } finally {
+            if(decoder!=null) {
+                try { if(started) decoder.stop(); } finally { decoder.release(); }
+            }
+            extractor.release();
+        }
+    }
+}

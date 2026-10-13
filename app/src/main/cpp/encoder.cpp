@@ -1,0 +1,104 @@
+#include "encoder.h"
+#include <x265.h>
+#include <chrono>
+#include <memory>
+#include <stdexcept>
+#include <sstream>
+#include <algorithm>
+using Clock = std::chrono::steady_clock;
+static double millis(Clock::time_point start) {
+    return std::chrono::duration<double, std::milli>(Clock::now()-start).count();
+}
+static std::vector<uint8_t> collect(x265_nal* nals, uint32_t count) {
+    std::vector<uint8_t> data;
+    for (uint32_t i=0; i<count; ++i)
+        data.insert(data.end(), nals[i].payload, nals[i].payload+nals[i].sizeBytes);
+    return data;
+}
+void runProbe(ProbeCallbacks& cb, int crf) {
+    constexpr int W=1920, H=1080, FPS=30, FRAMES=30;
+    auto start=Clock::now();
+    cb.log(std::string("LIBRARY version=")+x265_version_str+" build="+x265_build_info_str);
+    cb.log("CONFIG CPU software only; ARM assembly disabled in this diagnostic build");
+    std::unique_ptr<x265_param, decltype(&x265_param_free)> param(x265_param_alloc(), x265_param_free);
+    if (!param) throw std::runtime_error("param_alloc returned null");
+    cb.log("BEGIN param_default_preset ultrafast / zerolatency");
+    int rc=x265_param_default_preset(param.get(), "ultrafast", "zerolatency");
+    if(rc<0) throw std::runtime_error("param_default_preset rc="+std::to_string(rc));
+    param->sourceWidth=W; param->sourceHeight=H;
+    param->fpsNum=FPS; param->fpsDenom=1; param->internalCsp=X265_CSP_I420;
+    param->internalBitDepth=8; param->rc.rateControlMode=X265_RC_CRF;
+    param->rc.rfConstant=crf; param->bAnnexB=1; param->bRepeatHeaders=0;
+    param->bEmitInfoSEI=0; param->bframes=0; param->lookaheadDepth=0;
+    param->frameNumThreads=2; param->numaPools="2";
+    param->logLevel=X265_LOG_WARNING;
+    cb.log("BEGIN apply_profile main");
+    if(x265_param_apply_profile(param.get(),"main")<0) throw std::runtime_error("apply_profile failed");
+    cb.log("BEGIN encoder_open 1920x1080 30fps I420/8bit CRF="+std::to_string(crf)+" threads=2 pool=2");
+    std::unique_ptr<x265_encoder, decltype(&x265_encoder_close)> enc(x265_encoder_open(param.get()),x265_encoder_close);
+    if(!enc) throw std::runtime_error("encoder_open returned null");
+    cb.log("OK encoder_open elapsed_ms="+std::to_string(millis(start)));
+    x265_encoder_parameters(enc.get(),param.get());
+    cb.log("EFFECTIVE rcMode="+std::to_string(param->rc.rateControlMode)
+        +" (CRF="+std::to_string(X265_RC_CRF)+") rfConstant="+std::to_string(param->rc.rfConstant)
+        +" bframes="+std::to_string(param->bframes));
+    if(param->rc.rateControlMode!=X265_RC_CRF) throw std::runtime_error("effective mode is not CRF");
+    std::unique_ptr<x265_picture, decltype(&x265_picture_free)> in(x265_picture_alloc(),x265_picture_free);
+    std::unique_ptr<x265_picture, decltype(&x265_picture_free)> out(x265_picture_alloc(),x265_picture_free);
+    if(!in || !out) throw std::runtime_error("picture_alloc returned null");
+    x265_picture_init(param.get(),in.get()); x265_picture_init(param.get(),out.get());
+    std::vector<uint8_t> pixels(W*H*3/2,128);
+    in->planes[0]=pixels.data(); in->planes[1]=pixels.data()+W*H;
+    in->planes[2]=pixels.data()+W*H*5/4;
+    in->stride[0]=W; in->stride[1]=W/2; in->stride[2]=W/2;
+    x265_nal* nals=nullptr; uint32_t count=0;
+    cb.log("BEGIN encoder_headers");
+    if(x265_encoder_headers(enc.get(),&nals,&count)<0) throw std::runtime_error("encoder_headers failed");
+    auto headers=collect(nals,count);
+    cb.log("OK encoder_headers nals="+std::to_string(count)+" bytes="+std::to_string(headers.size()));
+    cb.headers(headers);
+    int encoded=0; uint64_t bytes=0;
+    auto emit=[&]() {
+        auto data=collect(nals,count);
+        bool key=false;
+        for(uint32_t j=0;j<count;++j) if(nals[j].type>=16 && nals[j].type<=21) key=true;
+        cb.packet(data,out->pts,key);
+        bytes+=data.size(); ++encoded;
+        cb.log("PACKET index="+std::to_string(encoded)+" pts_us="+std::to_string(out->pts)
+            +" bytes="+std::to_string(data.size())+" key="+std::to_string(key));
+    };
+    auto encodingStart=Clock::now();
+    for(int frame=0;frame<FRAMES;++frame) {
+        if(cb.cancelled()) throw std::runtime_error("CANCELLED before frame "+std::to_string(frame));
+        // Deterministic gradient/checker pattern with a moving square, identical for both CRFs.
+        for(int y=0;y<H;++y) for(int x=0;x<W;++x) {
+            int value=16+(x*150/W)+(((x/16+y/16)%2)*35);
+            int left=frame*35;
+            if(x>=left && x<left+220 && y>H/3 && y<H/3+220) value=230;
+            pixels[y*W+x]=static_cast<uint8_t>(value);
+        }
+        in->pts=static_cast<int64_t>(frame)*1000000/FPS;
+        auto tick=Clock::now();
+        cb.log("BEGIN encode frame="+std::to_string(frame)+" pts_us="+std::to_string(in->pts));
+        rc=x265_encoder_encode(enc.get(),&nals,&count,in.get(),out.get());
+        cb.log("END encode frame="+std::to_string(frame)+" rc="+std::to_string(rc)
+            +" nals="+std::to_string(count)+" elapsed_ms="+std::to_string(millis(tick)));
+        if(rc<0) throw std::runtime_error("encoder_encode failed frame="+std::to_string(frame));
+        if(rc>0) emit();
+    }
+    cb.log("BEGIN flush");
+    for(int tries=0;tries<FRAMES+10;++tries) {
+        if(cb.cancelled()) throw std::runtime_error("CANCELLED during flush");
+        rc=x265_encoder_encode(enc.get(),&nals,&count,nullptr,out.get());
+        cb.log("FLUSH rc="+std::to_string(rc)+" nals="+std::to_string(count));
+        if(rc<0) throw std::runtime_error("flush failed");
+        if(rc==0) break;
+        emit();
+    }
+    if(encoded!=FRAMES) throw std::runtime_error("frame count mismatch encoded="+std::to_string(encoded));
+    double duration=millis(encodingStart);
+    cb.log("SUMMARY frames="+std::to_string(encoded)+" bytes="+std::to_string(bytes)
+        +" encode_ms="+std::to_string(duration)+" fps="+std::to_string(encoded*1000.0/duration));
+    cb.log("BEGIN encoder_close");
+    enc.reset(); cb.log("OK encoder_close");
+}

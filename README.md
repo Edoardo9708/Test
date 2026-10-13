@@ -1,4 +1,20 @@
 # Test codec video — Android
+## Versione 0.3: prova software x265
+Nuovo pulsante per una prova CPU: stesso filmato sintetico I420 1920×1080, 30 fotogrammi a 30 fps, CRF 24 e 32, preset ultrafast / zerolatency.
+La libreria x265 è compilata e inclusa nell'APK ARM64: nessun download dal telefono.
+Ogni prova crea un MP4 senza audio e lo decodifica interamente per verificare 30/30 fotogrammi.
+Il log include chiamate BEGIN/END, parametri effettivi, tempi, NAL, byte, timestamp, conteggi e stack trace.
+Il log x265 è salvato incrementalmente in memoria privata e recuperato alla riapertura; Copia risultati permette di condividerlo.
+Interrompi richiede cancellazione tra chiamate: una chiamata bloccata nativa non può essere interrotta da questo pulsante.
+Esporta MP4 salva l'ultimo file disponibile tramite il selettore Android.
+Il test non misura qualità percettiva o prestazioni su riprese reali. Assembly ARM disabilitato per questa prima build diagnostica; la velocità non è il massimo ottenibile con x265 ottimizzato.
+La decodifica di verifica può usare l'hardware, mentre la codifica usa esclusivamente x265 sulla CPU.
+
+### Sorgenti e licenza
+Questa versione è distribuita sotto GNU GPL v2 o successiva, coerentemente con x265.
+La CI include COPYING di x265 negli asset e pubblica il pacchetto di sorgenti completo, con revisione x265 fissata e script di build.
+Per la build locale eseguire prima scripts/prepare-x265.sh e installare NDK 27.2.12479018 e CMake 3.22.1.
+
 Prima app di diagnosi per il futuro convertitore video. Java, API Android native, Android 10+.
 
 ## Utilizzo
@@ -12,7 +28,7 @@ Per ogni encoder HEVC/H.265 elencato da Android:
 - per ciascuna modalità supportata crea un'istanza indipendente, configura, crea la Surface, avvia, ferma e rilascia l'encoder;
 - registra OK, NON SUPPORTATO o ERRORE con fase e dettaglio.
 
-**Limiti:** non invia fotogrammi e non produce un video. OK indica che la chiamata è riuscita; non misura qualità, velocità o bitrate risultante. CQ Android è una scala specifica del codec e non equivale al CRF di x265. Il mancato supporto del profilo di prova non implica che il codec non funzioni con altri parametri.
+**Limiti del test API Android:** non invia fotogrammi e non produce un video. OK indica che la chiamata è riuscita; non misura qualità, velocità o bitrate risultante. CQ Android è una scala specifica del codec e non equivale al CRF di x265. Il mancato supporto del profilo di prova non implica che il codec non funzioni con altri parametri.
 
 ## APK
 Apri **Actions → Build APK → ultima esecuzione riuscita → Artifacts → CodecProbe-APK**.
