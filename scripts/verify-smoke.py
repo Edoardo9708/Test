@@ -5,3 +5,15 @@ for crf in (24, 32):
     stream = json.loads(Path(f"smoke-{crf}.json").read_text())["streams"][0]
     assert (stream["width"], stream["height"], int(stream["nb_read_frames"])) == (1920, 1080, 30), stream
     print(f"CRF {crf}: decoded 30/30 frames at 1920x1080")
+
+
+# Independently decode outputs of the stateful API used for real videos.
+import subprocess
+for crf in (0, 23, 51):
+    path = f"stream-{crf}.hevc"
+    subprocess.run(["ffmpeg", "-v", "error", "-xerror", "-i", path, "-f", "null", "-"], check=True)
+    result = subprocess.check_output(["ffprobe", "-v", "error", "-count_frames", "-select_streams", "v:0",
+        "-show_entries", "stream=width,height,nb_read_frames", "-of", "json", path], text=True)
+    stream = json.loads(result)["streams"][0]
+    assert (stream["width"], stream["height"], int(stream["nb_read_frames"])) == (320, 240, 12), stream
+    print(f"Streaming CRF {crf}: decoded 12/12 frames at 320x240")

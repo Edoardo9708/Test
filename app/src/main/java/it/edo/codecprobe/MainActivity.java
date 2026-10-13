@@ -1,427 +1,216 @@
 package it.edo.codecprobe;
 
 import android.app.Activity;
-import android.content.ClipData;
 import android.content.Intent;
-import android.content.ClipboardManager;
-import android.media.MediaCodec;
-import android.media.MediaCodecInfo;
-import android.media.MediaCodecList;
-import android.media.MediaFormat;
-import android.os.Build;
-import android.os.Bundle;
-import android.util.Range;
-import android.view.Surface;
-import android.view.WindowInsets;
-import android.widget.Button;
-import android.widget.LinearLayout;
-import android.widget.ScrollView;
-import android.widget.TextView;
-import android.widget.Toast;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.OutputStream;
+import android.database.Cursor;
+import android.net.Uri;
+import android.os.*;
+import android.provider.OpenableColumns;
+import android.view.*;
+import android.widget.*;
+import java.io.*;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.util.ArrayDeque;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public final class MainActivity extends Activity {
-    private static final String MIME = "video/hevc";
-    private final ExecutorService worker = Executors.newSingleThreadExecutor();
-    private TextView output;
-    private Button run;
-    private Button software;
-    private final AtomicBoolean cancelled = new AtomicBoolean();
-    private File exportFile;
-    private volatile boolean destroyed;
-    private final StringBuilder report = new StringBuilder();
-
+    private static final int PICK_VIDEO=1,PICK_FOLDER=2,SAVE_LOG=3;
+    private final ExecutorService worker=Executors.newSingleThreadExecutor();
+    private final AtomicBoolean cancelled=new AtomicBoolean();
+    private final ArrayDeque<String> recent=new ArrayDeque<>();
+    private Uri input,folder,resultUri;
+    private String sourceName="video";
+    private Button pickVideo,pickFolder,convert,stop,saveLog,openVideo;
+    private TextView videoLabel,folderLabel,qualityHelp,status,logView;
+    private Spinner quality;
+    private ProgressBar progress;
+    private volatile boolean destroyed,busy;
+    private long lastUi;
+    private String pendingLog;
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
-        LinearLayout layout = new LinearLayout(this);
-        layout.setOrientation(LinearLayout.VERTICAL);
-        int p = Math.round(16 * getResources().getDisplayMetrics().density);
-        layout.setPadding(p, p, p, p);
-        layout.setOnApplyWindowInsetsListener((v, insets) -> {
-            if (Build.VERSION.SDK_INT >= 30) {
-                android.graphics.Insets bars = insets.getInsets(WindowInsets.Type.systemBars());
-                v.setPadding(p + bars.left, p + bars.top, p + bars.right, p + bars.bottom);
-            } else {
-                v.setPadding(p + insets.getSystemWindowInsetLeft(), p + insets.getSystemWindowInsetTop(),
-                        p + insets.getSystemWindowInsetRight(), p + insets.getSystemWindowInsetBottom());
-            }
+        ScrollView scroll=new ScrollView(this);
+        LinearLayout page=new LinearLayout(this);page.setOrientation(LinearLayout.VERTICAL);
+        int pad=(int)(16*getResources().getDisplayMetrics().density);
+        page.setPadding(pad,pad,pad,pad);scroll.addView(page);
+        page.setOnApplyWindowInsetsListener((v,insets)->{
+            if(Build.VERSION.SDK_INT>=30){
+                android.graphics.Insets b=insets.getInsets(WindowInsets.Type.systemBars());
+                v.setPadding(pad+b.left,pad+b.top,pad+b.right,pad+b.bottom);
+            } else v.setPadding(pad+insets.getSystemWindowInsetLeft(),pad+insets.getSystemWindowInsetTop(),pad+insets.getSystemWindowInsetRight(),pad+insets.getSystemWindowInsetBottom());
             return insets;
         });
-        TextView title = new TextView(this);
-        title.setText("Test codec video · v0.6");
-        title.setTextSize(24);
-        layout.addView(title);
-        TextView description = new TextView(this);
-        description.setText("Test API Android oppure codifica software di un filmato sintetico Full HD.");
-        layout.addView(description);
-        run = new Button(this);
-        run.setText("Esegui test");
-        layout.addView(run);
-        software = new Button(this);
-        software.setText("Test x265 software · Full HD / CRF");
-        layout.addView(software);
-        Button cancel = new Button(this);
-        cancel.setText("Interrompi test x265");
-        layout.addView(cancel);
-        cancel.setOnClickListener(v -> {
-            cancelled.set(true);
-            Toast.makeText(this, "Interruzione alla fine della chiamata corrente", Toast.LENGTH_SHORT).show();
+        text(page,"Converti video · v0.7",24);
+        text(page,"Video HEVC (H.265) con qualità CRF. Conserva risoluzione, tempi e orientamento. Audio AAC copiato senza ricodifica.",15);
+        text(page,"Prima versione: video SDR a 8 bit, fino a 4K. Per iniziare scegli un filmato breve. Tieni aperta l’app durante la conversione.",14);
+        pickVideo=button(page,"1. Seleziona video");
+        videoLabel=text(page,"Nessun video selezionato",14);
+        pickFolder=button(page,"2. Scegli cartella di destinazione");
+        folderLabel=text(page,"Nessuna cartella selezionata",14);
+        text(page,"3. Qualità del video",18);
+        quality=new Spinner(this);
+        String[] values=new String[52];
+        for(int i=0;i<=51;i++)values[i]="CRF "+i+" · "+qualityName(i);
+        quality.setAdapter(new ArrayAdapter<>(this,android.R.layout.simple_spinner_dropdown_item,values));
+        page.addView(quality);
+        qualityHelp=text(page,"",14);
+        quality.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener(){
+            public void onNothingSelected(android.widget.AdapterView<?> parent){}
+            public void onItemSelected(android.widget.AdapterView<?> parent,View view,int position,long id){
+                qualityHelp.setText("CRF "+position+": "+qualityName(position)+".\nNumero più basso → più dettagli e file generalmente più grande.\nNumero più alto → più compressione e maggiori perdite visive.\nNon è una percentuale: qualità e dimensioni dipendono dal video."+ (position==0?"\nCRF 0 non è la modalità senza perdita.":""));
+            }
         });
-        Button export = new Button(this);
-        export.setText("Esporta MP4 di prova");
-        layout.addView(export);
-        export.setOnClickListener(v -> {
-            if (!run.isEnabled()) {
-                Toast.makeText(this, "Attendi la fine del test", Toast.LENGTH_SHORT).show();
-                return;
-            }
-            exportFile = X265Probe.outputFile(this, 32);
-            if (!exportFile.isFile()) exportFile = X265Probe.outputFile(this, 24);
-            if (!exportFile.isFile()) {
-                Toast.makeText(this, "Nessun MP4 disponibile", Toast.LENGTH_SHORT).show();
-                return;
-            }
-            Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
-            intent.addCategory(Intent.CATEGORY_OPENABLE);
-            intent.setType("video/mp4");
-            intent.putExtra(Intent.EXTRA_TITLE, exportFile.getName());
-            startActivityForResult(intent, 7);
+        quality.setSelection(state==null?23:state.getInt("crf",23));
+        convert=button(page,"Converti e salva MP4");
+        stop=button(page,"Annulla conversione");stop.setVisibility(View.GONE);
+        progress=new ProgressBar(this,null,android.R.attr.progressBarStyleHorizontal);progress.setMax(100);page.addView(progress);
+        status=text(page,"Scegli video, cartella e qualità.",15);
+        openVideo=button(page,"Apri video convertito");openVideo.setVisibility(View.GONE);
+        saveLog=button(page,"Salva log completo (.txt)");
+        text(page,"Ultimi messaggi · il TXT contiene il log completo",14);
+        logView=text(page,"",12);logView.setTextIsSelectable(true);
+        logView.setMaxLines(16);
+        setContentView(scroll);page.requestApplyInsets();
+        String savedFolder=getPreferences(0).getString("folder",null);
+        if(savedFolder!=null)folder=Uri.parse(savedFolder);
+        if(state!=null){
+            if(state.getString("input")!=null)input=Uri.parse(state.getString("input"));
+            sourceName=state.getString("sourceName","video");
+            pendingLog=state.getString("pendingLog");
+            if(state.getString("result")!=null)resultUri=Uri.parse(state.getString("result"));
+        }
+        refreshLabels();
+        if(resultUri!=null)openVideo.setVisibility(View.VISIBLE);
+        File old=VideoConverter.logFile(this);
+        if(old.isFile())worker.execute(()->{
+            try(RandomAccessFile f=new RandomAccessFile(old,"r")){
+                int size=(int)Math.min(6000,f.length());byte[] bytes=new byte[size];f.seek(f.length()-size);f.readFully(bytes);
+                String tail=new String(bytes,StandardCharsets.UTF_8);
+                runOnUiThread(()->{if(!destroyed&&!busy)logView.setText(tail);});
+            }catch(IOException ignored){}
         });
-        Button saveLog = new Button(this);
-        saveLog.setText("Salva log completo (.txt)");
-        layout.addView(saveLog);
-        saveLog.setOnClickListener(v -> {
-            if (!run.isEnabled()) {
-                Toast.makeText(this, "Attendi la fine del test per salvare il log completo", Toast.LENGTH_SHORT).show();
-                return;
-            }
-            final String snapshot = output.getText().toString();
-            // Freeze the text before opening the picker; a later test cannot replace it.
-            saveLog.setEnabled(false);
-            worker.execute(() -> {
-                try {
-                    java.nio.file.Files.write(new File(getCacheDir(), "log-export.txt").toPath(),
-                            snapshot.getBytes(StandardCharsets.UTF_8));
-                    runOnUiThread(() -> {
-                        if (destroyed) return;
-                        saveLog.setEnabled(true);
-                        Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
-                        intent.addCategory(Intent.CATEGORY_OPENABLE);
-                        intent.setType("text/plain");
-                        intent.putExtra(Intent.EXTRA_TITLE, "CodecProbe-log-"+System.currentTimeMillis()+".txt");
-                        startActivityForResult(intent, 8);
-                    });
-                } catch (Exception error) {
-                    runOnUiThread(() -> {
-                        if (destroyed) return;
-                        saveLog.setEnabled(true);
-                        Toast.makeText(this, "Errore salvataggio log: "+detail(error), Toast.LENGTH_LONG).show();
-                    });
-                }
-            });
+        pickVideo.setOnClickListener(v->{
+            Intent i=new Intent(Intent.ACTION_OPEN_DOCUMENT);i.setType("video/*");i.addCategory(Intent.CATEGORY_OPENABLE);
+            i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
+            startActivityForResult(i,PICK_VIDEO);
         });
-        Button copy = new Button(this);
-        copy.setText("Copia risultati");
-        layout.addView(copy);
-        ScrollView scroll = new ScrollView(this);
-        output = new TextView(this);
-        output.setTextSize(14);
-        output.setTextIsSelectable(true);
-        scroll.addView(output);
-        layout.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1));
-        setContentView(layout);
-        layout.requestApplyInsets();
-        output.setText("Premi Esegui test per iniziare.");
-        File previous = X265Probe.logFile(this);
-        if (previous.isFile()) {
-            try {
-                output.setText("Ultimo log x265 salvato:\n"
-                        + new String(java.nio.file.Files.readAllBytes(previous.toPath()), StandardCharsets.UTF_8));
-            } catch (Exception error) { output.setText("Errore recupero log: " + detail(error)); }
-        }
-        software.setOnClickListener(v -> {
-            run.setEnabled(false);
-            software.setEnabled(false);
-            cancelled.set(false);
-            report.setLength(0);
-            output.setText("Test x265 in corso…");
-            worker.execute(() -> {
-                try { X265Probe.run(getApplicationContext(), cancelled, this::line); }
-                finally {
-                    runOnUiThread(() -> {
-                        if (!destroyed) { run.setEnabled(true); software.setEnabled(true); }
-                    });
-                }
-            });
+        pickFolder.setOnClickListener(v->{
+            Intent i=new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
+            i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_WRITE_URI_PERMISSION|Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
+            startActivityForResult(i,PICK_FOLDER);
         });
-        copy.setOnClickListener(v -> {
-            ClipboardManager clipboard = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
-            clipboard.setPrimaryClip(ClipData.newPlainText("Test codec", output.getText()));
-            Toast.makeText(this, "Risultati copiati", Toast.LENGTH_SHORT).show();
+        convert.setOnClickListener(v->startConversion());
+        stop.setOnClickListener(v->{cancelled.set(true);stop.setEnabled(false);status.setText("Annullamento alla fine della chiamata corrente...");});
+        openVideo.setOnClickListener(v->{
+            if(resultUri==null)return;
+            try{startActivity(new Intent(Intent.ACTION_VIEW).setDataAndType(resultUri,"video/mp4").addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION));}
+            catch(Exception e){toast("Nessun lettore video disponibile");}
         });
-        run.setOnClickListener(v -> {
-            run.setEnabled(false);
-            software.setEnabled(false);
-            report.setLength(0);
-            output.setText("Test in corso…");
-            worker.execute(() -> {
-                try { testAll(); }
-                catch (Exception e) { line("ERRORE generale: " + detail(e)); }
-                finally {
-                    line("\nTest terminato. OK = chiamata riuscita, non conversione verificata.");
-                    runOnUiThread(() -> { if (!destroyed) { run.setEnabled(true); software.setEnabled(true); } });
-                }
-            });
-        });
+        saveLog.setOnClickListener(v->exportLog());
     }
-
-    private void line(String text) {
-        report.append(text).append('\n');
-        String snapshot = report.toString();
-        runOnUiThread(() -> { if (!destroyed) output.setText(snapshot); });
+    private static String qualityName(int crf){
+        if(crf==0)return "Qualità massima CRF, non senza perdita";
+        if(crf<=17)return "Qualità molto alta · file più grandi";
+        if(crf<=22)return "Qualità alta";
+        if(crf<=27)return "Compromesso qualità / dimensioni";
+        if(crf<=32)return "Più compressione · dettagli ridotti";
+        if(crf<=40)return "Qualità bassa · perdite evidenti";
+        return "Compressione molto forte · qualità molto bassa";
     }
-
-    private void testAll() {
-        line("\n*** INIZIO TEST API ANDROID ***");
-        line("STEP 1: elenco encoder HEVC\n• STEP 2: leggo limiti e scelgo un profilo\n• STEP 3: provo le modalità compatibili.");
-        line("LEGENDA: supporto dichiarato = capacità riportate da Android\n• OK = chiamata terminata senza errori. Questo test non invia fotogrammi.");
-        line(Build.MANUFACTURER + " " + Build.MODEL + " · Android " + Build.VERSION.RELEASE
-                + " · API " + Build.VERSION.SDK_INT);
-        line("Versione 0.6 · profilo preferito: 1280×720 a 30 fps. Fallback dai limiti dichiarati.");
-        line("Input Surface, 4 Mbit/s nelle modalità bitrate (adattato al range).");
-        int found = 0;
-        for (MediaCodecInfo info : new MediaCodecList(MediaCodecList.REGULAR_CODECS).getCodecInfos()) {
-            if (!info.isEncoder() || info.isAlias()) continue;
-            boolean hevc = false;
-            for (String type : info.getSupportedTypes()) if (MIME.equalsIgnoreCase(type)) hevc = true;
-            if (!hevc) continue;
-            found++;
-            line("\n*** STEP 2 · ANALISI ENCODER ***\nEncoder: " + info.getName() + " · hardware=" + info.isHardwareAccelerated()
-                    + " · software=" + info.isSoftwareOnly());
-            try { testEncoder(info); }
-            catch (Exception e) { line("ERRORE lettura capacità: " + detail(e)); }
-            if (destroyed) return;
-        }
-        if (found == 0) line("NON SUPPORTATO: nessun encoder H.265 disponibile.");
-        else line("\nEncoder H.265 trovati: " + found);
+    private TextView text(LinearLayout p,String s,int size){TextView t=new TextView(this);t.setText(s);t.setTextSize(size);p.addView(t);return t;}
+    private Button button(LinearLayout p,String s){Button b=new Button(this);b.setText(s);p.addView(b);return b;}
+    private void toast(String s){Toast.makeText(this,s,Toast.LENGTH_LONG).show();}
+    private void refreshLabels(){
+        videoLabel.setText(input==null?"Nessun video selezionato":sourceName);
+        folderLabel.setText(folder==null?"Nessuna cartella selezionata":Uri.decode(folder.getLastPathSegment()));
     }
-
-    private void testEncoder(MediaCodecInfo info) {
-        MediaCodecInfo.CodecCapabilities caps = info.getCapabilitiesForType(MIME);
-        boolean surface = false;
-        for (int color : caps.colorFormats)
-            if (color == MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface) surface = true;
-        MediaCodecInfo.VideoCapabilities video = caps.getVideoCapabilities();
-        boolean size = video.areSizeAndRateSupported(1280, 720, 30);
-        line((surface && size ? "OK" : "NON SUPPORTATO") + ": profilo di prova (Surface="
-                + surface + ", 720p30=" + size + ")");
-        line("Limiti dichiarati: larghezza=" + video.getSupportedWidths()
-                + ", altezza=" + video.getSupportedHeights()
-                + ", fps globali=" + video.getSupportedFrameRates());
-        line("Allineamento: larghezza=" + video.getWidthAlignment()
-                + ", altezza=" + video.getHeightAlignment()
-                + " · bitrate=" + video.getBitrateRange());
-        Profile selected = selectProfile(video);
-        if (selected != null) {
-            line("Profilo scelto: " + selected.width + "×" + selected.height
-                    + " a " + selected.fps + " fps"
-                    + (size ? " · preferito" : " · fallback"));
-        } else {
-            line("NON SUPPORTATO: nessuna combinazione trovata nella ricerca limitata; nessuna prova reale.");
-        }
-        MediaCodecInfo.EncoderCapabilities enc = caps.getEncoderCapabilities();
-        if (enc.isBitrateModeSupported(MediaCodecInfo.EncoderCapabilities.BITRATE_MODE_CQ))
-            line("CQ: range qualità dichiarato=" + enc.getQualityRange());
-        int[] modes = {MediaCodecInfo.EncoderCapabilities.BITRATE_MODE_VBR,
-                MediaCodecInfo.EncoderCapabilities.BITRATE_MODE_CBR,
-                MediaCodecInfo.EncoderCapabilities.BITRATE_MODE_CQ};
-        String[] names = {"VBR · bitrate variabile", "CBR · bitrate costante", "CQ · qualità costante"};
-        for (int i = 0; i < modes.length; i++) {
-            int mode = modes[i];
-            String name = names[i];
-            boolean supported = enc.isBitrateModeSupported(mode);
-            line((supported ? "OK" : "NON SUPPORTATO") + ": supporto dichiarato " + name);
-            if (!supported || !surface || selected == null) continue;
-            MediaFormat format = MediaFormat.createVideoFormat(MIME, selected.width, selected.height);
-            format.setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface);
-            format.setFloat(MediaFormat.KEY_FRAME_RATE, selected.fps);
-            format.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 1);
-            format.setInteger(MediaFormat.KEY_BITRATE_MODE, mode);
-            if (mode == MediaCodecInfo.EncoderCapabilities.BITRATE_MODE_CQ) {
-                Range<Integer> quality = enc.getQualityRange();
-                int value = (int) (quality.getLower() + ((long) quality.getUpper() - quality.getLower()) / 2);
-                format.setInteger(MediaFormat.KEY_QUALITY, value);
-                line("CQ: range=" + quality + ", qualità richiesta=" + value);
-            } else {
-                int bitrate = caps.getVideoCapabilities().getBitrateRange().clamp(4_000_000);
-                format.setInteger(MediaFormat.KEY_BIT_RATE, bitrate);
-                line("Bitrate richiesto=" + bitrate + " bit/s");
-            }
-            line("Supporto del formato completo dichiarato=" + caps.isFormatSupported(format));
-            probe(info.getName(), name, format);
-            if (destroyed) return;
-        }
+    private void setBusy(boolean value){
+        busy=value;pickVideo.setEnabled(!value);pickFolder.setEnabled(!value);quality.setEnabled(!value);
+        convert.setEnabled(!value);saveLog.setEnabled(!value);stop.setVisibility(value?View.VISIBLE:View.GONE);stop.setEnabled(value);
+        if(value)getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        else getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
     }
-
-    private static final class Profile {
-        final int width, height;
-        final float fps;
-        Profile(int width, int height, float fps) {
-            this.width = width;
-            this.height = height;
-            this.fps = fps;
-        }
-    }
-
-    private Profile selectProfile(MediaCodecInfo.VideoCapabilities video) {
-        Profile selected = null;
-        int[][] sizes = {{1280, 720}, {1920, 1080}, {640, 480}, {640, 360},
-                {320, 240}, {256, 256}, {176, 144}};
-        // Report all candidates, even after a compatible one is found.
-        for (int[] candidate : sizes) {
-            int w = candidate[0], h = candidate[1];
-            if (!video.isSizeSupported(w, h)) {
-                line("Dimensioni " + w + "×" + h + ": NON SUPPORTATO");
-                continue;
-            }
-            Range<Double> rates = video.getSupportedFrameRatesFor(w, h);
-            line("Dimensioni " + w + "×" + h + ": OK · fps=" + rates);
-            Profile profile = compatibleProfile(video, w, h, rates);
-            if (selected == null && profile != null) selected = profile;
-        }
-        if (selected != null) return selected;
-        // Search aligned dimensions inside the published ranges, bounded to 1920×1080.
-        Range<Integer> widths = video.getSupportedWidths();
-        int alignW = video.getWidthAlignment();
-        int alignH = video.getHeightAlignment();
-        int firstW = alignUp(widths.getLower(), alignW);
-        int lastW = Math.min(widths.getUpper(), 1920);
-        for (int w = firstW; w <= lastW; w += alignW) {
-            if (destroyed) return null;
-            Range<Integer> heights;
-            try { heights = video.getSupportedHeightsFor(w); }
-            catch (IllegalArgumentException e) { continue; }
-            int firstH = alignUp(heights.getLower(), alignH);
-            int lastH = Math.min(heights.getUpper(), 1080);
-            // Check a small set of valid heights for each width, no unbounded probing.
-            int[] candidates = {firstH, (lastH / alignH) * alignH,
-                    (heights.clamp(720) / alignH) * alignH};
-            for (int h : candidates) {
-                if (h < firstH || h > lastH || !video.isSizeSupported(w, h)) continue;
-                Profile profile = compatibleProfile(video, w, h,
-                        video.getSupportedFrameRatesFor(w, h));
-                if (profile != null) return profile;
-            }
-        }
-        return null;
-    }
-
-    private static int alignUp(int value, int alignment) {
-        return (int) (((long) value + alignment - 1) / alignment * alignment);
-    }
-
-    private static Profile compatibleProfile(MediaCodecInfo.VideoCapabilities video,
-            int width, int height, Range<Double> rates) {
-        // Positive rates only; global ranges alone do not validate a specific size.
-        double low = Math.max(1.0, rates.getLower());
-        double high = Math.min(60.0, rates.getUpper());
-        if (low > high) return null;
-        float fps = (float) Math.max(low, Math.min(30.0, high));
-        if (!rates.contains((double) fps) || !video.areSizeAndRateSupported(width, height, fps))
-            return null;
-        return new Profile(width, height, fps);
-    }
-
-    private void probe(String codecName, String modeName, MediaFormat format) {
-        MediaCodec codec = null;
-        Surface surface = null;
-        boolean started = false;
-        String phase = "createByCodecName";
-        line("\n*** STEP 3 · PROVA API: " + modeName + " ***");
-        line("Creo encoder\n• applico formato\n• preparo superficie di ingresso\n• avvio\n• arresto\n• libero risorse.");
-        try {
-            line("INIZIO: " + phase + " · creo l'encoder");
-            codec = MediaCodec.createByCodecName(codecName);
-            line("OK: " + phase);
-            phase = "configure";
-            line("INIZIO: " + phase + " · applico il formato");
-            codec.configure(format, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE);
-            line("OK: " + phase);
-            phase = "createInputSurface";
-            line("INIZIO: " + phase + " · preparo ingresso fotogrammi");
-            surface = codec.createInputSurface();
-            line("OK: " + phase);
-            phase = "start";
-            line("INIZIO: " + phase + " · avvio encoder");
-            codec.start();
-            started = true;
-            line("OK: " + phase);
-            phase = "stop";
-            line("INIZIO: " + phase + " · arresto encoder");
-            codec.stop();
-            started = false;
-            line("OK: " + phase);
-        } catch (Exception e) {
-            line("ERRORE: " + phase + " · " + detail(e));
-        } finally {
-            if (codec != null) {
-                if (started) {
-                    try { codec.stop(); }
-                    catch (Exception e) { line("ERRORE: stop di pulizia · " + detail(e)); }
-                }
-                try { codec.release(); line("OK: release encoder"); }
-                catch (Exception e) { line("ERRORE: release · " + detail(e)); }
-            }
-            if (surface != null) {
-                try { surface.release(); }
-                catch (Exception e) { line("ERRORE: release Surface · " + detail(e)); }
-            }
-        }
-    }
-
-    private static String detail(Exception e) {
-        String text = e.getClass().getSimpleName() + ": " + String.valueOf(e.getMessage());
-        if (e instanceof MediaCodec.CodecException) {
-            MediaCodec.CodecException ce = (MediaCodec.CodecException) e;
-            text += " · " + ce.getDiagnosticInfo() + " · recuperabile=" + ce.isRecoverable()
-                    + " · temporaneo=" + ce.isTransient();
-        }
-        return text;
-    }
-
-    @Override protected void onDestroy() {
-        destroyed = true;
-        cancelled.set(true);
-        worker.shutdown();
-        super.onDestroy();
-    }
-
-    @Override protected void onActivityResult(int request, int result, Intent data) {
-        super.onActivityResult(request, result, data);
-        if ((request != 7 && request != 8) || result != RESULT_OK || data == null || data.getData() == null) return;
-        final File source = request == 8 ? new File(getCacheDir(), "log-export.txt") : exportFile;
-        if (source == null) return;
-        worker.execute(() -> {
-            try (FileInputStream input = new FileInputStream(source);
-                 OutputStream target = getContentResolver().openOutputStream(data.getData())) {
-                if (target == null) throw new IllegalStateException("Destinazione non disponibile");
-                byte[] bytes = new byte[8192];
-                int count;
-                while ((count = input.read(bytes)) != -1) target.write(bytes, 0, count);
-                runOnUiThread(() -> {
-                    if (!destroyed) Toast.makeText(this, request == 8 ? "Log TXT salvato" : "MP4 esportato", Toast.LENGTH_SHORT).show();
+    private void startConversion(){
+        if(input==null||folder==null){toast("Seleziona il video e la cartella di destinazione");return;}
+        final Uri source=input,dest=folder;final String name=sourceName;final int crf=quality.getSelectedItemPosition();
+        cancelled.set(false);recent.clear();lastUi=0;logView.setText("");progress.setProgress(0);resultUri=null;openVideo.setVisibility(View.GONE);
+        setBusy(true);status.setText("Analisi video...");
+        worker.execute(()->{
+            try{
+                VideoConverter converter=new VideoConverter(getApplicationContext(),cancelled,new VideoConverter.Listener(){
+                    public void log(String s){
+                        recent.addLast(s);while(recent.size()>14)recent.removeFirst();
+                        long now=SystemClock.elapsedRealtime();
+                        if(now-lastUi>250||s.contains("***")||s.contains("SESSION END")){
+                            lastUi=now;String snapshot=String.join("\n",recent);
+                            runOnUiThread(()->{if(!destroyed)logView.setText(snapshot);});
+                        }
+                    }
+                    public void progress(int percent,String s){runOnUiThread(()->{if(!destroyed&&!cancelled.get()){progress.setProgress(percent);status.setText(s);}});}
                 });
-            } catch (Exception error) {
-                runOnUiThread(() -> {
-                    if (!destroyed) Toast.makeText(this, "Errore esportazione: " + detail(error), Toast.LENGTH_LONG).show();
-                });
-            }
+                Uri result=converter.convert(source,dest,crf,name);
+                runOnUiThread(()->{if(!destroyed){resultUri=result;openVideo.setVisibility(View.VISIBLE);}});
+            }catch(Exception e){
+                runOnUiThread(()->{if(!destroyed)status.setText(cancelled.get()?"Conversione annullata.":"Conversione fallita: "+e.getMessage()+"\nSalva il log per i dettagli.");});
+            }finally{runOnUiThread(()->{if(!destroyed)setBusy(false);});}
         });
     }
+    private void exportLog(){
+        File source=VideoConverter.logFile(this);
+        if(!source.isFile()){toast("Nessun log di conversione disponibile");return;}
+        saveLog.setEnabled(false);
+        worker.execute(()->{
+            try{
+                File snapshot=File.createTempFile("log-export-",".txt",getCacheDir());
+                try(InputStream in=new FileInputStream(source);OutputStream out=new FileOutputStream(snapshot)){copy(in,out);}
+                runOnUiThread(()->{
+                    if(destroyed)return;
+                    pendingLog=snapshot.getAbsolutePath();saveLog.setEnabled(true);
+                    Intent i=new Intent(Intent.ACTION_CREATE_DOCUMENT).setType("text/plain").addCategory(Intent.CATEGORY_OPENABLE);
+                    i.putExtra(Intent.EXTRA_TITLE,"CodecProbe-log-"+System.currentTimeMillis()+".txt");startActivityForResult(i,SAVE_LOG);
+                });
+            }catch(Exception e){runOnUiThread(()->{if(!destroyed){saveLog.setEnabled(true);toast("Errore: "+e.getMessage());}});}
+        });
+    }
+    private static void copy(InputStream in,OutputStream out)throws IOException{byte[] b=new byte[65536];int n;while((n=in.read(b))!=-1)out.write(b,0,n);}
+    @Override protected void onActivityResult(int request,int code,Intent data){
+        super.onActivityResult(request,code,data);
+        if(code!=RESULT_OK||data==null||data.getData()==null){
+            if(request==SAVE_LOG&&pendingLog!=null){new File(pendingLog).delete();pendingLog=null;}return;
+        }
+        Uri uri=data.getData();
+        if(request==PICK_VIDEO||request==PICK_FOLDER){
+            int flags=data.getFlags()&(Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+            boolean persisted=false;
+            try{getContentResolver().takePersistableUriPermission(uri,flags);persisted=true;}catch(SecurityException ignored){}
+            if(request==PICK_VIDEO){
+                input=uri;sourceName="video";
+                try(Cursor c=getContentResolver().query(uri,new String[]{OpenableColumns.DISPLAY_NAME},null,null,null)){
+                    if(c!=null&&c.moveToFirst()&&!c.isNull(0))sourceName=c.getString(0);
+                }catch(Exception ignored){}
+            }else{
+                folder=uri;
+                if(persisted)getPreferences(0).edit().putString("folder",uri.toString()).apply();
+            }
+            refreshLabels();
+        }else if(request==SAVE_LOG&&pendingLog!=null){
+            final File snapshot=new File(pendingLog);pendingLog=null;
+            worker.execute(()->{
+                try(InputStream in=new FileInputStream(snapshot);OutputStream out=getContentResolver().openOutputStream(uri,"w")){
+                    if(out==null)throw new IOException("Destinazione non disponibile");copy(in,out);
+                    runOnUiThread(()->{if(!destroyed)toast("Log TXT salvato");});
+                }catch(Exception e){runOnUiThread(()->{if(!destroyed)toast("Errore esportazione log: "+e.getMessage());});}
+                finally{snapshot.delete();}
+            });
+        }
+    }
+    @Override protected void onSaveInstanceState(Bundle b){
+        super.onSaveInstanceState(b);
+        if(input!=null)b.putString("input",input.toString());
+        if(resultUri!=null)b.putString("result",resultUri.toString());
+        b.putString("sourceName",sourceName);b.putString("pendingLog",pendingLog);b.putInt("crf",quality.getSelectedItemPosition());
+    }
+    @Override protected void onDestroy(){destroyed=true;cancelled.set(true);worker.shutdown();super.onDestroy();}
 }
