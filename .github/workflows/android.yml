@@ -28,6 +28,8 @@ jobs:
         run: bash scripts/prepare-x265.sh
       - name: Build and run native software smoke test
         run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends ffmpeg
           cmake -S app/src/main/cpp -B native-smoke -DCMAKE_BUILD_TYPE=Release
           cmake --build native-smoke -j2
           native-smoke/x265probe_smoke > native-smoke.log 2>&1
