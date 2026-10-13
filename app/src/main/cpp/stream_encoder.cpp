@@ -26,11 +26,13 @@ StreamEncoder::StreamEncoder(const StreamConfig& c,ProbeCallbacks& cb):state(new
        int64_t(c.width)*c.height>3840LL*2160 || c.width%2 || c.height%2 ||
        c.fpsMilli<1000 || c.fpsMilli>240000 || c.crf<0 || c.crf>51)
         throw std::runtime_error("Formato o CRF fuori dai limiti supportati");
+    const char* presets[]={"ultrafast","superfast","veryfast","faster","fast","medium","slow","slower","veryslow"};
+    if(c.preset<0 || c.preset>8) throw std::runtime_error("Preset non valido");
     auto& s=*state;
     s.width=c.width; s.height=c.height;
-    cb.log("BEGIN x265_param_alloc / preset ultrafast");
+    cb.log(std::string("BEGIN x265_param_alloc / preset ")+presets[c.preset]+" / zerolatency (senza B-frame)");
     s.p=x265_param_alloc();
-    if(!s.p || x265_param_default_preset(s.p,"ultrafast","zerolatency")<0)
+    if(!s.p || x265_param_default_preset(s.p,presets[c.preset],"zerolatency")<0)
         throw std::runtime_error("Configurazione x265 fallita");
     auto p=s.p;
     p->sourceWidth=c.width; p->sourceHeight=c.height;

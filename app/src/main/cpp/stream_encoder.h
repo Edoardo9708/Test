@@ -3,6 +3,7 @@
 #include <memory>
 struct StreamConfig {
     int width, height, fpsMilli, crf, standard, transfer, range;
+    int preset=0;
 };
 class StreamEncoder {
 public:

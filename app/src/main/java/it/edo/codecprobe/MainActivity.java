@@ -2,6 +2,17 @@ package it.edo.codecprobe;
 
 import android.app.Activity;
 import android.content.Intent;
+import android.content.IntentFilter;
+import android.content.res.ColorStateList;
+import android.content.res.Configuration;
+import android.graphics.Color;
+import android.graphics.Typeface;
+import android.graphics.drawable.GradientDrawable;
+import android.graphics.drawable.RippleDrawable;
+import android.text.InputType;
+import android.text.TextWatcher;
+import android.text.Editable;
+import java.util.Locale;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.*;
@@ -24,15 +35,45 @@ public final class MainActivity extends Activity {
     private String sourceName="video";
     private Button pickVideo,pickFolder,convert,stop,saveLog,openVideo;
     private TextView videoLabel,folderLabel,qualityHelp,status,logView;
-    private Spinner quality;
+    private Spinner quality,mode;
+    private EditText customCrf;
+    private TextView timeline,telemetry,percentLabel;
+    private int bg,surface,ink,muted,accent,border;
+    
+    private final Handler monitor=new Handler(Looper.getMainLooper());
+    private long previousCpu,previousWall;
+    private final Runnable sample=new Runnable(){public void run(){
+        if(destroyed)return;
+        long now=SystemClock.elapsedRealtime(),cpu=android.os.Process.getElapsedCpuTime();
+        int cores=Runtime.getRuntime().availableProcessors();
+        String usage=previousWall==0?"…":String.format(Locale.ITALY,"%.1f%%",Math.min(100,Math.max(0,100.0*(cpu-previousCpu)/Math.max(1,now-previousWall)/cores)));
+        previousCpu=cpu;previousWall=now;
+        String temp="non disponibile",thermal="non disponibile";
+        try {
+            Intent battery=registerReceiver(null,new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
+            if(battery!=null&&battery.hasExtra(BatteryManager.EXTRA_TEMPERATURE))temp=String.format(Locale.ITALY,"%.1f °C",battery.getIntExtra(BatteryManager.EXTRA_TEMPERATURE,0)/10.0);
+            PowerManager pm=(PowerManager)getSystemService(POWER_SERVICE);
+            String[] levels={"regolare","lieve","moderato","elevato","critico","emergenza","spegnimento"};
+            int level=pm.getCurrentThermalStatus();if(level>=0&&level<levels.length)thermal=levels[level];
+        }catch(RuntimeException ignored){}
+        telemetry.setText("CPU APP   "+usage+"     •     BATTERIA   "+temp+"\nStato termico: "+thermal);
+        monitor.postDelayed(this,1000);
+    }};
     private ProgressBar progress;
     private volatile boolean destroyed,busy;
     private long lastUi;
     private String pendingLog;
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
+        boolean dark=(getResources().getConfiguration().uiMode&Configuration.UI_MODE_NIGHT_MASK)==Configuration.UI_MODE_NIGHT_YES;
+        bg=Color.parseColor(dark?"#10151D":"#F2F5FA");surface=Color.parseColor(dark?"#1B2330":"#FFFFFF");
+        ink=Color.parseColor(dark?"#EDF3FC":"#172236");muted=Color.parseColor(dark?"#A7B6CA":"#53647A");
+        accent=Color.parseColor(dark?"#99C1FF":"#215CBD");border=Color.parseColor(dark?"#34445B":"#D7E1EF");
+        getWindow().setStatusBarColor(bg);getWindow().setNavigationBarColor(bg);
+        if(Build.VERSION.SDK_INT>=30)getWindow().getInsetsController().setSystemBarsAppearance(dark?0:WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS|WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS,WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS|WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS);
+        else getWindow().getDecorView().setSystemUiVisibility(dark?0:View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR|View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR);
         ScrollView scroll=new ScrollView(this);
-        LinearLayout page=new LinearLayout(this);page.setOrientation(LinearLayout.VERTICAL);
+        LinearLayout page=new LinearLayout(this);page.setOrientation(LinearLayout.VERTICAL);page.setBackgroundColor(bg);scroll.setBackgroundColor(bg);
         int pad=(int)(16*getResources().getDisplayMetrics().density);
         page.setPadding(pad,pad,pad,pad);scroll.addView(page);
         page.setOnApplyWindowInsetsListener((v,insets)->{
@@ -42,36 +83,49 @@ public final class MainActivity extends Activity {
             } else v.setPadding(pad+insets.getSystemWindowInsetLeft(),pad+insets.getSystemWindowInsetTop(),pad+insets.getSystemWindowInsetRight(),pad+insets.getSystemWindowInsetBottom());
             return insets;
         });
-        text(page,"Converti video · v0.7",24);
-        text(page,"Video HEVC (H.265) con qualità CRF. Conserva risoluzione, tempi e orientamento. Audio AAC copiato senza ricodifica.",15);
-        text(page,"Prima versione: video SDR a 8 bit, fino a 4K. Per iniziare scegli un filmato breve. Tieni aperta l’app durante la conversione.",14);
-        pickVideo=button(page,"1. Seleziona video");
-        videoLabel=text(page,"Nessun video selezionato",14);
-        pickFolder=button(page,"2. Scegli cartella di destinazione");
-        folderLabel=text(page,"Nessuna cartella selezionata",14);
-        text(page,"3. Qualità del video",18);
-        quality=new Spinner(this);
-        String[] values=new String[52];
-        for(int i=0;i<=51;i++)values[i]="CRF "+i+" · "+qualityName(i);
-        quality.setAdapter(new ArrayAdapter<>(this,android.R.layout.simple_spinner_dropdown_item,values));
-        page.addView(quality);
-        qualityHelp=text(page,"",14);
-        quality.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener(){
-            public void onNothingSelected(android.widget.AdapterView<?> parent){}
-            public void onItemSelected(android.widget.AdapterView<?> parent,View view,int position,long id){
-                qualityHelp.setText("CRF "+position+": "+qualityName(position)+".\nNumero più basso → più dettagli e file generalmente più grande.\nNumero più alto → più compressione e maggiori perdite visive.\nNon è una percentuale: qualità e dimensioni dipendono dal video."+ (position==0?"\nCRF 0 non è la modalità senza perdita.":""));
+        TextView title=text(page,"Converti video",30);title.setTypeface(null,Typeface.BOLD);
+        text(page,"HEVC / x265   •   v0.8",13);
+        text(page,"Meno spazio, qualità sotto controllo.",16);
+        LinearLayout files=card(page,"01  FILE E DESTINAZIONE");
+        pickVideo=button(files,"Seleziona video");videoLabel=text(files,"Nessun video selezionato",14);
+        pickFolder=button(files,"Scegli cartella");folderLabel=text(files,"Nessuna cartella selezionata",14);
+        LinearLayout settings=card(page,"02  COMPRESSIONE");
+        text(settings,"Modalità · velocità dell’encoder",17);
+        mode=spinner(settings,new String[]{"Ultraveloce · ultrafast","Superveloce · superfast","Molto veloce · veryfast","Più veloce · faster","Veloce · fast","Media · medium","Lenta · slow","Più lenta · slower","Molto lenta · veryslow"});
+        mode.setSelection(state==null?6:state.getInt("mode",6));
+        text(settings,"Più lenta: cerca una compressione più efficiente, ma richiede più tempo. Modalità senza B-frame in questa versione.",13);
+        text(settings,"Qualità del video",17);
+        quality=spinner(settings,new String[]{"Alta qualità · CRF 18","Bilanciata · CRF 23","Risparmio spazio · CRF 28","Personalizzata · scrivi CRF 0–51"});
+        customCrf=new EditText(this);customCrf.setSingleLine(true);customCrf.setInputType(InputType.TYPE_CLASS_NUMBER);
+        customCrf.setTextColor(ink);customCrf.setHintTextColor(muted);customCrf.setTextSize(18);customCrf.setHint("Valore CRF da 0 a 51");
+        customCrf.setBackgroundTintList(ColorStateList.valueOf(accent));settings.addView(customCrf);
+        customCrf.setText(state==null?"23":state.getString("manual","23"));
+        qualityHelp=text(settings,"",13);
+        quality.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener(){
+            public void onNothingSelected(AdapterView<?> p){}
+            public void onItemSelected(AdapterView<?> p,View v,int position,long id){
+                customCrf.setVisibility(position==3?View.VISIBLE:View.GONE);updateQualityHelp();
             }
         });
-        quality.setSelection(state==null?23:state.getInt("crf",23));
-        convert=button(page,"Converti e salva MP4");
-        stop=button(page,"Annulla conversione");stop.setVisibility(View.GONE);
-        progress=new ProgressBar(this,null,android.R.attr.progressBarStyleHorizontal);progress.setMax(100);page.addView(progress);
-        status=text(page,"Scegli video, cartella e qualità.",15);
-        openVideo=button(page,"Apri video convertito");openVideo.setVisibility(View.GONE);
-        saveLog=button(page,"Salva log completo (.txt)");
-        text(page,"Ultimi messaggi · il TXT contiene il log completo",14);
-        logView=text(page,"",12);logView.setTextIsSelectable(true);
-        logView.setMaxLines(16);
+        quality.setSelection(state==null?1:state.getInt("quality",1));
+        customCrf.addTextChangedListener(new TextWatcher(){public void beforeTextChanged(CharSequence s,int a,int c,int f){} public void onTextChanged(CharSequence s,int a,int b,int c){updateQualityHelp();}public void afterTextChanged(Editable e){}});
+        LinearLayout work=card(page,"03  CONVERSIONE");
+        convert=button(work,"Converti e salva MP4");styleButton(convert,true);
+        stop=button(work,"Annulla conversione");stop.setVisibility(View.GONE);
+        percentLabel=text(work,"0%",28);percentLabel.setTypeface(null,Typeface.BOLD);
+        progress=new ProgressBar(this,null,android.R.attr.progressBarStyleHorizontal);progress.setMax(100);
+        progress.setProgressTintList(ColorStateList.valueOf(accent));progress.setProgressBackgroundTintList(ColorStateList.valueOf(border));
+        LinearLayout.LayoutParams bar=new LinearLayout.LayoutParams(-1,dp(12));bar.setMargins(0,dp(8),0,dp(12));work.addView(progress,bar);
+        timeline=text(work,"Video convertito: — s\nVideo rimanente: — s",16);
+        status=text(work,"Scegli video, cartella e qualità.",14);
+        telemetry=text(work,"CPU APP   …     •     BATTERIA   …",14);
+        text(work,"CPU dell’app: 100% = tutti i core disponibili occupati. Temperatura della batteria, non del processore.",12);
+        text(work,"Video SDR a 8 bit, audio AAC o assente. Tieni aperta l’app durante la conversione.",13);
+        openVideo=button(work,"Apri video convertito");openVideo.setVisibility(View.GONE);
+        LinearLayout logs=card(page,"DIAGNOSTICA");saveLog=button(logs,"Esporta log completo · TXT");
+        Button toggle=button(logs,"Mostra ultimi messaggi");
+        logView=text(logs,"",12);logView.setTypeface(Typeface.MONOSPACE);logView.setTextIsSelectable(true);logView.setMaxLines(16);logView.setVisibility(View.GONE);
+        toggle.setOnClickListener(v->{boolean show=logView.getVisibility()!=View.VISIBLE;logView.setVisibility(show?View.VISIBLE:View.GONE);toggle.setText(show?"Nascondi ultimi messaggi":"Mostra ultimi messaggi");});
         setContentView(scroll);page.requestApplyInsets();
         String savedFolder=getPreferences(0).getString("folder",null);
         if(savedFolder!=null)folder=Uri.parse(savedFolder);
@@ -119,24 +173,48 @@ public final class MainActivity extends Activity {
         if(crf<=40)return "Qualità bassa · perdite evidenti";
         return "Compressione molto forte · qualità molto bassa";
     }
-    private TextView text(LinearLayout p,String s,int size){TextView t=new TextView(this);t.setText(s);t.setTextSize(size);p.addView(t);return t;}
-    private Button button(LinearLayout p,String s){Button b=new Button(this);b.setText(s);p.addView(b);return b;}
+    private int dp(int n){return Math.round(n*getResources().getDisplayMetrics().density);}
+    private GradientDrawable shape(int color,int radius){GradientDrawable d=new GradientDrawable();d.setColor(color);d.setCornerRadius(dp(radius));d.setStroke(dp(1),border);return d;}
+    private LinearLayout card(LinearLayout page,String title){
+        LinearLayout c=new LinearLayout(this);c.setOrientation(LinearLayout.VERTICAL);c.setPadding(dp(18),dp(16),dp(18),dp(18));c.setBackground(shape(surface,22));
+        LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);lp.setMargins(0,dp(16),0,0);page.addView(c,lp);
+        TextView t=text(c,title,12);t.setTextColor(accent);t.setTypeface(null,Typeface.BOLD);return c;
+    }
+    private TextView text(LinearLayout p,String s,int size){TextView t=new TextView(this);t.setText(s);t.setTextColor(size>=16?ink:muted);t.setTextSize(size);t.setPadding(0,dp(6),0,dp(6));p.addView(t);return t;}
+    private void styleButton(Button b,boolean primary){
+        int fill=primary?accent:surface;int fg=primary?bg:accent;
+        b.setAllCaps(false);b.setTextSize(16);b.setTypeface(null,Typeface.BOLD);b.setMinHeight(dp(52));b.setPadding(dp(16),dp(10),dp(16),dp(10));
+        b.setTextColor(new ColorStateList(new int[][]{new int[]{-android.R.attr.state_enabled},new int[]{}},new int[]{muted,fg}));
+        b.setBackgroundTintList(null);b.setBackground(new RippleDrawable(ColorStateList.valueOf(border),shape(fill,14),null));
+    }
+    private Button button(LinearLayout p,String s){Button b=new Button(this);b.setText(s);styleButton(b,false);LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);lp.setMargins(0,dp(8),0,dp(4));p.addView(b,lp);return b;}
+    private Spinner spinner(LinearLayout p,String[] entries){
+        Spinner v=new Spinner(this);ArrayAdapter<String> adapter=new ArrayAdapter<String>(this,android.R.layout.simple_spinner_item,entries){
+            private View color(View row){TextView t=(TextView)row;t.setTextColor(ink);t.setTextSize(16);t.setPadding(dp(12),dp(16),dp(12),dp(16));t.setBackgroundColor(surface);return row;}
+            @Override public View getView(int position,View convertView,ViewGroup parent){return color(super.getView(position,convertView,parent));}
+            @Override public View getDropDownView(int position,View convertView,ViewGroup parent){return color(super.getDropDownView(position,convertView,parent));}
+        };adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);v.setAdapter(adapter);v.setBackgroundTintList(ColorStateList.valueOf(accent));p.addView(v,new LinearLayout.LayoutParams(-1,-2));return v;
+    }
+    private int selectedCrf(){int i=quality.getSelectedItemPosition();if(i<3)return new int[]{18,23,28}[Math.max(0,i)];try{return Integer.parseInt(customCrf.getText().toString());}catch(NumberFormatException e){return -1;}}
+    private void updateQualityHelp(){if(qualityHelp==null)return;int n=selectedCrf();qualityHelp.setText(n<0||n>51?"Inserisci un numero intero da 0 a 51.":"CRF "+n+" · "+qualityName(n)+".\nNumero più basso = più qualità e generalmente più spazio. Il CRF non è una percentuale.");}
     private void toast(String s){Toast.makeText(this,s,Toast.LENGTH_LONG).show();}
     private void refreshLabels(){
         videoLabel.setText(input==null?"Nessun video selezionato":sourceName);
         folderLabel.setText(folder==null?"Nessuna cartella selezionata":Uri.decode(folder.getLastPathSegment()));
     }
     private void setBusy(boolean value){
-        busy=value;pickVideo.setEnabled(!value);pickFolder.setEnabled(!value);quality.setEnabled(!value);
+        busy=value;pickVideo.setEnabled(!value);pickFolder.setEnabled(!value);quality.setEnabled(!value);mode.setEnabled(!value);customCrf.setEnabled(!value);
         convert.setEnabled(!value);saveLog.setEnabled(!value);stop.setVisibility(value?View.VISIBLE:View.GONE);stop.setEnabled(value);
         if(value)getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         else getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
     }
     private void startConversion(){
         if(input==null||folder==null){toast("Seleziona il video e la cartella di destinazione");return;}
-        final Uri source=input,dest=folder;final String name=sourceName;final int crf=quality.getSelectedItemPosition();
+        final Uri source=input,dest=folder;final String name=sourceName;final int crf=selectedCrf();
+        if(crf<0||crf>51){customCrf.setError("Inserisci un intero da 0 a 51");customCrf.requestFocus();return;}
+        final int preset=mode.getSelectedItemPosition();
         cancelled.set(false);recent.clear();lastUi=0;logView.setText("");progress.setProgress(0);resultUri=null;openVideo.setVisibility(View.GONE);
-        setBusy(true);status.setText("Analisi video...");
+        setBusy(true);percentLabel.setText("0%");timeline.setText("Video convertito: — s\nVideo rimanente: — s");status.setText("Analisi video...");
         worker.execute(()->{
             try{
                 VideoConverter converter=new VideoConverter(getApplicationContext(),cancelled,new VideoConverter.Listener(){
@@ -148,9 +226,10 @@ public final class MainActivity extends Activity {
                             runOnUiThread(()->{if(!destroyed)logView.setText(snapshot);});
                         }
                     }
-                    public void progress(int percent,String s){runOnUiThread(()->{if(!destroyed&&!cancelled.get()){progress.setProgress(percent);status.setText(s);}});}
+                    public void timeline(long done,long total){runOnUiThread(()->{if(!destroyed&&!cancelled.get())timeline.setText(String.format(Locale.ITALY,"Video convertito: %.1f s\nVideo rimanente: %s",done/1000000.0,total>0?String.format(Locale.ITALY,"%.1f s",Math.max(0,total-done)/1000000.0):"durata non disponibile"));});}
+                    public void progress(int percent,String s){runOnUiThread(()->{if(!destroyed&&!cancelled.get()){progress.setProgress(percent);percentLabel.setText(percent+"%");status.setText(s);}});}
                 });
-                Uri result=converter.convert(source,dest,crf,name);
+                Uri result=converter.convert(source,dest,crf,name,preset);
                 runOnUiThread(()->{if(!destroyed){resultUri=result;openVideo.setVisibility(View.VISIBLE);}});
             }catch(Exception e){
                 runOnUiThread(()->{if(!destroyed)status.setText(cancelled.get()?"Conversione annullata.":"Conversione fallita: "+e.getMessage()+"\nSalva il log per i dettagli.");});
@@ -221,7 +300,9 @@ public final class MainActivity extends Activity {
         super.onSaveInstanceState(b);
         if(input!=null)b.putString("input",input.toString());
         if(resultUri!=null)b.putString("result",resultUri.toString());
-        b.putString("sourceName",sourceName);b.putString("pendingLog",pendingLog);b.putInt("crf",quality.getSelectedItemPosition());
+        b.putString("sourceName",sourceName);b.putString("pendingLog",pendingLog);b.putInt("quality",quality.getSelectedItemPosition());b.putInt("mode",mode.getSelectedItemPosition());b.putString("manual",customCrf.getText().toString());
     }
+    @Override protected void onResume(){super.onResume();previousWall=0;monitor.post(sample);}
+    @Override protected void onPause(){monitor.removeCallbacks(sample);super.onPause();}
     @Override protected void onDestroy(){destroyed=true;cancelled.set(true);worker.shutdown();super.onDestroy();}
 }
