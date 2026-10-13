@@ -45,7 +45,12 @@ void runProbe(ProbeCallbacks& cb, int crf) {
     cb.log("Preparo 1920x1080, 30 fps, colore I420 a 8 bit. Imposto CRF e controllo i parametri accettati.");
     cb.log("LIBRARY = versione/build\n• EFFECTIVE = impostazioni effettive\n• rcMode=2 indica CRF, rfConstant è il CRF, bframes indica i fotogrammi B.");
     cb.log(std::string("LIBRARY version=")+x265_version_str+" build="+x265_build_info_str);
-    cb.log("CONFIG CPU software only; ARM assembly disabled in this diagnostic build");
+#if PROBE_ARM_ASM
+    cb.log("CONFIG CPU software only; ARM64 assembly compiled=true");
+    cb.log("NEON = istruzioni della CPU che elaborano più dati insieme. La codifica resta software.");
+#else
+    cb.log("CONFIG CPU software only; assembly disabled on host smoke test");
+#endif
     std::unique_ptr<x265_param, decltype(&x265_param_free)> param(x265_param_alloc(), x265_param_free);
     if (!param) throw std::runtime_error("param_alloc returned null");
     cb.log("BEGIN param_default_preset ultrafast / zerolatency");
@@ -69,6 +74,11 @@ void runProbe(ProbeCallbacks& cb, int crf) {
     cb.log("EFFECTIVE rcMode="+std::to_string(param->rc.rateControlMode)
         +" (CRF="+std::to_string(X265_RC_CRF)+") rfConstant="+std::to_string(param->rc.rfConstant)
         +" bframes="+std::to_string(param->bframes));
+#if PROBE_ARM_ASM
+    cb.log("ASSEMBLY: cpuid="+std::to_string(param->cpuid)
+        +" NEON selezionato="+std::to_string((param->cpuid & X265_CPU_NEON)!=0));
+    if(!(param->cpuid & X265_CPU_NEON)) throw std::runtime_error("ARM64 NEON not selected");
+#endif
     if(param->rc.rateControlMode!=X265_RC_CRF) throw std::runtime_error("effective mode is not CRF");
     std::unique_ptr<x265_picture, decltype(&x265_picture_free)> in(x265_picture_alloc(),x265_picture_free);
     std::unique_ptr<x265_picture, decltype(&x265_picture_free)> out(x265_picture_alloc(),x265_picture_free);
@@ -143,11 +153,11 @@ void runProbe(ProbeCallbacks& cb, int crf) {
     cb.log("SUMMARY: frames = totale prodotto\n• bytes = dati compressi senza contenitore\n• encode_ms = durata ciclo inclusi generazione, scrittura e log\n• fps = velocità di elaborazione, non fps del video.");
     cb.log("SUMMARY frames="+std::to_string(encoded)+" bytes="+std::to_string(bytes)
         +" encode_ms="+std::to_string(duration)+" fps="+std::to_string(encoded*1000.0/duration));
-    cb.log("TEMPI: codec_ms = somma delle chiamate x265, incluso flush\n• altro_ms = tempo restante del ciclo (generazione, scrittura e log)\n• confronto_v03 = vecchio tempo / tempo attuale; maggiore di 1 indica un test più veloce.");
+    cb.log("TEMPI: codec_ms = somma delle chiamate x265, incluso flush\n• altro_ms = tempo restante del ciclo (generazione, scrittura e log)\n• confronto_v05 = vecchio tempo / tempo attuale; maggiore di 1 indica un test più veloce.");
     cb.log("TIMING codec_ms="+std::to_string(codecMs)+" altro_ms="+std::to_string(std::max(0.0,duration-codecMs)));
 #if defined(__ANDROID__)
-    double previousMs=crf==24 ? 11129.941871 : 13663.755568;
-    cb.log("CONFRONTO v0.3 SM-S916B crf="+std::to_string(crf)+" precedente_ms="+std::to_string(previousMs)
+    double previousMs=crf==24 ? 1333.327448 : 1985.072707;
+    cb.log("CONFRONTO v0.5 SM-S916B crf="+std::to_string(crf)+" precedente_ms="+std::to_string(previousMs)
         +" attuale_ms="+std::to_string(duration)+" rapporto="+std::to_string(previousMs/duration));
     cb.log("Confronto indicativo con il log precedente: temperatura, carico del telefono e log possono influenzarlo. Non è una misura di qualità.");
 #endif

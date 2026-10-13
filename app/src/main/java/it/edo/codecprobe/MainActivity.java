@@ -54,7 +54,7 @@ public final class MainActivity extends Activity {
             return insets;
         });
         TextView title = new TextView(this);
-        title.setText("Test codec video · v0.5");
+        title.setText("Test codec video · v0.6");
         title.setTextSize(24);
         layout.addView(title);
         TextView description = new TextView(this);
@@ -193,7 +193,7 @@ public final class MainActivity extends Activity {
         line("LEGENDA: supporto dichiarato = capacità riportate da Android\n• OK = chiamata terminata senza errori. Questo test non invia fotogrammi.");
         line(Build.MANUFACTURER + " " + Build.MODEL + " · Android " + Build.VERSION.RELEASE
                 + " · API " + Build.VERSION.SDK_INT);
-        line("Versione 0.5 · profilo preferito: 1280×720 a 30 fps. Fallback dai limiti dichiarati.");
+        line("Versione 0.6 · profilo preferito: 1280×720 a 30 fps. Fallback dai limiti dichiarati.");
         line("Input Surface, 4 Mbit/s nelle modalità bitrate (adattato al range).");
         int found = 0;
         for (MediaCodecInfo info : new MediaCodecList(MediaCodecList.REGULAR_CODECS).getCodecInfos()) {

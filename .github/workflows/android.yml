@@ -39,6 +39,18 @@ jobs:
             ffprobe -v error -count_frames -select_streams v:0 -show_entries stream=width,height,nb_read_frames -of json "smoke-${crf}.hevc" > "smoke-${crf}.json"
           done
           python3 scripts/verify-smoke.py
+      - name: Run ARM64 assembly encode and decode smoke test
+        run: |
+          sudo apt-get install -y --no-install-recommends g++-aarch64-linux-gnu qemu-user
+          cmake -S app/src/main/cpp -B arm-smoke -DCMAKE_SYSTEM_NAME=Linux -DCMAKE_SYSTEM_PROCESSOR=aarch64 -DCMAKE_C_COMPILER=aarch64-linux-gnu-gcc -DCMAKE_CXX_COMPILER=aarch64-linux-gnu-g++
+          cmake --build arm-smoke -j2
+          timeout 180 qemu-aarch64 -L /usr/aarch64-linux-gnu arm-smoke/x265probe_smoke > arm-smoke.log 2>&1
+          tail -n 8 arm-smoke.log
+          for crf in 24 32; do
+            ffmpeg -v error -xerror -i "smoke-${crf}.hevc" -f null -
+            ffprobe -v error -count_frames -select_streams v:0 -show_entries stream=width,height,nb_read_frames -of json "smoke-${crf}.hevc" > "smoke-${crf}.json"
+          done
+          python3 scripts/verify-smoke.py
       - name: Build and lint
         run: gradle --no-daemon :app:assembleDebug :app:lintDebug
       - name: Verify native optimization and APK architecture
@@ -49,7 +61,7 @@ jobs:
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
       - name: Package corresponding source
-        run: tar --exclude=.git --exclude=.gradle --exclude=.cxx --exclude=app/build --exclude=native-smoke --exclude=CodecProbe-source.tar.gz -czf CodecProbe-source.tar.gz app scripts vendor build.gradle settings.gradle gradle.properties README.md .github
+        run: tar --exclude=.git --exclude=.gradle --exclude=.cxx --exclude=app/build --exclude=native-smoke --exclude=arm-smoke --exclude=CodecProbe-source.tar.gz -czf CodecProbe-source.tar.gz app scripts vendor build.gradle settings.gradle gradle.properties README.md .github
       - uses: actions/upload-artifact@v4
         with:
           name: CodecProbe-source
@@ -58,4 +70,6 @@ jobs:
         if: always()
         with:
           name: Native-smoke-log
-          path: native-smoke.log
+          path: |
+            native-smoke.log
+            arm-smoke.log

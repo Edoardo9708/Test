@@ -11,3 +11,5 @@ test "$(git -C vendor/x265 rev-parse HEAD)" = "$revision"
 mkdir -p app/src/main/assets
 cp vendor/x265/COPYING app/src/main/assets/x265-COPYING.txt
 printf '%s\n' "$revision" > app/src/main/assets/x265-revision.txt
+
+python3 scripts/patch-x265-arm.py

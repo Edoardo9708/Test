@@ -25,11 +25,11 @@ final class X265Probe {
 
     static void run(Context context, AtomicBoolean cancelled, Consumer<String> listener) {
         try (Session session = new Session(context, cancelled, listener)) {
-            session.onLog("SESSION BEGIN v0.5 "+Build.MANUFACTURER+" "+Build.MODEL
+            session.onLog("SESSION BEGIN v0.6 "+Build.MANUFACTURER+" "+Build.MODEL
                     +" Android="+Build.VERSION.RELEASE+" ABI="+Arrays.toString(Build.SUPPORTED_ABIS));
             session.onLog("*** INIZIO TEST X265 SOFTWARE ***");
             session.onLog("PROCESSO: is64Bit="+android.os.Process.is64Bit());
-            session.onLog("CONFRONTO: stesso input sintetico, 1920x1080, 30 fotogrammi, CRF 24/32, due thread. Compilazione nativa ottimizzata O3; assembly manuale ancora disattivato per isolare questa modifica.");
+            session.onLog("CONFRONTO: stesso input sintetico, 1920x1080, 30 fotogrammi, CRF 24/32, due thread. Compilazione nativa ottimizzata O3; routine assembly ARM64/NEON abilitate; confronto con v0.5.");
             session.onLog("PERCORSO:\n1. carico la libreria\nPer ogni CRF:\n2. preparo il file\n3. configuro x265\n4. preparo la traccia\n5. codifico\n6. recupero i fotogrammi in attesa\n7. chiudo MP4\n8. verifico.");
             session.onLog("LEGENDA GENERALE: [N ms] = tempo trascorso da inizio test\n• BEGIN/INIZIO = operazione in corso\n• OK/END = chiamata terminata\n• ERROR = errore. Una chiamata iniziata senza esito indica dove indagare.");
             session.onLog("NOTA: 30 fotogrammi sintetici = 1 secondo di video. La verifica controlla la decodifica, non misura la qualità visiva.");
@@ -65,7 +65,7 @@ final class X265Probe {
             }
             session.onLog("*** FINE SESSIONE · consultare gli esiti delle singole prove ***");
             session.onLog("SESSION END cancelled="+cancelled.get()
-                    +"; synthetic input only, no visual-quality validation; ARM assembly disabled");
+                    +"; synthetic input only, no visual-quality validation; ARM64 assembly enabled");
         } catch (Throwable error) {
             String message = "ERROR x265 session: "+stack(error);
             try (FileOutputStream log = new FileOutputStream(logFile(context),true)) {
