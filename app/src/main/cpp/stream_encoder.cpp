@@ -53,7 +53,8 @@ StreamEncoder::StreamEncoder(const StreamConfig& c,ProbeCallbacks& cb):state(new
     if(!s.encoder) throw std::runtime_error("Apertura x265 fallita");
     x265_encoder_parameters(s.encoder,p);
     cb.log("OK x265_encoder_open · pointer_bits="+std::to_string(sizeof(void*)*8)
-           +" cpuid="+std::to_string(p->cpuid)+" CRF="+std::to_string(p->rc.rfConstant));
+           +" cpuid="+std::to_string(p->cpuid)+" CRF="+std::to_string(p->rc.rfConstant)
+           +" rcMode="+std::to_string(p->rc.rateControlMode)+" (CRF="+std::to_string(X265_RC_CRF)+") preset="+presets[c.preset]);
     if(p->rc.rateControlMode!=X265_RC_CRF) throw std::runtime_error("CRF non attivo");
     x265_picture_init(p,&s.input); x265_picture_init(p,&s.output);
     x265_nal* nals=nullptr; uint32_t count=0;
