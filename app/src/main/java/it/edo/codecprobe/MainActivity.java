@@ -184,7 +184,18 @@ public final class MainActivity extends Activity {
         if(request==PICK_VIDEO||request==PICK_FOLDER){
             int flags=data.getFlags()&(Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
             boolean persisted=false;
-            try{getContentResolver().takePersistableUriPermission(uri,flags);persisted=true;}catch(SecurityException ignored){}
+            try{
+                if((flags & Intent.FLAG_GRANT_READ_URI_PERMISSION)!=0 && (flags & Intent.FLAG_GRANT_WRITE_URI_PERMISSION)!=0) {
+                    getContentResolver().takePersistableUriPermission(uri,Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+                    persisted=true;
+                } else if((flags & Intent.FLAG_GRANT_READ_URI_PERMISSION)!=0) {
+                    getContentResolver().takePersistableUriPermission(uri,Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                    persisted=true;
+                } else if((flags & Intent.FLAG_GRANT_WRITE_URI_PERMISSION)!=0) {
+                    getContentResolver().takePersistableUriPermission(uri,Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+                    persisted=true;
+                }
+            }catch(SecurityException ignored){}
             if(request==PICK_VIDEO){
                 input=uri;sourceName="video";
                 try(Cursor c=getContentResolver().query(uri,new String[]{OpenableColumns.DISPLAY_NAME},null,null,null)){
