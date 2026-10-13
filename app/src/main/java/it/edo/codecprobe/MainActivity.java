@@ -54,7 +54,7 @@ public final class MainActivity extends Activity {
             return insets;
         });
         TextView title = new TextView(this);
-        title.setText("Test codec video · v0.3");
+        title.setText("Test codec video · v0.4");
         title.setTextSize(24);
         layout.addView(title);
         TextView description = new TextView(this);
@@ -155,9 +155,12 @@ public final class MainActivity extends Activity {
     }
 
     private void testAll() {
+        line("\n*** INIZIO TEST API ANDROID ***");
+        line("STEP 1: elenco encoder HEVC; STEP 2: leggo limiti e scelgo un profilo; STEP 3: provo le modalità compatibili.");
+        line("LEGENDA: supporto dichiarato = capacità riportate da Android; OK = chiamata terminata senza errori. Questo test non invia fotogrammi.");
         line(Build.MANUFACTURER + " " + Build.MODEL + " · Android " + Build.VERSION.RELEASE
                 + " · API " + Build.VERSION.SDK_INT);
-        line("Versione 0.3 · profilo preferito: 1280×720 a 30 fps. Fallback dai limiti dichiarati.");
+        line("Versione 0.4 · profilo preferito: 1280×720 a 30 fps. Fallback dai limiti dichiarati.");
         line("Input Surface, 4 Mbit/s nelle modalità bitrate (adattato al range).");
         int found = 0;
         for (MediaCodecInfo info : new MediaCodecList(MediaCodecList.REGULAR_CODECS).getCodecInfos()) {
@@ -166,7 +169,7 @@ public final class MainActivity extends Activity {
             for (String type : info.getSupportedTypes()) if (MIME.equalsIgnoreCase(type)) hevc = true;
             if (!hevc) continue;
             found++;
-            line("\nEncoder: " + info.getName() + " · hardware=" + info.isHardwareAccelerated()
+            line("\n*** STEP 2 · ANALISI ENCODER ***\nEncoder: " + info.getName() + " · hardware=" + info.isHardwareAccelerated()
                     + " · software=" + info.isSoftwareOnly());
             try { testEncoder(info); }
             catch (Exception e) { line("ERRORE lettura capacità: " + detail(e)); }
@@ -307,21 +310,27 @@ public final class MainActivity extends Activity {
         Surface surface = null;
         boolean started = false;
         String phase = "createByCodecName";
-        line("Prova reale: " + modeName);
+        line("\n*** STEP 3 · PROVA API: " + modeName + " ***");
+        line("Creo encoder → applico formato → preparo superficie di ingresso → avvio → arresto → libero risorse.");
         try {
+            line("INIZIO: " + phase + " · creo l'encoder");
             codec = MediaCodec.createByCodecName(codecName);
             line("OK: " + phase);
             phase = "configure";
+            line("INIZIO: " + phase + " · applico il formato");
             codec.configure(format, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE);
             line("OK: " + phase);
             phase = "createInputSurface";
+            line("INIZIO: " + phase + " · preparo ingresso fotogrammi");
             surface = codec.createInputSurface();
             line("OK: " + phase);
             phase = "start";
+            line("INIZIO: " + phase + " · avvio encoder");
             codec.start();
             started = true;
             line("OK: " + phase);
             phase = "stop";
+            line("INIZIO: " + phase + " · arresto encoder");
             codec.stop();
             started = false;
             line("OK: " + phase);

@@ -18,6 +18,9 @@ static std::vector<uint8_t> collect(x265_nal* nals, uint32_t count) {
 void runProbe(ProbeCallbacks& cb, int crf) {
     constexpr int W=1920, H=1080, FPS=30, FRAMES=30;
     auto start=Clock::now();
+    cb.log("*** STEP 3 · CONFIGURAZIONE ENCODER X265 ***");
+    cb.log("Preparo 1920x1080, 30 fps, colore I420 a 8 bit. Imposto CRF e controllo i parametri accettati.");
+    cb.log("LIBRARY = versione/build; EFFECTIVE = impostazioni effettive; rcMode=2 indica CRF, rfConstant è il CRF, bframes indica i fotogrammi B.");
     cb.log(std::string("LIBRARY version=")+x265_version_str+" build="+x265_build_info_str);
     cb.log("CONFIG CPU software only; ARM assembly disabled in this diagnostic build");
     std::unique_ptr<x265_param, decltype(&x265_param_free)> param(x265_param_alloc(), x265_param_free);
@@ -67,6 +70,13 @@ void runProbe(ProbeCallbacks& cb, int crf) {
         cb.log("PACKET index="+std::to_string(encoded)+" pts_us="+std::to_string(out->pts)
             +" bytes="+std::to_string(data.size())+" key="+std::to_string(key));
     };
+    cb.log("*** STEP 5 · INIZIO SEQUENZA DI CODIFICA ***");
+    cb.log("Genero e invio 30 fotogrammi sintetici. Scrivo i pacchetti prodotti nel file MP4.");
+    cb.log("LEGENDA: frame = indice in ingresso da 0 a 29; pts_us = posizione nel video in microsecondi (1000000 = 1 secondo).");
+    cb.log("LEGENDA: BEGIN = prima della chiamata; END = chiamata terminata; elapsed_ms = durata della chiamata con relativo log in millisecondi.");
+    cb.log("LEGENDA: rc < 0 errore, rc = 0 nessun fotogramma ancora pronto, rc > 0 fotogrammi prodotti; nals = blocchi HEVC restituiti.");
+    cb.log("LEGENDA PACKET: index/packet = progressivo da 1; bytes = dimensione compressa; key=1 = fotogramma chiave, key=0 = altro fotogramma.");
+    cb.log("NOTA: ingresso e uscita possono essere sfalsati. rc=0 iniziale non indica un errore.");
     auto encodingStart=Clock::now();
     for(int frame=0;frame<FRAMES;++frame) {
         if(cb.cancelled()) throw std::runtime_error("CANCELLED before frame "+std::to_string(frame));
@@ -86,6 +96,8 @@ void runProbe(ProbeCallbacks& cb, int crf) {
         if(rc<0) throw std::runtime_error("encoder_encode failed frame="+std::to_string(frame));
         if(rc>0) emit();
     }
+    cb.log("*** STEP 6 · RECUPERO FOTOGRAMMI IN ATTESA ***");
+    cb.log("Invio un ingresso vuoto a x265 finché restituisce rc=0. FLUSH usa gli stessi rc e nals della codifica.");
     cb.log("BEGIN flush");
     for(int tries=0;tries<FRAMES+10;++tries) {
         if(cb.cancelled()) throw std::runtime_error("CANCELLED during flush");
@@ -97,6 +109,8 @@ void runProbe(ProbeCallbacks& cb, int crf) {
     }
     if(encoded!=FRAMES) throw std::runtime_error("frame count mismatch encoded="+std::to_string(encoded));
     double duration=millis(encodingStart);
+    cb.log("*** RIEPILOGO CODIFICA ***");
+    cb.log("SUMMARY: frames = totale prodotto; bytes = dati compressi senza contenitore; encode_ms = durata ciclo inclusi generazione, scrittura e log; fps = velocità di elaborazione, non fps del video.");
     cb.log("SUMMARY frames="+std::to_string(encoded)+" bytes="+std::to_string(bytes)
         +" encode_ms="+std::to_string(duration)+" fps="+std::to_string(encoded*1000.0/duration));
     cb.log("BEGIN encoder_close");

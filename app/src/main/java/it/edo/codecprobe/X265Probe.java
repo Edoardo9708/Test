@@ -25,8 +25,14 @@ final class X265Probe {
 
     static void run(Context context, AtomicBoolean cancelled, Consumer<String> listener) {
         try (Session session = new Session(context, cancelled, listener)) {
-            session.onLog("SESSION BEGIN v0.3 "+Build.MANUFACTURER+" "+Build.MODEL
+            session.onLog("SESSION BEGIN v0.4 "+Build.MANUFACTURER+" "+Build.MODEL
                     +" Android="+Build.VERSION.RELEASE+" ABI="+Arrays.toString(Build.SUPPORTED_ABIS));
+            session.onLog("*** INIZIO TEST X265 SOFTWARE ***");
+            session.onLog("PERCORSO: 1 carico la libreria; per ogni CRF: 2 preparo il file, 3 configuro x265, 4 preparo la traccia, 5 codifico, 6 recupero i fotogrammi in attesa, 7 chiudo MP4, 8 verifico.");
+            session.onLog("LEGENDA GENERALE: [N ms] = tempo trascorso da inizio test; BEGIN/INIZIO = operazione in corso; OK/END = chiamata terminata; ERROR = errore. Una chiamata iniziata senza esito indica dove indagare.");
+            session.onLog("NOTA: 30 fotogrammi sintetici = 1 secondo di video. La verifica controlla la decodifica, non misura la qualità visiva.");
+            session.onLog("*** STEP 1 · CARICAMENTO LIBRERIA ***");
+            session.onLog("Carico x265 per eseguire la codifica sulla CPU del telefono.");
             session.onLog("BEGIN loadLibrary x265probe");
             System.loadLibrary("x265probe");
             session.onLog("OK loadLibrary; JNI bridge → x265 C++ → CPU");
@@ -37,6 +43,9 @@ final class X265Probe {
             for (int crf : new int[]{24,32}) {
                 if(cancelled.get()) break;
                 session.output = outputFile(context,crf);
+                session.onLog("*** INIZIO PROCEDURA PER CODIFICA ***");
+                session.onLog("*** STEP 2 · PREPARAZIONE FILE MP4 ***");
+                session.onLog("Creo il contenitore del video. La riga seguente indica CRF richiesto e nome del file.");
                 session.onLog("BEGIN MP4 crf="+crf+" file="+session.output.getName());
                 session.muxer = new MediaMuxer(session.output.getAbsolutePath(),MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4);
                 session.packets=0;
@@ -52,6 +61,7 @@ final class X265Probe {
                     break;
                 }
             }
+            session.onLog("*** FINE SESSIONE · consultare gli esiti delle singole prove ***");
             session.onLog("SESSION END cancelled="+cancelled.get()
                     +"; synthetic input only, no visual-quality validation; ARM assembly disabled");
         } catch (Throwable error) {
@@ -85,6 +95,8 @@ final class X265Probe {
         }
         public void onLog(String message) {
             String line="["+ (SystemClock.elapsedRealtime()-started)+" ms] "+message;
+            if(message.startsWith("***")) line="\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"+line+"\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━";
+            if(message.startsWith("ERROR")) line="\n!!! ERRORE · PROCEDURA INTERROTTA !!!\n"+line;
             try {
                 log.write((line+"\n").getBytes(StandardCharsets.UTF_8));
                 log.flush();
@@ -94,25 +106,32 @@ final class X265Probe {
         }
         public boolean isCancelled() { return cancelled.get(); }
         public void onHeaders(byte[] bytes) {
+            onLog("*** STEP 4 · PREPARAZIONE TRACCIA VIDEO ***");
+            onLog("Inserisco i parametri HEVC nel file e avvio la scrittura. headers = byte delle intestazioni; track = indice della traccia.");
             onLog("BEGIN muxer.addTrack headers="+bytes.length);
             MediaFormat format=MediaFormat.createVideoFormat("video/hevc",1920,1080);
             format.setByteBuffer("csd-0",ByteBuffer.wrap(bytes));
             format.setInteger(MediaFormat.KEY_FRAME_RATE,30);
             track=muxer.addTrack(format);
+            onLog("OK muxer.addTrack track="+track);
+            onLog("BEGIN muxer.start");
             muxer.start(); muxing=true;
             onLog("OK muxer.start track="+track);
         }
         public void onPacket(byte[] bytes,long pts,boolean key) {
             MediaCodec.BufferInfo info=new MediaCodec.BufferInfo();
             info.set(0,bytes.length,pts,key ? MediaCodec.BUFFER_FLAG_KEY_FRAME : 0);
+            onLog("INIZIO scrittura pacchetto MP4 numero="+(packets+1));
             muxer.writeSampleData(track,ByteBuffer.wrap(bytes),info);
             packets++;
             onLog("OK muxer.writeSampleData packet="+packets+" pts_us="+pts+" bytes="+bytes.length);
         }
         void finishMuxer() {
             if(muxer==null) return;
+            onLog("*** STEP 7 · CHIUSURA FILE MP4 ***");
+            onLog("Finalizzo il file e libero le risorse. Seguirà la verifica di lettura.");
             try { if(muxing) { onLog("BEGIN muxer.stop"); muxer.stop(); onLog("OK muxer.stop"); } }
-            finally { muxer.release(); muxer=null; muxing=false; }
+            finally { onLog("BEGIN muxer.release"); muxer.release(); muxer=null; muxing=false; onLog("OK muxer.release"); }
         }
         @Override public void close() throws Exception {
             try { finishMuxer(); } finally { log.close(); }
@@ -120,11 +139,14 @@ final class X265Probe {
     }
 
     private static void verify(File file, Session s) throws Exception {
+        s.onLog("*** STEP 8 · VERIFICA VIDEO SALVATO ***");
+        s.onLog("Riapro MP4 e decodifico tutti i 30 fotogrammi. La lettura può usare hardware; la codifica precedente usa x265 sulla CPU.");
         s.onLog("BEGIN VERIFY extract+decode all frames; decoder may use hardware (encoding did not)");
         MediaExtractor extractor=new MediaExtractor();
         MediaCodec decoder=null;
         boolean started=false;
         try {
+            s.onLog("INIZIO extractor.setDataSource · apro il file salvato");
             extractor.setDataSource(file.getAbsolutePath());
             if(extractor.getTrackCount()!=1) throw new IllegalStateException("Expected one video track");
             MediaFormat format=extractor.getTrackFormat(0);
@@ -137,7 +159,14 @@ final class X265Probe {
             decoder=MediaCodec.createDecoderByType("video/hevc");
             s.onLog("BEGIN decoder.configure name="+decoder.getName());
             decoder.configure(format,null,null,0);
+            s.onLog("OK decoder.configure");
+            s.onLog("BEGIN decoder.start");
             decoder.start(); started=true;
+            s.onLog("OK decoder.start");
+            s.onLog("*** INIZIO SEQUENZA FOTOGRAMMI DECODIFICATI ***");
+            s.onLog("LEGENDA: output = totale fotogrammi letti; pts_us = posizione nel video in microsecondi (1000000 = 1 secondo); bytes = dimensione del buffer decodificato, incluso eventuale padding.");
+            s.onLog("LEGENDA: flags è una maschera: 1 fotogramma chiave, 2 configurazione codec, 4 fine flusso (EOS). Un buffer EOS vuoto non conta come fotogramma.");
+            s.onLog("EXTRACT/outputFormat = dettagli tecnici del formato; samples = pacchetti inviati al decoder.");
             MediaCodec.BufferInfo info=new MediaCodec.BufferInfo();
             boolean inputEnd=false, outputEnd=false;
             int input=0, output=0;
@@ -174,6 +203,7 @@ final class X265Probe {
             }
             if(input!=30 || output!=30) throw new IllegalStateException("Count mismatch input="+input+" decoded="+output);
             s.onLog("OK VERIFY decoded=30/30 Full HD; MP4="+file.getName());
+            s.onLog("*** VERIFICA RIUSCITA · 30/30 FOTOGRAMMI FULL HD ***");
         } finally {
             if(decoder!=null) {
                 try { if(started) decoder.stop(); } finally { decoder.release(); }
