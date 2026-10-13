@@ -34,7 +34,7 @@ assert native, "Missing unstripped native library"
 sdk = Path(os.environ["ANDROID_HOME"])
 nm = sdk / "ndk/27.2.12479018/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-nm"
 symbols = subprocess.check_output([str(nm), "--defined-only", str(native[0])], text=True)
-assert "x265_pixel_sad_" in symbols, "ARM64 SAD routine not linked"
+assert "x265_sad_x" in symbols, "ARM64 SAD routine not linked"
 assert "setupAssemblyPrimitives" in symbols, "Assembly dispatcher not linked"
 assert any("aarch64/asm-primitives.cpp" in e["file"]
            for d in databases for e in json.loads(d.read_text())), "Missing ARM64 dispatcher compilation"
