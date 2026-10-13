@@ -29,7 +29,8 @@ print(f"OK: {count} native compiler commands use AArch64 and -O3; APK contains E
 # Verify the dispatcher was compiled and the actual assembly symbols were linked.
 import os
 import subprocess
-native = list(Path("app/.cxx").rglob("libx265probe.so"))
+native = list(Path("app/build/intermediates/cxx").rglob("libx265probe.so"))
+native += list(Path("app/.cxx").rglob("libx265probe.so"))
 assert native, "Missing unstripped native library"
 sdk = Path(os.environ["ANDROID_HOME"])
 nm = sdk / "ndk/27.2.12479018/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-nm"
