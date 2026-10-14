@@ -104,3 +104,9 @@ Validation: host and emulated ARM64 streaming tests cover CRF 0/23/51, variable 
 ## Versioned downloads
 
 APK artifacts now start with the actual version from the built APK metadata, for example `v0.11-CodecProbe-APK.zip`. The APK inside is `v0.11-CodecProbe.apk`. The corresponding source artifact also starts with the version. App version is unchanged when only packaging changes.
+
+## v0.13: original media access and explicit GPS checks
+
+Before conversion, request ACCESS_MEDIA_LOCATION to preserve embedded coordinates (no live location access). Convert supported SAF document URIs to the equivalent MediaStore item using the existing document grant and setRequireOriginal. Fail instead of silently falling back to redacted local media; other providers are explicitly labelled as unverified. Reopen source bytes after permission changes and refresh input inspection. Compare Android-exposed ISO 6709 location against both the temporary MP4 and the final saved file; delete a failed output. Null source location is labelled non-verifiable, never successful GPS preservation. Opaque metadata blocks still receive byte-level verification.
+
+Device check: select the camera original that displays a location in Samsung Gallery, grant media location permission, convert, and export the log. Look for GPS ACCESSO requireOriginal=true, GPS ORIGINALE, GPS CONVERTITO and GPS ESITO. Previously redacted copies cannot recover coordinates.

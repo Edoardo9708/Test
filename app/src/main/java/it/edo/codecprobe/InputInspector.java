@@ -26,7 +26,13 @@ final class InputInspector {
     static String describe(Context c,Uri u,BooleanSupplier cancel){return inspect(c,u,cancel).full();}
     static Report inspect(Context context,Uri uri,BooleanSupplier cancel){
         Map<String,String> summary=new LinkedHashMap<>(),details=new LinkedHashMap<>();
+        String access;
+        if(OriginalMedia.hasLocationPermission(context)){
+            try{uri=OriginalMedia.resolve(context,uri);access=OriginalMedia.requiresOriginal(uri)?"Originale richiesto senza oscuramento GPS":"Provider esterno: originale senza oscuramento non garantito";}
+            catch(Exception e){return new Report("Apertura originale non riuscita",String.valueOf(e.getMessage()));}
+        }else access="Permesso posizione dei file non ancora concesso: il GPS potrebbe essere nascosto. Sarà richiesto prima della conversione.";
         StringBuilder file=new StringBuilder(),dates=new StringBuilder(),authorship=new StringBuilder(),other=new StringBuilder(),sizes=new StringBuilder(),structure=new StringBuilder();
+        line(dates,"Accesso alla posizione",access);
         long bytes=-1;
         try(Cursor c=context.getContentResolver().query(uri,new String[]{OpenableColumns.SIZE},null,null,null)){if(c!=null&&c.moveToFirst()&&!c.isNull(0))bytes=c.getLong(0);}catch(Exception ignored){}
         if(bytes<0)try(ParcelFileDescriptor fd=context.getContentResolver().openFileDescriptor(uri,"r")){if(fd!=null)bytes=fd.getStatSize();}catch(Exception ignored){}
@@ -39,6 +45,7 @@ final class InputInspector {
             String rotation=retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_ROTATION);if(rotation!=null)line(file,"Rotazione",rotation+"°");
             TreeMap<String,String> values=new TreeMap<>();
             for(Field field:MediaMetadataRetriever.class.getFields())if(field.getName().startsWith("METADATA_KEY_"))try{String value=retriever.extractMetadata(field.getInt(null));if(value!=null)values.put(field.getName().substring(13),value);}catch(Exception ignored){}
+            if(!values.containsKey("LOCATION"))line(dates,"Posizione GPS","NON RILEVATA dal lettore Android · non prova che il file sia privo di coordinate");
             for(Map.Entry<String,String> entry:values.entrySet()){
                 String k=entry.getKey(),v=entry.getValue();
                 StringBuilder group=k.equals("DATE")||k.equals("LOCATION")?dates:Arrays.asList("TITLE","ARTIST","AUTHOR","ALBUM","ALBUMARTIST","COMPOSER","GENRE","WRITER","CD_TRACK_NUMBER","DISC_NUMBER","YEAR").contains(k)?authorship:other;
