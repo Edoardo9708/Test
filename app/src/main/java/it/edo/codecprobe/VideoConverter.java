@@ -39,6 +39,7 @@ final class VideoConverter {
     private long durationUs;
     private MediaFormat audioFormat;
     private int originalAudio=-1;
+    private int totalFrames=-1;
     private static final class MetadataTrack {final int input;final MediaFormat format;int output;MetadataTrack(int i,MediaFormat f){input=i;format=f;}}
     private final List<MetadataTrack> metadataTracks=new ArrayList<>();
     VideoConverter(Context c,AtomicBoolean cancel,Listener listener) {context=c;this.cancel=cancel;this.listener=listener;}
@@ -73,6 +74,7 @@ final class VideoConverter {
         onLog("BEGIN scrittura MP4 packet="+(packets+1)+" pts_us="+pts);
         muxer.writeSampleData(videoTrack,ByteBuffer.wrap(data),info);
         lastPacket=Math.max(lastPacket,pts);packets++;
+        listener.frames(packets,totalFrames);
         onLog("OK scrittura MP4 packet="+packets+" bytes="+data.length+" key="+key);
     }
     static int integer(MediaFormat f,String key,int fallback) {
@@ -196,7 +198,7 @@ final class VideoConverter {
             if(!Float.isFinite(fps)||fps<1||fps>240) throw new IllegalArgumentException("Frequenza video non supportata: "+fps);
             long duration=video.containsKey(MediaFormat.KEY_DURATION)?video.getLong(MediaFormat.KEY_DURATION):0;
             durationUs=duration;
-            int totalFrames=integer(video,"accurate-framecount",integer(video,"frame-count",-1));
+            totalFrames=integer(video,"accurate-framecount",integer(video,"frame-count",-1));
             listener.frames(0,totalFrames);
             int rotation=integer(video,MediaFormat.KEY_ROTATION,0);
             standard=integer(video,MediaFormat.KEY_COLOR_STANDARD,height>576?1:2);
@@ -268,7 +270,7 @@ final class VideoConverter {
                                 onLog("OK conversione YUV · invio a x265");
                                 inputTimestamps.writeLong(info.presentationTimeUs);
                                 nativeFrame(handle,pixels,info.presentationTimeUs);frames++;
-                                listener.frames(frames,totalFrames);
+
                                 int percent=duration>0?(int)Math.min(89,Math.max(0,info.presentationTimeUs)*89.0/duration):0;
                                 listener.timeline(duration>0?Math.min(duration,Math.max(0,lastPacket)):Math.max(0,lastPacket),duration);
                                 listener.progress(percent,"Codifica: "+frames+" fotogrammi · "+percent+"%");
