@@ -24,12 +24,27 @@ struct StreamEncoder::State {
         produced++;
     }
 };
+static const char* presetNames[]={"ultrafast","superfast","veryfast","faster","fast","medium","slow","slower","veryslow"};
+static void temporalSettings(x265_param* p,bool bframes,bool lookahead) {
+    if(!bframes)p->bframes=0;
+    if(!lookahead){p->lookaheadDepth=bframes?p->bframes+1:0;p->rc.cuTree=0;if(bframes)p->bFrameAdaptive=0;}
+}
+std::array<int,3> StreamEncoder::presetSettings(int preset,bool bframes,bool lookahead) {
+    if(preset<0||preset>8)throw std::runtime_error("Preset non valido");
+    x265_param* p=x265_param_alloc();if(!p)throw std::runtime_error("Memoria x265 insufficiente");
+    if(x265_param_default_preset(p,presetNames[preset],nullptr)<0){x265_param_free(p);throw std::runtime_error("Preset x265 non disponibile");}
+    temporalSettings(p,bframes,lookahead);
+    std::array<int,3> result={p->bframes,p->lookaheadDepth,p->rc.cuTree};x265_param_free(p);return result;
+}
+std::array<int,3> StreamEncoder::effectiveSettings() const {
+    auto p=state->p;return {p->bframes,p->lookaheadDepth,p->rc.cuTree};
+}
 StreamEncoder::StreamEncoder(const StreamConfig& c,ProbeCallbacks& cb):state(new State) {
     if(c.width<16 || c.height<16 || c.width>3840 || c.height>3840 ||
        int64_t(c.width)*c.height>3840LL*2160 || c.width%2 || c.height%2 ||
        c.fpsMilli<1000 || c.fpsMilli>240000 || c.crf<0 || c.crf>51)
         throw std::runtime_error("Formato o CRF fuori dai limiti supportati");
-    const char* presets[]={"ultrafast","superfast","veryfast","faster","fast","medium","slow","slower","veryslow"};
+    const auto& presets=presetNames;
     if(c.preset<0 || c.preset>8) throw std::runtime_error("Preset non valido");
     auto& s=*state;
     s.width=c.width; s.height=c.height;
@@ -42,12 +57,7 @@ StreamEncoder::StreamEncoder(const StreamConfig& c,ProbeCallbacks& cb):state(new
     p->fpsNum=c.fpsMilli; p->fpsDenom=1000;
     p->internalCsp=X265_CSP_I420; p->internalBitDepth=8;
     p->rc.rateControlMode=X265_RC_CRF; p->rc.rfConstant=c.crf;
-    if(!c.bframes) p->bframes=0;
-    if(!c.lookahead) {
-        p->lookaheadDepth=c.bframes?p->bframes+1:0;
-        p->rc.cuTree=0;
-        if(c.bframes)p->bFrameAdaptive=0;
-    }
+    temporalSettings(p,c.bframes,c.lookahead);
     cb.log("OTTIMIZZAZIONI richieste: B-frame="+std::to_string(c.bframes)+" lookahead_esteso="+std::to_string(c.lookahead));
     if(c.cpuMode<0 || c.cpuMode>2 || c.cores<1 || c.cores>256) throw std::runtime_error("Configurazione CPU non valida");
     if(c.cpuMode==0) {p->frameNumThreads=2; s.pool="2";p->numaPools=s.pool.c_str();}
@@ -125,3 +135,4 @@ void StreamEncoder::finish(ProbeCallbacks& cb) {
     if(!s.finished || s.produced!=s.submitted || !s.produced) throw std::runtime_error("Conteggio fotogrammi x265 incoerente");
     cb.log("OK x265 frames_in="+std::to_string(s.submitted)+" frames_out="+std::to_string(s.produced));
 }
+

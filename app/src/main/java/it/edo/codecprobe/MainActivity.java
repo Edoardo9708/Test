@@ -39,6 +39,8 @@ public final class MainActivity extends Activity {
     private TextView videoLabel,folderLabel,qualityHelp,status,logView;
     private Choice quality,mode,cpuMode;
     private Switch bframeSwitch,lookaheadSwitch;
+    private TextView temporalHelp,effectiveTemporal;
+    private static native int[] nativePresetSettings(int preset,boolean bframes,boolean lookahead);
     private boolean notificationsRequested;
     private final Runnable sessionObserver=this::renderSession;
     private TextView inputInfo;
@@ -116,6 +118,11 @@ public final class MainActivity extends Activity {
         customCrf.addTextChangedListener(new TextWatcher(){public void beforeTextChanged(CharSequence s,int a,int c,int f){} public void onTextChanged(CharSequence s,int a,int b,int c){updateQualityHelp();}public void afterTextChanged(Editable e){}});
         bframeSwitch=new Switch(this);bframeSwitch.setText("B-frame");bframeSwitch.setTextColor(ink);bframeSwitch.setTextSize(17);bframeSwitch.setPadding(0,dp(12),0,dp(12));settings.addView(bframeSwitch);bframeSwitch.setChecked(state==null||state.getBoolean("bframes",true));
         lookaheadSwitch=new Switch(this);lookaheadSwitch.setText("Lookahead esteso");lookaheadSwitch.setTextColor(ink);lookaheadSwitch.setTextSize(17);lookaheadSwitch.setPadding(0,dp(12),0,dp(12));settings.addView(lookaheadSwitch);lookaheadSwitch.setChecked(state==null||state.getBoolean("lookahead",true));
+        temporalHelp=text(settings,"",15);
+        mode.onSelection=this::updateTemporalHelp;
+        bframeSwitch.setOnCheckedChangeListener((v,checked)->updateTemporalHelp());
+        lookaheadSwitch.setOnCheckedChangeListener((v,checked)->updateTemporalHelp());
+        updateTemporalHelp();
         text(settings,"ON usa i valori del preset. Lookahead OFF con B-frame ON conserva solo il buffer minimo richiesto da x265.",13);
         text(settings,"Utilizzo CPU",17);
         cpuMode=spinner(settings,new String[]{"Limitato · configurazione precedente","Automatico · decide x265","Massimo · tutti i core disponibili"});
@@ -129,6 +136,7 @@ public final class MainActivity extends Activity {
         progress.setProgressTintList(ColorStateList.valueOf(accent));progress.setProgressBackgroundTintList(ColorStateList.valueOf(border));
         LinearLayout.LayoutParams bar=new LinearLayout.LayoutParams(-1,dp(12));bar.setMargins(0,dp(8),0,dp(12));work.addView(progress,bar);
         frameLabel=text(work,"Fotogrammi: 0 / —",18);
+        effectiveTemporal=text(work,"Parametri effettivi: disponibili all’avvio dell’encoder.",14);
         timeline=text(work,"Video convertito: — s\nVideo rimanente: — s",16);
         status=text(work,"Scegli video, cartella e qualità.",14);
         telemetry=text(work,"CPU APP   …     •     BATTERIA   …",14);
@@ -181,6 +189,14 @@ public final class MainActivity extends Activity {
         });
         saveLog.setOnClickListener(v->exportLog());
         saveMetadata.setOnClickListener(v->exportMetadata());
+    }
+    private void updateTemporalHelp(){
+        if(temporalHelp==null)return;
+        try{
+            System.loadLibrary("x265probe");
+            int[] values=nativePresetSettings(mode.getSelectedItemPosition(),bframeSwitch.isChecked(),lookaheadSwitch.isChecked());
+            temporalHelp.setText("VALORI DEL PRESET SELEZIONATO\nB-frame: massimo "+values[0]+" consecutivi\nLookahead: "+values[1]+" fotogrammi\nCU-tree: "+(values[2]!=0?"attivo":"disattivo")+"\n"+(lookaheadSwitch.isChecked()?"Profondità di analisi del preset.":"Lookahead esteso disattivato; l’eventuale buffer residuo serve ai B-frame.")+"\nIl numero reale di B-frame può variare da una scena all’altra.");
+        }catch(RuntimeException|LinkageError e){temporalHelp.setText("Parametri x265 non disponibili: "+e.getMessage());}
     }
     private static String qualityName(int crf){
         if(crf==0)return "Qualità massima CRF, non senza perdita";
@@ -291,6 +307,7 @@ public final class MainActivity extends Activity {
         frameLabel.setText("Fotogrammi: "+s.doneFrames+" / "+(s.totalFrames>0?s.totalFrames:"— (totale non dichiarato)"));
         setBusy(s.running);progress.setProgress(s.percent);percentLabel.setText(s.percent+"%");status.setText(s.message);logView.setText(s.log);
         timeline.setText(String.format(Locale.ITALY,"Video convertito: %.1f s\nVideo rimanente: %s",s.done/1000000.0,s.total>0?String.format(Locale.ITALY,"%.1f s",Math.max(0,s.total-s.done)/1000000.0):"durata non disponibile"));
+        effectiveTemporal.setText(s.bframeCount>=0?"PARAMETRI EFFETTIVI DELL’ENCODER\nB-frame: massimo "+s.bframeCount+" consecutivi\nLookahead: "+s.lookaheadCount+" fotogrammi\nCU-tree: "+(s.cuTree!=0?"attivo":"disattivo"):"Parametri effettivi: disponibili all’avvio dell’encoder.");
         resultUri=s.result;openVideo.setVisibility(resultUri==null?View.GONE:View.VISIBLE);
         if(input==null){input=s.input;folder=s.folder;sourceName=s.source;refreshLabels();inspectInput();}
     }
@@ -407,7 +424,8 @@ public final class MainActivity extends Activity {
         if(resultUri!=null)b.putString("result",resultUri.toString());
         b.putString("sourceName",sourceName);b.putString("pendingLog",pendingLog);b.putInt("quality",quality.getSelectedItemPosition());b.putInt("mode",mode.getSelectedItemPosition());b.putInt("cpu",cpuMode.getSelectedItemPosition());b.putBoolean("bframes",bframeSwitch.isChecked());b.putBoolean("lookahead",lookaheadSwitch.isChecked());b.putString("manual",customCrf.getText().toString());
     }
-    @Override protected void onResume(){super.onResume();previousWall=0;monitor.post(sample);ConversionService.observe(sessionObserver);renderSession();}
-    @Override protected void onPause(){monitor.removeCallbacks(sample);ConversionService.detach(sessionObserver);super.onPause();}
+    @Override protected void onResume(){super.onResume();ConversionService.uiVisible=true;previousWall=0;monitor.post(sample);ConversionService.observe(sessionObserver);renderSession();}
+    @Override protected void onPause(){ConversionService.uiVisible=false;monitor.removeCallbacks(sample);ConversionService.detach(sessionObserver);super.onPause();}
     @Override protected void onDestroy(){destroyed=true;ConversionService.detach(sessionObserver);worker.shutdown();super.onDestroy();}
 }
+

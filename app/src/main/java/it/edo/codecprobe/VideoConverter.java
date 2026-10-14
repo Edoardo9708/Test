@@ -16,11 +16,13 @@ import java.nio.charset.StandardCharsets;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 final class VideoConverter {
-    interface Listener { void log(String text); void progress(int percent, String text); void timeline(long doneUs,long totalUs); default void frames(int done,int total){} default String cancellationReason(){return "Annullamento richiesto";} }
+    interface Listener { void log(String text); void progress(int percent, String text); void timeline(long doneUs,long totalUs); default void frames(int done,int total){} default void encoderSettings(int b,int l,int tree){} default String runtimeState(){return "stato servizio non disponibile";} default String cancellationReason(){return "Annullamento richiesto";} }
     private native long nativeOpen(int w,int h,int fpsMilli,int crf,int standard,int transfer,int range,int preset,int cpuMode,int cores,boolean bframes,boolean lookahead,int primaries,int colorTransfer,int matrix,int colorFlags);
     private native void nativeFrame(long handle,ByteBuffer i420,long pts);
     private native void nativeFinish(long handle);
     private native void nativeClose(long handle);
+    private native int[] nativeEffectiveSettings(long handle);
+    private long perfWall,perfCpu;private int perfPackets;
     static File logFile(Context c) { return new File(c.getFilesDir(),"conversion-last.txt"); }
     private final Context context;
     private final AtomicBoolean cancel;
@@ -79,8 +81,26 @@ final class VideoConverter {
         onLog("BEGIN scrittura MP4 packet="+(packets+1)+" pts_us="+pts);
         muxer.writeSampleData(videoTrack,ByteBuffer.wrap(data),info);
         lastPacket=Math.max(lastPacket,pts);packets++;
+        samplePerformance();
         listener.frames(packets,totalFrames);
         onLog("OK scrittura MP4 packet="+packets+" bytes="+data.length+" key="+key);
+    }
+    private void samplePerformance(){
+        long now=SystemClock.elapsedRealtime();if(perfWall!=0&&now-perfWall<5000)return;
+        long cpu=android.os.Process.getElapsedCpuTime();int cores=Runtime.getRuntime().availableProcessors();
+        if(perfWall!=0){
+            double seconds=(now-perfWall)/1000.0;
+            String state=listener.runtimeState();
+            try{
+                android.os.PowerManager pm=context.getSystemService(android.os.PowerManager.class);
+                android.content.Intent battery=context.registerReceiver(null,new android.content.IntentFilter(android.content.Intent.ACTION_BATTERY_CHANGED));
+                String temp=battery!=null&&battery.hasExtra(android.os.BatteryManager.EXTRA_TEMPERATURE)?String.valueOf(battery.getIntExtra(android.os.BatteryManager.EXTRA_TEMPERATURE,0)/10.0):"non disponibile";
+                android.app.ActivityManager.RunningAppProcessInfo info=new android.app.ActivityManager.RunningAppProcessInfo();android.app.ActivityManager.getMyMemoryState(info);
+                state+=" schermo_attivo="+pm.isInteractive()+" risparmio_energia="+pm.isPowerSaveMode()+" esente_ottimizzazione_batteria="+pm.isIgnoringBatteryOptimizations(context.getPackageName())+" stato_termico="+pm.getCurrentThermalStatus()+" temperatura_batteria_C="+temp+" importanza_processo="+info.importance+" priorita_thread_conversione="+android.os.Process.getThreadPriority(android.os.Process.myTid());
+            }catch(RuntimeException e){state+=" lettura_stato_non_disponibile="+e.getClass().getSimpleName();}
+            onLog(String.format(java.util.Locale.US,"PRESTAZIONI · finestra_s=%.1f · fps_codifica=%.2f · CPU_app_percento=%.1f · core=%d\n%s",seconds,(packets-perfPackets)/seconds,100.0*(cpu-perfCpu)/(now-perfWall)/cores,cores,state));
+        }
+        perfWall=now;perfCpu=cpu;perfPackets=packets;
     }
     static int integer(MediaFormat f,String key,int fallback) {
         return f.containsKey(key)?NumberValues.intExact(f.getNumber(key),key):fallback;
@@ -300,6 +320,10 @@ final class VideoConverter {
                                     if(range==0) range=2;
                                     onLog("YUV crop="+crop+" standard="+standard+" transfer="+transfer+" range="+range+" (default SDR per valori non dichiarati)");
                                     handle=nativeOpen(width,height,Math.round(fps*1000),crf,standard,transfer,range,preset,cpuMode,Runtime.getRuntime().availableProcessors(),bframes,lookahead,sourceColor.primaries,sourceColor.transfer,sourceColor.matrix,sourceColor.flags());
+                                    int[] temporal=nativeEffectiveSettings(handle);
+                                    listener.encoderSettings(temporal[0],temporal[1],temporal[2]);
+                                    onLog("*** PARAMETRI TEMPORALI EFFETTIVI ***\nB-frame massimi consecutivi: "+temporal[0]+"\nLookahead: "+temporal[1]+" fotogrammi\nCU-tree: "+temporal[2]+" (1=attivo, 0=disattivo)");
+                                    onLog("PRESTAZIONI: ogni circa 5 secondi vedrai fps di codifica e CPU media normalizzata sui core; il log continua anche a schermata nascosta.\nStato termico Android: 0=regolare, 1=lieve, 2=moderato, 3=elevato, 4=critico, 5=emergenza, 6=spegnimento.\nLa temperatura riportata è della batteria, non della CPU.");
                                     pixels=ByteBuffer.allocateDirect(width*height*3/2);
                                 }
                                 if(crop.width()!=width||crop.height()!=height) throw new IOException("Cambio risoluzione durante il video non supportato");
@@ -479,5 +503,6 @@ final class VideoConverter {
         }
     }
 }
+
 
 

@@ -5,6 +5,12 @@
 #include <set>
 int main() {
     try {
+        for(int preset=0;preset<9;preset++)for(bool b:{false,true})for(bool look:{false,true}){
+            auto settings=StreamEncoder::presetSettings(preset,b,look);
+            if(settings[0]<0||settings[1]<0||(!b&&settings[0]!=0)||(!look&&(settings[1]!=(b?settings[0]+1:0)||settings[2]!=0)))throw std::runtime_error("Preset settings query disagrees with temporal switches");
+            std::cout<<"PRESET_VALUES preset="<<preset<<" B="<<b<<" look="<<look<<" bframes="<<settings[0]<<" lookahead="<<settings[1]<<" cutree="<<settings[2]<<std::endl;
+        }
+        bool rejected=false;try{StreamEncoder::presetSettings(9,true,true);}catch(const std::exception&){rejected=true;}if(!rejected)throw std::runtime_error("Invalid preset query accepted");
         for(int crf : {24,32}) {
             std::ofstream file("smoke-"+std::to_string(crf)+".hevc",std::ios::binary);
             ProbeCallbacks cb;
@@ -46,6 +52,9 @@ int main() {
             cb.headers=[&](const std::vector<uint8_t>& data){file.write(reinterpret_cast<const char*>(data.data()),data.size());};
             cb.packet=[&](const std::vector<uint8_t>& data,int64_t pts,bool){if(!outputPts.insert(pts).second)throw std::runtime_error("Duplicate output PTS");packets++;cb.headers(data);};
             StreamEncoder encoder(StreamConfig{320,240,30000,23,1,3,2,2,2,4,b!=0,look!=0},cb);
+            auto settings=encoder.effectiveSettings();
+            if((!b&&settings[0]!=0)||(!look&&settings[2]!=0)||settings[1]<0)throw std::runtime_error("Effective encoder settings invalid");
+            std::cout<<"EFFECTIVE_VALUES bframes="<<settings[0]<<" lookahead="<<settings[1]<<" cutree="<<settings[2]<<std::endl;
             std::vector<uint8_t> pixels(320*240*3/2,128);int64_t pts=10000;
             for(int f=0;f<24;f++) {
                 inputPts.insert(pts);
@@ -57,3 +66,4 @@ int main() {
         }
     } catch(const std::exception& e) {std::cerr<<e.what()<<std::endl; return 1;}
 }
+

@@ -1,6 +1,7 @@
 #pragma once
 #include "encoder.h"
 #include <memory>
+#include <array>
 struct StreamConfig {
     int width, height, fpsMilli, crf, standard, transfer, range;
     int preset=0;
@@ -15,7 +16,10 @@ public:
     ~StreamEncoder();
     void frame(const uint8_t*, size_t, int64_t, ProbeCallbacks&);
     void finish(ProbeCallbacks&);
+    static std::array<int,3> presetSettings(int preset,bool bframes,bool lookahead);
+    std::array<int,3> effectiveSettings() const;
 private:
     struct State;
     std::unique_ptr<State> state;
 };
+
