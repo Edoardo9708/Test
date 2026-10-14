@@ -26,13 +26,7 @@ final class InputInspector {
     static String describe(Context c,Uri u,BooleanSupplier cancel){return inspect(c,u,cancel).full();}
     static Report inspect(Context context,Uri uri,BooleanSupplier cancel){
         Map<String,String> summary=new LinkedHashMap<>(),details=new LinkedHashMap<>();
-        String access;
-        if(OriginalMedia.hasLocationPermission(context)){
-            try{uri=OriginalMedia.resolve(context,uri);access=OriginalMedia.requiresOriginal(uri)?"Originale richiesto senza oscuramento GPS":"Provider esterno: originale senza oscuramento non garantito";}
-            catch(Exception e){return new Report("Apertura originale non riuscita",String.valueOf(e.getMessage()));}
-        }else access="Permesso posizione dei file non ancora concesso: il GPS potrebbe essere nascosto. Sarà richiesto prima della conversione.";
         StringBuilder file=new StringBuilder(),dates=new StringBuilder(),authorship=new StringBuilder(),other=new StringBuilder(),sizes=new StringBuilder(),structure=new StringBuilder();
-        line(dates,"Accesso alla posizione",access);
         long bytes=-1;
         try(Cursor c=context.getContentResolver().query(uri,new String[]{OpenableColumns.SIZE},null,null,null)){if(c!=null&&c.moveToFirst()&&!c.isNull(0))bytes=c.getLong(0);}catch(Exception ignored){}
         if(bytes<0)try(ParcelFileDescriptor fd=context.getContentResolver().openFileDescriptor(uri,"r")){if(fd!=null)bytes=fd.getStatSize();}catch(Exception ignored){}
@@ -45,7 +39,6 @@ final class InputInspector {
             String rotation=retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_ROTATION);if(rotation!=null)line(file,"Rotazione",rotation+"°");
             TreeMap<String,String> values=new TreeMap<>();
             for(Field field:MediaMetadataRetriever.class.getFields())if(field.getName().startsWith("METADATA_KEY_"))try{String value=retriever.extractMetadata(field.getInt(null));if(value!=null)values.put(field.getName().substring(13),value);}catch(Exception ignored){}
-            if(!values.containsKey("LOCATION"))line(dates,"Posizione GPS","NON RILEVATA dal lettore Android · non prova che il file sia privo di coordinate");
             for(Map.Entry<String,String> entry:values.entrySet()){
                 String k=entry.getKey(),v=entry.getValue();
                 StringBuilder group=k.equals("DATE")||k.equals("LOCATION")?dates:Arrays.asList("TITLE","ARTIST","AUTHOR","ALBUM","ALBUMARTIST","COMPOSER","GENRE","WRITER","CD_TRACK_NUMBER","DISC_NUMBER","YEAR").contains(k)?authorship:other;
@@ -100,7 +93,7 @@ final class InputInspector {
     private static void line(StringBuilder b,String key,String value){if(b.length()>0)b.append("\n\n");b.append(key).append("\n").append(value==null?"non disponibile":value);}
     private static String label(String key){switch(key){case "DATE":return "Data dichiarata dal file";case "LOCATION":return "Posizione GPS";case "TITLE":return "Titolo";case "ARTIST":return "Artista";case "AUTHOR":return "Autore";case "ALBUM":return "Album";case "ALBUMARTIST":return "Artista dell’album";case "COMPOSER":return "Compositore";case "GENRE":return "Genere";case "WRITER":return "Autore del contenuto";case "YEAR":return "Anno";case "language":return "Lingua della traccia";case "durationUs":return "Durata · microsecondi";case "frame-rate":return "FPS dichiarati";case "width":return "Larghezza · pixel";case "height":return "Altezza · pixel";case "bitrate":return "Bitrate · bit/s";case "mime":return "Tipo MIME";default:return key.replace('_',' ').replace('-',' ')+" · campo originale";}}
     private static String sizeText(long n){return String.format(Locale.ITALY,"%.3f MB · %,d byte",n/1000000.0,n);}
-    private static int integer(MediaFormat f,String k,int fallback){try{return f.containsKey(k)?f.getInteger(k):fallback;}catch(RuntimeException e){return fallback;}}
+    private static int integer(MediaFormat f,String k,int fallback){try{return f.containsKey(k)?NumberValues.intExact(f.getNumber(k),k):fallback;}catch(RuntimeException e){return fallback;}}
     private static String containerName(String mime){switch(mime){case "video/mp4":return "MP4";case "video/quicktime":return "MOV / QuickTime";case "video/x-matroska":return "Matroska / MKV";case "video/webm":return "WebM";case "video/3gpp":return "3GP";default:return mime;}}
     private static String codecName(String mime){if(mime==null)return "sconosciuto";switch(mime){case "video/hevc":return "H.265 / HEVC";case "video/avc":return "H.264 / AVC";case "video/av01":return "AV1";case "video/x-vnd.on2.vp9":return "VP9";case "audio/mp4a-latm":return "AAC";case "audio/mpeg":return "MP3";case "audio/opus":return "Opus";default:return mime;}}
 }

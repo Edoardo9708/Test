@@ -78,7 +78,7 @@ final class VideoConverter {
         onLog("OK scrittura MP4 packet="+packets+" bytes="+data.length+" key="+key);
     }
     static int integer(MediaFormat f,String key,int fallback) {
-        return f.containsKey(key)?f.getInteger(key):fallback;
+        return f.containsKey(key)?NumberValues.intExact(f.getNumber(key),key):fallback;
     }
     private void rejectHdr(MediaFormat f) {
         int t=integer(f,MediaFormat.KEY_COLOR_TRANSFER,0);
@@ -93,19 +93,10 @@ final class VideoConverter {
         try(FileOutputStream fileLog=new FileOutputStream(logFile(context),false)) {
             log=fileLog;
             try {
-                onLog("*** INIZIO CONVERSIONE v0.14 ***");
+                onLog("*** INIZIO CONVERSIONE v0.12 ***");
                 onLog("PERCORSO:\n1. Analizzo video e audio\n2. Decodifico i fotogrammi\n3. Ricodifico con x265 CRF\n4. Copio audio AAC\n5. Verifico il video\n6. Salvo nella cartella scelta");
                 onLog("QUALITÀ: CRF="+crf+" · valore minore = più dettagli, file generalmente più grande. Il risultato dipende dal contenuto.");
                 onLog("INPUT: "+sourceName+"\nPROCESSO 64 bit="+android.os.Process.is64Bit());
-                onLog("*** STEP 1 · APERTURA ORIGINALE E POSIZIONE GPS ***");
-                onLog("1. Controllo il permesso per la posizione registrata nel file.\n2. Risolvo il video selezionato allo stesso elemento MediaStore.\n3. Richiedo i byte originali senza oscuramento.\n4. Leggo il GPS e lo confronterò con il risultato.");
-                onLog("GPS PERMESSI: posizione="+OriginalMedia.hasLocationPermission(context)+"; lettura video="+OriginalMedia.hasVideoPermission(context));
-                onLog("GPS PROVIDER SELEZIONATO: "+input.getAuthority());
-                input=OriginalMedia.resolve(context,input);
-                onLog("GPS ACCESSO: permesso concesso; requireOriginal="+OriginalMedia.requiresOriginal(input));
-                if(!OriginalMedia.requiresOriginal(input))onLog("GPS AVVISO: provider esterno a MediaStore; non posso garantire che il provider consegni coordinate non oscurate.");
-                final String sourceGps=OriginalMedia.location(context,input);
-                onLog("GPS ORIGINALE: "+OriginalMedia.display(sourceGps));
                 onLog("*** INFORMAZIONI FILE IN INPUT ***");
                 onLog(InputInspector.describe(context,input,()->cancel.get()));
                 onLog("*** CONTROLLO CONSERVAZIONE METADATI ***");
@@ -121,8 +112,6 @@ final class VideoConverter {
                 checkCancel();
                 listener.progress(93,"Conservazione metadati originali…");
                 sourceMetadata(input,temporary);
-                onLog("*** VERIFICA POSIZIONE GPS DEL VIDEO CONVERTITO ***");
-                verifyGps(sourceGps,OriginalMedia.location(temporary),"MP4 temporaneo");
                 onLog("*** STEP 5 · VERIFICA VIDEO COMPLETO ***");
                 listener.progress(94,"Verifica del video...");
                 verify(temporary);
@@ -143,10 +132,6 @@ final class VideoConverter {
                     byte[] buffer=new byte[262144];int n;
                     while((n=in.read(buffer))!=-1) {checkCancel();out.write(buffer,0,n);}
                 }
-                onLog("*** VERIFICA GPS DEL FILE SALVATO ***");
-                // Read the created document directly: it may not be indexed yet.
-                // ACCESS_MEDIA_LOCATION is already granted; no redacted fallback is used for the source.
-                verifyGps(sourceGps,OriginalMedia.location(context,destination),"file salvato");
                 onLog("OK SALVATAGGIO nome="+name+" bytes="+temporary.length());
                 onLog("*** CONVERSIONE RIUSCITA ***");
                 onLog("SUMMARY frames="+frames+" packets="+packets+" elapsed_ms="+(SystemClock.elapsedRealtime()-start));
@@ -202,18 +187,18 @@ final class VideoConverter {
             if(("video/hevc".equals(inputMime)&&profile!=0&&profile!=MediaCodecInfo.CodecProfileLevel.HEVCProfileMain)
                     ||("video/avc".equals(inputMime)&&(profile==16||profile==32||profile==64)))
                 throw new IllegalArgumentException("Profilo video non supportato: questa versione richiede SDR a 8 bit.");
-            width=video.getInteger(MediaFormat.KEY_WIDTH);height=video.getInteger(MediaFormat.KEY_HEIGHT);
+            width=integer(video,MediaFormat.KEY_WIDTH,0);height=integer(video,MediaFormat.KEY_HEIGHT,0);
             if(width<16||height<16||width>3840||height>3840||(long)width*height>3840L*2160||width%2!=0||height%2!=0)
                 throw new IllegalArgumentException("Supportati video con dimensioni pari, fino a 3840×2160 (anche verticali)");
             fps=30;
             if(video.containsKey(MediaFormat.KEY_FRAME_RATE)) {
-                try {fps=video.getFloat(MediaFormat.KEY_FRAME_RATE);}
-                catch(ClassCastException e) {fps=video.getInteger(MediaFormat.KEY_FRAME_RATE);}
+                fps=video.getNumber(MediaFormat.KEY_FRAME_RATE).floatValue();
             } else onLog("AVVISO: fps non dichiarati; uso 30 per x265, conservando i timestamp originali.");
             if(!Float.isFinite(fps)||fps<1||fps>240) throw new IllegalArgumentException("Frequenza video non supportata: "+fps);
-            long duration=video.containsKey(MediaFormat.KEY_DURATION)?video.getLong(MediaFormat.KEY_DURATION):0;
+            long duration=video.containsKey(MediaFormat.KEY_DURATION)?NumberValues.longExact(video.getNumber(MediaFormat.KEY_DURATION),MediaFormat.KEY_DURATION):0;
             durationUs=duration;
             totalFrames=integer(video,"accurate-framecount",integer(video,"frame-count",-1));
+            onLog("FOTOGRAMMI TOTALI: "+totalFrames+" · campi numerici letti tramite Number, compatibile con Integer e Long");
             listener.frames(0,totalFrames);
             int rotation=integer(video,MediaFormat.KEY_ROTATION,0);
             standard=integer(video,MediaFormat.KEY_COLOR_STANDARD,height>576?1:2);
@@ -372,12 +357,6 @@ final class VideoConverter {
             onLog("OK VERIFY traccia copiata="+inputTrack+" samples="+count+" contenuto e timestamp conservati");
         }finally{original.release();result.release();}
     }
-    private void verifyGps(String original,String result,String stage)throws IOException {
-        onLog("GPS CONVERTITO ("+stage+"): "+OriginalMedia.display(result));
-        if(!java.util.Objects.equals(original,result))throw new IOException("GPS DIVERSO O PERSO nel "+stage+": salvataggio annullato");
-        if(original!=null)onLog("GPS ESITO: OK · coordinate identiche all’originale · "+stage);
-        else onLog("GPS ESITO: NON VERIFICABILE · coordinate non esposte in origine; nessuna posizione inventata. I blocchi descrittivi sono verificati byte per byte.");
-    }
     private void sourceMetadata(Uri uri,File target)throws Exception {
         ParcelFileDescriptor fd=context.getContentResolver().openFileDescriptor(uri,"r");
         if(fd==null)throw new IOException("File originale non disponibile per conservare i metadati");
@@ -415,7 +394,7 @@ final class VideoConverter {
             for(int i=0;i<e.getTrackCount();i++) if("video/hevc".equals(e.getTrackFormat(i).getString(MediaFormat.KEY_MIME))) {track=i;break;}
             if(track<0) throw new IOException("Traccia HEVC mancante");
             MediaFormat format=e.getTrackFormat(track);
-            if(format.getInteger(MediaFormat.KEY_WIDTH)!=width||format.getInteger(MediaFormat.KEY_HEIGHT)!=height) throw new IOException("Risoluzione MP4 errata");
+            if(integer(format,MediaFormat.KEY_WIDTH,0)!=width||integer(format,MediaFormat.KEY_HEIGHT,0)!=height) throw new IOException("Risoluzione MP4 errata");
             if(e.getTrackCount()!=(audioFormat==null?1:2)+metadataTracks.size()) throw new IOException("Conteggio tracce errato");
             e.selectTrack(track);d=MediaCodec.createDecoderByType("video/hevc");d.configure(format,null,null,0);d.start();running=true;
             MediaCodec.BufferInfo info=new MediaCodec.BufferInfo();boolean inEnd=false,outEnd=false;int count=0;
