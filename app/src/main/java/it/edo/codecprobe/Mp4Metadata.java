@@ -43,10 +43,30 @@ final class Mp4Metadata {
             result.add(box);at+=size;
         }return result;
     }
+    private void validateTags(Box b)throws IOException{
+        if(b.type.equals("uuid")){
+            byte[] known={(byte)0xbe,0x7a,(byte)0xcf,(byte)0xcb,(byte)0x97,(byte)0xa9,0x42,(byte)0xe8,(byte)0x9c,0x71,(byte)0x99,(byte)0x94,(byte)0x91,(byte)0xe3,(byte)0xaf,(byte)0xac};
+            if(b.size-b.header<16||!Arrays.equals(read(b.file,b.at+b.header,16),known))throw new IOException("UUID proprietario non riconosciuto: impossibile garantire che non contenga riferimenti ai vecchi dati video");
+        }
+        if(b.type.equals("meta")||b.type.equals("udta")||b.type.equals("meco")){
+            long begin=b.at+b.header;
+            if(b.type.equals("meta")){
+                if(b.size-b.header<4)throw new IOException("Meta box incompleto");
+                int prefix=ByteBuffer.wrap(read(b.file,begin,4)).getInt();if(prefix==0||prefix==0x01000000)begin+=4;
+            }
+            List<Box> children=parse(b.file,begin,b.at+b.size,0);
+            for(Box c:children){
+                if(c.type.equals("iloc")||c.type.equals("idat")||c.type.equals("iref")||c.type.equals("pitm"))throw new IOException("Metadati a oggetti con riferimenti ai dati originali non ancora supportati ("+c.type+")");
+                if(TAGS.contains(c.type))validateTags(c);
+            }
+        }
+        if(b.children!=null)for(Box c:b.children)validateTags(c);
+    }
     private List<Box> roots(FileChannel f)throws IOException{
         List<Box> roots=parse(f,0,f.size(),0);int movies=0;
         for(Box b:roots){if(!ROOT_ALLOWED.contains(b.type))throw new IOException("Blocco "+b.type+" non supportato per la conservazione integrale dei metadati");if(b.type.equals("moov"))movies++;}
         if(movies!=1)throw new IOException("La copia dei metadati richiede un MP4/MOV non frammentato con un solo moov");
+        for(Box b:roots)validateTags(b);
         return roots;
     }
     private static Box first(List<Box> boxes,String type){for(Box b:boxes)if(b.type.equals(type))return b;return null;}
@@ -56,7 +76,7 @@ final class Mp4Metadata {
         return new String(read(h.file,h.at+h.header+8,4),StandardCharsets.ISO_8859_1);
     }
     private void merge(Box source,Box target,String path)throws IOException{
-        if(source.children==null){if(source.type.equals("mvhd")||source.type.equals("tkhd")||source.type.equals("mdhd"))patchHeader(source,target,path);return;}
+        if(source.children==null){if(source.type.equals("mvhd")||source.type.equals("tkhd")||source.type.equals("mdhd")||source.type.equals("hdlr"))patchHeader(source,target,path);return;}
         List<Box> tags=new ArrayList<>();for(Box b:source.children)if(TAGS.contains(b.type))tags.add(b);
         target.children.removeIf(b->TAGS.contains(b.type));
         if(!tags.isEmpty()){
@@ -71,12 +91,16 @@ final class Mp4Metadata {
                 for(Box t:target.children)if(t.type.equals("trak")&&handler(t).equals(kind)){if(seen++==n){paired=t;break;}}
                 if(paired==null)throw new IOException("Metadati della traccia "+kind+" non conservabili: manca la traccia nel risultato");
             }else paired=first(target.children,b.type);
-            if(paired!=null&&(CONTAINERS.contains(b.type)||b.type.equals("mvhd")||b.type.equals("tkhd")||b.type.equals("mdhd")))merge(b,paired,path+"/"+b.type);
+            if(paired!=null&&(CONTAINERS.contains(b.type)||b.type.equals("mvhd")||b.type.equals("tkhd")||b.type.equals("mdhd")||b.type.equals("hdlr")))merge(b,paired,path+"/"+b.type);
             else if(CONTAINERS.contains(b.type)&&hasTags(b))throw new IOException("Metadati in "+path+"/"+b.type+" non conservabili");
         }
     }
     private boolean hasTags(Box b){if(b.children==null)return false;for(Box c:b.children)if(TAGS.contains(c.type)||hasTags(c))return true;return false;}
     private void patchHeader(Box a,Box b,String path)throws IOException{
+        if(a.type.equals("hdlr")){
+            if(a.size-a.header>1024*1024)throw new IOException("Nome/handler della traccia troppo grande");
+            b.patched=read(a.file,a.at+a.header,(int)(a.size-a.header));log.accept("COPIA NOME/HANDLER "+path);return;
+        }
         if(a.size-a.header>256||b.size-b.header>256)throw new IOException("Header MP4 non standard");
         byte[] in=read(a.file,a.at+a.header,(int)(a.size-a.header)),out=read(b.file,b.at+b.header,(int)(b.size-b.header));
         int av=in[0]&255,bv=out[0]&255;if(av>1||bv>1)throw new IOException("Versione header MP4 non supportata");
@@ -87,6 +111,14 @@ final class Mp4Metadata {
             ByteBuffer dst=ByteBuffer.wrap(out);if(blen==8)dst.putLong(4+i*blen,value);else dst.putInt(4+i*blen,(int)value);
         }
         if(a.type.equals("mdhd")){int ai=av==1?32:20,bi=bv==1?32:20;if(in.length<ai+2||out.length<bi+2)throw new IOException("Lingua MP4 non leggibile");out[bi]=in[ai];out[bi+1]=in[ai+1];}
+        // Preserve playback flags/transforms while retaining new IDs, timing and dimensions.
+        if(a.type.equals("tkhd")||a.type.equals("mvhd")){
+            for(int i=1;i<4;i++)out[i]=in[i];
+            int aa=(a.type.equals("tkhd")?32:20)+(av==1?12:0),bb=(b.type.equals("tkhd")?32:20)+(bv==1?12:0);
+            int am=(a.type.equals("tkhd")?40:36)+(av==1?12:0),bm=(b.type.equals("tkhd")?40:36)+(bv==1?12:0);
+            if(in.length<am+36||out.length<bm+36)throw new IOException("Trasformazione MP4 incompleta");
+            System.arraycopy(in,aa,out,bb,6);System.arraycopy(in,am,out,bm,36);
+        }
         b.patched=out;log.accept("COPIA DATE "+path+(a.type.equals("mdhd")?" + lingua":""));
     }
     private void run(FileChannel source,File target)throws Exception{
@@ -112,7 +144,7 @@ final class Mp4Metadata {
             if(x.type.equals("trak")){String kind=handler(x);int n=used.getOrDefault(kind,0);used.put(kind,n+1);int seen=0;for(Box t:b.children)if(t.type.equals("trak")&&handler(t).equals(kind)&&seen++==n){y=t;break;}}
             else y=first(b.children,x.type);
             if(y!=null&&CONTAINERS.contains(x.type))verifyTree(x,y,path+"/"+x.type);
-            if(y!=null&&(x.type.equals("mvhd")||x.type.equals("tkhd")||x.type.equals("mdhd"))){byte[] expected=read(y.file,y.at+y.header,(int)(y.size-y.header));Box tmp=new Box();tmp.file=y.file;tmp.at=y.at;tmp.size=y.size;tmp.header=y.header;tmp.type=y.type;patchHeader(x,tmp,path);if(!Arrays.equals(expected,tmp.patched))throw new IOException("Verifica date/lingua fallita");}
+            if(y!=null&&(x.type.equals("mvhd")||x.type.equals("tkhd")||x.type.equals("mdhd")||x.type.equals("hdlr"))){byte[] expected=read(y.file,y.at+y.header,(int)(y.size-y.header));Box tmp=new Box();tmp.file=y.file;tmp.at=y.at;tmp.size=y.size;tmp.header=y.header;tmp.type=y.type;patchHeader(x,tmp,path);if(!Arrays.equals(expected,tmp.patched))throw new IOException("Verifica date/lingua fallita");}
         }
     }
     private static List<Box> of(List<Box> boxes,String type){List<Box> out=new ArrayList<>();for(Box b:boxes)if(b.type.equals(type))out.add(b);return out;}

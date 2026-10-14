@@ -96,3 +96,7 @@ Validation: host and emulated ARM64 streaming tests cover CRF 0/23/51, variable 
 - A strict source preflight rejects fragmented/non-MP4 formats, malformed/trailing vendor data and unsupported top-level blocks, rather than claiming complete metadata retention. An opaque vendor UUID/tag may itself contain private references whose interpretation is not guaranteed by raw copying. Filesystem timestamps controlled by the Android document provider are not set to the source times.
 - Application metadata tracks supported by Android MediaMuxer are copied with original packet contents and PTS. Unsupported tracks abort conversion. Audio/metadata copied packets are read back and verified in addition to full video decode and original PTS checks.
 - CI round trips no-tag and tagged fixtures with nested metadata, dates/languages and root UUIDs, asserts media data positions unchanged, and tests cancellation and unsupported containers. Device testing remains required for real camera metadata and vendor playback interpretation.
+
+- Preservation preflight additionally rejects item-location metadata (iloc/idat/iref/pitm) and unrecognized UUIDs, since opaque copying could leave pointers to old media. The known Adobe XMP UUID is supported. Unsupported vendor formats need an explicit parser before the app can guarantee preservation.
+
+- Track handler/name payloads and playback flags, layer/group/volume and transformation matrices are preserved and read back. IDs, codec descriptions, durations and media chunk indexes remain those of the new file.
