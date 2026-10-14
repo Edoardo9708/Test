@@ -105,6 +105,16 @@ Validation: host and emulated ARM64 streaming tests cover CRF 0/23/51, variable 
 
 APK artifacts now start with the actual version from the built APK metadata, for example `v0.11-CodecProbe-APK.zip`. The APK inside is `v0.11-CodecProbe.apk`. The corresponding source artifact also starts with the version. App version is unchanged when only packaging changes.
 
+## v0.13: original media access and explicit GPS checks
+
+Before conversion, request ACCESS_MEDIA_LOCATION to preserve embedded coordinates (no live location access). Convert supported SAF document URIs to the equivalent MediaStore item using the existing document grant and setRequireOriginal. Fail instead of silently falling back to redacted local media; other providers are explicitly labelled as unverified. Reopen source bytes after permission changes and refresh input inspection. Compare Android-exposed ISO 6709 location against both the temporary MP4 and the final saved file; delete a failed output. Null source location is labelled non-verifiable, never successful GPS preservation. Opaque metadata blocks still receive byte-level verification.
+
+Device check: select the camera original that displays a location in Samsung Gallery, grant media location permission, convert, and export the log. Look for GPS ACCESSO requireOriginal=true, GPS ORIGINALE, GPS CONVERTITO and GPS ESITO. Previously redacted copies cannot recover coordinates.
+
+## v0.14: separate video-read authorization
+
+The v0.13 device log exposed a SecurityException opening a MediaStore URI with requireOriginal despite ACCESS_MEDIA_LOCATION being granted. Request READ_MEDIA_VIDEO separately; Android 14+ also offers READ_MEDIA_VISUAL_USER_SELECTED so the user can restrict access to selected videos. Android 10–12 use READ_EXTERNAL_STORAGE (maxSdkVersion 32). Keep strict original access and validate opening the actual URI before reporting requireOriginal success. Restricted selection must include the conversion input. Permission denial blocks conversion with a readable reason. GPS comparisons and original metadata copying remain intact.
+
 ## v0.15: Android provider numeric compatibility
 
 The v0.14 Samsung Android 16 log confirms original GPS is readable, then exposes Long accurate-framecount where conversion assumed Integer. Read MediaFormat numeric fields using getNumber; convert integer fields exactly with explicit finite/integral/range checks. Apply this to conversion properties, duration, frame rate, verification dimensions and input inspection. Regression tests cover Long(52), integer and float representations, duration, overflow, fractional/non-finite values and missing numbers. GPS preservation still needs an end-to-end device conversion.
