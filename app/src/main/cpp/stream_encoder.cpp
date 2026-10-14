@@ -3,6 +3,7 @@
 #include <stdexcept>
 #include <chrono>
 #include <algorithm>
+#include <cmath>
 struct StreamEncoder::State {
     x265_param* p=nullptr;
     x265_encoder* encoder=nullptr;
@@ -29,15 +30,15 @@ static void temporalSettings(x265_param* p,bool bframes,bool lookahead) {
     if(!bframes)p->bframes=0;
     if(!lookahead){p->lookaheadDepth=bframes?p->bframes+1:0;p->rc.cuTree=0;if(bframes)p->bFrameAdaptive=0;}
 }
-std::array<int,3> StreamEncoder::presetSettings(int preset,bool bframes,bool lookahead) {
+std::array<int,5> StreamEncoder::presetSettings(int preset,bool bframes,bool lookahead) {
     if(preset<0||preset>8)throw std::runtime_error("Preset non valido");
     x265_param* p=x265_param_alloc();if(!p)throw std::runtime_error("Memoria x265 insufficiente");
     if(x265_param_default_preset(p,presetNames[preset],nullptr)<0){x265_param_free(p);throw std::runtime_error("Preset x265 non disponibile");}
     temporalSettings(p,bframes,lookahead);
-    std::array<int,3> result={p->bframes,p->lookaheadDepth,p->rc.cuTree};x265_param_free(p);return result;
+    std::array<int,5> result={p->bframes,p->lookaheadDepth,p->rc.cuTree,p->rc.aqMode,static_cast<int>(std::lround(p->rc.aqStrength*1000))};x265_param_free(p);return result;
 }
-std::array<int,3> StreamEncoder::effectiveSettings() const {
-    auto p=state->p;return {p->bframes,p->lookaheadDepth,p->rc.cuTree};
+std::array<int,5> StreamEncoder::effectiveSettings() const {
+    auto p=state->p;return {p->bframes,p->lookaheadDepth,p->rc.cuTree,p->rc.aqMode,static_cast<int>(std::lround(p->rc.aqStrength*1000))};
 }
 StreamEncoder::StreamEncoder(const StreamConfig& c,ProbeCallbacks& cb):state(new State) {
     if(c.width<16 || c.height<16 || c.width>3840 || c.height>3840 ||
@@ -89,7 +90,7 @@ StreamEncoder::StreamEncoder(const StreamConfig& c,ProbeCallbacks& cb):state(new
     cb.log("OK x265_encoder_open · pointer_bits="+std::to_string(sizeof(void*)*8)
            +" cpuid="+std::to_string(p->cpuid)+" CRF="+std::to_string(p->rc.rfConstant)
            +" rcMode="+std::to_string(p->rc.rateControlMode)+" (CRF="+std::to_string(X265_RC_CRF)+") preset="+presets[c.preset]+" frame_threads_effettivi="+std::to_string(p->frameNumThreads)
-           +" bframes="+std::to_string(p->bframes)+" lookahead="+std::to_string(p->lookaheadDepth)+" cutree="+std::to_string(p->rc.cuTree));
+           +" bframes="+std::to_string(p->bframes)+" lookahead="+std::to_string(p->lookaheadDepth)+" cutree="+std::to_string(p->rc.cuTree)+" aq_mode="+std::to_string(p->rc.aqMode)+" aq_strength="+std::to_string(p->rc.aqStrength));
     if(p->rc.rateControlMode!=X265_RC_CRF) throw std::runtime_error("CRF non attivo");
     x265_picture_init(p,&s.input); x265_picture_init(p,&s.output);
     x265_nal* nals=nullptr; uint32_t count=0;
@@ -135,4 +136,5 @@ void StreamEncoder::finish(ProbeCallbacks& cb) {
     if(!s.finished || s.produced!=s.submitted || !s.produced) throw std::runtime_error("Conteggio fotogrammi x265 incoerente");
     cb.log("OK x265 frames_in="+std::to_string(s.submitted)+" frames_out="+std::to_string(s.produced));
 }
+
 

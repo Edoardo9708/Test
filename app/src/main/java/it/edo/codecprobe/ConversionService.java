@@ -31,12 +31,12 @@ public final class ConversionService extends Service {
     static final class State {
         boolean hasSession,running;
         int percent,doneFrames,totalFrames=-1;
-        int bframeCount=-1,lookaheadCount=-1,cuTree=-1;
+        int bframeCount=-1,lookaheadCount=-1,cuTree=-1,aqMode=-1,aqStrength=-1;
         long done,total;
         String message="",log="",source="";
         Uri result,input,folder;
         State(){}
-        State(State s){hasSession=s.hasSession;running=s.running;bframeCount=s.bframeCount;lookaheadCount=s.lookaheadCount;cuTree=s.cuTree;percent=s.percent;doneFrames=s.doneFrames;totalFrames=s.totalFrames;done=s.done;total=s.total;message=s.message;log=s.log;source=s.source;result=s.result;input=s.input;folder=s.folder;}
+        State(State s){hasSession=s.hasSession;running=s.running;bframeCount=s.bframeCount;lookaheadCount=s.lookaheadCount;cuTree=s.cuTree;aqMode=s.aqMode;aqStrength=s.aqStrength;percent=s.percent;doneFrames=s.doneFrames;totalFrames=s.totalFrames;done=s.done;total=s.total;message=s.message;log=s.log;source=s.source;result=s.result;input=s.input;folder=s.folder;}
     }
     static State snapshot(){synchronized(LOCK){return new State(state);}}
     static void observe(Runnable listener){synchronized(LOCK){observer=listener;}}
@@ -90,7 +90,7 @@ public final class ConversionService extends Service {
         String source=intent.getStringExtra("name");
         int crf=intent.getIntExtra("crf",23),preset=intent.getIntExtra("preset",6),cpu=intent.getIntExtra("cpu",1);
         boolean bframes=intent.getBooleanExtra("bframes",true),lookahead=intent.getBooleanExtra("lookahead",true);
-        synchronized(LOCK){state.hasSession=true;state.running=true;state.bframeCount=-1;state.lookaheadCount=-1;state.cuTree=-1;state.percent=0;state.doneFrames=0;state.totalFrames=-1;state.done=0;state.total=0;state.result=null;state.log="";state.message="Analisi video…";state.source=source;state.input=input;state.folder=folder;}
+        synchronized(LOCK){state.hasSession=true;state.running=true;state.bframeCount=-1;state.lookaheadCount=-1;state.cuTree=-1;state.aqMode=-1;state.aqStrength=-1;state.percent=0;state.doneFrames=0;state.totalFrames=-1;state.done=0;state.total=0;state.result=null;state.log="";state.message="Analisi video…";state.source=source;state.input=input;state.folder=folder;}
         try {
             int type=Build.VERSION.SDK_INT>=35?ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROCESSING:ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC;
             startForeground(NOTICE,notification(snapshot()),type);
@@ -105,7 +105,7 @@ public final class ConversionService extends Service {
         worker.execute(()->{
             try {
                 VideoConverter converter=new VideoConverter(getApplicationContext(),cancel,new VideoConverter.Listener(){
-                    public void encoderSettings(int b,int l,int tree){synchronized(LOCK){state.bframeCount=b;state.lookaheadCount=l;state.cuTree=tree;}publish(true);}
+                    public void encoderSettings(int b,int l,int tree,int aq,int strength){synchronized(LOCK){state.bframeCount=b;state.lookaheadCount=l;state.cuTree=tree;state.aqMode=aq;state.aqStrength=strength;}publish(true);}
                     public String runtimeState(){return "UI_visibile="+uiVisible+" wake_lock_attivo="+(wake!=null&&wake.isHeld());}
                     public String cancellationReason(){return timedOut?"Limite Android del servizio mediaProcessing raggiunto":"Annullamento richiesto dall’utente o arresto del servizio";}
                     public void log(String s){
@@ -140,4 +140,5 @@ public final class ConversionService extends Service {
     @Override public void onDestroy(){cancel.set(true);releaseWake();worker.shutdown();super.onDestroy();}
     @Override public IBinder onBind(Intent intent){return null;}
 }
+
 

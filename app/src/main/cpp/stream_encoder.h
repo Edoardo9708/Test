@@ -16,10 +16,11 @@ public:
     ~StreamEncoder();
     void frame(const uint8_t*, size_t, int64_t, ProbeCallbacks&);
     void finish(ProbeCallbacks&);
-    static std::array<int,3> presetSettings(int preset,bool bframes,bool lookahead);
-    std::array<int,3> effectiveSettings() const;
+    static std::array<int,5> presetSettings(int preset,bool bframes,bool lookahead);
+    std::array<int,5> effectiveSettings() const;
 private:
     struct State;
     std::unique_ptr<State> state;
 };
+
 

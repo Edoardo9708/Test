@@ -60,8 +60,8 @@ extern "C" JNIEXPORT void JNICALL Java_it_edo_codecprobe_VideoConverter_nativeCl
 }
 
 
-static jintArray temporalArray(JNIEnv* e,const std::array<int,3>& values) {
-    jint data[]={values[0],values[1],values[2]};jintArray a=e->NewIntArray(3);if(a)e->SetIntArrayRegion(a,0,3,data);return a;
+static jintArray temporalArray(JNIEnv* e,const std::array<int,5>& values) {
+    jint data[]={values[0],values[1],values[2],values[3],values[4]};jintArray a=e->NewIntArray(5);if(a)e->SetIntArrayRegion(a,0,5,data);return a;
 }
 extern "C" JNIEXPORT jintArray JNICALL Java_it_edo_codecprobe_MainActivity_nativePresetSettings(JNIEnv* e,jclass,jint preset,jboolean bframes,jboolean lookahead){
     try{return temporalArray(e,StreamEncoder::presetSettings(preset,bframes!=0,lookahead!=0));}catch(const std::exception& ex){raise(e,ex);return nullptr;}
@@ -69,3 +69,4 @@ extern "C" JNIEXPORT jintArray JNICALL Java_it_edo_codecprobe_MainActivity_nativ
 extern "C" JNIEXPORT jintArray JNICALL Java_it_edo_codecprobe_VideoConverter_nativeEffectiveSettings(JNIEnv* e,jobject,jlong handle){
     try{if(!handle)throw std::runtime_error("Encoder non aperto");return temporalArray(e,reinterpret_cast<StreamEncoder*>(handle)->effectiveSettings());}catch(const std::exception& ex){raise(e,ex);return nullptr;}
 }
+

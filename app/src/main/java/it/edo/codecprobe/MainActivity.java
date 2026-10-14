@@ -39,7 +39,7 @@ public final class MainActivity extends Activity {
     private TextView videoLabel,folderLabel,qualityHelp,status,logView;
     private Choice quality,mode,cpuMode;
     private Switch bframeSwitch,lookaheadSwitch;
-    private TextView temporalHelp,effectiveTemporal;
+    private TextView temporalHelp,effectiveTemporal,aqModeLabel,aqStrengthLabel,cuTreeLabel;
     private static native int[] nativePresetSettings(int preset,boolean bframes,boolean lookahead);
     private boolean notificationsRequested;
     private final Runnable sessionObserver=this::renderSession;
@@ -93,7 +93,7 @@ public final class MainActivity extends Activity {
         });
         TextView title=text(page,"Converti video",30);title.setTypeface(null,Typeface.BOLD);
         text(page,"HEVC / x265   •   v"+BuildConfig.VERSION_NAME,13);
-        text(page,"Meno spazio, qualità sotto controllo.",16);
+
         LinearLayout files=card(page,"01  FILE E DESTINAZIONE");
         pickVideo=button(files,"Seleziona video");videoLabel=text(files,"Nessun video selezionato",14);
         inputInfo=text(files,"Seleziona un video per vedere le informazioni del file.",15);
@@ -102,11 +102,11 @@ public final class MainActivity extends Activity {
         details.setOnClickListener(v->{boolean show=inputDetails.getVisibility()!=View.VISIBLE;inputDetails.setVisibility(show?View.VISIBLE:View.GONE);details.setText(show?"Nascondi metadati":"Mostra metadati e dettagli");});
         pickFolder=button(files,"Scegli cartella");folderLabel=text(files,"Nessuna cartella selezionata",14);
         LinearLayout settings=card(page,"02  COMPRESSIONE");
-        text(settings,"Modalità · velocità dell’encoder",17);
-        mode=spinner(settings,new String[]{"Ultraveloce · ultrafast","Superveloce · superfast","Molto veloce · veryfast","Più veloce · faster","Veloce · fast","Media · medium","Lenta · slow","Più lenta · slower","Molto lenta · veryslow"});
+        parameterRow(settings,"Preset","Il preset regola il compromesso tra velocità e compressione. I preset lenti provano più alternative e richiedono più tempo; non garantiscono una dimensione precisa.");
+        mode=spinner(settings,new String[]{"ultrafast","superfast","veryfast","faster","fast","medium","slow","slower","veryslow"});
         mode.setSelection(state==null?6:state.getInt("mode",6));
-        text(settings,"Più lenta: cerca una compressione più efficiente, ma richiede più tempo.",13);
-        text(settings,"Qualità del video",17);
+
+        parameterRow(settings,"CRF","Valori da 0 a 51. Un numero più basso tende a conservare più dettagli e produrre file più grandi. CRF 0 non equivale alla modalità lossless. Dimensione e qualità dipendono dal contenuto.");
         quality=spinner(settings,new String[]{"Alta qualità · CRF 18","Bilanciata · CRF 23","Risparmio spazio · CRF 28","Personalizzata · scrivi CRF 0–51"});
         customCrf=new EditText(this);customCrf.setSingleLine(true);customCrf.setInputType(InputType.TYPE_CLASS_NUMBER);
         customCrf.setTextColor(ink);customCrf.setHintTextColor(muted);customCrf.setTextSize(18);customCrf.setHint("Valore CRF da 0 a 51");
@@ -116,18 +116,21 @@ public final class MainActivity extends Activity {
         quality.onSelection=()->{customCrf.setVisibility(quality.getSelectedItemPosition()==3?View.VISIBLE:View.GONE);updateQualityHelp();};
         quality.setSelection(state==null?1:state.getInt("quality",1));
         customCrf.addTextChangedListener(new TextWatcher(){public void beforeTextChanged(CharSequence s,int a,int c,int f){} public void onTextChanged(CharSequence s,int a,int b,int c){updateQualityHelp();}public void afterTextChanged(Editable e){}});
-        bframeSwitch=new Switch(this);bframeSwitch.setText("B-frame");bframeSwitch.setTextColor(ink);bframeSwitch.setTextSize(17);bframeSwitch.setPadding(0,dp(12),0,dp(12));settings.addView(bframeSwitch);bframeSwitch.setChecked(state==null||state.getBoolean("bframes",true));
-        lookaheadSwitch=new Switch(this);lookaheadSwitch.setText("Lookahead esteso");lookaheadSwitch.setTextColor(ink);lookaheadSwitch.setTextSize(17);lookaheadSwitch.setPadding(0,dp(12),0,dp(12));settings.addView(lookaheadSwitch);lookaheadSwitch.setChecked(state==null||state.getBoolean("lookahead",true));
-        temporalHelp=text(settings,"",15);
+        bframeSwitch=new Switch(this);bframeSwitch.setText("B-frame");bframeSwitch.setTextColor(ink);bframeSwitch.setTextSize(20);bframeSwitch.setTypeface(null,Typeface.BOLD);bframeSwitch.setPadding(0,dp(12),0,dp(12));switchRow(settings,bframeSwitch,"B-frame","Fotogrammi che possono usare riferimenti precedenti e successivi. Il numero visualizzato è il massimo consecutivo; x265 può usarne meno in base alla scena. OFF imposta il massimo a zero.");bframeSwitch.setChecked(state==null||state.getBoolean("bframes",true));
+        lookaheadSwitch=new Switch(this);lookaheadSwitch.setText("Lookahead esteso");lookaheadSwitch.setTextColor(ink);lookaheadSwitch.setTextSize(20);lookaheadSwitch.setTypeface(null,Typeface.BOLD);lookaheadSwitch.setPadding(0,dp(12),0,dp(12));switchRow(settings,lookaheadSwitch,"Lookahead","Numero di fotogrammi futuri analizzati per pianificare la codifica. ON usa il preset; OFF disattiva l’analisi estesa e CU-tree, mantenendo l’eventuale buffer minimo dei B-frame.");lookaheadSwitch.setChecked(state==null||state.getBoolean("lookahead",true));
+        temporalHelp=text(settings,"",13);temporalHelp.setVisibility(View.GONE);
+        cuTreeLabel=parameterRow(settings,"CU-tree","Usa il lookahead per valutare quanto una zona verrà riutilizzata nei fotogrammi successivi e distribuire i bit. Segue il preset; viene disattivato con Lookahead OFF.");
+        aqModeLabel=parameterRow(settings,"AQ mode","Adaptive Quantization: distribuisce la compressione tra le zone dello stesso fotogramma. 0: disattivata. 1: AQ basata sulla variabilità. 2: auto-variance. 3: auto-variance con attenzione alle zone scure. 4: auto-variance con informazioni sui bordi. Qui segue il preset x265.");
+        aqStrengthLabel=parameterRow(settings,"AQ strength","Intensità dell’Adaptive Quantization. Segue il valore del preset; 0 disattiva AQ. Un valore maggiore non garantisce qualità migliore o file più piccoli.");
         mode.onSelection=this::updateTemporalHelp;
         bframeSwitch.setOnCheckedChangeListener((v,checked)->updateTemporalHelp());
         lookaheadSwitch.setOnCheckedChangeListener((v,checked)->updateTemporalHelp());
         updateTemporalHelp();
-        text(settings,"ON usa i valori del preset. Lookahead OFF con B-frame ON conserva solo il buffer minimo richiesto da x265.",13);
-        text(settings,"Utilizzo CPU",17);
-        cpuMode=spinner(settings,new String[]{"Limitato · configurazione precedente","Automatico · decide x265","Massimo · tutti i core disponibili"});
+
+        parameterRow(settings,"CPU","Limited limita il numero di thread. Auto lascia decidere x265. Max aumenta il parallelismo in base ai core disponibili. Non garantisce il 100% di utilizzo: dipende dal video, dal preset e dai limiti del telefono.");
+        cpuMode=spinner(settings,new String[]{"Limited","Auto","Max"});
         cpuMode.setSelection(state==null?1:state.getInt("cpu",1));
-        text(settings,"Massimo aumenta il parallelismo; l’uso al 100% dipende dal video e dal telefono.",13);
+
         LinearLayout work=card(page,"03  CONVERSIONE");
         convert=button(work,"Converti e salva MP4");styleButton(convert,true);
         stop=button(work,"Annulla conversione");stop.setVisibility(View.GONE);
@@ -140,8 +143,7 @@ public final class MainActivity extends Activity {
         timeline=text(work,"Video convertito: — s\nVideo rimanente: — s",16);
         status=text(work,"Scegli video, cartella e qualità.",14);
         telemetry=text(work,"CPU APP   …     •     BATTERIA   …",14);
-        text(work,"CPU dell’app: 100% = tutti i core disponibili occupati. Temperatura della batteria, non del processore.",12);
-        text(work,"Video SDR a 8 bit, audio AAC o assente. La conversione continua con notifica anche a schermo spento.",13);
+        parameterRow(work,"ⓘ Prestazioni","CPU app: 100% indica tutti i core disponibili occupati. La temperatura è della batteria, non della CPU. La conversione usa un servizio con notifica e un wake lock, ma Android può applicare limiti energetici. Supportati video SDR a 8 bit e audio AAC o assente.");
         openVideo=button(work,"Apri video convertito");openVideo.setVisibility(View.GONE);
         LinearLayout logs=card(page,"DIAGNOSTICA");saveLog=button(logs,"Esporta log completo · TXT");
         saveMetadata=button(logs,"Esporta metadati originali · TXT");
@@ -190,13 +192,33 @@ public final class MainActivity extends Activity {
         saveLog.setOnClickListener(v->exportLog());
         saveMetadata.setOnClickListener(v->exportMetadata());
     }
+    private TextView parameterRow(LinearLayout parent,String title,String help){
+        LinearLayout row=new LinearLayout(this);row.setGravity(Gravity.CENTER_VERTICAL);parent.addView(row);
+        TextView label=text(row,title,20);label.setTypeface(null,Typeface.BOLD);label.setLayoutParams(new LinearLayout.LayoutParams(0,-2,1));
+        infoButton(row,title,help);return label;
+    }
+    private void switchRow(LinearLayout parent,Switch toggle,String title,String help){
+        LinearLayout row=new LinearLayout(this);row.setGravity(Gravity.CENTER_VERTICAL);parent.addView(row);
+        row.addView(toggle,new LinearLayout.LayoutParams(0,-2,1));infoButton(row,title,help);
+    }
+    private void infoButton(LinearLayout row,String title,String help){
+        Button info=new Button(this);info.setText("ⓘ");info.setTextSize(21);info.setTextColor(accent);info.setContentDescription("Spiegazione: "+title);
+        info.setMinWidth(0);info.setMinimumWidth(0);info.setPadding(0,0,0,0);
+        row.addView(info,new LinearLayout.LayoutParams(dp(48),dp(48)));
+        info.setOnClickListener(v->new android.app.AlertDialog.Builder(this).setTitle(title).setMessage(help).setPositiveButton("OK",null).show());
+    }
     private void updateTemporalHelp(){
         if(temporalHelp==null)return;
         try{
             System.loadLibrary("x265probe");
             int[] values=nativePresetSettings(mode.getSelectedItemPosition(),bframeSwitch.isChecked(),lookaheadSwitch.isChecked());
-            temporalHelp.setText("VALORI DEL PRESET SELEZIONATO\nB-frame: massimo "+values[0]+" consecutivi\nLookahead: "+values[1]+" fotogrammi\nCU-tree: "+(values[2]!=0?"attivo":"disattivo")+"\n"+(lookaheadSwitch.isChecked()?"Profondità di analisi del preset.":"Lookahead esteso disattivato; l’eventuale buffer residuo serve ai B-frame.")+"\nIl numero reale di B-frame può variare da una scena all’altra.");
-        }catch(RuntimeException|LinkageError e){temporalHelp.setText("Parametri x265 non disponibili: "+e.getMessage());}
+            bframeSwitch.setText("B-frame · "+values[0]);
+            lookaheadSwitch.setText("Lookahead · "+values[1]);
+            cuTreeLabel.setText("CU-tree · "+(values[2]!=0?"ON":"OFF"));
+            aqModeLabel.setText("AQ mode · "+values[3]);
+            aqStrengthLabel.setText(String.format(Locale.ITALY,"AQ strength · %.2f",values[4]/1000.0));
+            temporalHelp.setVisibility(View.GONE);
+        }catch(RuntimeException|LinkageError e){temporalHelp.setVisibility(View.VISIBLE);temporalHelp.setText("Parametri x265 non disponibili: "+e.getMessage());}
     }
     private static String qualityName(int crf){
         if(crf==0)return "Qualità massima CRF, non senza perdita";
@@ -265,7 +287,7 @@ public final class MainActivity extends Activity {
         }
     }
     private int selectedCrf(){int i=quality.getSelectedItemPosition();if(i<3)return new int[]{18,23,28}[Math.max(0,i)];try{return Integer.parseInt(customCrf.getText().toString());}catch(NumberFormatException e){return -1;}}
-    private void updateQualityHelp(){if(qualityHelp==null)return;int n=selectedCrf();qualityHelp.setText(n<0||n>51?"Inserisci un numero intero da 0 a 51.":"CRF "+n+" · "+qualityName(n)+".\nNumero più basso = più qualità e generalmente più spazio. Il CRF non è una percentuale.");}
+    private void updateQualityHelp(){if(qualityHelp==null)return;int n=selectedCrf();qualityHelp.setText(n<0||n>51?"Inserisci un numero intero da 0 a 51.":"CRF · "+n);}
     private void toast(String s){Toast.makeText(this,s,Toast.LENGTH_LONG).show();}
     private void refreshLabels(){
         videoLabel.setText(input==null?"Nessun video selezionato":sourceName);
@@ -307,7 +329,7 @@ public final class MainActivity extends Activity {
         frameLabel.setText("Fotogrammi: "+s.doneFrames+" / "+(s.totalFrames>0?s.totalFrames:"— (totale non dichiarato)"));
         setBusy(s.running);progress.setProgress(s.percent);percentLabel.setText(s.percent+"%");status.setText(s.message);logView.setText(s.log);
         timeline.setText(String.format(Locale.ITALY,"Video convertito: %.1f s\nVideo rimanente: %s",s.done/1000000.0,s.total>0?String.format(Locale.ITALY,"%.1f s",Math.max(0,s.total-s.done)/1000000.0):"durata non disponibile"));
-        effectiveTemporal.setText(s.bframeCount>=0?"PARAMETRI EFFETTIVI DELL’ENCODER\nB-frame: massimo "+s.bframeCount+" consecutivi\nLookahead: "+s.lookaheadCount+" fotogrammi\nCU-tree: "+(s.cuTree!=0?"attivo":"disattivo"):"Parametri effettivi: disponibili all’avvio dell’encoder.");
+        effectiveTemporal.setText(s.bframeCount>=0?String.format(Locale.ITALY,"Encoder: B-frame %d · Lookahead %d\nCU-tree %s · AQ %d · Strength %.2f",s.bframeCount,s.lookaheadCount,s.cuTree!=0?"ON":"OFF",s.aqMode,s.aqStrength/1000.0):"Encoder: in attesa");
         resultUri=s.result;openVideo.setVisibility(resultUri==null?View.GONE:View.VISIBLE);
         if(input==null){input=s.input;folder=s.folder;sourceName=s.source;refreshLabels();inspectInput();}
     }
@@ -428,4 +450,5 @@ public final class MainActivity extends Activity {
     @Override protected void onPause(){ConversionService.uiVisible=false;monitor.removeCallbacks(sample);ConversionService.detach(sessionObserver);super.onPause();}
     @Override protected void onDestroy(){destroyed=true;ConversionService.detach(sessionObserver);worker.shutdown();super.onDestroy();}
 }
+
 

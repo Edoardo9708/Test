@@ -8,11 +8,28 @@ android {
         applicationId 'it.edo.codecprobe'
         minSdk 29
         targetSdk 35
-        versionCode 21
-        versionName '0.21'
+        versionCode 22
+        versionName '0.22'
         ndk { abiFilters 'arm64-v8a' }
         externalNativeBuild {
             cmake { cppFlags '-std=c++17 -fexceptions' }
+        }
+    }
+    signingConfigs {
+        permanent {
+            def signingPath = System.getenv('CODECPROBE_STORE_FILE')
+            if (signingPath) {
+                storeFile file(signingPath)
+                storePassword System.getenv('CODECPROBE_STORE_PASSWORD')
+                keyAlias 'codecprobe'
+                keyPassword System.getenv('CODECPROBE_STORE_PASSWORD')
+                storeType 'PKCS12'
+            }
+        }
+    }
+    buildTypes {
+        debug {
+            if (System.getenv('CODECPROBE_STORE_FILE')) signingConfig signingConfigs.permanent
         }
     }
     externalNativeBuild {
@@ -23,6 +40,7 @@ android {
         targetCompatibility JavaVersion.VERSION_17
     }
 }
+
 
 
 

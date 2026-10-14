@@ -53,8 +53,16 @@ jobs:
             ffprobe -v error -count_frames -select_streams v:0 -show_entries stream=width,height,nb_read_frames -of json "smoke-${crf}.hevc" > "smoke-${crf}.json"
           done
           python3 scripts/verify-smoke.py
+      - name: Restore permanent APK signing key
+        id: signing
+        env:
+          CODECPROBE_SIGNING_JSON: ${{ secrets.CODECPROBE_SIGNING_JSON }}
+        run: python3 scripts/restore-signing.py
       - name: Build and lint
         run: gradle --no-daemon :app:assembleDebug :app:lintDebug
+      - name: Verify permanent APK signature
+        if: steps.signing.outputs.ready == 'true'
+        run: python3 scripts/verify-signing.py
       - name: Verify native optimization and APK architecture
         run: python3 scripts/verify-native-build.py
       - name: Name APK with built app version
@@ -63,6 +71,7 @@ jobs:
           python3 scripts/package-apk.py
           python3 scripts/verify-version.py
       - uses: actions/upload-artifact@v4
+        if: steps.signing.outputs.ready == 'true'
         with:
           name: v${{ steps.package.outputs.version }}-CodecProbe-APK
           path: ${{ steps.package.outputs.apk_path }}
@@ -80,3 +89,4 @@ jobs:
           path: |
             native-smoke.log
             arm-smoke.log
+
