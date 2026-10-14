@@ -6,6 +6,8 @@ struct StreamConfig {
     int preset=0;
     int cpuMode=0, cores=2;
     bool bframes=false, lookahead=false;
+    bool exactColor=false;
+    int colorPrimaries=2,colorTransfer=2,colorMatrix=2,colorFlags=40;
 };
 class StreamEncoder {
 public:

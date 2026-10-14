@@ -90,7 +90,7 @@ public final class MainActivity extends Activity {
             return insets;
         });
         TextView title=text(page,"Converti video",30);title.setTypeface(null,Typeface.BOLD);
-        text(page,"HEVC / x265   •   v0.15",13);
+        text(page,"HEVC / x265   •   v"+BuildConfig.VERSION_NAME,13);
         text(page,"Meno spazio, qualità sotto controllo.",16);
         LinearLayout files=card(page,"01  FILE E DESTINAZIONE");
         pickVideo=button(files,"Seleziona video");videoLabel=text(files,"Nessun video selezionato",14);

@@ -60,7 +60,17 @@ StreamEncoder::StreamEncoder(const StreamConfig& c,ProbeCallbacks& cb):state(new
     p->vui.bEnableVideoFullRangeFlag=c.range==1;
     p->vui.colorPrimaries=c.standard==6?9:c.standard==2?5:c.standard==4?6:1;
     p->vui.matrixCoeffs=c.standard==6?9:c.standard==2?5:c.standard==4?6:1;
-    p->vui.transferCharacteristics=c.transfer==1?8:6;
+    p->vui.transferCharacteristics=c.transfer==1?8:(c.standard==1?1:6);
+    if(c.exactColor){
+        p->vui.bEnableVideoSignalTypePresentFlag=(c.colorFlags&2)!=0;
+        p->vui.bEnableColorDescriptionPresentFlag=(c.colorFlags&4)!=0;
+        p->vui.bEnableVideoFullRangeFlag=(c.colorFlags&1)!=0;
+        p->vui.videoFormat=(c.colorFlags>>3)&7;
+        p->vui.colorPrimaries=c.colorPrimaries;
+        p->vui.transferCharacteristics=c.colorTransfer;
+        p->vui.matrixCoeffs=c.colorMatrix;
+    }
+    cb.log("COLORE x265 richiesto: primarie="+std::to_string(p->vui.colorPrimaries)+" transfer="+std::to_string(p->vui.transferCharacteristics)+" matrice="+std::to_string(p->vui.matrixCoeffs)+" full_range="+std::to_string(p->vui.bEnableVideoFullRangeFlag));
     if(x265_param_apply_profile(p,"main")<0) throw std::runtime_error("Profilo Main rifiutato");
     cb.log("BEGIN x265_encoder_open · CPU, I420/8bit, CRF="+std::to_string(c.crf));
     s.encoder=x265_encoder_open(p);

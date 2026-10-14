@@ -118,3 +118,9 @@ The v0.13 device log exposed a SecurityException opening a MediaStore URI with r
 ## v0.15: Android provider numeric compatibility
 
 The v0.14 Samsung Android 16 log confirms original GPS is readable, then exposes Long accurate-framecount where conversion assumed Integer. Read MediaFormat numeric fields using getNumber; convert integer fields exactly with explicit finite/integral/range checks. Apply this to conversion properties, duration, frame rate, verification dimensions and input inspection. Regression tests cover Long(52), integer and float representations, duration, overflow, fractional/non-finite values and missing numbers. GPS preservation still needs an end-to-end device conversion.
+
+## v0.16: one runtime version and exact source color
+
+BuildConfig.VERSION_NAME generated from app/build.gradle now supplies the screen and conversion log. APK and ZIP names already derive from the built output metadata. Only versionName/versionCode in Gradle are updated for a release; UI and log have no literal versions.
+
+Read H.264/H.265 SPS VUI directly from codec CSD, including exact primaries, transfer, matrix, full range and presence flags/video format. Pass those values to x265 instead of collapsing Android SDR to SMPTE170M. Verify emitted HEVC headers against the original before muxing. Unsupported/truncated SPS and inconsistent multiple SPS fail explicitly, with no color guess. Tests include the Samsung SPS from the sample, generated AVC BT709 and HEVC SMPTE170M full-range, plus truncated input. MP4 nclx/nclc color declarations are checked against SPS; conflicts and ICC profiles are explicitly rejected rather than guessed. Native host and ARM64 tests independently verify BT709, SMPTE170M full-range and linear output with ffprobe.

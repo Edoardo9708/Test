@@ -17,7 +17,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 final class VideoConverter {
     interface Listener { void log(String text); void progress(int percent, String text); void timeline(long doneUs,long totalUs); default void frames(int done,int total){} default String cancellationReason(){return "Annullamento richiesto";} }
-    private native long nativeOpen(int w,int h,int fpsMilli,int crf,int standard,int transfer,int range,int preset,int cpuMode,int cores,boolean bframes,boolean lookahead);
+    private native long nativeOpen(int w,int h,int fpsMilli,int crf,int standard,int transfer,int range,int preset,int cpuMode,int cores,boolean bframes,boolean lookahead,int primaries,int colorTransfer,int matrix,int colorFlags);
     private native void nativeFrame(long handle,ByteBuffer i420,long pts);
     private native void nativeFinish(long handle);
     private native void nativeClose(long handle);
@@ -32,6 +32,7 @@ final class VideoConverter {
     private int videoTrack=-1,audioTrack=-1,width,height,frames,packets,standard,transfer,range;
     private long lastPacket=-1;
     private float fps;
+    private ColorVui sourceColor;
     private int preset,cpuMode;
     private boolean bframes,lookahead;
     private DataOutputStream inputTimestamps;
@@ -53,6 +54,10 @@ final class VideoConverter {
         listener.log(line);
     }
     public void onHeaders(byte[] headers) {
+        ColorVui encodedColor=ColorVui.read("video/hevc",headers);
+        onLog("COLORE USCITA x265: "+encodedColor);
+        if(!sourceColor.same(encodedColor))throw new IllegalStateException("Dichiarazione colore x265 diversa dall’originale: conversione interrotta");
+        onLog("OK COLORE: VUI originale e VUI x265 identici");
         onLog("BEGIN muxer.addTrack · creo la traccia HEVC");
         MediaFormat f=MediaFormat.createVideoFormat("video/hevc",width,height);
         f.setByteBuffer("csd-0",ByteBuffer.wrap(headers));
@@ -93,7 +98,7 @@ final class VideoConverter {
         try(FileOutputStream fileLog=new FileOutputStream(logFile(context),false)) {
             log=fileLog;
             try {
-                onLog("*** INIZIO CONVERSIONE v0.15 ***");
+                onLog("*** INIZIO CONVERSIONE v"+BuildConfig.VERSION_NAME+" ***");
                 onLog("PERCORSO:\n1. Analizzo video e audio\n2. Decodifico i fotogrammi\n3. Ricodifico con x265 CRF\n4. Copio audio AAC\n5. Verifico il video\n6. Salvo nella cartella scelta");
                 onLog("QUALITÀ: CRF="+crf+" · valore minore = più dettagli, file generalmente più grande. Il risultato dipende dal contenuto.");
                 onLog("INPUT: "+sourceName+"\nPROCESSO 64 bit="+android.os.Process.is64Bit());
@@ -202,6 +207,16 @@ final class VideoConverter {
             if(("video/hevc".equals(inputMime)&&profile!=0&&profile!=MediaCodecInfo.CodecProfileLevel.HEVCProfileMain)
                     ||("video/avc".equals(inputMime)&&(profile==16||profile==32||profile==64)))
                 throw new IllegalArgumentException("Profilo video non supportato: questa versione richiede SDR a 8 bit.");
+            java.util.List<byte[]> csds=new java.util.ArrayList<>();
+            for(String key:video.getKeys())if(key.startsWith("csd-")){ByteBuffer b=video.getByteBuffer(key).duplicate();byte[] bytes=new byte[b.remaining()];b.get(bytes);csds.add(bytes);}
+            sourceColor=ColorVui.read(inputMime,csds.toArray(new byte[0][]));
+            try(ParcelFileDescriptor fd=context.getContentResolver().openFileDescriptor(uri,"r")){
+                if(fd==null)throw new IOException("Originale assente durante il controllo colore");
+                try(ParcelFileDescriptor.AutoCloseInputStream in=new ParcelFileDescriptor.AutoCloseInputStream(fd)){ContainerColor.check(in.getChannel(),sourceColor);}
+            }
+            onLog("*** CONSERVAZIONE DICHIARAZIONE COLORE ***");
+            onLog("COLORE ORIGINALE (SPS/VUI): "+sourceColor+" · codici precisi del bitstream, senza traduzione dell’enum SDR Android");
+            if(sourceColor.transfer==16||sourceColor.transfer==18)throw new IllegalArgumentException("Curva HDR non supportata");
             width=integer(video,MediaFormat.KEY_WIDTH,0);height=integer(video,MediaFormat.KEY_HEIGHT,0);
             if(width<16||height<16||width>3840||height>3840||(long)width*height>3840L*2160||width%2!=0||height%2!=0)
                 throw new IllegalArgumentException("Supportati video con dimensioni pari, fino a 3840×2160 (anche verticali)");
@@ -276,7 +291,7 @@ final class VideoConverter {
                                     if(transfer==0) transfer=3;
                                     if(range==0) range=2;
                                     onLog("YUV crop="+crop+" standard="+standard+" transfer="+transfer+" range="+range+" (default SDR per valori non dichiarati)");
-                                    handle=nativeOpen(width,height,Math.round(fps*1000),crf,standard,transfer,range,preset,cpuMode,Runtime.getRuntime().availableProcessors(),bframes,lookahead);
+                                    handle=nativeOpen(width,height,Math.round(fps*1000),crf,standard,transfer,range,preset,cpuMode,Runtime.getRuntime().availableProcessors(),bframes,lookahead,sourceColor.primaries,sourceColor.transfer,sourceColor.matrix,sourceColor.flags());
                                     pixels=ByteBuffer.allocateDirect(width*height*3/2);
                                 }
                                 if(crop.width()!=width||crop.height()!=height) throw new IOException("Cambio risoluzione durante il video non supportato");
