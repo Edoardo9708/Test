@@ -6,6 +6,9 @@ import android.graphics.Rect;
 import android.media.*;
 import android.net.Uri;
 import android.os.SystemClock;
+import android.os.ParcelFileDescriptor;
+import java.util.ArrayList;
+import java.util.List;
 import android.provider.DocumentsContract;
 import java.io.*;
 import java.nio.ByteBuffer;
@@ -35,6 +38,9 @@ final class VideoConverter {
     private File timestampFile;
     private long durationUs;
     private MediaFormat audioFormat;
+    private int originalAudio=-1;
+    private static final class MetadataTrack {final int input;final MediaFormat format;int output;MetadataTrack(int i,MediaFormat f){input=i;format=f;}}
+    private final List<MetadataTrack> metadataTracks=new ArrayList<>();
     VideoConverter(Context c,AtomicBoolean cancel,Listener listener) {context=c;this.cancel=cancel;this.listener=listener;}
     public boolean isCancelled() {return cancel.get();}
     private void checkCancel() throws InterruptedException {if(cancel.get()) throw new InterruptedException("Conversione annullata");}
@@ -55,6 +61,7 @@ final class VideoConverter {
         f.setInteger(MediaFormat.KEY_COLOR_RANGE,range);
         videoTrack=muxer.addTrack(f);
         if(audioFormat!=null) audioTrack=muxer.addTrack(audioFormat);
+        for(MetadataTrack track:metadataTracks)track.output=muxer.addTrack(track.format);
         onLog("BEGIN muxer.start · avvio contenitore MP4");
         muxer.start();muxing=true;
         onLog("OK muxer.start videoTrack="+videoTrack+" audioTrack="+audioTrack);
@@ -84,12 +91,14 @@ final class VideoConverter {
         try(FileOutputStream fileLog=new FileOutputStream(logFile(context),false)) {
             log=fileLog;
             try {
-                onLog("*** INIZIO CONVERSIONE v0.10 ***");
+                onLog("*** INIZIO CONVERSIONE v0.11 ***");
                 onLog("PERCORSO:\n1. Analizzo video e audio\n2. Decodifico i fotogrammi\n3. Ricodifico con x265 CRF\n4. Copio audio AAC\n5. Verifico il video\n6. Salvo nella cartella scelta");
                 onLog("QUALITÀ: CRF="+crf+" · valore minore = più dettagli, file generalmente più grande. Il risultato dipende dal contenuto.");
                 onLog("INPUT: "+sourceName+"\nPROCESSO 64 bit="+android.os.Process.is64Bit());
                 onLog("*** INFORMAZIONI FILE IN INPUT ***");
                 onLog(InputInspector.describe(context,input,()->cancel.get()));
+                onLog("*** CONTROLLO CONSERVAZIONE METADATI ***");
+                sourceMetadata(input,null);
                 onLog("BEGIN loadLibrary x265probe");
                 System.loadLibrary("x265probe");
                 onLog("OK loadLibrary · CPU ARM64, O3, assembly NEON; preset selezionato indice="+preset+", modalità CPU="+cpuMode+".");
@@ -99,9 +108,13 @@ final class VideoConverter {
                 }
                 inputTimestamps=null;
                 checkCancel();
+                listener.progress(93,"Conservazione metadati originali…");
+                sourceMetadata(input,temporary);
                 onLog("*** STEP 5 · VERIFICA VIDEO COMPLETO ***");
                 listener.progress(94,"Verifica del video...");
                 verify(temporary);
+                if(originalAudio>=0)verifyCopiedTrack(input,temporary,originalAudio,audioTrack);
+                for(MetadataTrack track:metadataTracks)verifyCopiedTrack(input,temporary,track.input,track.output);
                 checkCancel();
                 onLog("*** STEP 6 · SALVATAGGIO NELLA CARTELLA SCELTA ***");
                 listener.progress(98,"Salvataggio MP4...");
@@ -160,8 +173,10 @@ final class VideoConverter {
                 } else if(mime!=null&&mime.startsWith("audio/")) {
                     if(audioFormat!=null) throw new IllegalArgumentException("Più tracce audio non ancora supportate");
                     if(!"audio/mp4a-latm".equals(mime)) throw new IllegalArgumentException("Audio "+mime+" non ancora supportato: per questa versione serve AAC.");
-                    audioFormat=f;inputAudio=i;
-                } else onLog("AVVISO: traccia non audio/video esclusa");
+                    audioFormat=f;inputAudio=i;originalAudio=i;
+                } else if(mime!=null&&mime.startsWith("application/")){
+                    metadataTracks.add(new MetadataTrack(i,f));onLog("Traccia metadati temporizzati da conservare: "+mime);
+                } else throw new IllegalArgumentException("Traccia "+mime+" non supportata: conversione interrotta per evitare la perdita dei metadati");
             }
             if(video==null) throw new IllegalArgumentException("Nessuna traccia video");
             rejectHdr(video);
@@ -267,6 +282,7 @@ final class VideoConverter {
             onLog("BEGIN nativeClose");nativeClose(handle);handle=0;onLog("OK nativeClose");
             if(frames!=packets) throw new IOException("Frame e pacchetti diversi: "+frames+"/"+packets);
             if(inputAudio>=0) {listener.progress(91,"Copia audio...");copyAudio(uri,inputAudio);}
+            for(MetadataTrack track:metadataTracks)copyMetadataTrack(uri,track);
             onLog("BEGIN muxer.stop");muxer.stop();muxing=false;onLog("OK muxer.stop");
         } finally {
             if(handle!=0) nativeClose(handle);
@@ -318,6 +334,48 @@ final class VideoConverter {
             onLog("OK copia audio samples="+count);
         } finally {e.release();}
     }
+    private void verifyCopiedTrack(Uri source,File target,int inputTrack,int outputTrack)throws Exception {
+        MediaExtractor original=new MediaExtractor(),result=new MediaExtractor();
+        try{
+            original.setDataSource(context,source,null);result.setDataSource(target.getAbsolutePath());original.selectTrack(inputTrack);result.selectTrack(outputTrack);int count=0;
+            ByteBuffer in=ByteBuffer.allocateDirect(1024*1024),out=ByteBuffer.allocateDirect(1024*1024);
+            while(original.getSampleTrackIndex()>=0){
+                checkCancel();long n=original.getSampleSize();if(n<0||n>16*1024*1024||result.getSampleSize()!=n)throw new IOException("Dimensione campioni copiati diversa");
+                if(Math.abs(original.getSampleTime()-result.getSampleTime())>1000)throw new IOException("Timestamp audio/metadati copiati diverso");
+                if(n>in.capacity()){in=ByteBuffer.allocateDirect((int)n);out=ByteBuffer.allocateDirect((int)n);}
+                in.clear();out.clear();int a=original.readSampleData(in,0),b=result.readSampleData(out,0);if(a!=b||a<0)throw new IOException("Campione copiato assente");
+                in.position(0);in.limit(a);out.position(0);out.limit(b);if(!in.equals(out))throw new IOException("Contenuto audio/metadati copiati diverso");
+                count++;original.advance();result.advance();
+            }
+            if(result.getSampleTrackIndex()>=0)throw new IOException("Campioni aggiuntivi nella traccia copiata");
+            onLog("OK VERIFY traccia copiata="+inputTrack+" samples="+count+" contenuto e timestamp conservati");
+        }finally{original.release();result.release();}
+    }
+    private void sourceMetadata(Uri uri,File target)throws Exception {
+        ParcelFileDescriptor fd=context.getContentResolver().openFileDescriptor(uri,"r");
+        if(fd==null)throw new IOException("File originale non disponibile per conservare i metadati");
+        try(ParcelFileDescriptor.AutoCloseInputStream in=new ParcelFileDescriptor.AutoCloseInputStream(fd)){
+            if(target==null){Mp4Metadata.check(in.getChannel(),()->cancel.get());onLog("OK struttura MP4/MOV compatibile con copia dei metadati");}
+            else Mp4Metadata.copy(in.getChannel(),target,()->cancel.get(),this::onLog);
+        }
+    }
+    private void copyMetadataTrack(Uri uri,MetadataTrack track)throws Exception {
+        onLog("*** COPIA TRACCIA METADATI TEMPORIZZATI ***");
+        MediaExtractor e=new MediaExtractor();
+        try {
+            e.setDataSource(context,uri,null);e.selectTrack(track.input);ByteBuffer buffer=ByteBuffer.allocateDirect(1024*1024);
+            MediaCodec.BufferInfo info=new MediaCodec.BufferInfo();int count=0;
+            while(e.getSampleTrackIndex()>=0){
+                checkCancel();long size=e.getSampleSize();if(size<0||size>16*1024*1024)throw new IOException("Dimensione metadati temporizzati non supportata");
+                if(size>buffer.capacity())buffer=ByteBuffer.allocateDirect((int)size);
+                if((e.getSampleFlags()&MediaExtractor.SAMPLE_FLAG_ENCRYPTED)!=0)throw new IOException("Metadati protetti non copiabili");
+                buffer.clear();int n=e.readSampleData(buffer,0);if(n<0)break;
+                info.set(0,n,e.getSampleTime(),(e.getSampleFlags()&MediaExtractor.SAMPLE_FLAG_SYNC)!=0?MediaCodec.BUFFER_FLAG_KEY_FRAME:0);
+                muxer.writeSampleData(track.output,buffer,info);count++;onLog("OK metadati sample="+count+" pts_us="+info.presentationTimeUs+" bytes="+n);if(!e.advance())break;
+            }
+            if(count==0)throw new IOException("Traccia metadati vuota: impossibile garantire la conservazione");
+        }finally{e.release();}
+    }
     private void verify(File file) throws Exception {
         try(DataInputStream expected=new DataInputStream(new BufferedInputStream(new FileInputStream(timestampFile)))) {
             verifyFrames(file,expected);
@@ -331,7 +389,7 @@ final class VideoConverter {
             if(track<0) throw new IOException("Traccia HEVC mancante");
             MediaFormat format=e.getTrackFormat(track);
             if(format.getInteger(MediaFormat.KEY_WIDTH)!=width||format.getInteger(MediaFormat.KEY_HEIGHT)!=height) throw new IOException("Risoluzione MP4 errata");
-            if(e.getTrackCount()!=(audioFormat==null?1:2)) throw new IOException("Conteggio tracce errato");
+            if(e.getTrackCount()!=(audioFormat==null?1:2)+metadataTracks.size()) throw new IOException("Conteggio tracce errato");
             e.selectTrack(track);d=MediaCodec.createDecoderByType("video/hevc");d.configure(format,null,null,0);d.start();running=true;
             MediaCodec.BufferInfo info=new MediaCodec.BufferInfo();boolean inEnd=false,outEnd=false;int count=0;
             long lastActivity=SystemClock.elapsedRealtime(),lastPts=-1;

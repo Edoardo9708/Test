@@ -2,121 +2,98 @@ package it.edo.codecprobe;
 
 import android.content.Context;
 import android.database.Cursor;
-import android.media.MediaExtractor;
-import android.media.MediaFormat;
-import android.media.MediaMetadataRetriever;
+import android.media.*;
 import android.net.Uri;
 import android.os.ParcelFileDescriptor;
 import android.provider.OpenableColumns;
-import java.util.Locale;
-import java.util.TreeSet;
+import java.util.*;
 import java.util.function.BooleanSupplier;
 import java.lang.reflect.Field;
-import java.io.FileInputStream;
 import java.nio.ByteBuffer;
 
-/** Reads declared metadata without decoding or modifying the original file. */
+/** Reads declared properties and track payload sizes without decoding media. */
 final class InputInspector {
-    private InputInspector() {}
-    static final class Report {final String summary,details;Report(String s,String d){summary=s;details=d;}String full(){return summary+"\n\nMETADATI LEGGIBILI DA ANDROID\n"+details;}}
-    static String describe(Context context,Uri uri){return inspect(context,uri,()->false).full();}
-    static String describe(Context context,Uri uri,BooleanSupplier cancelled){return inspect(context,uri,cancelled).full();}
-    static Report inspect(Context context,Uri uri,BooleanSupplier cancelled) {
-        StringBuilder info=new StringBuilder(),details=new StringBuilder();
+    private InputInspector(){}
+    static final class Report {
+        final Map<String,String> summarySections,detailSections;
+        final String summary,details;
+        Report(Map<String,String> summary,Map<String,String> details){summarySections=summary;detailSections=details;this.summary=flatten(summary);this.details=flatten(details);}
+        Report(String summary,String details){this(Collections.singletonMap("INFORMAZIONI",summary),Collections.singletonMap("DETTAGLI",details));}
+        String full(){return summary+"\n\nMETADATI E DETTAGLI\n"+details;}
+        private static String flatten(Map<String,String> sections){StringBuilder out=new StringBuilder();for(Map.Entry<String,String> e:sections.entrySet())out.append("\n*** ").append(e.getKey()).append(" ***\n").append(e.getValue()).append("\n");return out.toString();}
+    }
+    static String describe(Context c,Uri u){return inspect(c,u,()->false).full();}
+    static String describe(Context c,Uri u,BooleanSupplier cancel){return inspect(c,u,cancel).full();}
+    static Report inspect(Context context,Uri uri,BooleanSupplier cancel){
+        Map<String,String> summary=new LinkedHashMap<>(),details=new LinkedHashMap<>();
+        StringBuilder file=new StringBuilder(),dates=new StringBuilder(),authorship=new StringBuilder(),other=new StringBuilder(),sizes=new StringBuilder(),structure=new StringBuilder();
         long bytes=-1;
-        try(Cursor c=context.getContentResolver().query(uri,new String[]{OpenableColumns.SIZE},null,null,null)) {
-            if(c!=null&&c.moveToFirst()&&!c.isNull(0))bytes=c.getLong(0);
-        }catch(Exception ignored){}
-        if(bytes<0)try(ParcelFileDescriptor fd=context.getContentResolver().openFileDescriptor(uri,"r")) {
-            if(fd!=null)bytes=fd.getStatSize();
-        }catch(Exception ignored){}
-        info.append("Dimensione: ").append(bytes>=0?String.format(Locale.ITALY,"%.2f MB · %,d byte",bytes/1000000.0,bytes):"non disponibile dal provider");
+        try(Cursor c=context.getContentResolver().query(uri,new String[]{OpenableColumns.SIZE},null,null,null)){if(c!=null&&c.moveToFirst()&&!c.isNull(0))bytes=c.getLong(0);}catch(Exception ignored){}
+        if(bytes<0)try(ParcelFileDescriptor fd=context.getContentResolver().openFileDescriptor(uri,"r")){if(fd!=null)bytes=fd.getStatSize();}catch(Exception ignored){}
+        line(file,"Dimensione totale",bytes>=0?sizeText(bytes):"non disponibile dal provider");
         String container="non dichiarato";
-        String duration=null,rotation=null;
         MediaMetadataRetriever retriever=new MediaMetadataRetriever();
         try {
-            retriever.setDataSource(context,uri);
-            String mime=retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_MIMETYPE);
-            if(mime!=null)container=containerName(mime);
-            duration=retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION);
-            rotation=retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_ROTATION);
-            for(Field field:MediaMetadataRetriever.class.getFields())if(field.getName().startsWith("METADATA_KEY_"))try{
-                String value=retriever.extractMetadata(field.getInt(null));if(value!=null)details.append(field.getName().substring(13)).append(": ").append(value).append("\n");
-            }catch(Exception ignored){}
-        }catch(Exception ignored){}finally{try{retriever.release();}catch(Exception ignored){}}
-        info.append("\nContenitore: ").append(container);
-        if(duration!=null)try{info.append(String.format(Locale.ITALY,"\nDurata: %.2f s",Long.parseLong(duration)/1000.0));}catch(NumberFormatException ignored){}
-        if(rotation!=null)info.append(" · rotazione ").append(rotation).append("°");
-        MediaExtractor extractor=new MediaExtractor();int videos=0,audios=0;
-        long sampleTotal=0;boolean counted=false;
+            retriever.setDataSource(context,uri);String mime=retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_MIMETYPE);if(mime!=null)container=containerName(mime);
+            String duration=retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION);if(duration!=null)try{line(file,"Durata",String.format(Locale.ITALY,"%.2f s",Long.parseLong(duration)/1000.0));}catch(NumberFormatException ignored){}
+            String rotation=retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_ROTATION);if(rotation!=null)line(file,"Rotazione",rotation+"°");
+            TreeMap<String,String> values=new TreeMap<>();
+            for(Field field:MediaMetadataRetriever.class.getFields())if(field.getName().startsWith("METADATA_KEY_"))try{String value=retriever.extractMetadata(field.getInt(null));if(value!=null)values.put(field.getName().substring(13),value);}catch(Exception ignored){}
+            for(Map.Entry<String,String> entry:values.entrySet()){
+                String k=entry.getKey(),v=entry.getValue();
+                StringBuilder group=k.equals("DATE")||k.equals("LOCATION")?dates:Arrays.asList("TITLE","ARTIST","AUTHOR","ALBUM","ALBUMARTIST","COMPOSER","GENRE","WRITER","CD_TRACK_NUMBER","DISC_NUMBER","YEAR").contains(k)?authorship:other;
+                line(group,label(k),v);
+            }
+        }catch(Exception e){line(other,"Lettura metadati",e.getMessage());}finally{try{retriever.release();}catch(Exception ignored){}}
+        line(file,"Contenitore",container);summary.put("FILE ORIGINALE",file.toString());
+        MediaExtractor extractor=new MediaExtractor();int videos=0,audios=0,metadata=0;long sampleTotal=0;boolean counted=false;
+        List<String> names=new ArrayList<>();
         try {
             extractor.setDataSource(context,uri,null);
-            for(int i=0;i<extractor.getTrackCount();i++) {
-                MediaFormat f=extractor.getTrackFormat(i);String mime=f.getString(MediaFormat.KEY_MIME);
-                if(mime==null)continue;
-                details.append("\nTRACCIA ").append(i).append(" · ").append(mime).append("\n");
-                for(String key:new TreeSet<>(f.getKeys())) {
-                    details.append(key).append(" = ");
-                    try {int type=f.getValueTypeForKey(key);
-                        if(type==MediaFormat.TYPE_STRING)details.append(f.getString(key));
-                        else if(type==MediaFormat.TYPE_BYTE_BUFFER){ByteBuffer data=f.getByteBuffer(key);details.append(data==null?"null":data.remaining()+" byte di dati binari");}
-                        else details.append(f.getNumber(key));
-                    }catch(RuntimeException error){details.append("non leggibile");}
-                    details.append("\n");
-                }
-                if(mime.startsWith("video/")) {
-                    videos++;info.append("\n\nVideo ").append(videos).append(": ").append(codecName(mime));
-                    int w=integer(f,MediaFormat.KEY_WIDTH,-1),h=integer(f,MediaFormat.KEY_HEIGHT,-1);
-                    if(w>0&&h>0)info.append("\nRisoluzione: ").append(w).append(" × ").append(h);
+            for(int i=0;i<extractor.getTrackCount();i++){
+                MediaFormat f=extractor.getTrackFormat(i);String mime=f.getString(MediaFormat.KEY_MIME);String title;
+                StringBuilder info=new StringBuilder();line(info,"Codec",codecName(mime));
+                if(mime!=null&&mime.startsWith("video/")){
+                    title="VIDEO "+(++videos);int w=integer(f,MediaFormat.KEY_WIDTH,-1),h=integer(f,MediaFormat.KEY_HEIGHT,-1);if(w>0&&h>0)line(info,"Risoluzione",w+" × "+h);
                     Number fps=null;try{fps=f.getNumber(MediaFormat.KEY_FRAME_RATE);}catch(RuntimeException ignored){}
-                    info.append("\nFPS dichiarati: ").append(fps!=null?String.format(Locale.ITALY,"%.3f",fps.doubleValue()):"non disponibili");
-                    int transfer=integer(f,MediaFormat.KEY_COLOR_TRANSFER,-1);
-                    String hdr=transfer==6?"HDR · PQ (non supportato)":transfer==7?"HDR · HLG (non supportato)":transfer==3||transfer==1?"SDR":f.containsKey("hdr-static-info")?"metadati HDR presenti; trasferimento non dichiarato":"non determinabile dai metadati";
-                    info.append("\nGamma dinamica: ").append(hdr);
-                    int profile=integer(f,MediaFormat.KEY_PROFILE,-1);
-                    String depth="non dichiarata";
-                    if(mime.equals("video/hevc")) {if(profile==1)depth="8 bit (profilo Main)";else if(profile==2||profile==4096||profile==8192)depth="10 bit (non supportato)";}
-                    if(mime.equals("video/avc")&&(profile==16||profile==32||profile==64))depth="profilo avanzato non supportato";
-                    info.append("\nProfondità: ").append(depth);
-                    int bitrate=integer(f,MediaFormat.KEY_BIT_RATE,-1);if(bitrate>0)info.append(String.format(Locale.ITALY,"\nBitrate video dichiarato: %.2f Mbit/s",bitrate/1000000.0));
-                    if(transfer==6||transfer==7)info.append("\nCompatibilità: conversione HDR non ancora disponibile.");
-                }else if(mime.startsWith("audio/")) {
-                    audios++;info.append("\n\nAudio ").append(audios).append(": ").append(codecName(mime));
-                    int channels=integer(f,MediaFormat.KEY_CHANNEL_COUNT,-1),hz=integer(f,MediaFormat.KEY_SAMPLE_RATE,-1);
-                    if(channels>0)info.append("\nCanali: ").append(channels);if(hz>0)info.append(" · ").append(hz).append(" Hz");
-                    info.append(mime.equals("audio/mp4a-latm")?"\nAAC: verrà copiato senza ricodifica.":"\nQuesto codec audio non è ancora supportato per la conversione.");
-                }
+                    line(info,"FPS dichiarati",fps==null?"non disponibili":String.format(Locale.ITALY,"%.3f",fps.doubleValue()));
+                    int transfer=integer(f,MediaFormat.KEY_COLOR_TRANSFER,-1);line(info,"Gamma dinamica",transfer==6?"HDR · PQ":transfer==7?"HDR · HLG":transfer==3||transfer==1?"SDR":"non determinabile dai metadati");
+                    int profile=integer(f,MediaFormat.KEY_PROFILE,-1);String depth="non dichiarata";if("video/hevc".equals(mime)){if(profile==1)depth="8 bit · Main";else if(profile==2||profile==4096||profile==8192)depth="10 bit";}line(info,"Profondità colore",depth);
+                    int bitrate=integer(f,MediaFormat.KEY_BIT_RATE,-1);if(bitrate>0)line(info,"Bitrate dichiarato",String.format(Locale.ITALY,"%.2f Mbit/s",bitrate/1000000.0));
+                    if(transfer==6||transfer==7)line(info,"Compatibilità","HDR non ancora supportato per la conversione");
+                }else if(mime!=null&&mime.startsWith("audio/")){
+                    title="AUDIO "+(++audios);int channels=integer(f,MediaFormat.KEY_CHANNEL_COUNT,-1),hz=integer(f,MediaFormat.KEY_SAMPLE_RATE,-1);if(channels>0)line(info,"Canali",Integer.toString(channels));if(hz>0)line(info,"Campionamento",hz+" Hz");
+                    int bitrate=integer(f,MediaFormat.KEY_BIT_RATE,-1);if(bitrate>0)line(info,"Bitrate dichiarato",String.format(Locale.ITALY,"%.1f kbit/s",bitrate/1000.0));
+                    line(info,"Conversione","audio/mp4a-latm".equals(mime)?"AAC copiato senza ricodifica":"codec audio non ancora supportato");
+                }else{title="TRACCIA METADATI "+(++metadata);line(info,"Trattamento",mime!=null&&mime.startsWith("application/")?"campioni copiati con i timestamp originali":"traccia non supportata: la conversione si interromperà");}
+                summary.put(title,info.toString());names.add(title+" · "+codecName(mime));
+                StringBuilder raw=new StringBuilder();for(String key:new TreeSet<>(f.getKeys())){
+                    String value;try{int type=f.getValueTypeForKey(key);if(type==MediaFormat.TYPE_STRING)value=f.getString(key);else if(type==MediaFormat.TYPE_BYTE_BUFFER){ByteBuffer b=f.getByteBuffer(key);value=b==null?"null":b.remaining()+" byte di dati binari";}else value=String.valueOf(f.getNumber(key));}catch(RuntimeException e){value="non leggibile";}line(raw,label(key),value);
+                }details.put(title+" · DETTAGLI TECNICI",raw.toString());
             }
-            long[] sizes=new long[extractor.getTrackCount()];
-            for(int i=0;i<sizes.length;i++)extractor.selectTrack(i);
-            while(extractor.getSampleTrackIndex()>=0){
-                if(cancelled.getAsBoolean())return new Report("Analisi annullata","");
-                int track=extractor.getSampleTrackIndex();long size=extractor.getSampleSize();
-                if(size<0)throw new IllegalStateException("Dimensione campione non disponibile");
-                sizes[track]=Math.addExact(sizes[track],size);sampleTotal=Math.addExact(sampleTotal,size);if(!extractor.advance())break;
-            }
-            info.append("\n\nDIMENSIONI DELLE TRACCE (DATI COMPRESSI)");
-            for(int i=0;i<sizes.length;i++)info.append("\nTraccia ").append(i).append(" · ").append(codecName(extractor.getTrackFormat(i).getString(MediaFormat.KEY_MIME))).append(": ").append(sizeText(sizes[i]));
-            counted=true;
-            if(videos==0)info.append("\nNessuna traccia video rilevata.");
-            if(audios==0)info.append("\n\nAudio: assente.");
-            if(videos>1||audios>1)info.append("\nPiù tracce dello stesso tipo: non ancora supportato.");
-        }catch(Exception e){info.append("\nAnalisi tracce non completata: ").append(e.getMessage());}
-        finally{extractor.release();}
-        info.append("\n\nInformazioni dichiarate dal file; fps variabili e dati mancanti verranno verificati durante la conversione.");
-        if(counted&&bytes>=sampleTotal)info.append("\nStruttura, metadati, padding e altri dati fuori dai campioni: ").append(sizeText(bytes-sampleTotal));
-        if(container.startsWith("MP4")||container.equals("video/quicktime"))try(ParcelFileDescriptor fd=context.getContentResolver().openFileDescriptor(uri,"r")){
-            if(fd!=null)try(FileInputStream in=new FileInputStream(fd.getFileDescriptor())) {
-                Mp4Boxes.Sizes boxes=Mp4Boxes.read(in.getChannel());
-                info.append("\nStruttura moov (indici + metadati tecnici): ").append(sizeText(boxes.moov));
-                info.append("\nBlocchi descrittivi udta/meta: ").append(sizeText(boxes.tags)).append(" (inclusi nel moov se interni)");
-            }
-        }catch(Exception e){info.append("\nDimensione dei blocchi metadati: non disponibile per questo file/provider.");}
-        details.append("\nQuesti sono tutti i campi esposti dalle API Android. Tag proprietari o blocchi sconosciuti possono non essere decodificati. La conversione conserva risoluzione, tempi, orientamento e colori; i tag descrittivi dell’originale non sono copiati automaticamente.");
-        return new Report(info.toString(),details.toString());
+            long[] trackBytes=new long[names.size()];for(int i=0;i<trackBytes.length;i++)extractor.selectTrack(i);
+            while(extractor.getSampleTrackIndex()>=0){if(cancel.getAsBoolean())return new Report("Analisi annullata","");int i=extractor.getSampleTrackIndex();long n=extractor.getSampleSize();if(n<0)throw new IllegalStateException("Dimensione campione assente");trackBytes[i]=Math.addExact(trackBytes[i],n);sampleTotal=Math.addExact(sampleTotal,n);if(!extractor.advance())break;}
+            for(int i=0;i<trackBytes.length;i++)line(sizes,names.get(i),sizeText(trackBytes[i]));counted=true;
+            if(videos==0)summary.put("VIDEO","Nessuna traccia video rilevata");if(audios==0)summary.put("AUDIO","Assente");
+            if(videos>1||audios>1)line(structure,"Compatibilità","Più tracce video o audio non ancora supportate");
+        }catch(Exception e){line(structure,"Analisi tracce",e.getMessage());}finally{extractor.release();}
+        summary.put("OCCUPAZIONE DELLE TRACCE",sizes.length()==0?"Non disponibile":sizes.toString());
+        if(counted&&bytes>=sampleTotal)line(structure,"Dati fuori dai campioni",sizeText(bytes-sampleTotal)+" · struttura, tag e padding");
+        if(container.startsWith("MP4")||container.equals("MOV / QuickTime")){
+            ParcelFileDescriptor fd=null;try{fd=context.getContentResolver().openFileDescriptor(uri,"r");if(fd==null)throw new IllegalStateException("File assente");try(ParcelFileDescriptor.AutoCloseInputStream in=new ParcelFileDescriptor.AutoCloseInputStream(fd)){
+                Mp4Boxes.Sizes b=Mp4Boxes.read(in.getChannel());line(structure,"Indici e metadati tecnici · moov",sizeText(b.moov));line(structure,"Blocchi descrittivi · udta/meta",sizeText(b.tags)+" · già inclusi nel moov se interni");
+                Mp4Metadata.check(in.getChannel(),cancel);line(structure,"Copia metadati","MP4/MOV compatibile · blocchi originali, date e lingua");
+            }}catch(Exception e){line(structure,"Copia metadati","Non garantibile: "+e.getMessage());}finally{if(fd!=null)try{fd.close();}catch(Exception ignored){}}
+        }else line(structure,"Copia metadati","Richiede MP4/MOV non frammentato; gli altri contenitori sono attualmente rifiutati per evitare perdite");
+        summary.put("METADATI E CONTENITORE",structure.toString());
+        Map<String,String> ordered=new LinkedHashMap<>();ordered.put("DATE E POSIZIONE",dates.length()==0?"Nessun campo esposto da Android":dates.toString());ordered.put("TITOLO, AUTORE E CONTENUTO",authorship.length()==0?"Nessun campo esposto da Android":authorship.toString());ordered.put("ALTRI CAMPI DEL FILE",other.toString());ordered.putAll(details);
+        ordered.put("COME VENGONO CONSERVATI","I blocchi descrittivi vengono copiati integralmente e verificati tramite SHA-256, anche se i singoli tag non sono leggibili da Android. Date interne e lingua sono conservate. Codec, bitrate, indici e struttura del nuovo video vengono rigenerati. Blocchi o tracce non supportati interrompono la conversione. Tag proprietari con riferimenti interni possono richiedere una gestione specifica.");
+        return new Report(summary,ordered);
     }
-    private static String sizeText(long bytes){return String.format(Locale.ITALY,"%.3f MB · %,d byte",bytes/1000000.0,bytes);}
-    private static int integer(MediaFormat f,String key,int fallback){try{return f.containsKey(key)?f.getInteger(key):fallback;}catch(RuntimeException e){return fallback;}}
-    private static String containerName(String mime){switch(mime==null?"sconosciuto":mime){case "video/mp4":return "MP4 ("+mime+")";case "video/x-matroska":return "Matroska / MKV";case "video/webm":return "WebM";case "video/3gpp":return "3GP";default:return mime;}}
-    private static String codecName(String mime){switch(mime==null?"sconosciuto":mime){case "video/hevc":return "H.265 / HEVC";case "video/avc":return "H.264 / AVC";case "video/av01":return "AV1";case "video/x-vnd.on2.vp9":return "VP9";case "video/x-vnd.on2.vp8":return "VP8";case "audio/mp4a-latm":return "AAC";case "audio/mpeg":return "MP3";case "audio/opus":return "Opus";case "audio/vorbis":return "Vorbis";default:return mime;}}
+    private static void line(StringBuilder b,String key,String value){if(b.length()>0)b.append("\n\n");b.append(key).append("\n").append(value==null?"non disponibile":value);}
+    private static String label(String key){switch(key){case "DATE":return "Data dichiarata dal file";case "LOCATION":return "Posizione GPS";case "TITLE":return "Titolo";case "ARTIST":return "Artista";case "AUTHOR":return "Autore";case "ALBUM":return "Album";case "ALBUMARTIST":return "Artista dell’album";case "COMPOSER":return "Compositore";case "GENRE":return "Genere";case "WRITER":return "Autore del contenuto";case "YEAR":return "Anno";case "language":return "Lingua della traccia";case "durationUs":return "Durata · microsecondi";case "frame-rate":return "FPS dichiarati";case "width":return "Larghezza · pixel";case "height":return "Altezza · pixel";case "bitrate":return "Bitrate · bit/s";case "mime":return "Tipo MIME";default:return key.replace('_',' ').replace('-',' ')+" · campo originale";}}
+    private static String sizeText(long n){return String.format(Locale.ITALY,"%.3f MB · %,d byte",n/1000000.0,n);}
+    private static int integer(MediaFormat f,String k,int fallback){try{return f.containsKey(k)?f.getInteger(k):fallback;}catch(RuntimeException e){return fallback;}}
+    private static String containerName(String mime){switch(mime){case "video/mp4":return "MP4";case "video/quicktime":return "MOV / QuickTime";case "video/x-matroska":return "Matroska / MKV";case "video/webm":return "WebM";case "video/3gpp":return "3GP";default:return mime;}}
+    private static String codecName(String mime){if(mime==null)return "sconosciuto";switch(mime){case "video/hevc":return "H.265 / HEVC";case "video/avc":return "H.264 / AVC";case "video/av01":return "AV1";case "video/x-vnd.on2.vp9":return "VP9";case "audio/mp4a-latm":return "AAC";case "audio/mpeg":return "MP3";case "audio/opus":return "Opus";default:return mime;}}
 }

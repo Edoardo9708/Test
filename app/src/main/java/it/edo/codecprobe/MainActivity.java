@@ -41,7 +41,8 @@ public final class MainActivity extends Activity {
     private Switch bframeSwitch,lookaheadSwitch;
     private boolean notificationsRequested;
     private final Runnable sessionObserver=this::renderSession;
-    private TextView inputInfo,inputDetails;
+    private TextView inputInfo;
+    private LinearLayout inputSummary,inputDetails;
     private volatile int infoGeneration;
     private EditText customCrf;
     private TextView timeline,telemetry,percentLabel;
@@ -89,13 +90,14 @@ public final class MainActivity extends Activity {
             return insets;
         });
         TextView title=text(page,"Converti video",30);title.setTypeface(null,Typeface.BOLD);
-        text(page,"HEVC / x265   •   v0.10",13);
+        text(page,"HEVC / x265   •   v0.11",13);
         text(page,"Meno spazio, qualità sotto controllo.",16);
         LinearLayout files=card(page,"01  FILE E DESTINAZIONE");
         pickVideo=button(files,"Seleziona video");videoLabel=text(files,"Nessun video selezionato",14);
         inputInfo=text(files,"Seleziona un video per vedere le informazioni del file.",15);
-        Button details=button(files,"Mostra tutti i metadati");inputDetails=text(files,"",13);inputDetails.setTextIsSelectable(true);inputDetails.setVisibility(View.GONE);
-        details.setOnClickListener(v->{boolean show=inputDetails.getVisibility()!=View.VISIBLE;inputDetails.setVisibility(show?View.VISIBLE:View.GONE);details.setText(show?"Nascondi metadati":"Mostra tutti i metadati");});
+        inputSummary=new LinearLayout(this);inputSummary.setOrientation(LinearLayout.VERTICAL);files.addView(inputSummary);
+        Button details=button(files,"Mostra metadati e dettagli");inputDetails=new LinearLayout(this);inputDetails.setOrientation(LinearLayout.VERTICAL);files.addView(inputDetails);inputDetails.setVisibility(View.GONE);
+        details.setOnClickListener(v->{boolean show=inputDetails.getVisibility()!=View.VISIBLE;inputDetails.setVisibility(show?View.VISIBLE:View.GONE);details.setText(show?"Nascondi metadati":"Mostra metadati e dettagli");});
         pickFolder=button(files,"Scegli cartella");folderLabel=text(files,"Nessuna cartella selezionata",14);
         LinearLayout settings=card(page,"02  COMPRESSIONE");
         text(settings,"Modalità · velocità dell’encoder",17);
@@ -228,11 +230,20 @@ public final class MainActivity extends Activity {
     private void inspectInput(){
         final Uri uri=input;final int generation=++infoGeneration;
         if(uri==null)return;
-        inputInfo.setText("Lettura informazioni del file…");
+        inputInfo.setVisibility(View.VISIBLE);inputInfo.setText("Lettura informazioni del file…");inputSummary.removeAllViews();inputDetails.removeAllViews();
         worker.execute(()->{
             InputInspector.Report info=InputInspector.inspect(getApplicationContext(),uri,()->destroyed||generation!=infoGeneration);
-            runOnUiThread(()->{if(!destroyed&&generation==infoGeneration){inputInfo.setText(info.summary);inputDetails.setText(info.details);}});
+            runOnUiThread(()->{if(!destroyed&&generation==infoGeneration){inputInfo.setVisibility(View.GONE);renderInfoSections(inputSummary,info.summarySections);renderInfoSections(inputDetails,info.detailSections);}});
         });
+    }
+    private void renderInfoSections(LinearLayout parent,java.util.Map<String,String> sections){
+        parent.removeAllViews();
+        for(java.util.Map.Entry<String,String> section:sections.entrySet()){
+            LinearLayout group=new LinearLayout(this);group.setOrientation(LinearLayout.VERTICAL);group.setPadding(dp(14),dp(12),dp(14),dp(12));group.setBackground(shape(bg,14));
+            LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);lp.setMargins(0,dp(10),0,0);parent.addView(group,lp);
+            TextView title=text(group,section.getKey(),14);title.setTextColor(accent);title.setTypeface(null,Typeface.BOLD);
+            TextView body=text(group,section.getValue(),15);body.setTextColor(ink);body.setLineSpacing(dp(3),1);body.setTextIsSelectable(true);
+        }
     }
     private int selectedCrf(){int i=quality.getSelectedItemPosition();if(i<3)return new int[]{18,23,28}[Math.max(0,i)];try{return Integer.parseInt(customCrf.getText().toString());}catch(NumberFormatException e){return -1;}}
     private void updateQualityHelp(){if(qualityHelp==null)return;int n=selectedCrf();qualityHelp.setText(n<0||n>51?"Inserisci un numero intero da 0 a 51.":"CRF "+n+" · "+qualityName(n)+".\nNumero più basso = più qualità e generalmente più spazio. Il CRF non è una percentuale.");}
