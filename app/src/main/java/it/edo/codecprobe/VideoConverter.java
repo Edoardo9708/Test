@@ -93,12 +93,14 @@ final class VideoConverter {
         try(FileOutputStream fileLog=new FileOutputStream(logFile(context),false)) {
             log=fileLog;
             try {
-                onLog("*** INIZIO CONVERSIONE v0.13 ***");
+                onLog("*** INIZIO CONVERSIONE v0.14 ***");
                 onLog("PERCORSO:\n1. Analizzo video e audio\n2. Decodifico i fotogrammi\n3. Ricodifico con x265 CRF\n4. Copio audio AAC\n5. Verifico il video\n6. Salvo nella cartella scelta");
                 onLog("QUALITÀ: CRF="+crf+" · valore minore = più dettagli, file generalmente più grande. Il risultato dipende dal contenuto.");
                 onLog("INPUT: "+sourceName+"\nPROCESSO 64 bit="+android.os.Process.is64Bit());
                 onLog("*** STEP 1 · APERTURA ORIGINALE E POSIZIONE GPS ***");
                 onLog("1. Controllo il permesso per la posizione registrata nel file.\n2. Risolvo il video selezionato allo stesso elemento MediaStore.\n3. Richiedo i byte originali senza oscuramento.\n4. Leggo il GPS e lo confronterò con il risultato.");
+                onLog("GPS PERMESSI: posizione="+OriginalMedia.hasLocationPermission(context)+"; lettura video="+OriginalMedia.hasVideoPermission(context));
+                onLog("GPS PROVIDER SELEZIONATO: "+input.getAuthority());
                 input=OriginalMedia.resolve(context,input);
                 onLog("GPS ACCESSO: permesso concesso; requireOriginal="+OriginalMedia.requiresOriginal(input));
                 if(!OriginalMedia.requiresOriginal(input))onLog("GPS AVVISO: provider esterno a MediaStore; non posso garantire che il provider consegni coordinate non oscurate.");

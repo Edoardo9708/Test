@@ -90,7 +90,7 @@ public final class MainActivity extends Activity {
             return insets;
         });
         TextView title=text(page,"Converti video",30);title.setTypeface(null,Typeface.BOLD);
-        text(page,"HEVC / x265   •   v0.13",13);
+        text(page,"HEVC / x265   •   v0.14",13);
         text(page,"Meno spazio, qualità sotto controllo.",16);
         LinearLayout files=card(page,"01  FILE E DESTINAZIONE");
         pickVideo=button(files,"Seleziona video");videoLabel=text(files,"Nessun video selezionato",14);
@@ -266,6 +266,12 @@ public final class MainActivity extends Activity {
                 .setPositiveButton("Continua",(d,w)->requestPermissions(new String[]{Manifest.permission.ACCESS_MEDIA_LOCATION},5))
                 .setNegativeButton("Annulla",null).show();return;
         }
+        if(!OriginalMedia.hasVideoPermission(this)){
+            new android.app.AlertDialog.Builder(this).setTitle("Accesso al video originale")
+                .setMessage("Per aprire il video originale senza oscurare il GPS, Android richiede anche l’accesso ai video. Se scegli solo alcuni video, includi quello che vuoi convertire. Il permesso per la posizione, già concesso, non basta per leggere il file tramite MediaStore.")
+                .setPositiveButton("Continua",(d,w)->requestPermissions(OriginalMedia.videoPermissions(),6))
+                .setNegativeButton("Annulla",null).show();return;
+        }
         final Uri source=input,dest=folder;final String name=sourceName;final int crf=selectedCrf();
         if(crf<0||crf>51){customCrf.setError("Inserisci un intero da 0 a 51");customCrf.requestFocus();return;}
         final int preset=mode.getSelectedItemPosition(),cpu=cpuMode.getSelectedItemPosition();
@@ -291,6 +297,10 @@ public final class MainActivity extends Activity {
         if(request==5){
             if(OriginalMedia.hasLocationPermission(this)){inspectInput();startConversion();}
             else{status.setText("Conversione non avviata: permesso posizione dei file negato.");toast("Per conservare il GPS, abilita il permesso nelle impostazioni dell’app e riprova.");}
+        }
+        if(request==6){
+            if(OriginalMedia.hasVideoPermission(this)){inspectInput();startConversion();}
+            else{status.setText("Conversione non avviata: accesso ai video negato.");toast("Consenti la lettura del video originale nelle impostazioni dell’app.");}
         }
         if(request==4){if(results.length==0||results[0]!=PackageManager.PERMISSION_GRANTED)toast("Notifiche disattivate: puoi abilitarle nelle impostazioni Android.");startConversion();}
     }
