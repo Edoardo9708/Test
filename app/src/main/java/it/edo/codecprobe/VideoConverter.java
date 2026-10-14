@@ -13,8 +13,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 final class VideoConverter {
-    interface Listener { void log(String text); void progress(int percent, String text); void timeline(long doneUs,long totalUs); }
-    private native long nativeOpen(int w,int h,int fpsMilli,int crf,int standard,int transfer,int range,int preset,int cpuMode,int cores);
+    interface Listener { void log(String text); void progress(int percent, String text); void timeline(long doneUs,long totalUs); default String cancellationReason(){return "Annullamento richiesto";} }
+    private native long nativeOpen(int w,int h,int fpsMilli,int crf,int standard,int transfer,int range,int preset,int cpuMode,int cores,boolean bframes,boolean lookahead);
     private native void nativeFrame(long handle,ByteBuffer i420,long pts);
     private native void nativeFinish(long handle);
     private native void nativeClose(long handle);
@@ -30,6 +30,9 @@ final class VideoConverter {
     private long lastPacket=-1;
     private float fps;
     private int preset,cpuMode;
+    private boolean bframes,lookahead;
+    private DataOutputStream inputTimestamps;
+    private File timestampFile;
     private long durationUs;
     private MediaFormat audioFormat;
     VideoConverter(Context c,AtomicBoolean cancel,Listener listener) {context=c;this.cancel=cancel;this.listener=listener;}
@@ -57,12 +60,12 @@ final class VideoConverter {
         onLog("OK muxer.start videoTrack="+videoTrack+" audioTrack="+audioTrack);
     }
     public void onPacket(byte[] data,long pts,boolean key) {
-        if(pts<0 || pts<=lastPacket) throw new IllegalStateException("Timestamp HEVC non crescente");
+        if(pts<0 || (!bframes && pts<=lastPacket)) throw new IllegalStateException("Timestamp HEVC non valido");
         MediaCodec.BufferInfo info=new MediaCodec.BufferInfo();
         info.set(0,data.length,pts,key?MediaCodec.BUFFER_FLAG_KEY_FRAME:0);
         onLog("BEGIN scrittura MP4 packet="+(packets+1)+" pts_us="+pts);
         muxer.writeSampleData(videoTrack,ByteBuffer.wrap(data),info);
-        lastPacket=pts;packets++;
+        lastPacket=Math.max(lastPacket,pts);packets++;
         onLog("OK scrittura MP4 packet="+packets+" bytes="+data.length+" key="+key);
     }
     static int integer(MediaFormat f,String key,int fallback) {
@@ -72,7 +75,8 @@ final class VideoConverter {
         int t=integer(f,MediaFormat.KEY_COLOR_TRANSFER,0);
         if(t==6 || t==7) throw new IllegalArgumentException("Video HDR non ancora supportato: usa un video SDR a 8 bit.");
     }
-    Uri convert(Uri input,Uri folder,int crf,String sourceName,int preset,int cpuMode) throws Exception {
+    Uri convert(Uri input,Uri folder,int crf,String sourceName,int preset,int cpuMode,boolean bframes,boolean lookahead) throws Exception {
+        this.bframes=bframes;this.lookahead=lookahead;
         this.cpuMode=cpuMode;
         this.preset=preset;
         File temporary=new File(context.getCacheDir(),"conversion-working.mp4");
@@ -80,16 +84,20 @@ final class VideoConverter {
         try(FileOutputStream fileLog=new FileOutputStream(logFile(context),false)) {
             log=fileLog;
             try {
-                onLog("*** INIZIO CONVERSIONE v0.9 ***");
+                onLog("*** INIZIO CONVERSIONE v0.10 ***");
                 onLog("PERCORSO:\n1. Analizzo video e audio\n2. Decodifico i fotogrammi\n3. Ricodifico con x265 CRF\n4. Copio audio AAC\n5. Verifico il video\n6. Salvo nella cartella scelta");
                 onLog("QUALITÀ: CRF="+crf+" · valore minore = più dettagli, file generalmente più grande. Il risultato dipende dal contenuto.");
                 onLog("INPUT: "+sourceName+"\nPROCESSO 64 bit="+android.os.Process.is64Bit());
                 onLog("*** INFORMAZIONI FILE IN INPUT ***");
-                onLog(InputInspector.describe(context,input));
+                onLog(InputInspector.describe(context,input,()->cancel.get()));
                 onLog("BEGIN loadLibrary x265probe");
                 System.loadLibrary("x265probe");
                 onLog("OK loadLibrary · CPU ARM64, O3, assembly NEON; preset selezionato indice="+preset+", modalità CPU="+cpuMode+".");
-                decodeAndEncode(input,temporary,crf);
+                timestampFile=new File(context.getCacheDir(),"conversion-timestamps.bin");
+                try(DataOutputStream timestamps=new DataOutputStream(new BufferedOutputStream(new FileOutputStream(timestampFile)))) {
+                    inputTimestamps=timestamps;decodeAndEncode(input,temporary,crf);
+                }
+                inputTimestamps=null;
                 checkCancel();
                 onLog("*** STEP 5 · VERIFICA VIDEO COMPLETO ***");
                 listener.progress(94,"Verifica del video...");
@@ -121,11 +129,13 @@ final class VideoConverter {
                 }
                 StringWriter stack=new StringWriter();e.printStackTrace(new PrintWriter(stack));
                 onLog(cancel.get()?"*** CONVERSIONE ANNULLATA ***":"*** ERRORE · CONVERSIONE INTERROTTA ***");
+                if(cancel.get())onLog("MOTIVO: "+listener.cancellationReason());
                 onLog(stack.toString());
                 if(e instanceof Exception) throw (Exception)e;
                 throw new IllegalStateException("Caricamento codec fallito",e);
             } finally {
                 onLog("SESSION END cancelled="+cancel.get());
+                if(timestampFile!=null)timestampFile.delete();
                 if(temporary.exists()&&!temporary.delete()) onLog("AVVISO: file temporaneo non eliminato");
             }
         }
@@ -232,13 +242,14 @@ final class VideoConverter {
                                     if(transfer==0) transfer=3;
                                     if(range==0) range=2;
                                     onLog("YUV crop="+crop+" standard="+standard+" transfer="+transfer+" range="+range+" (default SDR per valori non dichiarati)");
-                                    handle=nativeOpen(width,height,Math.round(fps*1000),crf,standard,transfer,range,preset,cpuMode,Runtime.getRuntime().availableProcessors());
+                                    handle=nativeOpen(width,height,Math.round(fps*1000),crf,standard,transfer,range,preset,cpuMode,Runtime.getRuntime().availableProcessors(),bframes,lookahead);
                                     pixels=ByteBuffer.allocateDirect(width*height*3/2);
                                 }
                                 if(crop.width()!=width||crop.height()!=height) throw new IOException("Cambio risoluzione durante il video non supportato");
                                 onLog("BEGIN conversione YUV frame="+frames+" pts_us="+info.presentationTimeUs);
                                 packImage(image,pixels,width,height);
                                 onLog("OK conversione YUV · invio a x265");
+                                inputTimestamps.writeLong(info.presentationTimeUs);
                                 nativeFrame(handle,pixels,info.presentationTimeUs);frames++;
                                 int percent=duration>0?(int)Math.min(89,Math.max(0,info.presentationTimeUs)*89.0/duration):0;
                                 listener.timeline(duration>0?Math.min(duration,Math.max(0,lastPacket)):Math.max(0,lastPacket),duration);
@@ -308,6 +319,11 @@ final class VideoConverter {
         } finally {e.release();}
     }
     private void verify(File file) throws Exception {
+        try(DataInputStream expected=new DataInputStream(new BufferedInputStream(new FileInputStream(timestampFile)))) {
+            verifyFrames(file,expected);
+        }
+    }
+    private void verifyFrames(File file,DataInputStream expected) throws Exception {
         MediaExtractor e=new MediaExtractor();MediaCodec d=null;boolean running=false;
         try {
             e.setDataSource(file.getAbsolutePath());int track=-1;
@@ -336,6 +352,8 @@ final class VideoConverter {
                 if(i>=0) {
                     if(info.size>0&&(info.flags&MediaCodec.BUFFER_FLAG_CODEC_CONFIG)==0) {
                         if(info.presentationTimeUs<=lastPts)throw new IOException("Timestamp verifica non crescente");
+                        long originalPts=expected.readLong();
+                        if(Math.abs(info.presentationTimeUs-originalPts)>1000)throw new IOException("Timestamp MP4 diverso dall’originale: atteso="+originalPts+" ottenuto="+info.presentationTimeUs);
                         lastPts=info.presentationTimeUs;count++;
                         onLog("VERIFY frame="+count+" pts_us="+lastPts);
                     }
@@ -344,6 +362,8 @@ final class VideoConverter {
                 }
             }
             if(count!=frames)throw new IOException("Verifica fallita: "+count+"/"+frames);
+            if(expected.read()!=-1)throw new IOException("Timestamp originali avanzati dopo verifica");
+            onLog("OK VERIFY timestamp originali verificati (tolleranza 1 ms); B-frame="+bframes+" lookahead="+lookahead);
             onLog("OK VERIFY decoded="+count+"/"+frames+" dimensioni="+width+"x"+height);
         } finally {
             if(d!=null){try{if(running)d.stop();}catch(Exception ignored){}d.release();}

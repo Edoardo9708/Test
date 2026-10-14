@@ -2,6 +2,7 @@
 #include "stream_encoder.h"
 #include <fstream>
 #include <iostream>
+#include <set>
 int main() {
     try {
         for(int crf : {24,32}) {
@@ -37,6 +38,22 @@ int main() {
             }
             encoder.finish(cb);
             if(packets!=12||!file)throw std::runtime_error("Streaming output mismatch");
+        }
+        for(int b=0;b<2;b++) for(int look=0;look<2;look++) {
+            std::ofstream file("reorder-"+std::to_string(b)+"-"+std::to_string(look)+".hevc",std::ios::binary);
+            ProbeCallbacks cb;std::set<int64_t> inputPts,outputPts;int packets=0;
+            cb.log=[](const std::string& s){std::cout<<s<<std::endl;};cb.cancelled=[](){return false;};
+            cb.headers=[&](const std::vector<uint8_t>& data){file.write(reinterpret_cast<const char*>(data.data()),data.size());};
+            cb.packet=[&](const std::vector<uint8_t>& data,int64_t pts,bool){if(!outputPts.insert(pts).second)throw std::runtime_error("Duplicate output PTS");packets++;cb.headers(data);};
+            StreamEncoder encoder(StreamConfig{320,240,30000,23,1,3,2,2,2,4,b!=0,look!=0},cb);
+            std::vector<uint8_t> pixels(320*240*3/2,128);int64_t pts=10000;
+            for(int f=0;f<24;f++) {
+                inputPts.insert(pts);
+                for(int y=0;y<240;y++)for(int x=0;x<320;x++)pixels[y*320+x]=16+(x+y+f)%210;
+                encoder.frame(pixels.data(),pixels.size(),pts,cb);pts+=f%2?40000:26666;
+            }
+            encoder.finish(cb);
+            if(packets!=24||inputPts!=outputPts||!file)throw std::runtime_error("Reordered timestamp mismatch");
         }
     } catch(const std::exception& e) {std::cerr<<e.what()<<std::endl; return 1;}
 }

@@ -1,6 +1,8 @@
 package it.edo.codecprobe;
 
 import android.app.Activity;
+import android.Manifest;
+import android.content.pm.PackageManager;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.res.ColorStateList;
@@ -36,8 +38,11 @@ public final class MainActivity extends Activity {
     private Button pickVideo,pickFolder,convert,stop,saveLog,openVideo;
     private TextView videoLabel,folderLabel,qualityHelp,status,logView;
     private Choice quality,mode,cpuMode;
-    private TextView inputInfo;
-    private int infoGeneration;
+    private Switch bframeSwitch,lookaheadSwitch;
+    private boolean notificationsRequested;
+    private final Runnable sessionObserver=this::renderSession;
+    private TextView inputInfo,inputDetails;
+    private volatile int infoGeneration;
     private EditText customCrf;
     private TextView timeline,telemetry,percentLabel;
     private int bg,surface,ink,muted,accent,border;
@@ -84,17 +89,19 @@ public final class MainActivity extends Activity {
             return insets;
         });
         TextView title=text(page,"Converti video",30);title.setTypeface(null,Typeface.BOLD);
-        text(page,"HEVC / x265   •   v0.9",13);
+        text(page,"HEVC / x265   •   v0.10",13);
         text(page,"Meno spazio, qualità sotto controllo.",16);
         LinearLayout files=card(page,"01  FILE E DESTINAZIONE");
         pickVideo=button(files,"Seleziona video");videoLabel=text(files,"Nessun video selezionato",14);
         inputInfo=text(files,"Seleziona un video per vedere le informazioni del file.",15);
+        Button details=button(files,"Mostra tutti i metadati");inputDetails=text(files,"",13);inputDetails.setTextIsSelectable(true);inputDetails.setVisibility(View.GONE);
+        details.setOnClickListener(v->{boolean show=inputDetails.getVisibility()!=View.VISIBLE;inputDetails.setVisibility(show?View.VISIBLE:View.GONE);details.setText(show?"Nascondi metadati":"Mostra tutti i metadati");});
         pickFolder=button(files,"Scegli cartella");folderLabel=text(files,"Nessuna cartella selezionata",14);
         LinearLayout settings=card(page,"02  COMPRESSIONE");
         text(settings,"Modalità · velocità dell’encoder",17);
         mode=spinner(settings,new String[]{"Ultraveloce · ultrafast","Superveloce · superfast","Molto veloce · veryfast","Più veloce · faster","Veloce · fast","Media · medium","Lenta · slow","Più lenta · slower","Molto lenta · veryslow"});
         mode.setSelection(state==null?6:state.getInt("mode",6));
-        text(settings,"Più lenta: cerca una compressione più efficiente, ma richiede più tempo. Modalità senza B-frame in questa versione.",13);
+        text(settings,"Più lenta: cerca una compressione più efficiente, ma richiede più tempo.",13);
         text(settings,"Qualità del video",17);
         quality=spinner(settings,new String[]{"Alta qualità · CRF 18","Bilanciata · CRF 23","Risparmio spazio · CRF 28","Personalizzata · scrivi CRF 0–51"});
         customCrf=new EditText(this);customCrf.setSingleLine(true);customCrf.setInputType(InputType.TYPE_CLASS_NUMBER);
@@ -105,6 +112,9 @@ public final class MainActivity extends Activity {
         quality.onSelection=()->{customCrf.setVisibility(quality.getSelectedItemPosition()==3?View.VISIBLE:View.GONE);updateQualityHelp();};
         quality.setSelection(state==null?1:state.getInt("quality",1));
         customCrf.addTextChangedListener(new TextWatcher(){public void beforeTextChanged(CharSequence s,int a,int c,int f){} public void onTextChanged(CharSequence s,int a,int b,int c){updateQualityHelp();}public void afterTextChanged(Editable e){}});
+        bframeSwitch=new Switch(this);bframeSwitch.setText("B-frame");bframeSwitch.setTextColor(ink);bframeSwitch.setTextSize(17);bframeSwitch.setPadding(0,dp(12),0,dp(12));settings.addView(bframeSwitch);bframeSwitch.setChecked(state==null||state.getBoolean("bframes",true));
+        lookaheadSwitch=new Switch(this);lookaheadSwitch.setText("Lookahead esteso");lookaheadSwitch.setTextColor(ink);lookaheadSwitch.setTextSize(17);lookaheadSwitch.setPadding(0,dp(12),0,dp(12));settings.addView(lookaheadSwitch);lookaheadSwitch.setChecked(state==null||state.getBoolean("lookahead",true));
+        text(settings,"ON usa i valori del preset. Lookahead OFF con B-frame ON conserva solo il buffer minimo richiesto da x265.",13);
         text(settings,"Utilizzo CPU",17);
         cpuMode=spinner(settings,new String[]{"Limitato · configurazione precedente","Automatico · decide x265","Massimo · tutti i core disponibili"});
         cpuMode.setSelection(state==null?1:state.getInt("cpu",1));
@@ -120,7 +130,7 @@ public final class MainActivity extends Activity {
         status=text(work,"Scegli video, cartella e qualità.",14);
         telemetry=text(work,"CPU APP   …     •     BATTERIA   …",14);
         text(work,"CPU dell’app: 100% = tutti i core disponibili occupati. Temperatura della batteria, non del processore.",12);
-        text(work,"Video SDR a 8 bit, audio AAC o assente. Tieni aperta l’app durante la conversione.",13);
+        text(work,"Video SDR a 8 bit, audio AAC o assente. La conversione continua con notifica anche a schermo spento.",13);
         openVideo=button(work,"Apri video convertito");openVideo.setVisibility(View.GONE);
         LinearLayout logs=card(page,"DIAGNOSTICA");saveLog=button(logs,"Esporta log completo · TXT");
         Button toggle=button(logs,"Mostra ultimi messaggi");
@@ -159,7 +169,7 @@ public final class MainActivity extends Activity {
             startActivityForResult(i,PICK_FOLDER);
         });
         convert.setOnClickListener(v->startConversion());
-        stop.setOnClickListener(v->{cancelled.set(true);stop.setEnabled(false);status.setText("Annullamento alla fine della chiamata corrente...");});
+        stop.setOnClickListener(v->{startService(new Intent(this,ConversionService.class).setAction(ConversionService.CANCEL));stop.setEnabled(false);});
         openVideo.setOnClickListener(v->{
             if(resultUri==null)return;
             try{startActivity(new Intent(Intent.ACTION_VIEW).setDataAndType(resultUri,"video/mp4").addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION));}
@@ -220,8 +230,8 @@ public final class MainActivity extends Activity {
         if(uri==null)return;
         inputInfo.setText("Lettura informazioni del file…");
         worker.execute(()->{
-            String info=InputInspector.describe(getApplicationContext(),uri);
-            runOnUiThread(()->{if(!destroyed&&generation==infoGeneration)inputInfo.setText(info);});
+            InputInspector.Report info=InputInspector.inspect(getApplicationContext(),uri,()->destroyed||generation!=infoGeneration);
+            runOnUiThread(()->{if(!destroyed&&generation==infoGeneration){inputInfo.setText(info.summary);inputDetails.setText(info.details);}});
         });
     }
     private int selectedCrf(){int i=quality.getSelectedItemPosition();if(i<3)return new int[]{18,23,28}[Math.max(0,i)];try{return Integer.parseInt(customCrf.getText().toString());}catch(NumberFormatException e){return -1;}}
@@ -232,38 +242,34 @@ public final class MainActivity extends Activity {
         folderLabel.setText(folder==null?"Nessuna cartella selezionata":Uri.decode(folder.getLastPathSegment()));
     }
     private void setBusy(boolean value){
-        busy=value;pickVideo.setEnabled(!value);pickFolder.setEnabled(!value);quality.setEnabled(!value);mode.setEnabled(!value);cpuMode.setEnabled(!value);customCrf.setEnabled(!value);
+        busy=value;pickVideo.setEnabled(!value);pickFolder.setEnabled(!value);quality.setEnabled(!value);mode.setEnabled(!value);cpuMode.setEnabled(!value);customCrf.setEnabled(!value);bframeSwitch.setEnabled(!value);lookaheadSwitch.setEnabled(!value);
         convert.setEnabled(!value);saveLog.setEnabled(!value);stop.setVisibility(value?View.VISIBLE:View.GONE);stop.setEnabled(value);
-        if(value)getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-        else getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+
     }
     private void startConversion(){
         if(input==null||folder==null){toast("Seleziona il video e la cartella di destinazione");return;}
         final Uri source=input,dest=folder;final String name=sourceName;final int crf=selectedCrf();
         if(crf<0||crf>51){customCrf.setError("Inserisci un intero da 0 a 51");customCrf.requestFocus();return;}
         final int preset=mode.getSelectedItemPosition(),cpu=cpuMode.getSelectedItemPosition();
-        cancelled.set(false);recent.clear();lastUi=0;logView.setText("");progress.setProgress(0);resultUri=null;openVideo.setVisibility(View.GONE);
-        setBusy(true);percentLabel.setText("0%");timeline.setText("Video convertito: — s\nVideo rimanente: — s");status.setText("Analisi video...");
-        worker.execute(()->{
-            try{
-                VideoConverter converter=new VideoConverter(getApplicationContext(),cancelled,new VideoConverter.Listener(){
-                    public void log(String s){
-                        recent.addLast(s);while(recent.size()>14)recent.removeFirst();
-                        long now=SystemClock.elapsedRealtime();
-                        if(now-lastUi>250||s.contains("***")||s.contains("SESSION END")){
-                            lastUi=now;String snapshot=String.join("\n",recent);
-                            runOnUiThread(()->{if(!destroyed)logView.setText(snapshot);});
-                        }
-                    }
-                    public void timeline(long done,long total){runOnUiThread(()->{if(!destroyed&&!cancelled.get())timeline.setText(String.format(Locale.ITALY,"Video convertito: %.1f s\nVideo rimanente: %s",done/1000000.0,total>0?String.format(Locale.ITALY,"%.1f s",Math.max(0,total-done)/1000000.0):"durata non disponibile"));});}
-                    public void progress(int percent,String s){runOnUiThread(()->{if(!destroyed&&!cancelled.get()){progress.setProgress(percent);percentLabel.setText(percent+"%");status.setText(s);}});}
-                });
-                Uri result=converter.convert(source,dest,crf,name,preset,cpu);
-                runOnUiThread(()->{if(!destroyed){resultUri=result;openVideo.setVisibility(View.VISIBLE);}});
-            }catch(Exception e){
-                runOnUiThread(()->{if(!destroyed)status.setText(cancelled.get()?"Conversione annullata.":"Conversione fallita: "+e.getMessage()+"\nSalva il log per i dettagli.");});
-            }finally{runOnUiThread(()->{if(!destroyed)setBusy(false);});}
-        });
+        if(Build.VERSION.SDK_INT>=33&&!notificationsRequested&&checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)!=PackageManager.PERMISSION_GRANTED){notificationsRequested=true;requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS},4);return;}
+        Intent task=new Intent(this,ConversionService.class).setAction(ConversionService.START)
+            .putExtra("input",source.toString()).putExtra("folder",dest.toString()).putExtra("name",name)
+            .putExtra("crf",crf).putExtra("preset",preset).putExtra("cpu",cpu)
+            .putExtra("bframes",bframeSwitch.isChecked()).putExtra("lookahead",lookaheadSwitch.isChecked());
+        try{startForegroundService(task);setBusy(true);status.setText("Avvio conversione…");}
+        catch(RuntimeException e){setBusy(false);status.setText("Avvio non riuscito: "+e.getMessage());}
+    }
+    private void renderSession(){
+        if(destroyed)return;
+        ConversionService.State s=ConversionService.snapshot();if(!s.hasSession)return;
+        setBusy(s.running);progress.setProgress(s.percent);percentLabel.setText(s.percent+"%");status.setText(s.message);logView.setText(s.log);
+        timeline.setText(String.format(Locale.ITALY,"Video convertito: %.1f s\nVideo rimanente: %s",s.done/1000000.0,s.total>0?String.format(Locale.ITALY,"%.1f s",Math.max(0,s.total-s.done)/1000000.0):"durata non disponibile"));
+        resultUri=s.result;openVideo.setVisibility(resultUri==null?View.GONE:View.VISIBLE);
+        if(s.running&&input==null){input=s.input;folder=s.folder;sourceName=s.source;refreshLabels();inspectInput();}
+    }
+    @Override public void onRequestPermissionsResult(int request,String[] permissions,int[] results){
+        super.onRequestPermissionsResult(request,permissions,results);
+        if(request==4){if(results.length==0||results[0]!=PackageManager.PERMISSION_GRANTED)toast("Notifiche disattivate: puoi abilitarle nelle impostazioni Android.");startConversion();}
     }
     private void exportLog(){
         File source=VideoConverter.logFile(this);
@@ -329,9 +335,9 @@ public final class MainActivity extends Activity {
         super.onSaveInstanceState(b);
         if(input!=null)b.putString("input",input.toString());
         if(resultUri!=null)b.putString("result",resultUri.toString());
-        b.putString("sourceName",sourceName);b.putString("pendingLog",pendingLog);b.putInt("quality",quality.getSelectedItemPosition());b.putInt("mode",mode.getSelectedItemPosition());b.putInt("cpu",cpuMode.getSelectedItemPosition());b.putString("manual",customCrf.getText().toString());
+        b.putString("sourceName",sourceName);b.putString("pendingLog",pendingLog);b.putInt("quality",quality.getSelectedItemPosition());b.putInt("mode",mode.getSelectedItemPosition());b.putInt("cpu",cpuMode.getSelectedItemPosition());b.putBoolean("bframes",bframeSwitch.isChecked());b.putBoolean("lookahead",lookaheadSwitch.isChecked());b.putString("manual",customCrf.getText().toString());
     }
-    @Override protected void onResume(){super.onResume();previousWall=0;monitor.post(sample);}
-    @Override protected void onPause(){monitor.removeCallbacks(sample);super.onPause();}
-    @Override protected void onDestroy(){destroyed=true;cancelled.set(true);worker.shutdown();super.onDestroy();}
+    @Override protected void onResume(){super.onResume();previousWall=0;monitor.post(sample);ConversionService.observe(sessionObserver);renderSession();}
+    @Override protected void onPause(){monitor.removeCallbacks(sample);ConversionService.detach(sessionObserver);super.onPause();}
+    @Override protected void onDestroy(){destroyed=true;ConversionService.detach(sessionObserver);worker.shutdown();super.onDestroy();}
 }

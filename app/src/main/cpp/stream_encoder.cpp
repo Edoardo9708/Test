@@ -19,6 +19,7 @@ struct StreamEncoder::State {
             data.insert(data.end(),nals[i].payload,nals[i].payload+nals[i].sizeBytes);
             if(nals[i].type>=16 && nals[i].type<=21) key=true;
         }
+        cb.log("PACCHETTO: pts_us="+std::to_string(output.pts)+" dts_us="+std::to_string(output.dts)+" slice_type="+std::to_string(output.sliceType)+" (B="+std::to_string(X265_TYPE_B)+")");
         cb.packet(data,output.pts,key);
         produced++;
     }
@@ -32,16 +33,22 @@ StreamEncoder::StreamEncoder(const StreamConfig& c,ProbeCallbacks& cb):state(new
     if(c.preset<0 || c.preset>8) throw std::runtime_error("Preset non valido");
     auto& s=*state;
     s.width=c.width; s.height=c.height;
-    cb.log(std::string("BEGIN x265_param_alloc / preset ")+presets[c.preset]+" / zerolatency (senza B-frame)");
+    cb.log(std::string("BEGIN x265_param_alloc / preset ")+presets[c.preset]+" / preset per conversione file");
     s.p=x265_param_alloc();
-    if(!s.p || x265_param_default_preset(s.p,presets[c.preset],"zerolatency")<0)
+    if(!s.p || x265_param_default_preset(s.p,presets[c.preset],nullptr)<0)
         throw std::runtime_error("Configurazione x265 fallita");
     auto p=s.p;
     p->sourceWidth=c.width; p->sourceHeight=c.height;
     p->fpsNum=c.fpsMilli; p->fpsDenom=1000;
     p->internalCsp=X265_CSP_I420; p->internalBitDepth=8;
     p->rc.rateControlMode=X265_RC_CRF; p->rc.rfConstant=c.crf;
-    p->bframes=0; p->lookaheadDepth=0;
+    if(!c.bframes) p->bframes=0;
+    if(!c.lookahead) {
+        p->lookaheadDepth=c.bframes?p->bframes+1:0;
+        p->rc.cuTree=0;
+        if(c.bframes)p->bFrameAdaptive=0;
+    }
+    cb.log("OTTIMIZZAZIONI richieste: B-frame="+std::to_string(c.bframes)+" lookahead_esteso="+std::to_string(c.lookahead));
     if(c.cpuMode<0 || c.cpuMode>2 || c.cores<1 || c.cores>256) throw std::runtime_error("Configurazione CPU non valida");
     if(c.cpuMode==0) {p->frameNumThreads=2; s.pool="2";p->numaPools=s.pool.c_str();}
     else if(c.cpuMode==1) {p->frameNumThreads=0;p->numaPools=nullptr;}
@@ -61,7 +68,8 @@ StreamEncoder::StreamEncoder(const StreamConfig& c,ProbeCallbacks& cb):state(new
     x265_encoder_parameters(s.encoder,p);
     cb.log("OK x265_encoder_open · pointer_bits="+std::to_string(sizeof(void*)*8)
            +" cpuid="+std::to_string(p->cpuid)+" CRF="+std::to_string(p->rc.rfConstant)
-           +" rcMode="+std::to_string(p->rc.rateControlMode)+" (CRF="+std::to_string(X265_RC_CRF)+") preset="+presets[c.preset]+" frame_threads_effettivi="+std::to_string(p->frameNumThreads));
+           +" rcMode="+std::to_string(p->rc.rateControlMode)+" (CRF="+std::to_string(X265_RC_CRF)+") preset="+presets[c.preset]+" frame_threads_effettivi="+std::to_string(p->frameNumThreads)
+           +" bframes="+std::to_string(p->bframes)+" lookahead="+std::to_string(p->lookaheadDepth)+" cutree="+std::to_string(p->rc.cuTree));
     if(p->rc.rateControlMode!=X265_RC_CRF) throw std::runtime_error("CRF non attivo");
     x265_picture_init(p,&s.input); x265_picture_init(p,&s.output);
     x265_nal* nals=nullptr; uint32_t count=0;

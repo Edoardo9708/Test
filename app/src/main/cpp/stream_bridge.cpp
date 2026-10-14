@@ -33,10 +33,10 @@ struct Callbacks {
     }
 };
 extern "C" JNIEXPORT jlong JNICALL Java_it_edo_codecprobe_VideoConverter_nativeOpen(
-    JNIEnv* e,jobject target,jint w,jint h,jint fps,jint crf,jint standard,jint transfer,jint range,jint preset,jint cpuMode,jint cores) {
+    JNIEnv* e,jobject target,jint w,jint h,jint fps,jint crf,jint standard,jint transfer,jint range,jint preset,jint cpuMode,jint cores,jboolean bframes,jboolean lookahead) {
     try {
         Callbacks c(e,target);
-        auto s=std::make_unique<StreamEncoder>(StreamConfig{w,h,fps,crf,standard,transfer,range,preset,cpuMode,cores},c.cb);
+        auto s=std::make_unique<StreamEncoder>(StreamConfig{w,h,fps,crf,standard,transfer,range,preset,cpuMode,cores,bframes!=0,lookahead!=0},c.cb);
         return reinterpret_cast<jlong>(s.release());
     } catch(const std::exception& ex) {raise(e,ex);return 0;}
 }

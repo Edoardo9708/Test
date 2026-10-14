@@ -17,3 +17,14 @@ for crf in (0, 23, 51):
     stream = json.loads(result)["streams"][0]
     assert (stream["width"], stream["height"], int(stream["nb_read_frames"])) == (320, 240, 12), stream
     print(f"Streaming CRF {crf}: decoded 12/12 frames at 320x240")
+
+for b in (0, 1):
+    for look in (0, 1):
+        path = f"reorder-{b}-{look}.hevc"
+        subprocess.run(["ffmpeg", "-v", "error", "-xerror", "-i", path, "-f", "null", "-"], check=True)
+        data = json.loads(subprocess.check_output(["ffprobe", "-v", "error", "-count_frames", "-select_streams", "v:0", "-show_entries", "stream=width,height,nb_read_frames", "-show_frames", "-show_entries", "frame=pict_type", "-of", "json", path], text=True))
+        stream = data["streams"][0]
+        assert (stream["width"], stream["height"], int(stream["nb_read_frames"])) == (320, 240, 24), stream
+        types = [frame["pict_type"] for frame in data["frames"]]
+        assert ("B" in types) == bool(b), types
+        print(f"B={b} lookahead={look}: decoded 24/24; actual B frames={types.count('B')}")
