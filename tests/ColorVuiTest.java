@@ -14,6 +14,20 @@ public final class ColorVuiTest {
     if(transfer==6&&!diagnostic.contains("Trasferimento: MP4=6 · SPS=1"))throw new AssertionError("Mismatch values missing before rejection");
     if(failed!=(transfer==6))throw new AssertionError("Conflicting container transfer not detected");
    }
+   ColorVui original=ColorVui.read("video/avc",hex("0000000167640028acb403c0113f2a"));
+   if(original.descriptionPresent||original.signalPresent||original.primaries!=2)throw new AssertionError("Actual Samsung AVC fixture must have no color declaration");
+   for(boolean full:new boolean[]{false,true}){
+    java.nio.ByteBuffer b=java.nio.ByteBuffer.allocate(19);b.putInt(19).put("colr".getBytes()).put("nclx".getBytes()).putShort((short)1).putShort((short)1).putShort((short)1).put((byte)(full?128:0));
+    java.nio.file.Files.write(path,b.array());
+    try(java.nio.channels.FileChannel f=java.nio.channels.FileChannel.open(path)){
+     ColorVui resolved=ContainerColor.check(f,original);
+     if(resolved.primaries!=1||resolved.transfer!=1||resolved.matrix!=1||resolved.fullRange!=full||!resolved.signalPresent||!resolved.descriptionPresent)throw new AssertionError("Missing SPS fields not filled from colr");
+    }
+   }
+   // Unspecified container fields must not erase explicit SPS declarations.
+   java.nio.ByteBuffer b=java.nio.ByteBuffer.allocate(18);b.putInt(18).put("colr".getBytes()).put("nclc".getBytes()).putShort((short)2).putShort((short)2).putShort((short)2);
+   java.nio.file.Files.write(path,b.array());ColorVui declared=new ColorVui(6,6,6,true,true,true,5);
+   try(java.nio.channels.FileChannel f=java.nio.channels.FileChannel.open(path)){if(!ContainerColor.check(f,declared).same(declared))throw new AssertionError("Explicit SPS erased by unspecified container");}
   }finally{java.nio.file.Files.deleteIfExists(path);}
  }
  public static void main(String[] args)throws Exception{
@@ -25,4 +39,5 @@ public final class ColorVuiTest {
   System.out.println("Samsung HEVC BT709, AVC BT709, HEVC SMPTE170M full-range and truncated SPS checks passed");
  }
 }
+
 

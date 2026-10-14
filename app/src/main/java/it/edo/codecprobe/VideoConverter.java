@@ -220,10 +220,10 @@ final class VideoConverter {
             onLog("Primarie: "+sourceColor.primaries+"\nTrasferimento: "+sourceColor.transfer+"\nMatrice: "+sourceColor.matrix+"\nRange: "+(sourceColor.fullRange?"completo":"limitato")+"\nSegnale video presente: "+sourceColor.signalPresent+"\nDescrizione colore presente: "+sourceColor.descriptionPresent+"\nFormato video: "+sourceColor.videoFormat+"\nCodice 2: non specificato. Se un campo non è presente, il valore mostrato deriva dalle regole SPS, non da una dichiarazione esplicita.");
             try(ParcelFileDescriptor fd=context.getContentResolver().openFileDescriptor(uri,"r")){
                 if(fd==null)throw new IOException("Originale assente durante il controllo colore");
-                try(ParcelFileDescriptor.AutoCloseInputStream in=new ParcelFileDescriptor.AutoCloseInputStream(fd)){ContainerColor.check(in.getChannel(),sourceColor,this::onLog);}
+                try(ParcelFileDescriptor.AutoCloseInputStream in=new ParcelFileDescriptor.AutoCloseInputStream(fd)){sourceColor=ContainerColor.check(in.getChannel(),sourceColor,this::onLog);}
             }
             onLog("*** CONSERVAZIONE DICHIARAZIONE COLORE ***");
-            onLog("COLORE ORIGINALE (SPS/VUI): "+sourceColor+" · codici precisi del bitstream, senza traduzione dell’enum SDR Android");
+            onLog("COLORE DA CONSERVARE (SPS/VUI + colr): "+sourceColor+" · valori originali risolti, senza traduzione dell’enum SDR Android");
             if(sourceColor.transfer==16||sourceColor.transfer==18)throw new IllegalArgumentException("Curva HDR non supportata");
             width=integer(video,MediaFormat.KEY_WIDTH,0);height=integer(video,MediaFormat.KEY_HEIGHT,0);
             if(width<16||height<16||width>3840||height>3840||(long)width*height>3840L*2160||width%2!=0||height%2!=0)
@@ -479,4 +479,5 @@ final class VideoConverter {
         }
     }
 }
+
 

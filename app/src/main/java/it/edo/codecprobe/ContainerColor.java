@@ -11,12 +11,13 @@ import java.util.function.Consumer;
 
 /** Reject conflicting MP4 color overrides rather than silently discarding them. */
 final class ContainerColor {
-    private final FileChannel file;private final ColorVui color;private final Consumer<String> log;private int count,colrCount;
+    private final FileChannel file;private ColorVui color;private final Consumer<String> log;private int count,colrCount;
     private ContainerColor(FileChannel f,ColorVui c,Consumer<String> l){file=f;color=c;log=l;}
-    static void check(FileChannel f,ColorVui c)throws IOException{check(f,c,s->{});}
-    static void check(FileChannel f,ColorVui c,Consumer<String> log)throws IOException{
+    static ColorVui check(FileChannel f,ColorVui c)throws IOException{return check(f,c,s->{});}
+    static ColorVui check(FileChannel f,ColorVui c,Consumer<String> log)throws IOException{
         ContainerColor reader=new ContainerColor(f,c,log);reader.scan(0,f.size(),0);
         if(reader.colrCount==0)log.accept("CONTENITORE MP4: nessun blocco colr trovato; nessuna seconda dichiarazione da confrontare.");
+        return reader.color;
     }
     static String hex(byte[] data){StringBuilder out=new StringBuilder(data.length*2);for(byte value:data){int v=value&255;out.append(Character.forDigit(v>>>4,16)).append(Character.forDigit(v&15,16));}return out.toString();}
     private byte[] read(long at,int n)throws IOException{
@@ -44,19 +45,30 @@ final class ContainerColor {
                 String container="Primarie: "+p+"\nTrasferimento: "+tr+"\nMatrice: "+m+"\nRange: "+(kind.equals("nclx")?((data[10]&128)!=0?"completo":"limitato"):"non dichiarato nel formato nclc");
                 log.accept(container+"\nHEX payload colr: "+hex(data));
                 List<String> differences=new ArrayList<>();
-                if(p!=color.primaries)differences.add("Primarie: MP4="+p+" · SPS="+color.primaries);
-                if(tr!=color.transfer)differences.add("Trasferimento: MP4="+tr+" · SPS="+color.transfer);
-                if(m!=color.matrix)differences.add("Matrice: MP4="+m+" · SPS="+color.matrix);
-                if(kind.equals("nclx")&&((data[10]&128)!=0)!=color.fullRange)differences.add("Range: MP4="+((data[10]&128)!=0?"completo":"limitato")+" · SPS="+(color.fullRange?"completo":"limitato"));
+                if(p!=2&&color.primaries!=2&&p!=color.primaries)differences.add("Primarie: MP4="+p+" · SPS="+color.primaries);
+                if(tr!=2&&color.transfer!=2&&tr!=color.transfer)differences.add("Trasferimento: MP4="+tr+" · SPS="+color.transfer);
+                if(m!=2&&color.matrix!=2&&m!=color.matrix)differences.add("Matrice: MP4="+m+" · SPS="+color.matrix);
+                if(kind.equals("nclx")&&color.signalPresent&&((data[10]&128)!=0)!=color.fullRange)differences.add("Range: MP4="+((data[10]&128)!=0?"completo":"limitato")+" · SPS="+(color.fullRange?"completo":"limitato"));
                 if(!differences.isEmpty()){
                     String detail=String.join("\n",differences);
-                    log.accept("*** DIFFERENZE COLORE RILEVATE ***\n"+detail+"\nNota: codice 2 = non specificato. La presenza dei campi SPS è indicata nella sezione precedente.\nQuesta versione diagnostica conserva il controllo attuale: nessun valore viene sostituito automaticamente.");
+                    log.accept("*** DIFFERENZE COLORE RILEVATE ***\n"+detail+"\nNota: codice 2 = non specificato. La presenza dei campi SPS è indicata nella sezione precedente.\nDue valori espliciti incompatibili: conversione interrotta.");
                     throw new IOException("Il colore dichiarato nel contenitore colr differisce dall’SPS: conversione rifiutata per evitare modifiche colore\n"+detail);
                 }
-                log.accept("OK CONFRONTO COLORE · valori colr e SPS concordanti");
+                int resolvedP=color.primaries==2?p:color.primaries;
+                int resolvedT=color.transfer==2?tr:color.transfer;
+                int resolvedM=color.matrix==2?m:color.matrix;
+                boolean explicitRange=kind.equals("nclx");
+                boolean resolvedRange=color.signalPresent?color.fullRange:(explicitRange?(data[10]&128)!=0:color.fullRange);
+                boolean description=color.descriptionPresent||resolvedP!=2||resolvedT!=2||resolvedM!=2;
+                boolean signal=color.signalPresent||description||explicitRange;
+                ColorVui resolved=new ColorVui(resolvedP,resolvedT,resolvedM,resolvedRange,signal,description,color.videoFormat);
+                if(!resolved.same(color))log.accept("*** COMPLETAMENTO COLORE NON SPECIFICATO ***\nUso i valori espliciti del contenitore dove l’SPS non li dichiara.\nNon modifico i campioni YUV; descrivo il colore originale nel nuovo SPS.\nCOLORE RISOLTO: "+resolved);
+                color=resolved;
+                log.accept("OK CONFRONTO COLORE · nessun conflitto tra valori espliciti");
             }
             at+=n;
         }
     }
 }
+
 
