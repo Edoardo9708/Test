@@ -13,7 +13,7 @@ import java.util.function.Consumer;
 final class Mp4Metadata {
     private static final Set<String> CONTAINERS=new HashSet<>(Arrays.asList("moov","trak","mdia","minf","stbl"));
     private static final Set<String> TAGS=new HashSet<>(Arrays.asList("udta","meta","uuid","meco"));
-    private static final Set<String> ROOT_ALLOWED=new HashSet<>(Arrays.asList("ftyp","mdat","moov","free","skip","wide","udta","meta","uuid","meco"));
+    private static final Set<String> ROOT_ALLOWED=new HashSet<>(Arrays.asList("ftyp","mdat","moov","free","skip","wide","udta","meta","uuid","meco","sefd"));
     private static final class Box {
         FileChannel file;long at,size;int header;String type;List<Box> children;byte[] patched;
         long payload(){if(patched!=null)return patched.length;if(children==null)return size-header;long n=0;for(Box b:children)n=Math.addExact(n,b.outputSize());return n;}
@@ -56,6 +56,7 @@ final class Mp4Metadata {
             }
             List<Box> children=parse(b.file,begin,b.at+b.size,0);
             for(Box c:children){
+                if(c.type.equals("sefd"))throw new IOException("SEF annidato non supportato");
                 if(c.type.equals("iloc")||c.type.equals("idat")||c.type.equals("iref")||c.type.equals("pitm"))throw new IOException("Metadati a oggetti con riferimenti ai dati originali non ancora supportati ("+c.type+")");
                 if(TAGS.contains(c.type))validateTags(c);
             }
@@ -66,7 +67,15 @@ final class Mp4Metadata {
         List<Box> roots=parse(f,0,f.size(),0);int movies=0;
         for(Box b:roots){if(!ROOT_ALLOWED.contains(b.type))throw new IOException("Blocco "+b.type+" non supportato per la conservazione integrale dei metadati");if(b.type.equals("moov"))movies++;}
         if(movies!=1)throw new IOException("La copia dei metadati richiede un MP4/MOV non frammentato con un solo moov");
-        for(Box b:roots)validateTags(b);
+        if(of(roots,"sefd").size()>1)throw new IOException("Più blocchi Samsung SEF non supportati");
+        for(Box b:roots){
+            validateTags(b);
+            if(b.type.equals("sefd")){
+                if(b.at+b.size!=f.size()||b.header!=8||b.size>SamsungSef.MAX_BYTES)throw new IOException("SEF deve essere un blocco finale autonomo entro 4 MiB");
+                String info=SamsungSef.validate(read(f,b.at,(int)b.size));
+                log.accept("OK STRUTTURA SAMSUNG SEF · "+info);
+            }
+        }
         return roots;
     }
     private static Box first(List<Box> boxes,String type){for(Box b:boxes)if(b.type.equals(type))return b;return null;}
@@ -128,11 +137,16 @@ final class Mp4Metadata {
             FileChannel file=destination.getChannel();List<Box> output=roots(file);Box old=first(output,"moov"),original=first(input,"moov");
             merge(original,old,"moov");long start=file.size();file.position(start);write(old,file);
             for(Box b:input)if(TAGS.contains(b.type)){write(b,file);matches.add(new Match(b,b,"root/"+b.type));copied+=b.size;log.accept("COPIA BLOCCO root/"+b.type+" · "+b.size+" byte");}
+            // SEFT must stay at EOF; no bytes may be appended after this block.
+            Box sef=first(input,"sefd");
+            if(sef!=null){file.position(file.size());write(sef,file);copied+=sef.size;log.accept("*** COPIA METADATI SAMSUNG SEF ***\nRecord originale mantenuto in fondo al file · "+sef.size+" byte\nDirectory con riferimenti relativi conservata; contenuto HighlightVideo_Data invariato.");}
             // Old movie atom becomes padding: all mdat/stco/co64 media offsets stay fixed.
-            free(old,file);for(Box b:output)if(TAGS.contains(b.type))free(b,file);
+            free(old,file);for(Box b:output)if(TAGS.contains(b.type)||b.type.equals("sefd"))free(b,file);
             file.force(true);
             List<Box> result=roots(file);Box movie=first(result,"moov");verifyTree(original,movie,"moov");
             for(String type:TAGS){List<Box> src=of(input,type),dst=of(result,type);verifyOpaque(src,dst,"root/"+type);}
+            verifyOpaque(of(input,"sefd"),of(result,"sefd"),"root/sefd");
+            if(sef!=null)log.accept("OK SAMSUNG SEF · contenuto originale identico (SHA-256), directory riletta e valida nel nuovo file");
             log.accept("OK METADATI verificati byte per byte: "+copied+" byte descrittivi; date e lingue originali conservate. Indici e codec rigenerati.");
         }
     }
@@ -163,3 +177,4 @@ final class Mp4Metadata {
     private static void put(FileChannel out,ByteBuffer b)throws IOException{while(b.hasRemaining())out.write(b);}
     private static byte[] read(FileChannel f,long at,int size)throws IOException{ByteBuffer b=ByteBuffer.allocate(size);f.position(at);while(b.hasRemaining())if(f.read(b)<=0)throw new EOFException();return b.array();}
 }
+

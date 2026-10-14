@@ -15,6 +15,18 @@ public final class Mp4MetadataTest {
     }
     static byte[] movie(int time,boolean tags)throws Exception{return box("moov",join(dates("mvhd",time,time+1,0),track(time,tags),tags?box("udta",join(box("name","titolo originale".getBytes()),box("©xyz",join(new byte[]{0,18,0,0},"+45.1234+008.1234/".getBytes(java.nio.charset.StandardCharsets.US_ASCII))))):new byte[0]));}
     static byte[] content(boolean tags)throws Exception{return join(box("ftyp",new byte[16]),box("mdat",new byte[]{11,22,33,44,55}),movie(tags?1234:99,tags),tags?box("uuid",new byte[]{(byte)0xbe,0x7a,(byte)0xcf,(byte)0xcb,(byte)0x97,(byte)0xa9,0x42,(byte)0xe8,(byte)0x9c,0x71,(byte)0x99,(byte)0x94,(byte)0x91,(byte)0xe3,(byte)0xaf,(byte)0xac,1,2,3,4}):new byte[0]);}
+    static byte[] sef()throws Exception{
+        byte[] name="HighlightVideo_Data".getBytes(java.nio.charset.StandardCharsets.US_ASCII);
+        byte[] data="   AutoSum 10\n TMDI\n 1\n 21\n 1234567890\n SMDI\n 2\n 81\n 0 525 3525 3000 0 0 66 0\n 1 4000 7000 3000 0 0 533 0\n".getBytes(java.nio.charset.StandardCharsets.US_ASCII);
+        ByteBuffer record=ByteBuffer.allocate(8+name.length+data.length).order(ByteOrder.LITTLE_ENDIAN);
+        record.putShort((short)0).putShort((short)0x08b0).putInt(name.length).put(name).put(data);
+        ByteBuffer directory=ByteBuffer.allocate(32).order(ByteOrder.LITTLE_ENDIAN);
+        directory.put("SEFH".getBytes()).putInt(105).putInt(1).putShort((short)0).putShort((short)0x08b0).putInt(record.capacity()).putInt(record.capacity()).putInt(24).put("SEFT".getBytes());
+        return box("sefd",join(record.array(),directory.array()));
+    }
+    static void rejected(Path input,byte[] bytes,String detail)throws Exception{
+        Files.write(input,bytes);try(FileChannel src=FileChannel.open(input)){Mp4Metadata.check(src,()->false);throw new AssertionError(detail);}catch(IOException expected){}
+    }
     public static void main(String[] args)throws Exception{
         Path input=Files.createTempFile("meta-source-",".mp4"),output=Files.createTempFile("meta-target-",".mp4");
         try{
@@ -33,7 +45,26 @@ public final class Mp4MetadataTest {
             Files.write(input,content(true));Files.write(output,content(false));failed=false;try(FileChannel src=FileChannel.open(input)){Mp4Metadata.copy(src,output.toFile(),()->true,s->{});}catch(IOException e){failed=true;}if(!failed)throw new AssertionError("Cancellation ignored");
             Files.write(input,join(content(false),box("uuid",new byte[24])));failed=false;try(FileChannel src=FileChannel.open(input)){Mp4Metadata.check(src,()->false);}catch(IOException e){failed=true;}if(!failed)throw new AssertionError("Unknown vendor UUID silently accepted");
             Files.write(input,join(content(false),box("meta",join(new byte[4],box("iloc",new byte[20])))));failed=false;try(FileChannel src=FileChannel.open(input)){Mp4Metadata.check(src,()->false);}catch(IOException e){failed=true;}if(!failed)throw new AssertionError("Old media item offsets silently accepted");
+            byte[] sef=sef();SamsungSef.validate(sef);
+            Files.write(input,join(content(true),sef));byte[] before=content(false);Files.write(output,before);
+            try(FileChannel src=FileChannel.open(input)){Mp4Metadata.copy(src,output.toFile(),()->false,System.out::println);}
+            byte[] after=Files.readAllBytes(output);byte[] relocated=Arrays.copyOfRange(after,after.length-sef.length,after.length);
+            if(!Arrays.equals(sef,relocated))throw new AssertionError("Samsung SEF changed or not at EOF");
+            for(int i=0;i<37;i++)if(before[i]!=after[i])throw new AssertionError("Media moved during SEF copy");
+            int originalStart=content(true).length,newStart=after.length-sef.length;
+            if(originalStart==newStart)throw new AssertionError("Test did not relocate SEF");
+            SamsungSef.validate(relocated);
+            byte[] corrupt=sef.clone();ByteBuffer.wrap(corrupt).order(ByteOrder.LITTLE_ENDIAN).putInt(corrupt.length-16,Integer.MAX_VALUE);
+            rejected(input,join(content(false),corrupt),"External SEF reference accepted");
+            corrupt=sef.clone();corrupt[corrupt.length-2]='X';rejected(input,join(content(false),corrupt),"Broken SEFT accepted");
+            corrupt=sef.clone();corrupt[10]=0;rejected(input,join(content(false),corrupt),"Unknown SEF record accepted");
+            corrupt=sef.clone();corrupt[35]=0;rejected(input,join(content(false),corrupt),"Binary highlight payload accepted");
+            corrupt=sef.clone();ByteBuffer.wrap(corrupt).order(ByteOrder.LITTLE_ENDIAN).putInt(corrupt.length-8,12);
+            rejected(input,join(content(false),corrupt),"Invalid directory count accepted");
+            rejected(input,join(content(false),sef,box("free",new byte[0])),"Non-final SEF accepted");
+            rejected(input,join(content(false),sef,sef),"Duplicate SEF accepted");
             System.out.println("MP4 metadata round-trip, no-tag, media offset and cancellation tests passed");
         }finally{Files.deleteIfExists(input);Files.deleteIfExists(output);}
     }
 }
+
