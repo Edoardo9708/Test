@@ -7,8 +7,11 @@ public final class ColorVuiTest {
   try{
    for(int transfer:new int[]{1,6}){
     java.nio.ByteBuffer b=java.nio.ByteBuffer.allocate(19);b.putInt(19).put("colr".getBytes(java.nio.charset.StandardCharsets.US_ASCII)).put("nclx".getBytes(java.nio.charset.StandardCharsets.US_ASCII)).putShort((short)1).putShort((short)transfer).putShort((short)1).put((byte)0);
-    java.nio.file.Files.write(path,b.array());boolean failed=false;
-    try(java.nio.channels.FileChannel f=java.nio.channels.FileChannel.open(path)){ContainerColor.check(f,new ColorVui(1,1,1,false,true,true,5));}catch(java.io.IOException e){failed=true;}
+    java.nio.file.Files.write(path,b.array());boolean failed=false;java.util.List<String> logs=new java.util.ArrayList<>();
+    try(java.nio.channels.FileChannel f=java.nio.channels.FileChannel.open(path)){ContainerColor.check(f,new ColorVui(1,1,1,false,true,true,5),logs::add);}catch(java.io.IOException e){failed=true;}
+    String diagnostic=String.join("\n",logs);
+    if(!diagnostic.contains("HEX payload colr:")||!diagnostic.contains("Tipo dichiarazione: nclx"))throw new AssertionError("Original colr diagnostic missing");
+    if(transfer==6&&!diagnostic.contains("Trasferimento: MP4=6 · SPS=1"))throw new AssertionError("Mismatch values missing before rejection");
     if(failed!=(transfer==6))throw new AssertionError("Conflicting container transfer not detected");
    }
   }finally{java.nio.file.Files.deleteIfExists(path);}
@@ -22,3 +25,4 @@ public final class ColorVuiTest {
   System.out.println("Samsung HEVC BT709, AVC BT709, HEVC SMPTE170M full-range and truncated SPS checks passed");
  }
 }
+

@@ -209,10 +209,18 @@ final class VideoConverter {
                 throw new IllegalArgumentException("Profilo video non supportato: questa versione richiede SDR a 8 bit.");
             java.util.List<byte[]> csds=new java.util.ArrayList<>();
             for(String key:video.getKeys())if(key.startsWith("csd-")){ByteBuffer b=video.getByteBuffer(key).duplicate();byte[] bytes=new byte[b.remaining()];b.get(bytes);csds.add(bytes);}
+            onLog("*** DIAGNOSTICA COLORE ORIGINALE ***");
+            onLog("1. Esporto le intestazioni originali del codec (CSD).\n2. Leggo la descrizione colore nel flusso SPS/VUI.\n3. Leggo il blocco colr dell’MP4.\n4. Elenco ogni differenza prima dell’eventuale arresto.\nI fotogrammi non sono inclusi in questa esportazione.");
+            for(int i=0;i<csds.size();i++){
+                byte[] data=csds.get(i);int shown=Math.min(data.length,512);
+                onLog("CSD intestazione #"+i+" · MIME="+inputMime+" · byte="+data.length+"\nHEX: "+ContainerColor.hex(java.util.Arrays.copyOf(data,shown))+(shown<data.length?" · troncato ai primi 512 byte":" · completo"));
+            }
             sourceColor=ColorVui.read(inputMime,csds.toArray(new byte[0][]));
+            onLog("*** COLORE NEL FLUSSO VIDEO · SPS/VUI ***");
+            onLog("Primarie: "+sourceColor.primaries+"\nTrasferimento: "+sourceColor.transfer+"\nMatrice: "+sourceColor.matrix+"\nRange: "+(sourceColor.fullRange?"completo":"limitato")+"\nSegnale video presente: "+sourceColor.signalPresent+"\nDescrizione colore presente: "+sourceColor.descriptionPresent+"\nFormato video: "+sourceColor.videoFormat+"\nCodice 2: non specificato. Se un campo non è presente, il valore mostrato deriva dalle regole SPS, non da una dichiarazione esplicita.");
             try(ParcelFileDescriptor fd=context.getContentResolver().openFileDescriptor(uri,"r")){
                 if(fd==null)throw new IOException("Originale assente durante il controllo colore");
-                try(ParcelFileDescriptor.AutoCloseInputStream in=new ParcelFileDescriptor.AutoCloseInputStream(fd)){ContainerColor.check(in.getChannel(),sourceColor);}
+                try(ParcelFileDescriptor.AutoCloseInputStream in=new ParcelFileDescriptor.AutoCloseInputStream(fd)){ContainerColor.check(in.getChannel(),sourceColor,this::onLog);}
             }
             onLog("*** CONSERVAZIONE DICHIARAZIONE COLORE ***");
             onLog("COLORE ORIGINALE (SPS/VUI): "+sourceColor+" · codici precisi del bitstream, senza traduzione dell’enum SDR Android");
@@ -471,3 +479,4 @@ final class VideoConverter {
         }
     }
 }
+
