@@ -110,6 +110,7 @@ final class VideoConverter {
         if(t==6 || t==7) throw new IllegalArgumentException("Video HDR non ancora supportato: usa un video SDR a 8 bit.");
     }
     Uri convert(Uri input,Uri folder,int crf,String sourceName,int preset,int cpuMode,boolean bframes,boolean lookahead) throws Exception {
+        final AppSettings naming=new AppSettings(context);
         this.bframes=bframes;this.lookahead=lookahead;
         this.cpuMode=cpuMode;
         this.preset=preset;
@@ -156,12 +157,20 @@ final class VideoConverter {
                 checkCancel();
                 onLog("*** STEP 6 · SALVATAGGIO NELLA CARTELLA SCELTA ***");
                 listener.progress(98,"Salvataggio MP4...");
-                String stem=sourceName.replaceFirst("\\.[^.]+$","").replaceAll("[^\\p{L}\\p{N}._ -]","_");
-                if(stem.length()>70) stem=stem.substring(0,70);
-                String name=stem+"-HEVC-CRF"+crf+"-"+System.currentTimeMillis()+".mp4";
+                String requested=OutputName.base(sourceName,naming.addition,naming.prefix);
+                java.util.Set<String> occupied=new java.util.HashSet<>();
+                Uri children=DocumentsContract.buildChildDocumentsUriUsingTree(folder,DocumentsContract.getTreeDocumentId(folder));
+                try(android.database.Cursor cursor=context.getContentResolver().query(children,new String[]{DocumentsContract.Document.COLUMN_DISPLAY_NAME},null,null,null)){
+                    if(cursor==null)throw new IOException("Impossibile controllare i nomi nella cartella di destinazione");
+                    while(cursor.moveToNext()){checkCancel();if(!cursor.isNull(0))occupied.add(cursor.getString(0).toLowerCase(java.util.Locale.ROOT));}
+                }
+                String name=OutputName.unique(requested,occupied);
+                onLog("NOME OUTPUT · posizione="+(naming.prefix?"prefisso":"suffisso")+" · testo="+naming.addition+"\nNome richiesto: "+requested+"\nNome scelto senza sovrascrittura: "+name);
                 Uri parent=DocumentsContract.buildDocumentUriUsingTree(folder,DocumentsContract.getTreeDocumentId(folder));
                 destination=DocumentsContract.createDocument(context.getContentResolver(),parent,"video/mp4",name);
                 if(destination==null) throw new IOException("Impossibile creare il file nella cartella");
+                if(destination.equals(input)){destination=null;throw new IOException("Il provider ha restituito l’originale come destinazione: scrittura rifiutata");}
+                try(android.database.Cursor cursor=context.getContentResolver().query(destination,new String[]{android.provider.OpenableColumns.DISPLAY_NAME},null,null,null)){if(cursor!=null&&cursor.moveToFirst())onLog("NOME FINALE DEL PROVIDER: "+cursor.getString(0));}
                 try(InputStream in=new FileInputStream(temporary);
                     OutputStream out=context.getContentResolver().openOutputStream(destination,"w")) {
                     if(out==null) throw new IOException("Destinazione non scrivibile");
@@ -503,6 +512,7 @@ final class VideoConverter {
         }
     }
 }
+
 
 
 

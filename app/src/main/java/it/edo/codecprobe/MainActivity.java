@@ -37,16 +37,21 @@ public final class MainActivity extends Activity {
     private String sourceName="video";
     private Button pickVideo,pickFolder,convert,stop,saveLog,saveMetadata,openVideo;
     private TextView videoLabel,folderLabel,qualityHelp,status,logView;
-    private Choice quality,mode,cpuMode;
+    private Choice cpuMode;
+    private SeekBar presetSlider,crfSlider;
+    private TextView presetValue;
+    private final java.util.List<Button> crfButtons=new java.util.ArrayList<>();
+    private long settingsRevision;
     private Switch bframeSwitch,lookaheadSwitch;
     private TextView temporalHelp,effectiveTemporal,aqModeLabel,aqStrengthLabel,cuTreeLabel;
     private static native int[] nativePresetSettings(int preset,boolean bframes,boolean lookahead);
     private boolean notificationsRequested;
     private final Runnable sessionObserver=this::renderSession;
     private TextView inputInfo;
-    private LinearLayout inputSummary,inputDetails;
+    private LinearLayout inputSummary,inputDetails,videoDetails;
+    private int detailGeneration=-1;
     private volatile int infoGeneration;
-    private EditText customCrf;
+
     private TextView timeline,telemetry,percentLabel,frameLabel;
     private int bg,surface,ink,muted,accent,border;
     
@@ -75,6 +80,7 @@ public final class MainActivity extends Activity {
     private String pendingLog;
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
+        AppSettings defaults=new AppSettings(this);settingsRevision=defaults.revision;
         boolean dark=(getResources().getConfiguration().uiMode&Configuration.UI_MODE_NIGHT_MASK)==Configuration.UI_MODE_NIGHT_YES;
         bg=Color.parseColor(dark?"#10151D":"#F2F5FA");surface=Color.parseColor(dark?"#1B2330":"#FFFFFF");
         ink=Color.parseColor(dark?"#EDF3FC":"#172236");muted=Color.parseColor(dark?"#A7B6CA":"#53647A");
@@ -93,43 +99,44 @@ public final class MainActivity extends Activity {
         });
         TextView title=text(page,"Converti video",30);title.setTypeface(null,Typeface.BOLD);
         text(page,"HEVC / x265   •   v"+BuildConfig.VERSION_NAME,13);
+        Button preferences=button(page,"⚙ Impostazioni");preferences.setOnClickListener(v->startActivity(new Intent(this,SettingsActivity.class).putExtra("preset",presetSlider.getProgress()).putExtra("crf",selectedCrf()).putExtra("cpu",cpuMode.getSelectedItemPosition()).putExtra("bframes",bframeSwitch.isChecked()).putExtra("lookahead",lookaheadSwitch.isChecked()).putExtra("sourceName",sourceName)));
 
         LinearLayout files=card(page,"01  FILE E DESTINAZIONE");
-        pickVideo=button(files,"Seleziona video");videoLabel=text(files,"Nessun video selezionato",14);
-        inputInfo=text(files,"Seleziona un video per vedere le informazioni del file.",15);
-        inputSummary=new LinearLayout(this);inputSummary.setOrientation(LinearLayout.VERTICAL);files.addView(inputSummary);
-        Button details=button(files,"Mostra metadati e dettagli");inputDetails=new LinearLayout(this);inputDetails.setOrientation(LinearLayout.VERTICAL);files.addView(inputDetails);inputDetails.setVisibility(View.GONE);
-        details.setOnClickListener(v->{boolean show=inputDetails.getVisibility()!=View.VISIBLE;inputDetails.setVisibility(show?View.VISIBLE:View.GONE);details.setText(show?"Nascondi metadati":"Mostra metadati e dettagli");});
+        pickVideo=button(files,"Seleziona video");videoLabel=text(files,"Nessun video selezionato",23);videoLabel.setTypeface(null,Typeface.BOLD);
+        inputInfo=text(files,"Seleziona un video",15);
+        Button details=button(files,"▸ Dettagli video");
+        videoDetails=new LinearLayout(this);videoDetails.setOrientation(LinearLayout.VERTICAL);files.addView(videoDetails);videoDetails.setVisibility(View.GONE);
+        inputSummary=new LinearLayout(this);inputSummary.setOrientation(LinearLayout.VERTICAL);videoDetails.addView(inputSummary);
+        inputDetails=new LinearLayout(this);inputDetails.setOrientation(LinearLayout.VERTICAL);videoDetails.addView(inputDetails);
+        details.setOnClickListener(v->{boolean show=videoDetails.getVisibility()!=View.VISIBLE;videoDetails.setVisibility(show?View.VISIBLE:View.GONE);details.setText(show?"▾ Dettagli video":"▸ Dettagli video");if(show)loadInputDetails();});
         pickFolder=button(files,"Scegli cartella");folderLabel=text(files,"Nessuna cartella selezionata",14);
         LinearLayout settings=card(page,"02  COMPRESSIONE");
-        parameterRow(settings,"Preset","Il preset regola il compromesso tra velocità e compressione. I preset lenti provano più alternative e richiedono più tempo; non garantiscono una dimensione precisa.");
-        mode=spinner(settings,new String[]{"ultrafast","superfast","veryfast","faster","fast","medium","slow","slower","veryslow"});
-        mode.setSelection(state==null?6:state.getInt("mode",6));
-
-        parameterRow(settings,"CRF","Valori da 0 a 51. Un numero più basso tende a conservare più dettagli e produrre file più grandi. CRF 0 non equivale alla modalità lossless. Dimensione e qualità dipendono dal contenuto.");
-        quality=spinner(settings,new String[]{"Alta qualità · CRF 18","Bilanciata · CRF 23","Risparmio spazio · CRF 28","Personalizzata · scrivi CRF 0–51"});
-        customCrf=new EditText(this);customCrf.setSingleLine(true);customCrf.setInputType(InputType.TYPE_CLASS_NUMBER);
-        customCrf.setTextColor(ink);customCrf.setHintTextColor(muted);customCrf.setTextSize(18);customCrf.setHint("Valore CRF da 0 a 51");
-        customCrf.setBackgroundTintList(ColorStateList.valueOf(accent));settings.addView(customCrf);
-        customCrf.setText(state==null?"23":state.getString("manual","23"));
-        qualityHelp=text(settings,"",13);
-        quality.onSelection=()->{customCrf.setVisibility(quality.getSelectedItemPosition()==3?View.VISIBLE:View.GONE);updateQualityHelp();};
-        quality.setSelection(state==null?1:state.getInt("quality",1));
-        customCrf.addTextChangedListener(new TextWatcher(){public void beforeTextChanged(CharSequence s,int a,int c,int f){} public void onTextChanged(CharSequence s,int a,int b,int c){updateQualityHelp();}public void afterTextChanged(Editable e){}});
-        bframeSwitch=new Switch(this);bframeSwitch.setText("B-frame");bframeSwitch.setTextColor(ink);bframeSwitch.setTextSize(20);bframeSwitch.setTypeface(null,Typeface.BOLD);bframeSwitch.setPadding(0,dp(12),0,dp(12));switchRow(settings,bframeSwitch,"B-frame","Fotogrammi che possono usare riferimenti precedenti e successivi. Il numero visualizzato è il massimo consecutivo; x265 può usarne meno in base alla scena. OFF imposta il massimo a zero.");bframeSwitch.setChecked(state==null||state.getBoolean("bframes",true));
-        lookaheadSwitch=new Switch(this);lookaheadSwitch.setText("Lookahead esteso");lookaheadSwitch.setTextColor(ink);lookaheadSwitch.setTextSize(20);lookaheadSwitch.setTypeface(null,Typeface.BOLD);lookaheadSwitch.setPadding(0,dp(12),0,dp(12));switchRow(settings,lookaheadSwitch,"Lookahead","Numero di fotogrammi futuri analizzati per pianificare la codifica. ON usa il preset; OFF disattiva l’analisi estesa e CU-tree, mantenendo l’eventuale buffer minimo dei B-frame.");lookaheadSwitch.setChecked(state==null||state.getBoolean("lookahead",true));
+        presetValue=parameterRow(settings,"Preset","Il preset regola velocità e compressione. I preset lenti provano più alternative; osserva B-frame, lookahead e AQ mentre sposti lo slider.");
+        presetSlider=new SeekBar(this);presetSlider.setMax(8);styleSlider(presetSlider);settings.addView(presetSlider,new LinearLayout.LayoutParams(-1,dp(48)));
+        presetSlider.setProgress(state==null?defaults.preset:state.getInt("presetValue",defaults.preset));
+        qualityHelp=parameterRow(settings,"CRF","Valori da 0 a 51. Un numero più basso conserva generalmente più dettagli e produce file più grandi. CRF 0 non è lossless. I pulsanti 18, 23 e 28 selezionano i valori classici; ✎ permette di digitare un numero.");
+        crfSlider=new SeekBar(this);crfSlider.setMax(51);styleSlider(crfSlider);settings.addView(crfSlider,new LinearLayout.LayoutParams(-1,dp(48)));
+        crfSlider.setProgress(state==null?defaults.crf:state.getInt("crfValue",defaults.crf));
+        crfSlider.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener(){public void onProgressChanged(SeekBar b,int n,boolean user){updateQualityHelp();}public void onStartTrackingTouch(SeekBar b){}public void onStopTrackingTouch(SeekBar b){}});
+        LinearLayout crfRow=new LinearLayout(this);settings.addView(crfRow);
+        for(int n:new int[]{18,23,28}){Button quick=new Button(this);quick.setText(Integer.toString(n));quick.setContentDescription("CRF "+n);styleButton(quick,false);quick.setOnClickListener(v->crfSlider.setProgress(n));crfRow.addView(quick,new LinearLayout.LayoutParams(0,-2,1));crfButtons.add(quick);}
+        Button manual=new Button(this);manual.setText("✎");manual.setContentDescription("Inserisci CRF manualmente");styleButton(manual,false);crfRow.addView(manual,new LinearLayout.LayoutParams(0,-2,1));crfButtons.add(manual);
+        manual.setOnClickListener(v->{EditText value=new EditText(this);value.setInputType(InputType.TYPE_CLASS_NUMBER);value.setText(Integer.toString(selectedCrf()));value.setSelectAllOnFocus(true);android.app.AlertDialog dialog=new android.app.AlertDialog.Builder(this).setTitle("CRF · 0–51").setView(value).setPositiveButton("Applica",null).setNegativeButton("Annulla",null).create();dialog.setOnShowListener(d->dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener(w->{try{int n=Integer.parseInt(value.getText().toString());if(n<0||n>51)throw new NumberFormatException();crfSlider.setProgress(n);dialog.dismiss();}catch(NumberFormatException e){value.setError("Inserisci un intero da 0 a 51");}}));dialog.show();});
+        updateQualityHelp();
+        bframeSwitch=new Switch(this);bframeSwitch.setText("B-frame");bframeSwitch.setTextColor(ink);bframeSwitch.setTextSize(20);bframeSwitch.setTypeface(null,Typeface.BOLD);bframeSwitch.setPadding(0,dp(12),0,dp(12));switchRow(settings,bframeSwitch,"B-frame","Fotogrammi che possono usare riferimenti precedenti e successivi. Il numero visualizzato è il massimo consecutivo; x265 può usarne meno in base alla scena. OFF imposta il massimo a zero.");bframeSwitch.setChecked(state==null?defaults.bframes:state.getBoolean("bframes",defaults.bframes));
+        lookaheadSwitch=new Switch(this);lookaheadSwitch.setText("Lookahead esteso");lookaheadSwitch.setTextColor(ink);lookaheadSwitch.setTextSize(20);lookaheadSwitch.setTypeface(null,Typeface.BOLD);lookaheadSwitch.setPadding(0,dp(12),0,dp(12));switchRow(settings,lookaheadSwitch,"Lookahead","Numero di fotogrammi futuri analizzati per pianificare la codifica. ON usa il preset; OFF disattiva l’analisi estesa e CU-tree, mantenendo l’eventuale buffer minimo dei B-frame.");lookaheadSwitch.setChecked(state==null?defaults.lookahead:state.getBoolean("lookahead",defaults.lookahead));
         temporalHelp=text(settings,"",13);temporalHelp.setVisibility(View.GONE);
         cuTreeLabel=parameterRow(settings,"CU-tree","Usa il lookahead per valutare quanto una zona verrà riutilizzata nei fotogrammi successivi e distribuire i bit. Segue il preset; viene disattivato con Lookahead OFF.");
         aqModeLabel=parameterRow(settings,"AQ mode","Adaptive Quantization: distribuisce la compressione tra le zone dello stesso fotogramma. 0: disattivata. 1: AQ basata sulla variabilità. 2: auto-variance. 3: auto-variance con attenzione alle zone scure. 4: auto-variance con informazioni sui bordi. Qui segue il preset x265.");
         aqStrengthLabel=parameterRow(settings,"AQ strength","Intensità dell’Adaptive Quantization. Segue il valore del preset; 0 disattiva AQ. Un valore maggiore non garantisce qualità migliore o file più piccoli.");
-        mode.onSelection=this::updateTemporalHelp;
+        presetSlider.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener(){public void onProgressChanged(SeekBar b,int n,boolean user){updateTemporalHelp();}public void onStartTrackingTouch(SeekBar b){}public void onStopTrackingTouch(SeekBar b){}});
         bframeSwitch.setOnCheckedChangeListener((v,checked)->updateTemporalHelp());
         lookaheadSwitch.setOnCheckedChangeListener((v,checked)->updateTemporalHelp());
         updateTemporalHelp();
 
         parameterRow(settings,"CPU","Limited limita il numero di thread. Auto lascia decidere x265. Max aumenta il parallelismo in base ai core disponibili. Non garantisce il 100% di utilizzo: dipende dal video, dal preset e dai limiti del telefono.");
         cpuMode=spinner(settings,new String[]{"Limited","Auto","Max"});
-        cpuMode.setSelection(state==null?1:state.getInt("cpu",1));
+        cpuMode.setSelection(state==null?defaults.cpu:state.getInt("cpu",defaults.cpu));
 
         LinearLayout work=card(page,"03  CONVERSIONE");
         convert=button(work,"Converti e salva MP4");styleButton(convert,true);
@@ -209,9 +216,10 @@ public final class MainActivity extends Activity {
     }
     private void updateTemporalHelp(){
         if(temporalHelp==null)return;
+        presetValue.setText("Preset · "+AppSettings.PRESETS[presetSlider.getProgress()]);
         try{
             System.loadLibrary("x265probe");
-            int[] values=nativePresetSettings(mode.getSelectedItemPosition(),bframeSwitch.isChecked(),lookaheadSwitch.isChecked());
+            int[] values=nativePresetSettings(presetSlider.getProgress(),bframeSwitch.isChecked(),lookaheadSwitch.isChecked());
             bframeSwitch.setText("B-frame · "+values[0]);
             lookaheadSwitch.setText("Lookahead · "+values[1]);
             cuTreeLabel.setText("CU-tree · "+(values[2]!=0?"ON":"OFF"));
@@ -269,13 +277,20 @@ public final class MainActivity extends Activity {
     }
     private Choice spinner(LinearLayout parent,String[] entries){Choice c=new Choice(entries);LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);lp.setMargins(0,dp(6),0,dp(6));parent.addView(c,lp);return c;}
     private void inspectInput(){
-        final Uri uri=input;final int generation=++infoGeneration;
-        if(uri==null)return;
-        inputInfo.setVisibility(View.VISIBLE);inputInfo.setText("Lettura informazioni del file…");inputSummary.removeAllViews();inputDetails.removeAllViews();
-        worker.execute(()->{
-            InputInspector.Report info=InputInspector.inspect(getApplicationContext(),uri,()->destroyed||generation!=infoGeneration);
-            runOnUiThread(()->{if(!destroyed&&generation==infoGeneration){inputInfo.setVisibility(View.GONE);renderInfoSections(inputSummary,info.summarySections);renderInfoSections(inputDetails,info.detailSections);}});
-        });
+        final int generation=++infoGeneration;detailGeneration=-1;inputSummary.removeAllViews();inputDetails.removeAllViews();
+        if(input==null){inputInfo.setText("Seleziona un video");return;}
+        final Uri selected=input;inputInfo.setText("Leggo dimensione e tracce…");
+        worker.execute(()->{String quick=InputInspector.quickSummary(this,selected);runOnUiThread(()->{if(!destroyed&&generation==infoGeneration){inputInfo.setText(quick);if(videoDetails.getVisibility()==View.VISIBLE)loadInputDetails();}});});
+    }
+    private void loadInputDetails(){
+        if(input==null||detailGeneration==infoGeneration)return;
+        final int generation=infoGeneration;detailGeneration=generation;final Uri selected=input;
+        inputSummary.removeAllViews();text(inputSummary,"Analisi dei dettagli…",14);
+        worker.execute(()->{InputInspector.Report info=InputInspector.inspect(this,selected,()->destroyed||generation!=infoGeneration);runOnUiThread(()->{if(!destroyed&&generation==infoGeneration){renderInfoSections(inputSummary,info.summarySections);renderInfoSections(inputDetails,info.detailSections);}});});
+    }
+    private void styleSlider(SeekBar slider){slider.setProgressTintList(ColorStateList.valueOf(accent));slider.setThumbTintList(ColorStateList.valueOf(accent));slider.setProgressBackgroundTintList(ColorStateList.valueOf(border));}
+    private void applyDefaults(AppSettings defaults){
+        presetSlider.setProgress(defaults.preset);crfSlider.setProgress(defaults.crf);cpuMode.setSelection(defaults.cpu);bframeSwitch.setChecked(defaults.bframes);lookaheadSwitch.setChecked(defaults.lookahead);updateTemporalHelp();updateQualityHelp();settingsRevision=defaults.revision;
     }
     private void renderInfoSections(LinearLayout parent,java.util.Map<String,String> sections){
         parent.removeAllViews();
@@ -286,7 +301,7 @@ public final class MainActivity extends Activity {
             TextView body=text(group,section.getValue(),15);body.setTextColor(ink);body.setLineSpacing(dp(3),1);body.setTextIsSelectable(true);
         }
     }
-    private int selectedCrf(){int i=quality.getSelectedItemPosition();if(i<3)return new int[]{18,23,28}[Math.max(0,i)];try{return Integer.parseInt(customCrf.getText().toString());}catch(NumberFormatException e){return -1;}}
+    private int selectedCrf(){return crfSlider.getProgress();}
     private void updateQualityHelp(){if(qualityHelp==null)return;int n=selectedCrf();qualityHelp.setText(n<0||n>51?"Inserisci un numero intero da 0 a 51.":"CRF · "+n);}
     private void toast(String s){Toast.makeText(this,s,Toast.LENGTH_LONG).show();}
     private void refreshLabels(){
@@ -294,7 +309,7 @@ public final class MainActivity extends Activity {
         folderLabel.setText(folder==null?"Nessuna cartella selezionata":Uri.decode(folder.getLastPathSegment()));
     }
     private void setBusy(boolean value){
-        busy=value;pickVideo.setEnabled(!value);pickFolder.setEnabled(!value);quality.setEnabled(!value);mode.setEnabled(!value);cpuMode.setEnabled(!value);customCrf.setEnabled(!value);bframeSwitch.setEnabled(!value);lookaheadSwitch.setEnabled(!value);
+        busy=value;pickVideo.setEnabled(!value);pickFolder.setEnabled(!value);crfSlider.setEnabled(!value);presetSlider.setEnabled(!value);for(Button b:crfButtons)b.setEnabled(!value);cpuMode.setEnabled(!value);bframeSwitch.setEnabled(!value);lookaheadSwitch.setEnabled(!value);
         convert.setEnabled(!value);saveLog.setEnabled(!value);saveMetadata.setEnabled(!value);stop.setVisibility(value?View.VISIBLE:View.GONE);stop.setEnabled(value);
 
     }
@@ -313,8 +328,8 @@ public final class MainActivity extends Activity {
                 .setNegativeButton("Annulla",null).show();return;
         }
         final Uri source=input,dest=folder;final String name=sourceName;final int crf=selectedCrf();
-        if(crf<0||crf>51){customCrf.setError("Inserisci un intero da 0 a 51");customCrf.requestFocus();return;}
-        final int preset=mode.getSelectedItemPosition(),cpu=cpuMode.getSelectedItemPosition();
+
+        final int preset=presetSlider.getProgress(),cpu=cpuMode.getSelectedItemPosition();
         if(Build.VERSION.SDK_INT>=33&&!notificationsRequested&&checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)!=PackageManager.PERMISSION_GRANTED){notificationsRequested=true;requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS},4);return;}
         Intent task=new Intent(this,ConversionService.class).setAction(ConversionService.START)
             .putExtra("input",source.toString()).putExtra("folder",dest.toString()).putExtra("name",name)
@@ -444,11 +459,12 @@ public final class MainActivity extends Activity {
         super.onSaveInstanceState(b);
         if(input!=null)b.putString("input",input.toString());
         if(resultUri!=null)b.putString("result",resultUri.toString());
-        b.putString("sourceName",sourceName);b.putString("pendingLog",pendingLog);b.putInt("quality",quality.getSelectedItemPosition());b.putInt("mode",mode.getSelectedItemPosition());b.putInt("cpu",cpuMode.getSelectedItemPosition());b.putBoolean("bframes",bframeSwitch.isChecked());b.putBoolean("lookahead",lookaheadSwitch.isChecked());b.putString("manual",customCrf.getText().toString());
+        b.putString("sourceName",sourceName);b.putString("pendingLog",pendingLog);b.putInt("crfValue",selectedCrf());b.putInt("presetValue",presetSlider.getProgress());b.putInt("cpu",cpuMode.getSelectedItemPosition());b.putBoolean("bframes",bframeSwitch.isChecked());b.putBoolean("lookahead",lookaheadSwitch.isChecked());
     }
-    @Override protected void onResume(){super.onResume();ConversionService.uiVisible=true;previousWall=0;monitor.post(sample);ConversionService.observe(sessionObserver);renderSession();}
+    @Override protected void onResume(){super.onResume();AppSettings saved=new AppSettings(this);if(saved.revision!=settingsRevision&&!ConversionService.snapshot().running)applyDefaults(saved);ConversionService.uiVisible=true;previousWall=0;monitor.post(sample);ConversionService.observe(sessionObserver);renderSession();}
     @Override protected void onPause(){ConversionService.uiVisible=false;monitor.removeCallbacks(sample);ConversionService.detach(sessionObserver);super.onPause();}
     @Override protected void onDestroy(){destroyed=true;ConversionService.detach(sessionObserver);worker.shutdown();super.onDestroy();}
 }
+
 
 

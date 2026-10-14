@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 mkdir -p yuv-test
+javac -d yuv-test app/src/main/java/it/edo/codecprobe/OutputName.java tests/OutputNameTest.java
+java -cp yuv-test it.edo.codecprobe.OutputNameTest
 javac -d yuv-test app/src/main/java/it/edo/codecprobe/MetadataDump.java tests/MetadataDumpTest.java
 java -cp yuv-test it.edo.codecprobe.MetadataDumpTest
 javac -d yuv-test app/src/main/java/it/edo/codecprobe/ColorVui.java app/src/main/java/it/edo/codecprobe/ContainerColor.java tests/ColorVuiTest.java
@@ -15,4 +17,5 @@ java -cp yuv-test it.edo.codecprobe.Mp4BoxesTest
 
 javac -d yuv-test app/src/main/java/it/edo/codecprobe/SamsungSef.java app/src/main/java/it/edo/codecprobe/Mp4Metadata.java tests/Mp4MetadataTest.java
 java -cp yuv-test it.edo.codecprobe.Mp4MetadataTest
+
 

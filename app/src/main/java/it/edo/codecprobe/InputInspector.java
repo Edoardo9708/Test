@@ -22,6 +22,13 @@ final class InputInspector {
         String full(){return summary+"\n\nMETADATI E DETTAGLI\n"+details;}
         private static String flatten(Map<String,String> sections){StringBuilder out=new StringBuilder();for(Map.Entry<String,String> e:sections.entrySet())out.append("\n*** ").append(e.getKey()).append(" ***\n").append(e.getValue()).append("\n");return out.toString();}
     }
+    static String quickSummary(Context context,Uri uri){
+        long bytes=-1;int videos=0,audios=0;String tracks="Tracce: non disponibili";
+        try(Cursor c=context.getContentResolver().query(uri,new String[]{OpenableColumns.SIZE},null,null,null)){if(c!=null&&c.moveToFirst()&&!c.isNull(0))bytes=c.getLong(0);}catch(Exception ignored){}
+        if(bytes<0)try(ParcelFileDescriptor fd=context.getContentResolver().openFileDescriptor(uri,"r")){if(fd!=null)bytes=fd.getStatSize();}catch(Exception ignored){}
+        MediaExtractor e=new MediaExtractor();try{e.setDataSource(context,uri,null);for(int i=0;i<e.getTrackCount();i++){String mime=e.getTrackFormat(i).getString(MediaFormat.KEY_MIME);if(mime!=null&&mime.startsWith("video/"))videos++;else if(mime!=null&&mime.startsWith("audio/"))audios++;}tracks="Video: "+videos+" · Audio: "+audios;}catch(Exception ignored){}finally{e.release();}
+        return (bytes>=0?String.format(Locale.ITALY,"%.2f MB",bytes/1000000.0):"Dimensione non disponibile")+" · "+tracks;
+    }
     static String describe(Context c,Uri u){return inspect(c,u,()->false).full();}
     static String describe(Context c,Uri u,BooleanSupplier cancel){return inspect(c,u,cancel).full();}
     static Report inspect(Context context,Uri uri,BooleanSupplier cancel){
@@ -104,3 +111,4 @@ final class InputInspector {
     private static String containerName(String mime){switch(mime){case "video/mp4":return "MP4";case "video/quicktime":return "MOV / QuickTime";case "video/x-matroska":return "Matroska / MKV";case "video/webm":return "WebM";case "video/3gpp":return "3GP";default:return mime;}}
     private static String codecName(String mime){if(mime==null)return "sconosciuto";switch(mime){case "video/hevc":return "H.265 / HEVC";case "video/avc":return "H.264 / AVC";case "video/av01":return "AV1";case "video/x-vnd.on2.vp9":return "VP9";case "audio/mp4a-latm":return "AAC";case "audio/mpeg":return "MP3";case "audio/opus":return "Opus";default:return mime;}}
 }
+
