@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 mkdir -p yuv-test
+javac -d yuv-test app/src/main/java/it/edo/codecprobe/MetadataDump.java tests/MetadataDumpTest.java
+java -cp yuv-test it.edo.codecprobe.MetadataDumpTest
 javac -d yuv-test app/src/main/java/it/edo/codecprobe/ColorVui.java app/src/main/java/it/edo/codecprobe/ContainerColor.java tests/ColorVuiTest.java
 java -cp yuv-test it.edo.codecprobe.ColorVuiTest
 javac -d yuv-test app/src/main/java/it/edo/codecprobe/NumberValues.java tests/NumberValuesTest.java

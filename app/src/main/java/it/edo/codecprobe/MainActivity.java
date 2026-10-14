@@ -35,7 +35,7 @@ public final class MainActivity extends Activity {
     private final ArrayDeque<String> recent=new ArrayDeque<>();
     private Uri input,folder,resultUri;
     private String sourceName="video";
-    private Button pickVideo,pickFolder,convert,stop,saveLog,openVideo;
+    private Button pickVideo,pickFolder,convert,stop,saveLog,saveMetadata,openVideo;
     private TextView videoLabel,folderLabel,qualityHelp,status,logView;
     private Choice quality,mode,cpuMode;
     private Switch bframeSwitch,lookaheadSwitch;
@@ -136,6 +136,7 @@ public final class MainActivity extends Activity {
         text(work,"Video SDR a 8 bit, audio AAC o assente. La conversione continua con notifica anche a schermo spento.",13);
         openVideo=button(work,"Apri video convertito");openVideo.setVisibility(View.GONE);
         LinearLayout logs=card(page,"DIAGNOSTICA");saveLog=button(logs,"Esporta log completo · TXT");
+        saveMetadata=button(logs,"Esporta metadati originali · TXT");
         Button toggle=button(logs,"Mostra ultimi messaggi");
         logView=text(logs,"",12);logView.setTypeface(Typeface.MONOSPACE);logView.setTextIsSelectable(true);logView.setMaxLines(16);logView.setVisibility(View.GONE);
         toggle.setOnClickListener(v->{boolean show=logView.getVisibility()!=View.VISIBLE;logView.setVisibility(show?View.VISIBLE:View.GONE);toggle.setText(show?"Nascondi ultimi messaggi":"Mostra ultimi messaggi");});
@@ -179,6 +180,7 @@ public final class MainActivity extends Activity {
             catch(Exception e){toast("Nessun lettore video disponibile");}
         });
         saveLog.setOnClickListener(v->exportLog());
+        saveMetadata.setOnClickListener(v->exportMetadata());
     }
     private static String qualityName(int crf){
         if(crf==0)return "Qualità massima CRF, non senza perdita";
@@ -255,7 +257,7 @@ public final class MainActivity extends Activity {
     }
     private void setBusy(boolean value){
         busy=value;pickVideo.setEnabled(!value);pickFolder.setEnabled(!value);quality.setEnabled(!value);mode.setEnabled(!value);cpuMode.setEnabled(!value);customCrf.setEnabled(!value);bframeSwitch.setEnabled(!value);lookaheadSwitch.setEnabled(!value);
-        convert.setEnabled(!value);saveLog.setEnabled(!value);stop.setVisibility(value?View.VISIBLE:View.GONE);stop.setEnabled(value);
+        convert.setEnabled(!value);saveLog.setEnabled(!value);saveMetadata.setEnabled(!value);stop.setVisibility(value?View.VISIBLE:View.GONE);stop.setEnabled(value);
 
     }
     private void startConversion(){
@@ -294,6 +296,10 @@ public final class MainActivity extends Activity {
     }
     @Override public void onRequestPermissionsResult(int request,String[] permissions,int[] results){
         super.onRequestPermissionsResult(request,permissions,results);
+        if(request==8){
+            if(OriginalMedia.hasLocationPermission(this)&&OriginalMedia.hasVideoPermission(this))exportMetadata();
+            else toast("Per esportare i metadati originali, consenti posizione dei file e lettura del video selezionato.");
+        }
         if(request==5){
             if(OriginalMedia.hasLocationPermission(this)){inspectInput();startConversion();}
             else{status.setText("Conversione non avviata: permesso posizione dei file negato.");toast("Per conservare il GPS, abilita il permesso nelle impostazioni dell’app e riprova.");}
@@ -303,6 +309,37 @@ public final class MainActivity extends Activity {
             else{status.setText("Conversione non avviata: accesso ai video negato.");toast("Consenti la lettura del video originale nelle impostazioni dell’app.");}
         }
         if(request==4){if(results.length==0||results[0]!=PackageManager.PERMISSION_GRANTED)toast("Notifiche disattivate: puoi abilitarle nelle impostazioni Android.");startConversion();}
+    }
+    private void exportMetadata(){
+        if(input==null){toast("Seleziona prima il video da analizzare");return;}
+        if(!OriginalMedia.hasLocationPermission(this)||!OriginalMedia.hasVideoPermission(this)){
+            java.util.ArrayList<String> permissions=new java.util.ArrayList<>();
+            permissions.add(Manifest.permission.ACCESS_MEDIA_LOCATION);
+            java.util.Collections.addAll(permissions,OriginalMedia.videoPermissions());
+            requestPermissions(permissions.toArray(new String[0]),8);return;
+        }
+        final Uri selected=input;final String name=sourceName;saveMetadata.setEnabled(false);saveLog.setEnabled(false);
+        toast("Leggo solo i blocchi dei metadati, senza copiare il video…");
+        worker.execute(()->{
+            File snapshot=null;
+            try{
+                Uri original=OriginalMedia.resolve(this,selected);
+                snapshot=File.createTempFile("metadata-export-",".txt",getCacheDir());
+                try(ParcelFileDescriptor fd=getContentResolver().openFileDescriptor(original,"r")){
+                    if(fd==null)throw new IOException("Video originale non disponibile");
+                    try(ParcelFileDescriptor.AutoCloseInputStream in=new ParcelFileDescriptor.AutoCloseInputStream(fd);Writer out=new OutputStreamWriter(new FileOutputStream(snapshot),StandardCharsets.UTF_8)){
+                        out.write("Versione app: "+BuildConfig.VERSION_NAME+"\nFile: "+name+"\n\n");
+                        MetadataDump.write(in.getChannel(),out,()->destroyed);
+                    }
+                }
+                final File result=snapshot;runOnUiThread(()->{
+                    if(destroyed){result.delete();return;}
+                    pendingLog=result.getAbsolutePath();saveMetadata.setEnabled(!busy);saveLog.setEnabled(!busy);
+                    Intent i=new Intent(Intent.ACTION_CREATE_DOCUMENT).setType("text/plain").addCategory(Intent.CATEGORY_OPENABLE);
+                    i.putExtra(Intent.EXTRA_TITLE,"v"+BuildConfig.VERSION_NAME+"-CodecProbe-metadati-"+System.currentTimeMillis()+".txt");startActivityForResult(i,SAVE_LOG);
+                });
+            }catch(Exception e){if(snapshot!=null)snapshot.delete();runOnUiThread(()->{if(!destroyed){saveMetadata.setEnabled(!busy);saveLog.setEnabled(!busy);toast("Esportazione metadati non riuscita: "+e.getMessage());}});}
+        });
     }
     private void exportLog(){
         File source=VideoConverter.logFile(this);
@@ -358,7 +395,7 @@ public final class MainActivity extends Activity {
             worker.execute(()->{
                 try(InputStream in=new FileInputStream(snapshot);OutputStream out=getContentResolver().openOutputStream(uri,"w")){
                     if(out==null)throw new IOException("Destinazione non disponibile");copy(in,out);
-                    runOnUiThread(()->{if(!destroyed)toast("Log TXT salvato");});
+                    runOnUiThread(()->{if(!destroyed)toast("File TXT salvato");});
                 }catch(Exception e){runOnUiThread(()->{if(!destroyed)toast("Errore esportazione log: "+e.getMessage());});}
                 finally{snapshot.delete();}
             });
