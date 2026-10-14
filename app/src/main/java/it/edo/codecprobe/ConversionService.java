@@ -2,6 +2,8 @@ package it.edo.codecprobe;
 
 import android.app.*;
 import android.content.Intent;
+import android.Manifest;
+import android.content.pm.PackageManager;
 import android.content.pm.ServiceInfo;
 import android.net.Uri;
 import android.os.*;
@@ -47,7 +49,7 @@ public final class ConversionService extends Service {
             State s=snapshot();
             if(!timedOut&&s.running&&(force||SystemClock.elapsedRealtime()-lastNotification>1000)) {
                 lastNotification=SystemClock.elapsedRealtime();
-                getSystemService(NotificationManager.class).notify(NOTICE,notification(s));
+                notifyState(s);
             }
         });
     }
@@ -56,6 +58,10 @@ public final class ConversionService extends Service {
         NotificationChannel channel=new NotificationChannel(CHANNEL,"Conversione video",NotificationManager.IMPORTANCE_LOW);
         channel.setDescription("Avanzamento e annullamento della conversione");
         getSystemService(NotificationManager.class).createNotificationChannel(channel);
+    }
+    private void notifyState(State s){
+        if(Build.VERSION.SDK_INT>=33&&checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)!=PackageManager.PERMISSION_GRANTED)return;
+        getSystemService(NotificationManager.class).notify(NOTICE,notification(s));
     }
     private Notification notification(State s){
         PendingIntent open=PendingIntent.getActivity(this,0,new Intent(this,MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP|Intent.FLAG_ACTIVITY_CLEAR_TOP),PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
@@ -113,7 +119,7 @@ public final class ConversionService extends Service {
                 main.post(()->{
                     synchronized(LOCK){state.running=false;}
                     releaseWake();stopForeground(STOP_FOREGROUND_REMOVE);publish(true);
-                    if(!timedOut)getSystemService(NotificationManager.class).notify(NOTICE,notification(snapshot()));
+                    if(!timedOut)notifyState(snapshot());
                     stopSelf();
                 });
             }

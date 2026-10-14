@@ -265,7 +265,7 @@ public final class MainActivity extends Activity {
         setBusy(s.running);progress.setProgress(s.percent);percentLabel.setText(s.percent+"%");status.setText(s.message);logView.setText(s.log);
         timeline.setText(String.format(Locale.ITALY,"Video convertito: %.1f s\nVideo rimanente: %s",s.done/1000000.0,s.total>0?String.format(Locale.ITALY,"%.1f s",Math.max(0,s.total-s.done)/1000000.0):"durata non disponibile"));
         resultUri=s.result;openVideo.setVisibility(resultUri==null?View.GONE:View.VISIBLE);
-        if(s.running&&input==null){input=s.input;folder=s.folder;sourceName=s.source;refreshLabels();inspectInput();}
+        if(input==null){input=s.input;folder=s.folder;sourceName=s.source;refreshLabels();inspectInput();}
     }
     @Override public void onRequestPermissionsResult(int request,String[] permissions,int[] results){
         super.onRequestPermissionsResult(request,permissions,results);
