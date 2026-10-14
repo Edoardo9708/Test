@@ -4,6 +4,7 @@
 struct StreamConfig {
     int width, height, fpsMilli, crf, standard, transfer, range;
     int preset=0;
+    int cpuMode=0, cores=2;
 };
 class StreamEncoder {
 public:

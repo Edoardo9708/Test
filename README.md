@@ -71,3 +71,10 @@ Validation: host and emulated ARM64 streaming tests cover CRF 0/23/51, variable 
 - Application process CPU time sampled each second, normalized by available processor count (100% = all available cores); not total device utilization or CPU frequency. Battery temperature and Android thermal status are explicitly labeled, unavailable values have a fallback.
 - Video seconds encoded and remaining use last emitted packet PTS, then full duration only after successful encoder flush. Unknown duration remains unknown. Overall progress reserves final steps for audio, validation and saving.
 - Native CI tests exercise ultrafast, slow and veryslow with CRF 0/23/51 respectively, including independent full decoding. Phone UI and end-to-end playback still require device verification.
+
+## v0.9: input information and CPU policies
+
+- Replaces fixed single-line Spinner rows with wrapping selection buttons and dynamically measured dialog rows.
+- Shows source size in decimal MB and exact bytes (provider query, then descriptor stat fallback), declared container MIME, video/audio codecs, resolution, duration, rotation, declared fps, color transfer/HDR and known HEVC bit depth. Missing values remain unknown; no claim of playback validation from metadata. Reads run on the worker and ignore obsolete selection results. Same summary is included in the full conversion log.
+- CPU policies: Limited retains frame threads=2/pool=2; Automatic delegates frame threads and pool size to x265; Maximum assigns workers for available cores (pool cap 64) and up to six frame threads. The maximum policy is a parallelism configuration, not a guarantee of 100% CPU utilization. Automatic is the default.
+- Native tests cover all three CPU policies with variable input PTS and verify that every frame decodes. Logs include requested CPU policy and effective frame thread count.

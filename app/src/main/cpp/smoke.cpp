@@ -27,7 +27,7 @@ int main() {
                 if(pts<=last)throw std::runtime_error("Streaming PTS order");
                 last=pts;packets++;cb.headers(data);
             };
-            StreamEncoder encoder(StreamConfig{320,240,30000,crf,1,3,2,crf==0?0:(crf==23?6:8)},cb);
+            StreamEncoder encoder(StreamConfig{320,240,30000,crf,1,3,2,crf==0?0:(crf==23?6:8),crf==0?0:(crf==23?1:2),4},cb);
             std::vector<uint8_t> pixels(320*240*3/2,128);
             int64_t pts=10000;
             for(int f=0;f<12;f++) {

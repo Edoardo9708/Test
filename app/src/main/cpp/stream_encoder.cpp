@@ -2,6 +2,7 @@
 #include <x265.h>
 #include <stdexcept>
 #include <chrono>
+#include <algorithm>
 struct StreamEncoder::State {
     x265_param* p=nullptr;
     x265_encoder* encoder=nullptr;
@@ -9,6 +10,7 @@ struct StreamEncoder::State {
     int width=0,height=0,submitted=0,produced=0;
     int64_t lastPts=-1;
     bool finished=false;
+    std::string pool;
     ~State() { if(encoder) x265_encoder_close(encoder); if(p) x265_param_free(p); }
     void emit(x265_nal* nals,uint32_t count,ProbeCallbacks& cb) {
         std::vector<uint8_t> data;
@@ -39,7 +41,12 @@ StreamEncoder::StreamEncoder(const StreamConfig& c,ProbeCallbacks& cb):state(new
     p->fpsNum=c.fpsMilli; p->fpsDenom=1000;
     p->internalCsp=X265_CSP_I420; p->internalBitDepth=8;
     p->rc.rateControlMode=X265_RC_CRF; p->rc.rfConstant=c.crf;
-    p->bframes=0; p->lookaheadDepth=0; p->frameNumThreads=2; p->numaPools="2";
+    p->bframes=0; p->lookaheadDepth=0;
+    if(c.cpuMode<0 || c.cpuMode>2 || c.cores<1 || c.cores>256) throw std::runtime_error("Configurazione CPU non valida");
+    if(c.cpuMode==0) {p->frameNumThreads=2; s.pool="2";p->numaPools=s.pool.c_str();}
+    else if(c.cpuMode==1) {p->frameNumThreads=0;p->numaPools=nullptr;}
+    else {p->frameNumThreads=std::min(6,c.cores);s.pool=std::to_string(std::min(64,c.cores));p->numaPools=s.pool.c_str();}
+    cb.log("CPU richiesta: modalita="+std::to_string(c.cpuMode)+" core_disponibili="+std::to_string(c.cores)+" frame_threads="+std::to_string(p->frameNumThreads)+" pool="+(p->numaPools?std::string(p->numaPools):"automatico"));
     p->bAnnexB=1; p->bRepeatHeaders=0; p->bEmitInfoSEI=0; p->logLevel=X265_LOG_WARNING;
     p->vui.bEnableVideoSignalTypePresentFlag=1;
     p->vui.bEnableColorDescriptionPresentFlag=1;
@@ -54,7 +61,7 @@ StreamEncoder::StreamEncoder(const StreamConfig& c,ProbeCallbacks& cb):state(new
     x265_encoder_parameters(s.encoder,p);
     cb.log("OK x265_encoder_open · pointer_bits="+std::to_string(sizeof(void*)*8)
            +" cpuid="+std::to_string(p->cpuid)+" CRF="+std::to_string(p->rc.rfConstant)
-           +" rcMode="+std::to_string(p->rc.rateControlMode)+" (CRF="+std::to_string(X265_RC_CRF)+") preset="+presets[c.preset]);
+           +" rcMode="+std::to_string(p->rc.rateControlMode)+" (CRF="+std::to_string(X265_RC_CRF)+") preset="+presets[c.preset]+" frame_threads_effettivi="+std::to_string(p->frameNumThreads));
     if(p->rc.rateControlMode!=X265_RC_CRF) throw std::runtime_error("CRF non attivo");
     x265_picture_init(p,&s.input); x265_picture_init(p,&s.output);
     x265_nal* nals=nullptr; uint32_t count=0;
