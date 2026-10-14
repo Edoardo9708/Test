@@ -45,7 +45,7 @@ public final class MainActivity extends Activity {
     private LinearLayout inputSummary,inputDetails;
     private volatile int infoGeneration;
     private EditText customCrf;
-    private TextView timeline,telemetry,percentLabel;
+    private TextView timeline,telemetry,percentLabel,frameLabel;
     private int bg,surface,ink,muted,accent,border;
     
     private final Handler monitor=new Handler(Looper.getMainLooper());
@@ -90,7 +90,7 @@ public final class MainActivity extends Activity {
             return insets;
         });
         TextView title=text(page,"Converti video",30);title.setTypeface(null,Typeface.BOLD);
-        text(page,"HEVC / x265   •   v0.11",13);
+        text(page,"HEVC / x265   •   v0.12",13);
         text(page,"Meno spazio, qualità sotto controllo.",16);
         LinearLayout files=card(page,"01  FILE E DESTINAZIONE");
         pickVideo=button(files,"Seleziona video");videoLabel=text(files,"Nessun video selezionato",14);
@@ -128,6 +128,7 @@ public final class MainActivity extends Activity {
         progress=new ProgressBar(this,null,android.R.attr.progressBarStyleHorizontal);progress.setMax(100);
         progress.setProgressTintList(ColorStateList.valueOf(accent));progress.setProgressBackgroundTintList(ColorStateList.valueOf(border));
         LinearLayout.LayoutParams bar=new LinearLayout.LayoutParams(-1,dp(12));bar.setMargins(0,dp(8),0,dp(12));work.addView(progress,bar);
+        frameLabel=text(work,"Fotogrammi: 0 / —",18);
         timeline=text(work,"Video convertito: — s\nVideo rimanente: — s",16);
         status=text(work,"Scegli video, cartella e qualità.",14);
         telemetry=text(work,"CPU APP   …     •     BATTERIA   …",14);
@@ -273,6 +274,7 @@ public final class MainActivity extends Activity {
     private void renderSession(){
         if(destroyed)return;
         ConversionService.State s=ConversionService.snapshot();if(!s.hasSession)return;
+        frameLabel.setText("Fotogrammi: "+s.doneFrames+" / "+(s.totalFrames>0?s.totalFrames:"— (totale non dichiarato)"));
         setBusy(s.running);progress.setProgress(s.percent);percentLabel.setText(s.percent+"%");status.setText(s.message);logView.setText(s.log);
         timeline.setText(String.format(Locale.ITALY,"Video convertito: %.1f s\nVideo rimanente: %s",s.done/1000000.0,s.total>0?String.format(Locale.ITALY,"%.1f s",Math.max(0,s.total-s.done)/1000000.0):"durata non disponibile"));
         resultUri=s.result;openVideo.setVisibility(resultUri==null?View.GONE:View.VISIBLE);

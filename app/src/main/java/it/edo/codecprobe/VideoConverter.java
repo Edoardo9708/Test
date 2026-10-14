@@ -16,7 +16,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 final class VideoConverter {
-    interface Listener { void log(String text); void progress(int percent, String text); void timeline(long doneUs,long totalUs); default String cancellationReason(){return "Annullamento richiesto";} }
+    interface Listener { void log(String text); void progress(int percent, String text); void timeline(long doneUs,long totalUs); default void frames(int done,int total){} default String cancellationReason(){return "Annullamento richiesto";} }
     private native long nativeOpen(int w,int h,int fpsMilli,int crf,int standard,int transfer,int range,int preset,int cpuMode,int cores,boolean bframes,boolean lookahead);
     private native void nativeFrame(long handle,ByteBuffer i420,long pts);
     private native void nativeFinish(long handle);
@@ -91,7 +91,7 @@ final class VideoConverter {
         try(FileOutputStream fileLog=new FileOutputStream(logFile(context),false)) {
             log=fileLog;
             try {
-                onLog("*** INIZIO CONVERSIONE v0.11 ***");
+                onLog("*** INIZIO CONVERSIONE v0.12 ***");
                 onLog("PERCORSO:\n1. Analizzo video e audio\n2. Decodifico i fotogrammi\n3. Ricodifico con x265 CRF\n4. Copio audio AAC\n5. Verifico il video\n6. Salvo nella cartella scelta");
                 onLog("QUALITÀ: CRF="+crf+" · valore minore = più dettagli, file generalmente più grande. Il risultato dipende dal contenuto.");
                 onLog("INPUT: "+sourceName+"\nPROCESSO 64 bit="+android.os.Process.is64Bit());
@@ -196,6 +196,8 @@ final class VideoConverter {
             if(!Float.isFinite(fps)||fps<1||fps>240) throw new IllegalArgumentException("Frequenza video non supportata: "+fps);
             long duration=video.containsKey(MediaFormat.KEY_DURATION)?video.getLong(MediaFormat.KEY_DURATION):0;
             durationUs=duration;
+            int totalFrames=integer(video,"accurate-framecount",integer(video,"frame-count",-1));
+            listener.frames(0,totalFrames);
             int rotation=integer(video,MediaFormat.KEY_ROTATION,0);
             standard=integer(video,MediaFormat.KEY_COLOR_STANDARD,height>576?1:2);
             transfer=integer(video,MediaFormat.KEY_COLOR_TRANSFER,3);
@@ -266,6 +268,7 @@ final class VideoConverter {
                                 onLog("OK conversione YUV · invio a x265");
                                 inputTimestamps.writeLong(info.presentationTimeUs);
                                 nativeFrame(handle,pixels,info.presentationTimeUs);frames++;
+                                listener.frames(frames,totalFrames);
                                 int percent=duration>0?(int)Math.min(89,Math.max(0,info.presentationTimeUs)*89.0/duration):0;
                                 listener.timeline(duration>0?Math.min(duration,Math.max(0,lastPacket)):Math.max(0,lastPacket),duration);
                                 listener.progress(percent,"Codifica: "+frames+" fotogrammi · "+percent+"%");
@@ -278,6 +281,7 @@ final class VideoConverter {
             }
             if(handle==0) throw new IOException("Nessun fotogramma decodificato");
             nativeFinish(handle);
+            listener.frames(frames,frames);
             listener.timeline(durationUs>0?durationUs:Math.max(0,lastPacket),durationUs);
             onLog("BEGIN nativeClose");nativeClose(handle);handle=0;onLog("OK nativeClose");
             if(frames!=packets) throw new IOException("Frame e pacchetti diversi: "+frames+"/"+packets);
