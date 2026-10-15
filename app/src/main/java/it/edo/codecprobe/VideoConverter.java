@@ -45,7 +45,9 @@ final class VideoConverter {
     private int totalFrames=-1;
     private static final class MetadataTrack {final int input;final MediaFormat format;int output;MetadataTrack(int i,MediaFormat f){input=i;format=f;}}
     private final List<MetadataTrack> metadataTracks=new ArrayList<>();
+    private AppSettings namingDefaults;
     VideoConverter(Context c,AtomicBoolean cancel,Listener listener) {context=c;this.cancel=cancel;this.listener=listener;}
+    VideoConverter(Context c,AtomicBoolean cancel,Listener listener,AppSettings naming) {this(c,cancel,listener);namingDefaults=naming;}
     public boolean isCancelled() {return cancel.get();}
     private void checkCancel() throws InterruptedException {if(cancel.get()) throw new InterruptedException("Conversione annullata");}
     public void onLog(String message) {
@@ -110,7 +112,7 @@ final class VideoConverter {
         if(t==6 || t==7) throw new IllegalArgumentException("Video HDR non ancora supportato: usa un video SDR a 8 bit.");
     }
     Uri convert(Uri input,Uri folder,int crf,String sourceName,int preset,int cpuMode,boolean bframes,boolean lookahead) throws Exception {
-        final AppSettings naming=new AppSettings(context);
+        final AppSettings naming=namingDefaults!=null?namingDefaults:new AppSettings(context);
         this.bframes=bframes;this.lookahead=lookahead;
         this.cpuMode=cpuMode;
         this.preset=preset;
@@ -159,14 +161,15 @@ final class VideoConverter {
                 listener.progress(98,"Salvataggio MP4...");
                 String requested=OutputName.base(sourceName,naming.addition,naming.prefix);
                 java.util.Set<String> occupied=new java.util.HashSet<>();
-                Uri children=DocumentsContract.buildChildDocumentsUriUsingTree(folder,DocumentsContract.getTreeDocumentId(folder));
+                String folderId=DocumentsContract.isDocumentUri(context,folder)?DocumentsContract.getDocumentId(folder):DocumentsContract.getTreeDocumentId(folder);
+                Uri children=DocumentsContract.buildChildDocumentsUriUsingTree(folder,folderId);
                 try(android.database.Cursor cursor=context.getContentResolver().query(children,new String[]{DocumentsContract.Document.COLUMN_DISPLAY_NAME},null,null,null)){
                     if(cursor==null)throw new IOException("Impossibile controllare i nomi nella cartella di destinazione");
                     while(cursor.moveToNext()){checkCancel();if(!cursor.isNull(0))occupied.add(cursor.getString(0).toLowerCase(java.util.Locale.ROOT));}
                 }
                 String name=OutputName.unique(requested,occupied);
                 onLog("NOME OUTPUT · posizione="+(naming.prefix?"prefisso":"suffisso")+" · testo="+naming.addition+"\nNome richiesto: "+requested+"\nNome scelto senza sovrascrittura: "+name);
-                Uri parent=DocumentsContract.buildDocumentUriUsingTree(folder,DocumentsContract.getTreeDocumentId(folder));
+                Uri parent=DocumentsContract.buildDocumentUriUsingTree(folder,folderId);
                 destination=DocumentsContract.createDocument(context.getContentResolver(),parent,"video/mp4",name);
                 if(destination==null) throw new IOException("Impossibile creare il file nella cartella");
                 if(destination.equals(input)){destination=null;throw new IOException("Il provider ha restituito l’originale come destinazione: scrittura rifiutata");}
@@ -512,6 +515,7 @@ final class VideoConverter {
         }
     }
 }
+
 
 
 

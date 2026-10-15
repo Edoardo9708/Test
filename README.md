@@ -1,3 +1,14 @@
+# Novità v0.26 · cartelle e conversione multipla
+
+- Impostazioni: cartella predefinita, salvata con un permesso SAF permanente. La scelta nella home vale per la coda corrente.
+- Home: «Salva nella cartella di origine», con autorizzazione per ogni cartella necessaria. Se il provider non comunica il percorso, la cartella viene scelta manualmente e dichiarata non verificabile.
+- Selezione multipla fino a 100 video, con elenco selezionati e analisi del singolo elemento scelto.
+- Coda sequenziale nel servizio foreground: percentuale per file e globale (peso uguale per file, non ETA), fotogrammi e secondi del file corrente, esiti separati. Un errore passa al successivo; annullare ferma il resto e conserva i file già completati.
+- Nome, CRF, preset e parametri restano quelli acquisiti all’avvio della coda. Nessuna sovrascrittura degli originali.
+- Esporta log TXT raccoglie tutti i file, le destinazioni e gli errori della coda. I risultati si possono aprire dall’elenco dei video completati.
+- Il test HDR resta separato e opera sul video visualizzato; questa modifica non abilita la conversione HDR completa.
+- Collaudo sul telefono: due video con nomi uguali da cartelle diverse, destinazione predefinita e origine, coda con file non supportato, annullamento durante il secondo file, riapertura dalla notifica, esportazione TXT e revoca del permesso cartella.
+
 # Test codec video — Android
 ## Versione 0.3: prova software x265
 Nuovo pulsante per una prova CPU: stesso filmato sintetico I420 1920×1080, 30 fotogrammi a 30 fps, CRF 24 e 32, preset ultrafast / zerolatency.
