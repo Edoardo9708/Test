@@ -75,7 +75,7 @@ public final class ConversionService extends Service {
     }
     private Notification notification(State s){
         PendingIntent open=PendingIntent.getActivity(this,0,new Intent(this,MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP|Intent.FLAG_ACTIVITY_CLEAR_TOP),PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
-        Notification.Builder n=new Notification.Builder(this,CHANNEL).setSmallIcon(android.R.drawable.stat_sys_upload)
+        Notification.Builder n=new Notification.Builder(this,CHANNEL).setSmallIcon(R.drawable.ic_notification_video)
             .setContentTitle(s.running?"Conversione video · "+s.percent+"%":"Conversione video")
             .setContentText(s.message).setStyle(new Notification.BigTextStyle().bigText(s.message+"\n"+s.source))
             .setContentIntent(open).setOnlyAlertOnce(true).setOngoing(s.running);
