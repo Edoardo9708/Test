@@ -96,6 +96,7 @@ final class AppUi {
     }
 
     void styleButton(Button button, boolean primary) {
+        button.setStateListAnimator(null); button.setElevation(0); button.setTranslationZ(0);
         button.setAllCaps(false);
         button.setTextSize(15);
         button.setTypeface(null, Typeface.BOLD);

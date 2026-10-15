@@ -20,7 +20,7 @@ final class CpuModeButtons extends LinearLayout {
         super(context);this.accent=accent;this.selectedInk=selectedInk;this.surface=surface;this.border=border;
         setOrientation(HORIZONTAL);setGravity(Gravity.CENTER_VERTICAL);
         for(int n=0;n<buttons.length;n++){
-            final int index=n;Button button=new Button(context);buttons[n]=button;
+            final int index=n;Button button=new Button(context);button.setStateListAnimator(null);button.setElevation(0);button.setTranslationZ(0);buttons[n]=button;
             button.setText(LABELS[n]);button.setAllCaps(false);button.setTextSize(16);button.setTypeface(null,Typeface.BOLD);
             button.setSingleLine(false);button.setMinWidth(0);button.setMinimumWidth(0);button.setMinHeight(dp(52));button.setPadding(dp(4),dp(10),dp(4),dp(10));button.setGravity(Gravity.CENTER);
             button.setOnClickListener(v->{if(isEnabled()&&button.isEnabled())setSelection(index);});
@@ -45,3 +45,4 @@ final class CpuModeButtons extends LinearLayout {
     }
     private int dp(int value){return Math.round(value*getResources().getDisplayMetrics().density);}
 }
+

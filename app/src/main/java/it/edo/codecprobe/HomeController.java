@@ -162,6 +162,7 @@ final class HomeController {
         home.state.conversionScreenVisible = false;
         home.conversion.updateScreenAwake();
         home.state.destroyed = true;
+        home.conversion.outputCheck.close();
         home.screen.sections.closed = true;
         home.handler.removeCallbacksAndMessages(null);
         home.screen.files.videoPreview.animate().cancel();

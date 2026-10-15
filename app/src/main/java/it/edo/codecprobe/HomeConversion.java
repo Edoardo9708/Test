@@ -16,9 +16,11 @@ import static it.edo.codecprobe.MainActivity.*;
 final class HomeConversion {
     private final HomeController home;
     android.app.AlertDialog cancelConfirmation;
+    final HomeOutputCheck outputCheck;
 
     HomeConversion(HomeController home) {
         this.home = home;
+        outputCheck = new HomeOutputCheck(home);
     }
     final Runnable sessionObserver = this::renderSession;
 
@@ -84,6 +86,7 @@ final class HomeConversion {
     }
 
     void setBusy(boolean value) {
+        value = value || outputCheck.checking;
         home.state.busy = value;
         updateScreenAwake();
         if (home.destinations.originPanel != null) home.destinations.originPanel.setBusy(value || home.state.choosingOrigins);
@@ -92,7 +95,7 @@ final class HomeConversion {
         home.screen.destinations.setBusy(value, home.state.choosingOrigins, hasInputs, home.state.destinationPlan.applyAll);
         home.screen.compression.setBusy(value);
         home.screen.conversion.convert.setEnabled(!value && !home.state.clearingLogs && !home.state.choosingOrigins && home.state.originsReady && hasInputs);
-        home.screen.conversion.stop.setEnabled(value);
+        home.screen.conversion.stop.setEnabled(value && !outputCheck.checking);
         home.diagnostics.updateClearLogsButton();
     }
 
@@ -102,6 +105,7 @@ final class HomeConversion {
     }
 
     void startConversion() {
+        if (home.state.busy || outputCheck.checking || ConversionService.snapshot().running) return;
         if (home.state.clearingLogs) {
             home.toast("Attendi la cancellazione dei log");
             return;
@@ -137,6 +141,10 @@ final class HomeConversion {
             return;
         }
         Intent task = new Intent(home.activity, ConversionService.class).setAction(ConversionService.START).putStringArrayListExtra("inputs", new java.util.ArrayList<>(home.state.selectedInputs)).putStringArrayListExtra("names", new java.util.ArrayList<>(home.state.selectedNames)).putStringArrayListExtra("folders", destinations).putStringArrayListExtra("destinationNotes", new java.util.ArrayList<>(home.state.destinationNotes)).putExtra("individualOrigins", home.state.destinationPlan.individualOrigins()).putStringArrayListExtra("individualFolders", home.state.destinationPlan.individualFolders()).putExtra("applyAllDestinations", home.state.destinationPlan.applyAll).putExtra("allOrigin", home.state.destinationPlan.all.origin).putExtra("allFolder", home.state.destinationPlan.all.folder).putExtra("crf", crf).putExtra("preset", preset).putExtra("cpu", cpu).putExtra("bframes", home.screen.compression.bframeSwitch.isChecked()).putExtra("lookahead", home.screen.compression.lookaheadSwitch.isChecked());
+        outputCheck.begin(task);
+    }
+
+    void launchPrepared(Intent task) {
         try {
             home.activity.startForegroundService(task);
             home.screen.sections.focusCard(CARD_CONVERSION);
@@ -149,7 +157,7 @@ final class HomeConversion {
     }
 
     void renderSession() {
-        if (home.state.destroyed || home.state.hdrTesting) return;
+        if (home.state.destroyed || home.state.hdrTesting || outputCheck.checking) return;
         ConversionService.State s = ConversionService.snapshot();
         if (!s.hasSession) return;
         renderSizeReport(s);
@@ -179,8 +187,8 @@ final class HomeConversion {
     }
 
     void renderConversionDashboard(ConversionService.State s) {
-        int pending = Math.max(0, s.batchTotal - (s.running ? Math.max(s.batchIndex, s.succeeded + s.failed) : s.succeeded + s.failed));
-        home.screen.conversion.queueLabel.setText("Video " + s.batchIndex + " / " + s.batchTotal + "\nRiusciti: " + s.succeeded + " · Falliti: " + s.failed + "\n" + (s.running ? "In attesa: " : "Non completati: ") + pending);
+        int pending = Math.max(0, s.batchTotal - (s.running ? Math.max(s.batchIndex, s.succeeded + s.failed + s.ignored) : s.succeeded + s.failed + s.ignored));
+        home.screen.conversion.queueLabel.setText("Video " + s.batchIndex + " / " + s.batchTotal + "\nRiusciti: " + s.succeeded + " · Falliti: " + s.failed + " · Ignorati: " + s.ignored + "\n" + (s.running ? "In attesa: " : "Non completati: ") + pending);
         home.screen.conversion.elapsedLabel.setText(DashboardMetrics.elapsed(s.startedAt, s.endedAt, SystemClock.elapsedRealtime()));
         home.screen.conversion.currentFile.setText(s.source.isEmpty() ? "In attesa del file" : s.source);
         home.screen.conversion.currentFile.setContentDescription("File attuale: " + s.source);

@@ -114,6 +114,7 @@ final class VideoConverter {
         int t=integer(f,MediaFormat.KEY_COLOR_TRANSFER,0);
         if(t==6 || t==7) throw new IllegalArgumentException("Dichiarazione HDR rilevata nel percorso SDR: conversione interrotta per evitare una riduzione a 8 bit.");
     }
+    String plannedOutputName;
     Uri convert(Uri input,Uri folder,int crf,String sourceName,int preset,int cpuMode,boolean bframes,boolean lookahead) throws Exception {
         final AppSettings naming=namingDefaults!=null?namingDefaults:new AppSettings(context);
         this.bframes=bframes;this.lookahead=lookahead;
@@ -124,6 +125,7 @@ final class VideoConverter {
         try(FileOutputStream fileLog=new FileOutputStream(logFile(context),false)) {
             log=fileLog;
             try {
+                if(plannedOutputName!=null)OutputDocuments.requireFree(context,folder,plannedOutputName);
                 onLog("*** INIZIO CONVERSIONE v"+BuildConfig.VERSION_NAME+" ***");
                 onLog("PERCORSO:\n1. Analizzo video e audio\n2. Decodifico i fotogrammi\n3. Ricodifico con x265 CRF\n4. Copio audio AAC\n5. Verifico il video\n6. Salvo nella cartella scelta");
                 onLog("QUALITÀ: CRF="+crf+" · valore minore = più dettagli, file generalmente più grande. Il risultato dipende dal contenuto.");
@@ -161,7 +163,7 @@ final class VideoConverter {
                 checkCancel();
                 onLog("*** STEP 6 · SALVATAGGIO NELLA CARTELLA SCELTA ***");
                 listener.progress(98,"Salvataggio MP4...");
-                String requested=OutputName.base(sourceName,naming.addition,naming.prefix);
+                String requested=plannedOutputName!=null?plannedOutputName:OutputName.base(sourceName,naming.addition,naming.prefix);
                 java.util.Set<String> occupied=new java.util.HashSet<>();
                 String folderId=DocumentsContract.isDocumentUri(context,folder)?DocumentsContract.getDocumentId(folder):DocumentsContract.getTreeDocumentId(folder);
                 Uri children=DocumentsContract.buildChildDocumentsUriUsingTree(folder,folderId);
@@ -169,7 +171,8 @@ final class VideoConverter {
                     if(cursor==null)throw new IOException("Impossibile controllare i nomi nella cartella di destinazione");
                     while(cursor.moveToNext()){checkCancel();if(!cursor.isNull(0))occupied.add(cursor.getString(0).toLowerCase(java.util.Locale.ROOT));}
                 }
-                String name=OutputName.unique(requested,occupied);
+                if(plannedOutputName!=null && occupied.contains(requested.toLowerCase(java.util.Locale.ROOT)))throw new IOException("Il nome scelto è stato occupato dopo il controllo iniziale: "+requested+". Nessun file sovrascritto; scegli un altro nome e riprova.");
+                String name=plannedOutputName!=null?requested:OutputName.unique(requested,occupied);
                 onLog("NOME OUTPUT · posizione="+(naming.prefix?"prefisso":"suffisso")+" · testo="+naming.addition+"\nNome richiesto: "+requested+"\nNome scelto senza sovrascrittura: "+name);
                 Uri parent=DocumentsContract.buildDocumentUriUsingTree(folder,folderId);
                 destination=DocumentsContract.createDocument(context.getContentResolver(),parent,"video/mp4",name);
