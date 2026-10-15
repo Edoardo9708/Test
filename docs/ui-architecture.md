@@ -15,6 +15,8 @@ La divisione segue le responsabilità, non il numero di pulsanti.
 | `HomeDestinations` | Regole individuali e globali, cartelle e autorizzazioni. Riusa `DestinationPlan` e `OriginDirectoryPanel`. |
 | `HomeCompression` | Slider, scelte rapide e lettura dei parametri del preset tramite `EncoderPresetPreview`. |
 | `HomeConversion` | Avvio della coda, conferma annullamento e visualizzazione dello stato del servizio. |
+| `HomeOutputCheck` | Controllo asincrono dei nomi prima della codifica, popup per rinominare o ignorare e annullamento del controllo alla chiusura della pagina. |
+| `OutputPlan` / `OutputDocuments` | Prenotazioni dei nomi per cartella e lettura SAF; controllo ripetuto prima della codifica e del salvataggio, senza sovrascritture. |
 | `HomeDiagnostics` | Esportazione TXT, pulizia dei log e prova HDR. |
 | `HomeSystemMonitor` | Campionamento CPU, PSS e temperatura batteria; non gestisce la codifica. |
 | `AppUi` | Colori chiari/scuri, spaziature, pulsanti, righe informative, insets e larghezza massima. Condiviso con Impostazioni; palette e tema dei dialoghi nelle risorse `values` e `values-night`. |
@@ -33,3 +35,5 @@ La divisione segue le responsabilità, non il numero di pulsanti.
 ## Verifiche
 
 I test Robolectric coprono riquadri, carosello, conferma annullamento, progresso, resoconto parziale, ripristino dei parametri e dei selettori, esportazione annullata, pulsanti su schermi stretti e limite di larghezza su schermi grandi. I test esistenti di conversione e metadati restano nella CI. `verify-ui-modules.py` controlla che il codice operativo non torni nella Activity o nei costruttori delle sezioni.
+
+Il controllo iniziale risolve tutti i conflitti della coda prima di avviare il servizio. Un video ignorato non viene codificato e compare separatamente dai fallimenti. Il servizio riceve i nomi approvati; se un nome viene occupato in seguito, interrompe quel file senza sovrascriverlo. La ricreazione della pagina durante il controllo annulla solo la preparazione: prima dell’avvio non esiste ancora una conversione attiva.

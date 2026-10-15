@@ -70,11 +70,12 @@ public class OutputCollisionTest {
     }
     @Test public void skipRecordsDecisionAndCancelDoesNotLaunch() throws Exception {
         begin();home.conversion.outputCheck.dialog.getButton(AlertDialog.BUTTON_NEUTRAL).performClick();
+        Shadows.shadowOf(android.os.Looper.getMainLooper()).idle();
         Intent started=Shadows.shadowOf((android.app.Application)home.activity.getApplication()).getNextStartedService();
         assertTrue(started.getBooleanArrayExtra("omitted")[0]);
     }
     @Test public void backCancelsPreflightWithoutConversion() throws Exception {
-        begin();home.conversion.outputCheck.dialog.cancel();assertFalse(home.conversion.outputCheck.checking);
+        begin();home.conversion.outputCheck.dialog.cancel();Shadows.shadowOf(android.os.Looper.getMainLooper()).idle();assertFalse(home.conversion.outputCheck.checking);
         assertNull(Shadows.shadowOf((android.app.Application)home.activity.getApplication()).getNextStartedService());
         assertFalse(home.state.busy);
     }

@@ -71,11 +71,11 @@ final class HomeOutputCheck {
         dialog=new AlertDialog.Builder(home.activity).setTitle("File già presente")
             .setMessage("Video "+(index+1)+" / "+inputs.size()+" · "+inputs.get(index)+
                 "\n\nIl nome “"+requested+"” è già presente nella destinazione o previsto per un altro video della coda.\n\nIgnora questo video oppure modifica il nome per convertirlo di nuovo. Il file esistente resta invariato.")
-            .setView(content).setNegativeButton("Annulla coda",(d,w)->abort())
-            .setNeutralButton("Ignora video",(d,w)->{
+            .setView(content).setNegativeButton("Annulla",(d,w)->abort())
+            .setNeutralButton("Ignora",(d,w)->{
                 FolderPickerActivity.record(home.activity,"*** VIDEO IGNORATO ***\nInput: "+inputs.get(index)+"\nNome già presente: "+requested);
                 plan.skip();dialog=null;next();
-            }).setPositiveButton("Converti con nuovo nome",null).create();
+            }).setPositiveButton("Converti",null).create();
         dialog.setOnCancelListener(d->abort());dialog.show();
         dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v->{
             try {
