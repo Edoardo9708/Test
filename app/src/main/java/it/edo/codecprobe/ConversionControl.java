@@ -34,8 +34,9 @@ final class ConversionControl {
     boolean checkpoint() {
         boolean entered;
         synchronized(this) {
-            entered = pauseRequested && !stopping();
-            if(entered) { paused = true; pauseStart = clock.getAsLong(); }
+            if(!pauseRequested || stopping())return stopping();
+            entered = true;
+            paused = true; pauseStart = clock.getAsLong();
         }
         try {
             if(entered)pauseChanged.accept(true);

@@ -43,7 +43,7 @@ public final class ConversionService extends Service {
         synchronized(LOCK){state.paused=paused;}
         if(controlLog!=null)controlLog.accept(paused
             ? "*** CODA IN PAUSA ***\nWorker sospeso al punto di controllo; stato in memoria e notifica mantenuti. Wake lock rilasciato."
-            : "*** FINE ATTESA PAUSA ***\nMotivo: "+(cancel.get()?"annullamento coda":control.skipped()?"salto file attuale":"ripresa richiesta"));
+            : "*** FINE ATTESA PAUSA ***\nMotivo: "+(cancel.get()?"annullamento coda":control.skipped()?"salto file attuale":"ripresa richiesta")+"\nTempo totale in pausa: "+control.pausedMillis()+" ms");
         publish(true);
     }
     static String displayMessage(State s){
@@ -176,6 +176,7 @@ public final class ConversionService extends Service {
             ArrayList<String> requestedChoices=intent.getStringArrayListExtra("individualFolders");state.individualFolders=requestedChoices==null?new ArrayList<>(queueFolders):new ArrayList<>(requestedChoices);
             state.applyAllDestinations=intent.getBooleanExtra("applyAllDestinations",false);state.allOrigin=intent.getBooleanExtra("allOrigin",true);state.allFolder=intent.getStringExtra("allFolder");
             state.pauseRequested=false;state.paused=false;state.skipping=false;state.cancelling=false;state.fileActive=false;state.skipped=0;state.startedAt=SystemClock.elapsedRealtime();state.endedAt=0;state.requestedCrf=crf;state.requestedCpu=cpu;state.requestedPreset=AppSettings.PRESETS[Math.max(0,Math.min(8,preset))];state.originMode=intent.getBooleanExtra("originMode",false);state.inputs=queueInputs;state.names=queueNames;state.folders=queueFolders;state.results.clear();state.failures.clear();state.sizeReport=CompressionSummary.render(sizeResults,true);state.batchIndex=0;state.batchTotal=queueInputs.size();state.succeeded=0;state.failed=0;state.ignored=0;state.notSaved=0;state.onlySmaller=onlySmaller;state.filePercent=0;state.hasSession=true;state.running=true;state.bframeCount=-1;state.lookaheadCount=-1;state.cuTree=-1;state.aqMode=-1;state.aqStrength=-1;state.percent=0;state.doneFrames=0;state.totalFrames=-1;state.done=0;state.total=0;state.result=null;state.log="";state.message="Analisi video…";state.source=source;state.input=input;state.folder=folder;}
+        cancel.set(false);
         try {
             int type=Build.VERSION.SDK_INT>=35?ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROCESSING:ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC;
             startForeground(NOTICE,notification(snapshot()),type);
@@ -296,8 +297,8 @@ public final class ConversionService extends Service {
         synchronized(LOCK){state.cancelling=true;state.pauseRequested=false;state.message="Conversione interrotta: raggiunto il limite Android del servizio in background.";}
         releaseWake();stopForeground(STOP_FOREGROUND_REMOVE);publish(true);stopSelf();
     }
-    private void acquireWake(){if(wake!=null&&!wake.isHeld())wake.acquire(6*60*60*1000L);}
-    private void releaseWake(){if(wake!=null&&wake.isHeld())wake.release();}
+    private synchronized void acquireWake(){if(!cancel.get()&&wake!=null&&!wake.isHeld())wake.acquire(6*60*60*1000L);}
+    private synchronized void releaseWake(){if(wake!=null&&wake.isHeld())wake.release();}
     @Override public void onDestroy(){control.cancel();releaseWake();worker.shutdown();super.onDestroy();}
     @Override public IBinder onBind(Intent intent){return null;}
 }

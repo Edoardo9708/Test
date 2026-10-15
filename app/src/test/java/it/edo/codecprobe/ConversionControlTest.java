@@ -49,4 +49,17 @@ public class ConversionControlTest {
             assertFalse(done.get(3,TimeUnit.SECONDS));assertTrue(cancel.get());assertFalse(gate.skip(1));
         }finally{gate.cancel();worker.shutdownNow();}
     }
+    @Test public void resumeCommandDoesNotWaitForWorkerAcknowledgementLogging() throws Exception {
+        CountDownLatch entered=new CountDownLatch(1),release=new CountDownLatch(1);
+        ConversionControl gate=new ConversionControl(new AtomicBoolean(),()->0L,p->{
+            if(p){entered.countDown();try{release.await();}catch(InterruptedException e){Thread.currentThread().interrupt();}}
+        });
+        ExecutorService worker=Executors.newSingleThreadExecutor(),commands=Executors.newSingleThreadExecutor();
+        try {
+            gate.beginFile(1);gate.pause(true);Future<Boolean> done=worker.submit(gate::checkpoint);
+            assertTrue(entered.await(3,TimeUnit.SECONDS));
+            commands.submit(()->gate.pause(false)).get(3,TimeUnit.SECONDS);
+            assertFalse(done.isDone());release.countDown();assertFalse(done.get(3,TimeUnit.SECONDS));
+        }finally{release.countDown();gate.cancel();worker.shutdownNow();commands.shutdownNow();}
+    }
 }
