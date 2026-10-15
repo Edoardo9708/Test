@@ -21,13 +21,30 @@ final class Mp4Metadata {
         long outputSize(){return payload()+outputHeader();}
     }
     private static final class Match {Box source,target;String path;Match(Box a,Box b,String p){source=a;target=b;path=p;}}
-    private final BooleanSupplier cancel;private final Consumer<String> log;private int atoms;private long copied;private final List<Match> matches=new ArrayList<>();
+    private final BooleanSupplier cancel;private final Consumer<String> log;private long fallbackCreationSeconds;private int atoms;private long copied;private final List<Match> matches=new ArrayList<>();
     private Mp4Metadata(BooleanSupplier cancel,Consumer<String> log){this.cancel=cancel;this.log=log;}
     static void check(FileChannel input,BooleanSupplier cancel)throws IOException{
         Mp4Metadata p=new Mp4Metadata(cancel,s->{});p.roots(input);
     }
     static void copy(FileChannel source,File target,BooleanSupplier cancel,Consumer<String> log)throws Exception {
         new Mp4Metadata(cancel,log).run(source,target);
+    }
+    static void copy(FileChannel source,File target,BooleanSupplier cancel,Consumer<String> log,long fallbackCreationSeconds)throws Exception {
+        Mp4Metadata copier=new Mp4Metadata(cancel,log);
+        if(fallbackCreationSeconds<0)throw new IOException("Data di creazione alternativa non valida");
+        copier.fallbackCreationSeconds=fallbackCreationSeconds;copier.run(source,target);
+    }
+    static long creationTime(FileChannel source,BooleanSupplier cancel)throws IOException {
+        Mp4Metadata reader=new Mp4Metadata(cancel,s->{});
+        Box movie=first(reader.roots(source),"moov"),header=first(movie.children,"mvhd");
+        if(header==null)throw new IOException("Header data di creazione mvhd assente");
+        byte[] body=read(source,header.at+header.header,(int)Math.min(20,header.size-header.header));
+        if(body.length<12)throw new IOException("Header data di creazione incompleto");
+        int version=body[0]&255;
+        if(version>1)throw new IOException("Versione data di creazione MP4 non supportata");
+        long value=version==1?ByteBuffer.wrap(body).getLong(4):Integer.toUnsignedLong(ByteBuffer.wrap(body).getInt(4));
+        if(value<0)throw new IOException("Data di creazione MP4 fuori intervallo");
+        return value;
     }
     private void cancelled()throws IOException{if(cancel.getAsBoolean())throw new IOException("Copia metadati annullata");}
     private List<Box> parse(FileChannel file,long from,long end,int depth)throws IOException{
@@ -116,6 +133,9 @@ final class Mp4Metadata {
         int alen=av==1?8:4,blen=bv==1?8:4;
         for(int i=0;i<2;i++){
             long value=alen==8?ByteBuffer.wrap(in,4+i*alen,alen).getLong():Integer.toUnsignedLong(ByteBuffer.wrap(in,4+i*alen,alen).getInt());
+            if(i==0&&value==0&&fallbackCreationSeconds>0){
+                value=fallbackCreationSeconds;log.accept("DATA CREAZIONE RECUPERATA DA ANDROID · "+path+" · secondi_epoca_MP4="+value);
+            }
             if(value<0||(blen==4&&value>0xffffffffL))throw new IOException("Data MP4 non rappresentabile nel nuovo header");
             ByteBuffer dst=ByteBuffer.wrap(out);if(blen==8)dst.putLong(4+i*blen,value);else dst.putInt(4+i*blen,(int)value);
         }
@@ -147,7 +167,7 @@ final class Mp4Metadata {
             for(String type:TAGS){List<Box> src=of(input,type),dst=of(result,type);verifyOpaque(src,dst,"root/"+type);}
             verifyOpaque(of(input,"sefd"),of(result,"sefd"),"root/sefd");
             if(sef!=null)log.accept("OK SAMSUNG SEF · contenuto originale identico (SHA-256), directory riletta e valida nel nuovo file");
-            log.accept("OK METADATI verificati byte per byte: "+copied+" byte descrittivi; date e lingue originali conservate. Indici e codec rigenerati.");
+            log.accept("OK METADATI verificati byte per byte: "+copied+" byte descrittivi; date originali valide e lingue conservate"+(fallbackCreationSeconds>0?"; date di creazione mancanti recuperate da Android e verificate":"")+". Indici e codec rigenerati.");
         }
     }
     private void verifyTree(Box a,Box b,String path)throws Exception{

@@ -39,6 +39,7 @@ final class VideoConverter {
     private boolean bframes,lookahead;
     private DataOutputStream inputTimestamps;
     private File timestampFile,hdrMetadataFile;
+    private long fallbackCreationSeconds;
     private boolean hdr;
     private long durationUs;
     private MediaFormat audioFormat;
@@ -476,8 +477,8 @@ final class VideoConverter {
         ParcelFileDescriptor fd=context.getContentResolver().openFileDescriptor(uri,"r");
         if(fd==null)throw new IOException("File originale non disponibile per conservare i metadati");
         try(ParcelFileDescriptor.AutoCloseInputStream in=new ParcelFileDescriptor.AutoCloseInputStream(fd)){
-            if(target==null){Mp4Metadata.check(in.getChannel(),()->cancel.get());onLog("OK struttura MP4/MOV compatibile con copia dei metadati");}
-            else Mp4Metadata.copy(in.getChannel(),target,()->cancel.get(),this::onLog);
+            if(target==null){long created=Mp4Metadata.creationTime(in.getChannel(),()->cancel.get());fallbackCreationSeconds=InputCreationDate.read(context,uri,created,this::onLog);onLog("OK struttura MP4/MOV compatibile con copia dei metadati");}
+            else {Mp4Metadata.copy(in.getChannel(),target,()->cancel.get(),this::onLog,fallbackCreationSeconds);InputCreationDate.verify(target,fallbackCreationSeconds,this::onLog);}
         }
     }
     private void copyMetadataTrack(Uri uri,MetadataTrack track)throws Exception {
