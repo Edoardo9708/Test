@@ -16,9 +16,10 @@ public final class SettingsActivity extends Activity {
     private LinearLayout page;
     private String defaultFolder;
     private TextView folderValue;
-    private int ink,accent,bg,surface;
+    private int ink,accent,bg,surface,border;
     private SeekBar preset,crf;
-    private RadioGroup cpu,position;
+    private RadioGroup position;
+    private CpuModeButtons cpu;
     private Switch bframes,lookahead;
     private CheckBox keepScreenOn;
     private EditText addition;
@@ -27,7 +28,7 @@ public final class SettingsActivity extends Activity {
         super.onCreate(state);
         boolean dark=(getResources().getConfiguration().uiMode&Configuration.UI_MODE_NIGHT_MASK)==Configuration.UI_MODE_NIGHT_YES;
         bg=Color.parseColor(dark?"#10151D":"#F2F5FA");ink=Color.parseColor(dark?"#EDF3FC":"#172236");accent=Color.parseColor(dark?"#99C1FF":"#215CBD");
-        surface=Color.parseColor(dark?"#1B2330":"#FFFFFF");
+        surface=Color.parseColor(dark?"#1B2330":"#FFFFFF");border=Color.parseColor(dark?"#34445B":"#D7E1EF");
         getWindow().setStatusBarColor(bg);getWindow().setNavigationBarColor(bg);
         ScrollView scroll=new ScrollView(this);page=new LinearLayout(this);page.setOrientation(LinearLayout.VERTICAL);page.setBackgroundColor(bg);scroll.addView(page);
         int pad=dp(20);page.setPadding(pad,pad,pad,pad);
@@ -46,20 +47,21 @@ public final class SettingsActivity extends Activity {
         label("Il nome originale viene mantenuto; l’output è MP4. Se esiste già, aggiungo un numero e creo un nuovo file.",13);
         label("VALORI ALL’AVVIO",16);
         presetValue=label("Preset",20);preset=slider(8,()->presetValue.setText("Preset · "+AppSettings.PRESETS[preset.getProgress()]));
-        crfValue=label("CRF",20);crf=slider(51,()->crfValue.setText("CRF · "+crf.getProgress()));
+        crfValue=label("CRF",20);label("Scegli la qualità manualmente",14);crf=slider(51,()->crfValue.setText("CRF · "+crf.getProgress()));
+        label("Scegli una qualità predefinita",14);
         LinearLayout notable=new LinearLayout(this);notable.setGravity(Gravity.CENTER);page.addView(notable,new LinearLayout.LayoutParams(-1,-2));int[] qualityValues={18,23,28};String[] qualityLabels={"Alta","Media","Ridotta"};for(int i=0;i<qualityValues.length;i++){final int n=qualityValues[i];Button b=styledButton(qualityLabels[i]);b.setContentDescription("Qualità "+qualityLabels[i]+", CRF "+n);b.setPadding(dp(4),dp(10),dp(4),dp(10));b.setOnClickListener(v->crf.setProgress(n));LinearLayout.LayoutParams qp=new LinearLayout.LayoutParams(0,-2,1);qp.setMargins(dp(3),0,dp(3),0);notable.addView(b,qp);}
-        label("CPU",20);cpu=radios("Limited","Auto","Max");
+        label("CPU",20);cpu=new CpuModeButtons(this,accent,bg,surface,border);page.addView(cpu,new LinearLayout.LayoutParams(-1,-2));
         bframes=toggle("B-frame");lookahead=toggle("Lookahead");
         label("AQ mode, AQ strength e CU-tree seguono il preset e i selettori.",13);
         keepScreenOn=new CheckBox(this);keepScreenOn.setText("Mantieni schermo acceso");keepScreenOn.setTextColor(ink);keepScreenOn.setTextSize(17);keepScreenOn.setMinHeight(dp(48));keepScreenOn.setButtonTintList(android.content.res.ColorStateList.valueOf(accent));page.addView(keepScreenOn);
-        AppSettings saved=new AppSettings(this);keepScreenOn.setChecked(saved.keepScreenOn);preset.setProgress(saved.preset);crf.setProgress(saved.crf);cpu.check(cpu.getChildAt(saved.cpu).getId());bframes.setChecked(saved.bframes);lookahead.setChecked(saved.lookahead);addition.setText(saved.addition);position.check(position.getChildAt(saved.prefix?0:1).getId());
+        AppSettings saved=new AppSettings(this);keepScreenOn.setChecked(saved.keepScreenOn);preset.setProgress(saved.preset);crf.setProgress(saved.crf);cpu.setSelection(saved.cpu);bframes.setChecked(saved.bframes);lookahead.setChecked(saved.lookahead);addition.setText(saved.addition);position.check(position.getChildAt(saved.prefix?0:1).getId());
         presetValue.setText("Preset · "+AppSettings.PRESETS[saved.preset]);crfValue.setText("CRF · "+saved.crf);
         addition.addTextChangedListener(new TextWatcher(){public void beforeTextChanged(CharSequence s,int a,int c,int f){}public void onTextChanged(CharSequence s,int a,int b,int c){updatePreview();}public void afterTextChanged(Editable e){}});
         position.setOnCheckedChangeListener((g,id)->updatePreview());updatePreview();
         button("Usa la configurazione della schermata conversione",()->{
-            preset.setProgress(getIntent().getIntExtra("preset",saved.preset));crf.setProgress(getIntent().getIntExtra("crf",saved.crf));int choice=Math.max(0,Math.min(2,getIntent().getIntExtra("cpu",saved.cpu)));cpu.check(cpu.getChildAt(choice).getId());bframes.setChecked(getIntent().getBooleanExtra("bframes",saved.bframes));lookahead.setChecked(getIntent().getBooleanExtra("lookahead",saved.lookahead));
+            preset.setProgress(getIntent().getIntExtra("preset",saved.preset));crf.setProgress(getIntent().getIntExtra("crf",saved.crf));int choice=Math.max(0,Math.min(2,getIntent().getIntExtra("cpu",saved.cpu)));cpu.setSelection(choice);bframes.setChecked(getIntent().getBooleanExtra("bframes",saved.bframes));lookahead.setChecked(getIntent().getBooleanExtra("lookahead",saved.lookahead));
         });
-        button("Salva impostazioni",()->{AppSettings.setDefaultFolder(this,defaultFolder);AppSettings.setKeepScreenOn(this,keepScreenOn.isChecked());AppSettings.save(this,crf.getProgress(),preset.getProgress(),selected(cpu),bframes.isChecked(),lookahead.isChecked(),addition.getText().toString(),selected(position)==0);Toast.makeText(this,"Valori predefiniti salvati",Toast.LENGTH_SHORT).show();finish();});
+        button("Salva impostazioni",()->{AppSettings.setDefaultFolder(this,defaultFolder);AppSettings.setKeepScreenOn(this,keepScreenOn.isChecked());AppSettings.save(this,crf.getProgress(),preset.getProgress(),cpu.getSelectedItemPosition(),bframes.isChecked(),lookahead.isChecked(),addition.getText().toString(),selected(position)==0);Toast.makeText(this,"Valori predefiniti salvati",Toast.LENGTH_SHORT).show();finish();});
         setContentView(scroll);page.requestApplyInsets();
         if(android.os.Build.VERSION.SDK_INT>=30)getWindow().getInsetsController().setSystemBarsAppearance(dark?0:WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS|WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS,WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS|WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS);
         else getWindow().getDecorView().setSystemUiVisibility(dark?0:View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR|View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR);

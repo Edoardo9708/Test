@@ -75,7 +75,7 @@ public final class MainActivity extends Activity {
     private boolean clearingLogs,exportingDiagnostics;
     private boolean hdrTesting;
     private TextView videoLabel,folderLabel,qualityHelp,status,logView;
-    private Choice cpuMode;
+    private CpuModeButtons cpuMode;
     private SeekBar presetSlider,crfSlider;
     private TextView presetValue;
     private final java.util.List<Button> crfButtons=new java.util.ArrayList<>();
@@ -202,9 +202,11 @@ public final class MainActivity extends Activity {
         presetSlider=new SeekBar(this);presetSlider.setMax(8);styleSlider(presetSlider);settings.addView(presetSlider,new LinearLayout.LayoutParams(-1,dp(48)));
         presetSlider.setProgress(state==null?defaults.preset:state.getInt("presetValue",defaults.preset));
         qualityHelp=parameterRow(settings,"CRF","Valori da 0 a 51. Un numero più basso conserva generalmente più dettagli e produce file più grandi. CRF 0 non è lossless. Lo slider permette di scegliere ogni valore intero. I pulsanti Alta, Media e Ridotta selezionano rispettivamente CRF 18, 23 e 28. Sono indicazioni relative: la qualità percepita dipende anche dal video.");
+        text(settings,"Scegli la qualità manualmente",14);
         crfSlider=new SeekBar(this);crfSlider.setMax(51);styleSlider(crfSlider);settings.addView(crfSlider,new LinearLayout.LayoutParams(-1,dp(48)));
         crfSlider.setProgress(state==null?defaults.crf:state.getInt("crfValue",defaults.crf));
         crfSlider.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener(){public void onProgressChanged(SeekBar b,int n,boolean user){updateQualityHelp();}public void onStartTrackingTouch(SeekBar b){}public void onStopTrackingTouch(SeekBar b){}});
+        text(settings,"Scegli una qualità predefinita",14);
         LinearLayout crfRow=new LinearLayout(this);crfRow.setGravity(Gravity.CENTER);settings.addView(crfRow,new LinearLayout.LayoutParams(-1,-2));
         int[] qualityValues={18,23,28};String[] qualityLabels={"Alta","Media","Ridotta"};
         for(int i=0;i<qualityValues.length;i++){final int n=qualityValues[i];Button quick=new Button(this);quick.setText(qualityLabels[i]);quick.setContentDescription("Qualità "+qualityLabels[i]+", CRF "+n);styleButton(quick,false);quick.setPadding(dp(4),dp(10),dp(4),dp(10));quick.setSingleLine(false);quick.setGravity(Gravity.CENTER);quick.setOnClickListener(v->crfSlider.setProgress(n));LinearLayout.LayoutParams qp=new LinearLayout.LayoutParams(0,-2,1);qp.setMargins(dp(3),0,dp(3),0);crfRow.addView(quick,qp);crfButtons.add(quick);}
@@ -221,7 +223,7 @@ public final class MainActivity extends Activity {
         updateTemporalHelp();
 
         parameterRow(settings,"CPU","Limited limita il numero di thread. Auto lascia decidere x265. Max aumenta il parallelismo in base ai core disponibili. Non garantisce il 100% di utilizzo: dipende dal video, dal preset e dai limiti del telefono.");
-        cpuMode=spinner(settings,new String[]{"Limited","Auto","Max"});
+        cpuMode=new CpuModeButtons(this,accent,bg,surface,border);LinearLayout.LayoutParams cpuLayout=new LinearLayout.LayoutParams(-1,-2);cpuLayout.setMargins(0,dp(6),0,dp(6));settings.addView(cpuMode,cpuLayout);
         cpuMode.setSelection(state==null?defaults.cpu:state.getInt("cpu",defaults.cpu));
 
         LinearLayout work=card(page,CARD_CONVERSION);
@@ -415,30 +417,6 @@ public final class MainActivity extends Activity {
         b.setBackgroundTintList(null);b.setBackground(new RippleDrawable(ColorStateList.valueOf(border),shape(fill,14),null));
     }
     private Button button(LinearLayout p,String s){Button b=new Button(this);b.setText(s);styleButton(b,false);LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);lp.setMargins(0,dp(8),0,dp(4));p.addView(b,lp);return b;}
-    private final class Choice extends Button {
-        private final String[] entries;
-        private int selected;
-        private Runnable onSelection;
-        Choice(String[] entries){
-            super(MainActivity.this);this.entries=entries;styleButton(this,false);
-            setGravity(Gravity.START|Gravity.CENTER_VERTICAL);setSingleLine(false);setMaxLines(Integer.MAX_VALUE);setEllipsize(null);setIncludeFontPadding(true);
-            setOnClickListener(v->{
-                ArrayAdapter<String> adapter=new ArrayAdapter<String>(MainActivity.this,android.R.layout.simple_list_item_1,entries){
-                    @Override public View getView(int position,View recycled,ViewGroup parent){
-                        TextView t=new TextView(MainActivity.this);t.setText((position==selected?"✓  ":"")+entries[position]);t.setTextSize(17);t.setTextColor(ink);t.setBackgroundColor(surface);
-                        t.setSingleLine(false);t.setEllipsize(null);t.setIncludeFontPadding(true);t.setMinHeight(dp(60));t.setGravity(Gravity.CENTER_VERTICAL);t.setPadding(dp(20),dp(16),dp(20),dp(16));
-                        t.setLayoutParams(new AbsListView.LayoutParams(-1,-2));return t;
-                    }
-                };
-                android.app.AlertDialog dialog=new android.app.AlertDialog.Builder(MainActivity.this).setAdapter(adapter,(d,position)->setSelection(position)).create();
-                dialog.show();if(dialog.getWindow()!=null)dialog.getWindow().setBackgroundDrawable(shape(surface,18));
-            });
-            setSelection(0);
-        }
-        int getSelectedItemPosition(){return selected;}
-        void setSelection(int n){selected=Math.max(0,Math.min(entries.length-1,n));setText(entries[selected]+"  ▾");if(onSelection!=null)onSelection.run();}
-    }
-    private Choice spinner(LinearLayout parent,String[] entries){Choice c=new Choice(entries);LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);lp.setMargins(0,dp(6),0,dp(6));parent.addView(c,lp);return c;}
     private void inspectInput(){
         if(destroyed)return;
         VideoMetadataCache.permissions(OriginalMedia.hasLocationPermission(this)+":"+OriginalMedia.hasVideoPermission(this));
