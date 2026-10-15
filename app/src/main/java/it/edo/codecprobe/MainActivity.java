@@ -26,6 +26,11 @@ import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public final class MainActivity extends Activity {
+    static final String CARD_CONVERSION="03  CONVERSIONE";
+    private final java.util.LinkedHashMap<String,LinearLayout> cardBodies=new java.util.LinkedHashMap<>();
+    private final java.util.LinkedHashMap<String,Button> cardHeaders=new java.util.LinkedHashMap<>();
+    private Bundle restoredCardExpansion;
+    private boolean resumeConversionOnOpen;
     static final String CONFIRM_CANCEL="it.edo.codecprobe.CONFIRM_CANCEL";
     static final String CANCEL_SESSION="cancelSessionStartedAt";
     private android.app.AlertDialog cancelConfirmation;
@@ -127,6 +132,8 @@ public final class MainActivity extends Activity {
     private String pendingLog;
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
+        restoredCardExpansion=state==null?null:state.getBundle("cardExpansion");
+        resumeConversionOnOpen=state==null&&ConversionService.snapshot().running;
         AppSettings defaults=new AppSettings(this);settingsRevision=defaults.revision;
         boolean dark=(getResources().getConfiguration().uiMode&Configuration.UI_MODE_NIGHT_MASK)==Configuration.UI_MODE_NIGHT_YES;
         darkTheme=dark;
@@ -217,7 +224,7 @@ public final class MainActivity extends Activity {
         cpuMode=spinner(settings,new String[]{"Limited","Auto","Max"});
         cpuMode.setSelection(state==null?defaults.cpu:state.getInt("cpu",defaults.cpu));
 
-        LinearLayout work=card(page,"03  CONVERSIONE");
+        LinearLayout work=card(page,CARD_CONVERSION);
         LinearLayout actions=new LinearLayout(this);actions.setGravity(Gravity.CENTER_VERTICAL);work.addView(actions,new LinearLayout.LayoutParams(-1,-2));
         convert=halfButton(actions,"Converti e salva",true);stop=halfButton(actions,"Annulla",false);stop.setEnabled(false);
         keepScreenOn=new CheckBox(this);keepScreenOn.setText("Mantieni schermo acceso");keepScreenOn.setTextColor(ink);keepScreenOn.setTextSize(17);keepScreenOn.setButtonTintList(ColorStateList.valueOf(accent));keepScreenOn.setMinHeight(dp(48));LinearLayout screenRow=new LinearLayout(this);screenRow.setGravity(Gravity.CENTER_VERTICAL);work.addView(screenRow);screenRow.addView(keepScreenOn,new LinearLayout.LayoutParams(0,-2,1));
@@ -312,7 +319,7 @@ public final class MainActivity extends Activity {
         long expected=intent.getLongExtra(CANCEL_SESSION,-1);intent.setAction(null);intent.removeExtra(CANCEL_SESSION);
         if(expected<0)return;
         if(metadataLoading)stopMetadataLoading();
-        confirmCancellation(expected);
+        focusCard(CARD_CONVERSION);confirmCancellation(expected);
     }
     private void confirmCancellation(long expectedSession){
         if(destroyed||cancelConfirmation!=null&&cancelConfirmation.isShowing())return;
@@ -379,9 +386,26 @@ public final class MainActivity extends Activity {
     private int dp(int n){return Math.round(n*getResources().getDisplayMetrics().density);}
     private GradientDrawable shape(int color,int radius){GradientDrawable d=new GradientDrawable();d.setColor(color);d.setCornerRadius(dp(radius));d.setStroke(dp(1),border);return d;}
     private LinearLayout card(LinearLayout page,String title){
-        LinearLayout c=new LinearLayout(this);c.setOrientation(LinearLayout.VERTICAL);c.setPadding(dp(18),dp(16),dp(18),dp(18));c.setBackground(shape(surface,22));
-        LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);lp.setMargins(0,dp(16),0,0);page.addView(c,lp);
-        TextView t=text(c,title,12);t.setTextColor(accent);t.setTypeface(null,Typeface.BOLD);return c;
+        LinearLayout wrapper=new LinearLayout(this);wrapper.setOrientation(LinearLayout.VERTICAL);wrapper.setPadding(dp(18),0,dp(18),0);wrapper.setBackground(shape(surface,22));
+        LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);lp.setMargins(0,dp(16),0,0);page.addView(wrapper,lp);
+        Button header=new Button(this);styleButton(header,false);header.setTextSize(15);header.setGravity(Gravity.START|Gravity.CENTER_VERTICAL);header.setPadding(0,dp(12),0,dp(12));header.setMinHeight(dp(56));header.setSingleLine(false);header.setAccessibilityHeading(true);
+        header.setBackground(new RippleDrawable(ColorStateList.valueOf(border),null,null));wrapper.addView(header,new LinearLayout.LayoutParams(-1,-2));
+        LinearLayout body=new LinearLayout(this);body.setOrientation(LinearLayout.VERTICAL);body.setPadding(0,dp(4),0,dp(18));wrapper.addView(body,new LinearLayout.LayoutParams(-1,-2));
+        cardBodies.put(title,body);cardHeaders.put(title,header);
+        boolean initial=resumeConversionOnOpen?title.equals(CARD_CONVERSION):cardBodies.size()==1;
+        setCardExpanded(title,restoredCardExpansion!=null?restoredCardExpansion.getBoolean(title,initial):initial);
+        header.setOnClickListener(v->setCardExpanded(title,body.getVisibility()!=View.VISIBLE));
+        return body;
+    }
+    private void setCardExpanded(String title,boolean expanded){
+        LinearLayout body=cardBodies.get(title);Button header=cardHeaders.get(title);if(body==null||header==null)return;
+        body.setVisibility(expanded?View.VISIBLE:View.GONE);header.setText((expanded?"▾  ":"▸  ")+title);
+        header.setContentDescription(title+" · "+(expanded?"aperto, tocca per richiudere":"chiuso, tocca per espandere"));
+        if(Build.VERSION.SDK_INT>=30)header.setStateDescription(expanded?"Aperto":"Chiuso");
+    }
+    private void focusCard(String title){
+        for(String key:cardBodies.keySet())setCardExpanded(key,key.equals(title));
+        Button header=cardHeaders.get(title);if(header!=null)header.post(()->{if(!destroyed)header.requestRectangleOnScreen(new android.graphics.Rect(0,0,header.getWidth(),header.getHeight()),false);});
     }
     private TextView text(LinearLayout p,String s,int size){TextView t=new TextView(this);t.setText(s);t.setTextColor(size>=16?ink:muted);t.setTextSize(size);t.setPadding(0,dp(6),0,dp(6));p.addView(t);return t;}
     private void styleButton(Button b,boolean primary){
@@ -612,7 +636,7 @@ public final class MainActivity extends Activity {
             .putStringArrayListExtra("inputs",new java.util.ArrayList<>(selectedInputs)).putStringArrayListExtra("names",new java.util.ArrayList<>(selectedNames)).putStringArrayListExtra("folders",destinations).putStringArrayListExtra("destinationNotes",new java.util.ArrayList<>(destinationNotes))
             .putExtra("individualOrigins",destinationPlan.individualOrigins()).putStringArrayListExtra("individualFolders",destinationPlan.individualFolders()).putExtra("applyAllDestinations",destinationPlan.applyAll).putExtra("allOrigin",destinationPlan.all.origin).putExtra("allFolder",destinationPlan.all.folder).putExtra("crf",crf).putExtra("preset",preset).putExtra("cpu",cpu)
             .putExtra("bframes",bframeSwitch.isChecked()).putExtra("lookahead",lookaheadSwitch.isChecked());
-        try{startForegroundService(task);setBusy(true);status.setText("Avvio conversione…");}
+        try{startForegroundService(task);focusCard(CARD_CONVERSION);setBusy(true);status.setText("Avvio conversione…");}
         catch(RuntimeException e){setBusy(false);status.setText("Avvio non riuscito: "+e.getMessage());}
     }
     private void renderSession(){
@@ -726,7 +750,7 @@ public final class MainActivity extends Activity {
     private void startHdrTest(){
         if(clearingLogs){toast("Attendi la cancellazione dei log");return;}
         if(input==null){toast("Seleziona un video HDR HEVC");return;}if(busy||ConversionService.snapshot().running)return;
-        final Uri selected=input;final int crf=selectedCrf();hdrTesting=true;if(selectedInputs.size()>1)toast("Prova HDR sul video visualizzato: "+sourceName);cancelled.set(false);setBusy(true);status.setText("Test HDR: resta su questa schermata…");recent.clear();logView.setText("");logView.setVisibility(View.VISIBLE);
+        final Uri selected=input;final int crf=selectedCrf();focusCard(CARD_CONVERSION);hdrTesting=true;if(selectedInputs.size()>1)toast("Prova HDR sul video visualizzato: "+sourceName);cancelled.set(false);setBusy(true);status.setText("Test HDR: resta su questa schermata…");recent.clear();logView.setText("");logView.setVisibility(View.VISIBLE);
         worker.execute(()->{String result;
             try{result=new HdrProbe(getApplicationContext(),()->destroyed||cancelled.get(),line->{synchronized(recent){recent.addLast(line);while(recent.size()>14)recent.removeFirst();}runOnUiThread(()->{if(!destroyed){synchronized(recent){logView.setText(String.join("\n",recent));}}});}).run(selected,crf);}
             catch(Exception|LinkageError e){result="Test HDR non completato: "+e.getMessage()+"\nEsporta il log HDR.";}
@@ -795,6 +819,7 @@ public final class MainActivity extends Activity {
     }
     @Override protected void onSaveInstanceState(Bundle b){
         super.onSaveInstanceState(b);
+        Bundle expansion=new Bundle();for(java.util.Map.Entry<String,LinearLayout> entry:cardBodies.entrySet())expansion.putBoolean(entry.getKey(),entry.getValue().getVisibility()==View.VISIBLE);b.putBundle("cardExpansion",expansion);
         if(input!=null)b.putString("input",input.toString());
         if(folder!=null)b.putString("folder",folder.toString());
         b.putStringArrayList("inputs",new java.util.ArrayList<>(selectedInputs));b.putStringArrayList("names",new java.util.ArrayList<>(selectedNames));b.putStringArrayList("origins",new java.util.ArrayList<>(originFolders));b.putBooleanArray("individualOrigins",destinationPlan.individualOrigins());b.putStringArrayList("individualFolders",destinationPlan.individualFolders());b.putBoolean("applyAllDestinations",destinationPlan.applyAll);b.putBoolean("allOrigin",destinationPlan.all.origin);b.putString("allFolder",destinationPlan.all.folder);
