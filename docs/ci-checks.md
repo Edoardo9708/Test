@@ -6,6 +6,7 @@ La versione dell’app non cambia quando si modifica soltanto la CI.
 | --- | --- |
 | Solo README, licenza o `docs/` | Test del selettore; nessuna compilazione APK |
 | Interfaccia, risorse, nomi, cartelle, codice Java dell’app o test Java | Compilazione APK, tutti i test Java rapidi, lint, anteprime UI, verifica firma/versione/architettura |
+| Solo `versionCode` e `versionName` in `app/build.gradle` | Compilazione rapida, senza prove native aggiuntive |
 | Codice C/C++, x265, classi JNI/encoder, toolchain, configurazione di build, CI o dipendenze sconosciute | Anche prove native SDR, ARM64 e HDR |
 
 Le prove native aggiuntive ricompilano x265 per host e ARM64, codificano campioni e li decodificano con FFmpeg. Non eseguono il percorso Java `VideoConverter`: per questo una modifica alla sola copia audio non richiede automaticamente queste ricompilazioni. Restano i test pertinenti al codice Java modificato e la verifica sul telefono per il comportamento delle API Android.
@@ -19,6 +20,7 @@ Anche una compilazione rapida contiene e compila le librerie native necessarie a
 - Un percorso non riconosciuto, un diff non disponibile, un primo push o un evento non valido attivano tutti i controlli.
 - Le classi che caricano le librerie o definiscono il confine JNI (`EncoderPresetPreview`, `X265Probe`, `HdrProbe`, `HdrTranscoder`) attivano le prove complete.
 - Per gli altri file Java si controllano anche le righe modificate: dichiarazioni JNI, chiamate `nativeXxx(...)` e caricamenti di librerie attivano le prove complete. Se non si può leggere il diff si esegue tutto.
+- In `app/build.gradle` il percorso rapido è ammesso solo se tutte le righe cambiate riguardano `versionCode` / `versionName`; NDK, dipendenze o altre impostazioni richiedono le prove complete.
 - Una modifica al selettore o al workflow attiva le prove complete per verificare la nuova procedura.
 - Il riepilogo GitHub Actions e il log del job di selezione indicano i file modificati, la scelta e il motivo. I test non eseguiti risultano saltati, non superati.
 

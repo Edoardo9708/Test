@@ -46,6 +46,19 @@ class ScopeTest(unittest.TestCase):
             self.assertFalse(scope.native_java_changes(event, [scope.JAVA+'VideoConverter.java']))
         self.assertTrue(scope.classify([scope.JAVA+'VideoConverter.java'], native_boundary=True)['native'])
 
+    def test_version_bump_is_quick_but_toolchain_changes_are_full(self):
+        event={'before': 'a'*40, 'after': 'b'*40}
+        version_diff="-        versionCode 41\n+        versionCode 42\n-        versionName '0.41'\n+        versionName '0.42'\n"
+        with patch.object(scope.subprocess, 'run', return_value=subprocess.CompletedProcess([], 0, stdout=version_diff.encode())):
+            self.assertTrue(scope.only_version_change(event))
+        native_diff=version_diff+"-ndkVersion '27'\n+ndkVersion '28'"
+        with patch.object(scope.subprocess, 'run', return_value=subprocess.CompletedProcess([], 0, stdout=native_diff.encode())):
+            self.assertFalse(scope.only_version_change(event))
+        with patch.object(scope.subprocess, 'run', side_effect=OSError('missing diff')):
+            self.assertFalse(scope.only_version_change(event))
+        self.assertFalse(scope.classify(['app/build.gradle',scope.JAVA+'AppUi.java'],version_only=True)['native'])
+        self.assertTrue(scope.classify(['app/build.gradle',scope.JAVA+'AppUi.java'])['native'])
+
     def test_documentation_only_and_mixed_changes(self):
         self.assertEqual((False, False), self.flags(['README.md', 'docs/ui-architecture.md']))
         self.assertEqual((True, False), self.flags(['README.md', scope.JAVA + 'AppUi.java']))

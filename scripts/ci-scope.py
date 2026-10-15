@@ -10,7 +10,7 @@ JAVA = 'app/src/main/java/it/edo/codecprobe/'
 NATIVE_JAVA = {'EncoderPresetPreview.java', 'X265Probe.java', 'HdrProbe.java', 'HdrTranscoder.java'}
 
 
-def classify(paths, force_full=False, native_boundary=False):
+def classify(paths, force_full=False, native_boundary=False, version_only=False):
     paths = sorted(set(paths))
     if force_full or native_boundary or not paths:
         return {'build': True, 'native': True, 'reason': 'JNI boundary changed' if native_boundary else 'Full run requested or no reliable change list'}
@@ -19,6 +19,8 @@ def classify(paths, force_full=False, native_boundary=False):
         if path.startswith('docs/') or path in {'README.md', 'LICENSE', 'LICENSE.md'}:
             continue
         build = True
+        if path == 'app/build.gradle' and version_only:
+            continue
         if path.startswith(JAVA) and path.endswith('.java'):
             if path[len(JAVA):] not in NATIVE_JAVA:
                 continue
@@ -50,6 +52,19 @@ def changes(event, event_name):
 
 
 
+
+def only_version_change(event):
+    try:
+        diff = subprocess.run(['git', 'diff', '--unified=0', '--no-renames',
+                               event['before'], event['after'], '--', 'app/build.gradle'],
+                              check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE).stdout.decode('utf-8')
+        lines = [line[1:].strip() for line in diff.splitlines()
+                 if line.startswith(('+', '-')) and not line.startswith(('+++', '---'))]
+        return bool(lines) and all(re.fullmatch(r"versionCode\s+[0-9]+|versionName\s+['\"][A-Za-z0-9.+-]+['\"]", line) for line in lines)
+    except (KeyError, subprocess.CalledProcessError, UnicodeError, OSError):
+        return False
+
+
 def native_java_changes(event, paths):
     java = [path for path in paths if path.startswith(JAVA) and path.endswith('.java')]
     if not java:
@@ -77,7 +92,8 @@ def main():
             # An explicit quick manual build has no diff and intentionally skips native smoke tests.
             scope = {'build': True, 'native': False, 'reason': 'Manual quick application build'}
         else:
-            scope = classify(paths, force_full=manual and requested, native_boundary=native_java_changes(event, paths))
+            scope = classify(paths, force_full=manual and requested, native_boundary=native_java_changes(event, paths),
+                             version_only='app/build.gradle' in paths and only_version_change(event))
     except (KeyError, OSError, ValueError, TypeError, AttributeError):
         paths, source = [], 'Invalid event: full run'
         scope = classify([], True)
