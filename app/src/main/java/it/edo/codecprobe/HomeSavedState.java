@@ -14,6 +14,7 @@ final class HomeSavedState {
         String savedFolder = home.state.loadedDefault != null ? home.state.loadedDefault : home.activity.getPreferences(0).getString("folder", null);
         if (savedFolder != null) home.state.folder = Uri.parse(savedFolder);
         if (state != null) {
+            home.conversion.retry.pending=state.getParcelable("pendingRetry");
             if (state.getString("input") != null) home.state.input = Uri.parse(state.getString("input"));
             home.state.sourceName = state.getString("sourceName", "video");
             if (state.getStringArrayList("inputs") != null) {
@@ -47,6 +48,7 @@ final class HomeSavedState {
 
     static void save(HomeController home, Bundle b) {
         home.screen.sections.save(b);
+        if(home.conversion.retry.pending!=null)b.putParcelable("pendingRetry",home.conversion.retry.pending);
         if (home.state.input != null) b.putString("input", home.state.input.toString());
         if (home.state.folder != null) b.putString("folder", home.state.folder.toString());
         b.putStringArrayList("inputs", new java.util.ArrayList<>(home.state.selectedInputs));

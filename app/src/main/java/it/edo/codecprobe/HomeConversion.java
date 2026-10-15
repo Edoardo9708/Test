@@ -17,14 +17,18 @@ final class HomeConversion {
     private final HomeController home;
     android.app.AlertDialog cancelConfirmation;
     final HomeOutputCheck outputCheck;
+    final HomeRetry retry;
 
     HomeConversion(HomeController home) {
         this.home = home;
         outputCheck = new HomeOutputCheck(home);
+        retry = new HomeRetry(home);
     }
     final Runnable sessionObserver = this::renderSession;
 
     void bind() {
+        retry.bind();
+        home.screen.conversion.onlySmaller.setOnCheckedChangeListener((v,c)->AppSettings.setOnlySmaller(home.activity,c));
         home.screen.conversion.convert.setOnClickListener((v)->startConversion());
         home.screen.conversion.stop.setOnClickListener((v)->confirmCancellation(-1));
         home.screen.conversion.openVideo.setOnClickListener((v)->showResults());
@@ -96,6 +100,8 @@ final class HomeConversion {
         home.screen.compression.setBusy(value);
         home.screen.conversion.convert.setEnabled(!value && !home.state.clearingLogs && !home.state.choosingOrigins && home.state.originsReady && hasInputs);
         home.screen.conversion.stop.setEnabled(value && !outputCheck.checking);
+        home.screen.conversion.onlySmaller.setEnabled(!value);
+        retry.update(value);
         home.diagnostics.updateClearLogsButton();
     }
 
@@ -141,6 +147,7 @@ final class HomeConversion {
             return;
         }
         Intent task = new Intent(home.activity, ConversionService.class).setAction(ConversionService.START).putStringArrayListExtra("inputs", new java.util.ArrayList<>(home.state.selectedInputs)).putStringArrayListExtra("names", new java.util.ArrayList<>(home.state.selectedNames)).putStringArrayListExtra("folders", destinations).putStringArrayListExtra("destinationNotes", new java.util.ArrayList<>(home.state.destinationNotes)).putExtra("individualOrigins", home.state.destinationPlan.individualOrigins()).putStringArrayListExtra("individualFolders", home.state.destinationPlan.individualFolders()).putExtra("applyAllDestinations", home.state.destinationPlan.applyAll).putExtra("allOrigin", home.state.destinationPlan.all.origin).putExtra("allFolder", home.state.destinationPlan.all.folder).putExtra("crf", crf).putExtra("preset", preset).putExtra("cpu", cpu).putExtra("bframes", home.screen.compression.bframeSwitch.isChecked()).putExtra("lookahead", home.screen.compression.lookaheadSwitch.isChecked());
+        task.putExtra("onlySmaller",home.screen.conversion.onlySmaller.isChecked());
         outputCheck.begin(task);
     }
 
@@ -187,8 +194,8 @@ final class HomeConversion {
     }
 
     void renderConversionDashboard(ConversionService.State s) {
-        int pending = Math.max(0, s.batchTotal - (s.running ? Math.max(s.batchIndex, s.succeeded + s.failed + s.ignored) : s.succeeded + s.failed + s.ignored));
-        home.screen.conversion.queueLabel.setText("Video " + s.batchIndex + " / " + s.batchTotal + "\nRiusciti: " + s.succeeded + " · Falliti: " + s.failed + " · Ignorati: " + s.ignored + "\n" + (s.running ? "In attesa: " : "Non completati: ") + pending);
+        int pending = Math.max(0, s.batchTotal - (s.running ? Math.max(s.batchIndex, s.succeeded + s.failed + s.ignored + s.notSaved) : s.succeeded + s.failed + s.ignored + s.notSaved));
+        home.screen.conversion.queueLabel.setText("Video " + s.batchIndex + " / " + s.batchTotal + "\nRiusciti: " + s.succeeded + " · Falliti: " + s.failed + " · Ignorati: " + s.ignored + "\nNon salvati: " + s.notSaved + "\n" + (s.running ? "In attesa: " : "Non completati: ") + pending);
         home.screen.conversion.elapsedLabel.setText(DashboardMetrics.elapsed(s.startedAt, s.endedAt, SystemClock.elapsedRealtime()));
         home.screen.conversion.currentFile.setText(s.source.isEmpty() ? "In attesa del file" : s.source);
         home.screen.conversion.currentFile.setContentDescription("File attuale: " + s.source);
@@ -199,6 +206,7 @@ final class HomeConversion {
         home.screen.conversion.status.setText(s.message);
         home.screen.diagnostics.logView.setText(s.log);
         home.screen.conversion.timeline.setText(String.format(Locale.ITALY, "%.1f s convertiti\n%s", s.done / 1000000.0, s.total > 0 ? String.format(Locale.ITALY, "%.1f s rimanenti", Math.max(0, s.total - s.done) / 1000000.0) : "durata totale non disponibile"));
+        home.screen.conversion.activeOnlySmaller.setText(s.onlySmaller?"ON":"OFF");
         home.screen.conversion.activePreset.setText(s.requestedPreset);
         home.screen.conversion.activeCrf.setText(s.requestedCrf >= 0 ? Integer.toString(s.requestedCrf) : "—");
         String[] cpuModes = {"Limited", "Auto", "Max"};

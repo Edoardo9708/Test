@@ -57,9 +57,27 @@ public class HomeRenderTest {
     @Test public void activeConversion()throws Exception{
         ActivityController<MainActivity> controller=screen();try{
             HomeController home=controller.get().home;home.screen.sections.focusCard(MainActivity.CARD_CONVERSION);
-            ConversionService.State state=new ConversionService.State();state.running=true;state.batchIndex=2;state.batchTotal=3;state.succeeded=1;state.source="Video_di_prova_2.mp4";state.filePercent=19;state.doneFrames=340;state.totalFrames=1800;state.done=11333333;state.total=60000000;state.requestedPreset="medium";state.requestedCrf=23;state.requestedCpu=2;state.bframeCount=4;state.lookaheadCount=20;state.cuTree=1;state.aqMode=2;state.aqStrength=1000;state.message="Codifica software in corso";
+            ConversionService.State state=new ConversionService.State();state.running=true;state.onlySmaller=true;state.batchIndex=2;state.batchTotal=3;state.succeeded=1;state.source="Video_di_prova_2.mp4";state.filePercent=19;state.doneFrames=340;state.totalFrames=1800;state.done=11333333;state.total=60000000;state.requestedPreset="medium";state.requestedCrf=23;state.requestedCpu=2;state.bframeCount=4;state.lookaheadCount=20;state.cuTree=1;state.aqMode=2;state.aqStrength=1000;state.message="Codifica software in corso";
             home.conversion.renderConversionDashboard(state);home.screen.conversion.cpuValue.setText("48,2%");home.screen.conversion.ramValue.setText("320 MiB");home.screen.conversion.batteryValue.setText("39,0 °C");
             state.sizeReport="Video 1 · Video_di_prova_1.mp4\n10 MB → 5 MB · −50%";home.conversion.renderSizeReport(state);image(home,"home-conversion.png");
         }finally{controller.pause().stop().destroy();VideoMetadataCache.clear();}
     }
+    @Test public void batchResults()throws Exception{
+        ActivityController<MainActivity> controller=screen();try{
+            HomeController home=controller.get().home;home.screen.sections.focusCard(MainActivity.CARD_CONVERSION);
+            android.content.Intent task=new android.content.Intent(home.activity,ConversionService.class).setAction(ConversionService.START)
+                .putStringArrayListExtra("inputs",new ArrayList<>(home.state.selectedInputs))
+                .putStringArrayListExtra("names",new ArrayList<>(home.state.selectedNames))
+                .putStringArrayListExtra("folders",new ArrayList<>(List.of("content://preview/tree/a","content://preview/tree/a","content://preview/tree/a")))
+                .putExtra("crf",23).putExtra("preset",5).putExtra("onlySmaller",true);
+            ConversionService.rememberFailures(home.activity,BatchRetry.select(task,List.of(1)));
+            ConversionService.State state=new ConversionService.State();state.batchIndex=3;state.batchTotal=3;state.succeeded=1;state.failed=1;state.notSaved=1;state.onlySmaller=true;state.filePercent=100;state.source="Video_di_prova_3.mp4";state.requestedCrf=23;state.requestedPreset="medium";state.requestedCpu=1;state.message="Coda terminata · 1 salvato · 1 fallito · 1 senza risparmio";
+            state.sizeReport=CompressionSummary.render(List.of(
+                new CompressionSummary.Item(1,"Video_di_prova_1.mp4",CompressionSummary.Status.COMPLETE,10000000,5000000),
+                new CompressionSummary.Item(2,"Video_di_prova_2.mp4",CompressionSummary.Status.FAILED,-1,-1),
+                new CompressionSummary.Item(3,"Video_di_prova_3.mp4",CompressionSummary.Status.NO_SAVING,2000000,2100000)));
+            home.conversion.renderConversionDashboard(state);home.conversion.renderSizeReport(state);image(home,"home-results.png");
+        }finally{ConversionService.rememberFailures(controller.get(),null);controller.pause().stop().destroy();VideoMetadataCache.clear();}
+    }
+
 }

@@ -13,6 +13,9 @@ final class HomeConversionSection {
     Button convert;
     Button stop;
     Button openVideo;
+    Button retryFailed;
+    CheckBox onlySmaller;
+    TextView activeOnlySmaller;
     CheckBox keepScreenOn;
     TextView queueLabel;
     TextView elapsedLabel;
@@ -57,6 +60,12 @@ final class HomeConversionSection {
         screenRow.addView(keepScreenOn, new LinearLayout.LayoutParams(0, -2, 1));
         keepScreenOn.setChecked(defaults.keepScreenOn);
         ui.infoButton(screenRow, "Mantieni schermo acceso", "Evita lo spegnimento automatico mentre la conversione è in corso e questa schermata è visibile. Si disattiva al termine o uscendo dalla schermata. Puoi spegnere lo schermo con il tasto del telefono. La scelta viene salvata per gli avvii successivi; non garantisce una velocità di codifica maggiore.");
+        LinearLayout savingsRow=ui.row(work);
+        onlySmaller=new CheckBox(ui.activity);onlySmaller.setText("Salva solo se più piccolo");
+        onlySmaller.setTextColor(ui.ink);onlySmaller.setTextSize(17);onlySmaller.setMinHeight(ui.dp(48));
+        onlySmaller.setButtonTintList(ColorStateList.valueOf(ui.accent));onlySmaller.setChecked(defaults.onlySmaller);
+        savingsRow.addView(onlySmaller,new LinearLayout.LayoutParams(0,-2,1));
+        ui.infoButton(savingsRow,"Salva solo se più piccolo","Confronto il file completo, inclusi audio e metadati, dopo la codifica e la verifica. Salvo solo se occupa meno byte dell’originale. Se è uguale o più grande, compare Nessun risparmio e il risultato temporaneo viene eliminato. Se la dimensione originale non è disponibile, il risultato non viene salvato. La scelta viene ricordata; i file originali restano conservati.");
         ui.sectionHeading(work, "SOMMARIO");
         LinearLayout summary = ui.panel(work);
         queueLabel = ui.text(summary, "Nessuna coda avviata", 16);
@@ -81,6 +90,7 @@ final class HomeConversionSection {
         status.setTextColor(ui.muted);
         ui.sectionHeading(work, "PARAMETRI IN USO");
         ui.text(work, "x265 · codifica software su CPU", 14);
+        activeOnlySmaller=ui.dashboardRow(work,"Solo se più piccolo","—");
         activePreset = ui.dashboardRow(work, "Preset", "—");
         activeCrf = ui.dashboardRow(work, "CRF", "—");
         activeCpu = ui.dashboardRow(work, "Modalità CPU", "—");
@@ -100,6 +110,7 @@ final class HomeConversionSection {
         work.addView(outputActions, new LinearLayout.LayoutParams(-1, -2));
         openVideo = ui.halfButton(outputActions, "Apri risultato", false);
         openVideo.setVisibility(View.GONE);
+        retryFailed=ui.halfButton(outputActions,"Riprova i falliti",false);retryFailed.setVisibility(View.GONE);
         sizeReportPanel = new LinearLayout(ui.activity);
         sizeReportPanel.setOrientation(LinearLayout.VERTICAL);
         sizeReportPanel.setPadding(ui.dp(14), ui.dp(12), ui.dp(14), ui.dp(12));

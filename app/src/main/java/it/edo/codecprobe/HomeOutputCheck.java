@@ -25,6 +25,8 @@ final class HomeOutputCheck {
         checking=true;this.task=task;
         inputs=task.getStringArrayListExtra("names");folders=task.getStringArrayListExtra("folders");
         plan=new OutputPlan(inputs.size());naming=new AppSettings(home.activity);
+        task.putExtra("namingAddition",task.getStringExtra("namingAddition")==null?naming.addition:task.getStringExtra("namingAddition"));
+        if(!task.hasExtra("namingPrefix"))task.putExtra("namingPrefix",naming.prefix);
         home.conversion.setBusy(true);
         home.screen.conversion.stop.setEnabled(false);
         home.screen.sections.focusCard(MainActivity.CARD_CONVERSION);
@@ -47,7 +49,8 @@ final class HomeOutputCheck {
                 Uri folder=Uri.parse(folders.get(index));
                 String key=OutputDocuments.key(home.activity,folder);
                 if(!plan.containsDirectory(key))plan.directory(key,OutputDocuments.names(home.activity,folder));
-                String requested=OutputName.base(inputs.get(index),naming.addition,naming.prefix);
+                ArrayList<String> approved=task.getStringArrayListExtra("requestedOutputNames");
+                String requested=approved!=null&&approved.size()==inputs.size()?approved.get(index):OutputName.base(inputs.get(index),task.getStringExtra("namingAddition"),task.getBooleanExtra("namingPrefix",true));
                 home.handler.post(()->{
                     if(!checking||home.state.destroyed)return;
                     if(plan.conflicts(key,requested))showConflict(index,key,requested);

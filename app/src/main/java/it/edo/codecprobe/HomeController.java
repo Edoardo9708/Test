@@ -73,6 +73,7 @@ final class HomeController {
     }
 
     void onPermissions(int request, String[] permissions, int[] results) {
+        if(request==HomeRetry.PERMISSION){conversion.retry.onPermissions(results);return;}
         final HomeController home = this;
         if (request == 9) {
             home.destinations.updateDestinationPanel();
@@ -163,6 +164,7 @@ final class HomeController {
         home.conversion.updateScreenAwake();
         home.state.destroyed = true;
         home.conversion.outputCheck.close();
+        home.conversion.retry.close();
         home.screen.sections.closed = true;
         home.handler.removeCallbacksAndMessages(null);
         home.screen.files.videoPreview.animate().cancel();

@@ -116,6 +116,8 @@ final class VideoConverter {
         if(t==6 || t==7) throw new IllegalArgumentException("Dichiarazione HDR rilevata nel percorso SDR: conversione interrotta per evitare una riduzione a 8 bit.");
     }
     String plannedOutputName;
+    boolean onlySmaller;
+    long originalByteSize=-1;
     Uri convert(Uri input,Uri folder,int crf,String sourceName,int preset,int cpuMode,boolean bframes,boolean lookahead) throws Exception {
         final AppSettings naming=namingDefaults!=null?namingDefaults:new AppSettings(context);
         this.bframes=bframes;this.lookahead=lookahead;
@@ -136,6 +138,7 @@ final class VideoConverter {
                 onLog("GPS PERMESSI: posizione="+OriginalMedia.hasLocationPermission(context)+"; lettura video="+OriginalMedia.hasVideoPermission(context));
                 onLog("GPS PROVIDER SELEZIONATO: "+input.getAuthority());
                 input=OriginalMedia.resolve(context,input);
+                originalByteSize=MediaFileSizes.read(context,input);
                 onLog("GPS ACCESSO: permesso concesso; requireOriginal="+OriginalMedia.requiresOriginal(input));
                 if(!OriginalMedia.requiresOriginal(input))onLog("GPS AVVISO: provider esterno a MediaStore; non posso garantire che il provider consegni coordinate non oscurate.");
                 final String sourceGps=OriginalMedia.location(context,input);
@@ -162,6 +165,10 @@ final class VideoConverter {
                 if(originalAudio>=0)verifyCopiedTrack(input,temporary,originalAudio,audioTrack);
                 for(MetadataTrack track:metadataTracks)verifyCopiedTrack(input,temporary,track.input,track.output);
                 checkCancel();
+                long candidateBytes=temporary.length();
+                SavingsPolicy.Decision saving=SavingsPolicy.decide(onlySmaller,originalByteSize,candidateBytes);
+                onLog("*** CONTROLLO RISPARMIO PRIMA DEL SALVATAGGIO ***\nSalva solo se più piccolo="+onlySmaller+"\nOriginale byte="+originalByteSize+"\nConvertito completo byte="+candidateBytes+"\nEsito="+saving);
+                if(saving!=SavingsPolicy.Decision.SAVE)throw new SavingsPolicy.NotSaved(saving,originalByteSize,candidateBytes);
                 onLog("*** STEP 6 · SALVATAGGIO NELLA CARTELLA SCELTA ***");
                 listener.progress(98,"Salvataggio MP4...");
                 String requested=plannedOutputName!=null?plannedOutputName:OutputName.base(sourceName,naming.addition,naming.prefix);
@@ -195,6 +202,9 @@ final class VideoConverter {
                 onLog("SUMMARY frames="+frames+" packets="+packets+" elapsed_ms="+(SystemClock.elapsedRealtime()-start));
                 listener.progress(100,"Completato: "+name);
                 return destination;
+            } catch(SavingsPolicy.NotSaved skipped) {
+                onLog("*** RISULTATO NON SALVATO ***\n"+skipped.getMessage()+"\nNessun documento di destinazione creato; elimino solo il temporaneo di questa conversione.");
+                listener.progress(100,skipped.getMessage());throw skipped;
             } catch(Exception | LinkageError e) {
                 if(destination!=null) {
                     try {DocumentsContract.deleteDocument(context.getContentResolver(),destination);}

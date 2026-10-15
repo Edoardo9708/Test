@@ -6,7 +6,7 @@ import android.content.SharedPreferences;
 final class AppSettings {
     static final String[] PRESETS={"ultrafast","superfast","veryfast","faster","fast","medium","slow","slower","veryslow"};
     final int crf,preset,cpu;
-    final boolean bframes,lookahead,prefix,keepScreenOn;
+    final boolean bframes,lookahead,prefix,keepScreenOn,onlySmaller;
     final String addition,defaultFolder;
     final long revision;
     private static SharedPreferences prefs(Context c){return c.getSharedPreferences("startup-settings",Context.MODE_PRIVATE);}
@@ -14,11 +14,12 @@ final class AppSettings {
         SharedPreferences p=prefs(c);
         crf=clamp(p.getInt("crf",23),51);preset=clamp(p.getInt("preset",6),8);cpu=clamp(p.getInt("cpu",1),2);
         defaultFolder=p.getString("defaultFolder",null);
-        keepScreenOn=p.getBoolean("keepScreenOn",false);
+        keepScreenOn=p.getBoolean("keepScreenOn",false);onlySmaller=p.getBoolean("onlySmaller",true);
         bframes=p.getBoolean("bframes",true);lookahead=p.getBoolean("lookahead",true);
         prefix=p.getBoolean("prefix",true);addition=p.getString("addition","HEVC-");revision=p.getLong("revision",0);
     }
     static void setDefaultFolder(Context c,String uri){prefs(c).edit().putString("defaultFolder",uri).apply();}
+    static void setOnlySmaller(Context c,boolean enabled){prefs(c).edit().putBoolean("onlySmaller",enabled).apply();}
     static void setKeepScreenOn(Context c,boolean enabled){prefs(c).edit().putBoolean("keepScreenOn",enabled).apply();}
     static void save(Context c,int crf,int preset,int cpu,boolean b,boolean look,String addition,boolean prefix){
         SharedPreferences p=prefs(c);
