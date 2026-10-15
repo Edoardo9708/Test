@@ -40,6 +40,8 @@ public class HomeLayoutTest {
     @Test @Config(qualifiers="w1000dp-h600dp-night-xhdpi") public void wideDarkLayoutLimitsContentWidthAndUsesDarkSystemIconsPolicy(){
         ActivityController<MainActivity> controller=Robolectric.buildActivity(MainActivity.class).setup();
         try{HomeController home=controller.get().home;measure(home,1000);assertTrue(home.ui.dark);assertEquals(home.ui.dp(760),home.screen.page.getMeasuredWidth());assertTrue(android.graphics.Color.red(home.ui.bg)<40);
+            android.util.TypedValue background=new android.util.TypedValue();assertTrue(controller.get().getTheme().resolveAttribute(android.R.attr.colorBackground,background,true));
+            assertTrue("Dialog theme must be dark too",android.graphics.Color.red(background.data)<100);
             int appearance=controller.get().getWindow().getInsetsController().getSystemBarsAppearance();assertEquals(0,appearance&WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS);
         }finally{controller.pause().stop().destroy();}
     }

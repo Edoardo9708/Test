@@ -17,7 +17,7 @@ La divisione segue le responsabilità, non il numero di pulsanti.
 | `HomeConversion` | Avvio della coda, conferma annullamento e visualizzazione dello stato del servizio. |
 | `HomeDiagnostics` | Esportazione TXT, pulizia dei log e prova HDR. |
 | `HomeSystemMonitor` | Campionamento CPU, PSS e temperatura batteria; non gestisce la codifica. |
-| `AppUi` | Colori chiari/scuri, spaziature, pulsanti, righe informative, insets e larghezza massima. Condiviso con Impostazioni. |
+| `AppUi` | Colori chiari/scuri, spaziature, pulsanti, righe informative, insets e larghezza massima. Condiviso con Impostazioni; palette e tema dei dialoghi nelle risorse `values` e `values-night`. |
 | `QualityButtons` / `CpuModeButtons` | Controlli riusabili, identici in Home e Impostazioni. |
 
 ## Regole per le prossime modifiche

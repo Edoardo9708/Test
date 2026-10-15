@@ -30,12 +30,9 @@ final class AppUi {
     AppUi(Activity activity) {
         this.activity = activity;
         dark = (activity.getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES;
-        bg = Color.parseColor(dark ? "#0D1420" : "#F4F7FC");
-        surface = Color.parseColor(dark ? "#182333" : "#FFFFFF");
-        ink = Color.parseColor(dark ? "#F0F5FC" : "#14233A");
-        muted = Color.parseColor(dark ? "#A9B9D0" : "#536680");
-        accent = Color.parseColor(dark ? "#95BEFF" : "#245BC1");
-        border = Color.parseColor(dark ? "#34465F" : "#D8E2F1");
+        bg=activity.getColor(R.color.ui_background);surface=activity.getColor(R.color.ui_surface);
+        ink=activity.getColor(R.color.ui_ink);muted=activity.getColor(R.color.ui_muted);
+        accent=activity.getColor(R.color.ui_accent);border=activity.getColor(R.color.ui_border);
     }
 
     int dp(int value) {
