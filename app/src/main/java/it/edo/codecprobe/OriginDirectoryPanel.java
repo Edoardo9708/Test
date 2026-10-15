@@ -66,10 +66,12 @@ final class OriginDirectoryPanel {
                     try{compatible|=SourceFolder.EXTERNAL.equals(previous.getAuthority())&&parent!=null&&parent.equals(SourceFolder.documentId(activity,previous));}catch(Exception ignored){}
                     if(compatible&&SourceFolder.writable(activity,previous)){destination=previous;manual=parent==null;}
                 }
-                String key=parent!=null?"parent:"+parent:destination!=null?"uri:"+destination:"unknown:"+sources.get(i);
+                String displayParent=parent;
+                if(displayParent==null&&destination!=null&&SourceFolder.EXTERNAL.equals(destination.getAuthority()))try{displayParent=SourceFolder.documentId(activity,destination);}catch(Exception ignored){}
+                String key=FolderPaths.groupKey(parent,displayParent,destination!=null?"uri:"+destination:"unknown:"+sources.get(i));
                 Group group=groups.get(key);
-                if(group==null){group=new Group();group.parent=parent;group.destination=destination;group.manual=manual;group.label=parent!=null?parent:destination!=null?Uri.decode(destination.getLastPathSegment()):"Cartella non rilevata · "+labels.get(i);groups.put(key,group);}
-                group.files.add(i);destinations.set(i,destination==null?null:destination.toString());
+                if(group==null){group=new Group();group.parent=parent;group.destination=destination;group.manual=manual;group.label=displayParent!=null?displayParent:destination!=null?Uri.decode(destination.getLastPathSegment()):"Cartella non rilevata · "+labels.get(i);groups.put(key,group);}
+                group.manual|=manual;group.files.add(i);destinations.set(i,destination==null?null:destination.toString());
                 notes.set(i,"Video "+(i+1)+" · "+labels.get(i)+" · origine="+group.label+" · "+(destination==null?"ACCESSO MANCANTE":manual?"accesso verificato; origine associata manualmente":"origine rilevata e accesso verificato"));
             }
             activity.runOnUiThread(()->{
@@ -81,7 +83,7 @@ final class OriginDirectoryPanel {
                     LinearLayout row=new LinearLayout(activity);row.setOrientation(LinearLayout.HORIZONTAL);row.setGravity(android.view.Gravity.CENTER_VERTICAL);rows.addView(row,new LinearLayout.LayoutParams(-1,-2));
                     LinearLayout description=new LinearLayout(activity);description.setOrientation(LinearLayout.VERTICAL);row.addView(description,new LinearLayout.LayoutParams(0,-2,1));
                     String numbers="";for(int file:group.files)numbers+=(numbers.isEmpty()?"":", ")+(file+1);
-                    label(description,(allowed?"✓ AUTORIZZATA":"✕ DA AUTORIZZARE")+"\n"+group.label+"\nVideo: "+numbers+(group.manual?"\nOrigine associata manualmente":""),allowed?green:red);
+                    label(description,(allowed?"✓ AUTORIZZATA":"✕ DA AUTORIZZARE")+"\n"+group.label+"\nVideo: "+numbers+(group.manual?"\nInclude file associati manualmente":""),allowed?green:red);
                     Button action=new Button(activity);action.setText(allowed?"Gestisci":"Autorizza");action.setAllCaps(false);action.setTextColor(allowed?green:red);action.setSingleLine(false);action.setMinHeight(Math.round(48*activity.getResources().getDisplayMetrics().density));row.addView(action,new LinearLayout.LayoutParams(-2,-2));buttons.add(action);action.setEnabled(!busy);
                     action.setOnClickListener(v->listener.authorize(group.parent,sources.get(group.files.get(0))));
                 }

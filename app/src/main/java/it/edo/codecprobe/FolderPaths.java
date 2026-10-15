@@ -13,6 +13,12 @@ final class FolderPaths {
         while(path.endsWith("/"))path=path.substring(0,path.length()-1);
         return volume+":"+path;
     }
+    static String groupKey(String detectedParent,String associatedParent,String fallback){
+        String parent=detectedParent!=null?detectedParent:associatedParent;
+        if(parent==null)return fallback;
+        int colon=parent.indexOf(':');
+        return "parent:"+(colon<0?parent:parent.substring(0,colon).toLowerCase(java.util.Locale.ROOT)+parent.substring(colon));
+    }
     static boolean covers(String root,String parent){
         if(root==null||parent==null)return false;
         int colon=root.indexOf(':'),other=parent.indexOf(':');

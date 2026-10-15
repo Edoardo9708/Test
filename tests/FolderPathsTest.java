@@ -17,6 +17,9 @@ public final class FolderPathsTest {
         equal(false,FolderPaths.covers("primary:DCIM/Camera","primary:DCIM/camera"));
         equal(false,FolderPaths.covers("primary:DCIM","A1B2-C3D4:DCIM/Camera"));
         equal(true,FolderPaths.covers("a1b2-c3d4:Movies","A1B2-C3D4:Movies"));
+        equal(FolderPaths.groupKey("primary:DCIM/Camera",null,"a"),FolderPaths.groupKey(null,"primary:DCIM/Camera","b"));
+        equal(FolderPaths.groupKey("a1b2-c3d4:Movies",null,"a"),FolderPaths.groupKey(null,"A1B2-C3D4:Movies","b"));
+        equal(false,FolderPaths.groupKey(null,null,"unknown:a").equals(FolderPaths.groupKey(null,null,"unknown:b")));
         List<String> inputs=List.of("primary:DCIM/Camera/a.mp4","primary:DCIM/Camera/b.mp4","primary:Movies/a.mp4");
         Map<String,List<Integer>> grouped=new LinkedHashMap<>();
         for(int i=0;i<inputs.size();i++)grouped.computeIfAbsent(FolderPaths.parent(inputs.get(i)),k->new ArrayList<>()).add(i+1);
