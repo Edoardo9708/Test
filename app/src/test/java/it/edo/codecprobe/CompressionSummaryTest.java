@@ -40,4 +40,25 @@ public class CompressionSummaryTest {
         assertTrue(report.contains("Conversione annullata"));assertTrue(report.contains("Non convertito"));
         assertTrue(report.contains("Confronto dimensioni non disponibile"));assertFalse(report.contains("-100"));
     }
+    @Test public void runningReportIncludesFinishedVideoAndDistinguishesPendingFiles(){
+        String report=CompressionSummary.render(Arrays.asList(ok(1,10000000,5000000),
+            new CompressionSummary.Item(2,"secondo",CompressionSummary.Status.IN_PROGRESS,-1,-1),
+            new CompressionSummary.Item(3,"terzo",CompressionSummary.Status.SKIPPED,-1,-1)),true);
+        assertTrue(report.contains("10,00 MB → 5,00 MB · -50,0%"));
+        assertTrue(report.contains("Video 2 · secondo\nIn corso"));
+        assertTrue(report.contains("Video 3 · terzo\nIn attesa"));
+        assertTrue(report.contains("TOTALE PARZIALE"));assertTrue(report.contains("Spazio risparmiato: 5,00 MB"));
+        assertFalse(report.contains("Non convertito"));
+    }
+    @Test public void finalReportDoesNotLeaveFilesRunningOrWaiting(){
+        String report=CompressionSummary.render(Arrays.asList(ok(1,10000000,5000000),
+            new CompressionSummary.Item(2,"secondo",CompressionSummary.Status.IN_PROGRESS,-1,-1),
+            new CompressionSummary.Item(3,"terzo",CompressionSummary.Status.SKIPPED,-1,-1)));
+        assertFalse(report.contains("In corso"));assertFalse(report.contains("In attesa"));assertFalse(report.contains("TOTALE PARZIALE"));
+        assertTrue(report.contains("Non completato"));assertTrue(report.contains("Non convertito"));
+    }
+    @Test public void initialReportWaitsForActualCompletedOutput(){
+        String report=CompressionSummary.render(Arrays.asList(new CompressionSummary.Item(1,"primo",CompressionSummary.Status.IN_PROGRESS,-1,-1)),true);
+        assertTrue(report.contains("In attesa del primo video completato"));assertFalse(report.contains("Spazio risparmiato:"));
+    }
 }

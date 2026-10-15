@@ -67,7 +67,7 @@ public final class MainActivity extends Activity {
     private boolean pendingAuthorizationOrigin;
     private TextView queueLabel;
     private LinearLayout sizeReportPanel;
-    private TextView sizeReport;
+    private TextView sizeReport,sizeReportTitle;
     private String loadedDefault;
     private boolean choosingOrigins;
     private String sourceName="video";
@@ -252,7 +252,7 @@ public final class MainActivity extends Activity {
         parameterRow(work,"Info misure","CPU: percentuale del processo rispetto a tutti i core disponibili; 100% significa occupazione complessiva. Colori: blu sotto 30%, verde da 30%, ambra da 70%, arancio da 90%. Indicano intensità di utilizzo, non errori.\n\nRAM: PSS del processo, inclusi Java, codice nativo e quota proporzionale delle pagine condivise; non è la RAM totale del telefono. MiB = 1.048.576 byte. Aggiornamento circa ogni 3 secondi.\n\nLa temperatura è della batteria, non della CPU. Colori indicativi: verde sotto 35 °C, ambra da 35 °C, arancio da 40 °C, rosso da 45 °C. Non sono le soglie ufficiali del produttore.\n\nTempo trascorso: durata della coda, inclusi analisi, codifica, verifica e salvataggio. I secondi di video rappresentano il contenuto elaborato e rimanente, non una stima del tempo di attesa.");
         LinearLayout outputActions=new LinearLayout(this);outputActions.setWeightSum(2);work.addView(outputActions,new LinearLayout.LayoutParams(-1,-2));openVideo=halfButton(outputActions,"Apri risultato",false);openVideo.setVisibility(View.GONE);
         sizeReportPanel=new LinearLayout(this);sizeReportPanel.setOrientation(LinearLayout.VERTICAL);sizeReportPanel.setPadding(dp(14),dp(12),dp(14),dp(12));sizeReportPanel.setBackground(shape(bg,14));LinearLayout.LayoutParams reportLayout=new LinearLayout.LayoutParams(-1,-2);reportLayout.setMargins(0,dp(14),0,0);work.addView(sizeReportPanel,reportLayout);
-        TextView reportTitle=text(sizeReportPanel,"RESOCONTO CONVERSIONE",16);reportTitle.setTypeface(null,Typeface.BOLD);reportTitle.setTextColor(accent);
+        sizeReportTitle=text(sizeReportPanel,"RESOCONTO CONVERSIONE",16);sizeReportTitle.setTypeface(null,Typeface.BOLD);sizeReportTitle.setTextColor(accent);
         sizeReport=text(sizeReportPanel,"",16);sizeReport.setTextIsSelectable(true);sizeReport.setLineSpacing(dp(4),1);sizeReportPanel.setVisibility(View.GONE);
         LinearLayout logs=card(page,"DIAGNOSTICA");saveLog=button(logs,"Esporta log completo · TXT");
         saveMetadata=button(logs,"Esporta metadati originali · TXT");
@@ -642,11 +642,15 @@ public final class MainActivity extends Activity {
     private void renderSession(){
         if(destroyed||hdrTesting)return;
         ConversionService.State s=ConversionService.snapshot();if(!s.hasSession)return;
-        boolean showReport=!s.running&&!s.sizeReport.isEmpty();sizeReportPanel.setVisibility(showReport?View.VISIBLE:View.GONE);
-        if(showReport&&!s.sizeReport.contentEquals(sizeReport.getText()))sizeReport.setText(s.sizeReport);
+        renderSizeReport(s);
         renderConversionDashboard(s);
         resultUri=s.result;openVideo.setVisibility(resultUri==null?View.GONE:View.VISIBLE);
         if(input==null){selectedInputs.addAll(s.inputs);selectedNames.addAll(s.names);input=Uri.parse(selectedInputs.get(0));folder=s.folder;destinationPlan.reset(selectedInputs.size(),null);destinationPlan.restore(s.individualOrigins,s.individualFolders,s.applyAllDestinations,s.allOrigin,s.allFolder);sourceName=selectedNames.get(0);selectedVideoIndex=0;updateDestinationPanel();refreshLabels();inspectInput();}
+    }
+    private void renderSizeReport(ConversionService.State s){
+        boolean show=!s.sizeReport.isEmpty();sizeReportPanel.setVisibility(show?View.VISIBLE:View.GONE);
+        sizeReportTitle.setText(s.running?"RESOCONTO PARZIALE":"RESOCONTO CONVERSIONE");
+        if(show&&!s.sizeReport.contentEquals(sizeReport.getText()))sizeReport.setText(s.sizeReport);
     }
     private void renderConversionDashboard(ConversionService.State s){
         int pending=Math.max(0,s.batchTotal-(s.running?Math.max(s.batchIndex,s.succeeded+s.failed):s.succeeded+s.failed));

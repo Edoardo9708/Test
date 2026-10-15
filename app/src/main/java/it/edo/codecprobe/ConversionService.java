@@ -112,7 +112,7 @@ public final class ConversionService extends Service {
         synchronized(LOCK){state.individualOrigins=intent.getBooleanArrayExtra("individualOrigins");if(state.individualOrigins==null)state.individualOrigins=new boolean[queueInputs.size()];
             ArrayList<String> requestedChoices=intent.getStringArrayListExtra("individualFolders");state.individualFolders=requestedChoices==null?new ArrayList<>(queueFolders):new ArrayList<>(requestedChoices);
             state.applyAllDestinations=intent.getBooleanExtra("applyAllDestinations",false);state.allOrigin=intent.getBooleanExtra("allOrigin",true);state.allFolder=intent.getStringExtra("allFolder");
-            state.startedAt=SystemClock.elapsedRealtime();state.endedAt=0;state.requestedCrf=crf;state.requestedCpu=cpu;state.requestedPreset=AppSettings.PRESETS[Math.max(0,Math.min(8,preset))];state.originMode=intent.getBooleanExtra("originMode",false);state.inputs=queueInputs;state.names=queueNames;state.folders=queueFolders;state.results.clear();state.sizeReport="";state.batchIndex=0;state.batchTotal=queueInputs.size();state.succeeded=0;state.failed=0;state.filePercent=0;state.hasSession=true;state.running=true;state.bframeCount=-1;state.lookaheadCount=-1;state.cuTree=-1;state.aqMode=-1;state.aqStrength=-1;state.percent=0;state.doneFrames=0;state.totalFrames=-1;state.done=0;state.total=0;state.result=null;state.log="";state.message="Analisi video…";state.source=source;state.input=input;state.folder=folder;}
+            state.startedAt=SystemClock.elapsedRealtime();state.endedAt=0;state.requestedCrf=crf;state.requestedCpu=cpu;state.requestedPreset=AppSettings.PRESETS[Math.max(0,Math.min(8,preset))];state.originMode=intent.getBooleanExtra("originMode",false);state.inputs=queueInputs;state.names=queueNames;state.folders=queueFolders;state.results.clear();state.sizeReport=CompressionSummary.render(sizeResults,true);state.batchIndex=0;state.batchTotal=queueInputs.size();state.succeeded=0;state.failed=0;state.filePercent=0;state.hasSession=true;state.running=true;state.bframeCount=-1;state.lookaheadCount=-1;state.cuTree=-1;state.aqMode=-1;state.aqStrength=-1;state.percent=0;state.doneFrames=0;state.totalFrames=-1;state.done=0;state.total=0;state.result=null;state.log="";state.message="Analisi video…";state.source=source;state.input=input;state.folder=folder;}
         try {
             int type=Build.VERSION.SDK_INT>=35?ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROCESSING:ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC;
             startForeground(NOTICE,notification(snapshot()),type);
@@ -129,7 +129,8 @@ public final class ConversionService extends Service {
                 writeBatch(batchLog,"*** INIZIO CODA · v"+BuildConfig.VERSION_NAME+" ***\nVideo selezionati: "+queueInputs.size()+"\n1. Analisi del file e metadati\n2. Codifica x265 CRF e verifica completa\n3. Salvataggio in un nuovo file; poi video successivo\nParametri: CRF="+crf+" preset="+AppSettings.PRESETS[Math.max(0,Math.min(8,preset))]+" CPU="+cpu+" B-frame="+bframes+" Lookahead="+lookahead+"\nLa percentuale totale assegna lo stesso peso a ogni video; non è una stima del tempo.");
                 for(int index=0;index<queueInputs.size()&&!cancel.get();index++){
                     final int current=index;
-                    synchronized(LOCK){state.batchIndex=index+1;state.filePercent=0;state.percent=BatchProgress.percent(index,0,queueInputs.size());state.doneFrames=0;state.totalFrames=-1;state.done=0;state.total=0;state.source=queueNames.get(index);state.input=Uri.parse(queueInputs.get(index));state.folder=Uri.parse(queueFolders.get(index));state.message="Analisi video "+(index+1)+" / "+queueInputs.size();state.bframeCount=-1;}
+                    sizeResults.set(index,new CompressionSummary.Item(index+1,queueNames.get(index),CompressionSummary.Status.IN_PROGRESS,-1,-1));
+                    synchronized(LOCK){state.sizeReport=CompressionSummary.render(sizeResults,true);state.batchIndex=index+1;state.filePercent=0;state.percent=BatchProgress.percent(index,0,queueInputs.size());state.doneFrames=0;state.totalFrames=-1;state.done=0;state.total=0;state.source=queueNames.get(index);state.input=Uri.parse(queueInputs.get(index));state.folder=Uri.parse(queueFolders.get(index));state.message="Analisi video "+(index+1)+" / "+queueInputs.size();state.bframeCount=-1;}
                     writeBatch(batchLog,"\n*** INIZIO VIDEO "+(index+1)+" / "+queueInputs.size()+" ***\nNome: "+queueNames.get(index)+"\nInput: "+queueInputs.get(index)+"\nCartella: "+queueFolders.get(index)+(destinationNotes!=null&&destinationNotes.size()==queueInputs.size()?"\nScelta destinazione: "+destinationNotes.get(index):""));publish(true);
                     try{
                         long originalBytes=readFileSize(Uri.parse(queueInputs.get(index)));
@@ -147,13 +148,13 @@ public final class ConversionService extends Service {
                         Uri result=converter.convert(Uri.parse(queueInputs.get(index)),Uri.parse(queueFolders.get(index)),crf,queueNames.get(index),preset,cpu,bframes,lookahead);
                         long outputBytes=readFileSize(result);
                         sizeResults.set(index,new CompressionSummary.Item(index+1,queueNames.get(index),CompressionSummary.Status.COMPLETE,originalBytes,outputBytes));
-                        synchronized(LOCK){state.result=result;state.results.add(result);state.succeeded++;}
+                        synchronized(LOCK){state.result=result;state.results.add(result);state.succeeded++;state.sizeReport=CompressionSummary.render(sizeResults,true);}
                         writeBatch(batchLog,"*** RISULTATO DIMENSIONI ***\n"+CompressionSummary.row(sizeResults.get(index))+"\nInput byte: "+originalBytes+"\nOutput byte: "+outputBytes);
                         writeBatch(batchLog,"*** VIDEO COMPLETATO ***\nOutput: "+result);
                     }catch(Exception e){
-                        if(cancel.get()){sizeResults.set(index,new CompressionSummary.Item(index+1,queueNames.get(index),CompressionSummary.Status.CANCELLED,-1,-1));writeBatch(batchLog,"*** VIDEO INTERROTTO ***\n"+e);break;}
+                        if(cancel.get()){sizeResults.set(index,new CompressionSummary.Item(index+1,queueNames.get(index),CompressionSummary.Status.CANCELLED,-1,-1));synchronized(LOCK){state.sizeReport=CompressionSummary.render(sizeResults,true);}writeBatch(batchLog,"*** VIDEO INTERROTTO ***\n"+e);break;}
                         sizeResults.set(index,new CompressionSummary.Item(index+1,queueNames.get(index),CompressionSummary.Status.FAILED,-1,-1));
-                        synchronized(LOCK){state.failed++;}
+                        synchronized(LOCK){state.failed++;state.sizeReport=CompressionSummary.render(sizeResults,true);}
                         writeBatch(batchLog,"*** VIDEO FALLITO · CONTINUO CON IL SUCCESSIVO ***\nNome: "+queueNames.get(index)+"\nErrore: "+e);
                     }
                     synchronized(LOCK){state.percent=BatchProgress.percent(index+1,0,queueInputs.size());if(sizeResults.get(index).status==CompressionSummary.Status.COMPLETE)state.filePercent=100;}batchLog.flush();publish(true);
