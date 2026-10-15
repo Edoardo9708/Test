@@ -68,7 +68,7 @@ jobs:
           python3 scripts/verify-hdr-smoke.py
           java -cp yuv-test it.edo.codecprobe.HdrNativeMetadataCheck
           ffmpeg -v error -xerror -i hdr10-preserved.hevc -f null -
-          ffmpeg -v error -i hdr10-preserved.hevc -c copy hdr10-preserved.mp4
+          ffmpeg -v error -i hdr10-preserved.hevc -c copy -avoid_negative_ts make_zero hdr10-preserved.mp4
           python3 scripts/verify-hdr-metadata.py
           java -cp yuv-test it.edo.codecprobe.HdrHeaderCheck hdr10-16.hevc 16
           java -cp yuv-test it.edo.codecprobe.HdrHeaderCheck hdr10-18.hevc 18
