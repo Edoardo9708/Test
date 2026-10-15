@@ -80,7 +80,7 @@ final class OriginDirectoryPanel {
                 }
                 String displayParent=parent;
                 if(displayParent==null&&destination!=null&&SourceFolder.EXTERNAL.equals(destination.getAuthority()))try{displayParent=SourceFolder.documentId(activity,destination);}catch(Exception ignored){}
-                String key=FolderPaths.groupKey(parent,displayParent,destination!=null?"uri:"+destination:!origin?"chosen:"+requested:"unknown:"+sources.get(i));
+                String key=FolderPaths.groupKey(parent,displayParent,destination!=null?"uri:"+destination:!origin?(requested==null||requested.isEmpty()?"missing:"+sources.get(i):"chosen:"+requested):"unknown:"+sources.get(i));
                 Group group=groups.get(key);
                 if(group==null){group=new Group();group.parent=parent;group.destination=destination;group.manual=manual;group.origin=origin;group.requestedFolder=requested;group.label=displayParent!=null?displayParent:destination!=null?Uri.decode(destination.getLastPathSegment()):!origin?(requested==null||requested.isEmpty()?"Cartella da scegliere":Uri.decode(Uri.parse(requested).getLastPathSegment())):"Origine non rilevata · "+labels.get(i);groups.put(key,group);}
                 group.manual|=manual;group.files.add(i);destinations.set(i,destination==null?null:destination.toString());
