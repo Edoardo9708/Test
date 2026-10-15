@@ -43,6 +43,8 @@ public final class MainActivity extends Activity {
     private final java.util.List<Button> crfButtons=new java.util.ArrayList<>();
     private long settingsRevision;
     private Switch bframeSwitch,lookaheadSwitch;
+    private CheckBox keepScreenOn;
+    private boolean conversionScreenVisible;
     private TextView temporalHelp,effectiveTemporal,aqModeLabel,aqStrengthLabel,cuTreeLabel;
     private static native int[] nativePresetSettings(int preset,boolean bframes,boolean lookahead);
     private boolean notificationsRequested;
@@ -141,6 +143,10 @@ public final class MainActivity extends Activity {
         LinearLayout work=card(page,"03  CONVERSIONE");
         convert=button(work,"Converti e salva MP4");styleButton(convert,true);
         stop=button(work,"Annulla conversione");stop.setVisibility(View.GONE);
+        keepScreenOn=new CheckBox(this);keepScreenOn.setText("Mantieni schermo acceso");keepScreenOn.setTextColor(ink);keepScreenOn.setTextSize(17);keepScreenOn.setButtonTintList(ColorStateList.valueOf(accent));keepScreenOn.setMinHeight(dp(48));LinearLayout screenRow=new LinearLayout(this);screenRow.setGravity(Gravity.CENTER_VERTICAL);work.addView(screenRow);screenRow.addView(keepScreenOn,new LinearLayout.LayoutParams(0,-2,1));
+        keepScreenOn.setChecked(defaults.keepScreenOn);
+        keepScreenOn.setOnCheckedChangeListener((v,checked)->{AppSettings.setKeepScreenOn(this,checked);updateScreenAwake();});
+        infoButton(screenRow,"Mantieni schermo acceso","Evita lo spegnimento automatico mentre la conversione è in corso e questa schermata è visibile. Si disattiva al termine o uscendo dalla schermata. Puoi spegnere lo schermo con il tasto del telefono. La scelta viene salvata per gli avvii successivi; non garantisce una velocità di codifica maggiore.");
         percentLabel=text(work,"0%",28);percentLabel.setTypeface(null,Typeface.BOLD);
         progress=new ProgressBar(this,null,android.R.attr.progressBarStyleHorizontal);progress.setMax(100);
         progress.setProgressTintList(ColorStateList.valueOf(accent));progress.setProgressBackgroundTintList(ColorStateList.valueOf(border));
@@ -309,9 +315,14 @@ public final class MainActivity extends Activity {
         folderLabel.setText(folder==null?"Nessuna cartella selezionata":Uri.decode(folder.getLastPathSegment()));
     }
     private void setBusy(boolean value){
-        busy=value;pickVideo.setEnabled(!value);pickFolder.setEnabled(!value);crfSlider.setEnabled(!value);presetSlider.setEnabled(!value);for(Button b:crfButtons)b.setEnabled(!value);cpuMode.setEnabled(!value);bframeSwitch.setEnabled(!value);lookaheadSwitch.setEnabled(!value);
+        busy=value;updateScreenAwake();pickVideo.setEnabled(!value);pickFolder.setEnabled(!value);crfSlider.setEnabled(!value);presetSlider.setEnabled(!value);for(Button b:crfButtons)b.setEnabled(!value);cpuMode.setEnabled(!value);bframeSwitch.setEnabled(!value);lookaheadSwitch.setEnabled(!value);
         convert.setEnabled(!value);saveLog.setEnabled(!value);saveMetadata.setEnabled(!value);stop.setVisibility(value?View.VISIBLE:View.GONE);stop.setEnabled(value);
 
+    }
+    private void updateScreenAwake(){
+        boolean enabled=conversionScreenVisible&&busy&&keepScreenOn!=null&&keepScreenOn.isChecked();
+        if(enabled)getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        else getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
     }
     private void startConversion(){
         if(input==null||folder==null){toast("Seleziona il video e la cartella di destinazione");return;}
@@ -461,10 +472,11 @@ public final class MainActivity extends Activity {
         if(resultUri!=null)b.putString("result",resultUri.toString());
         b.putString("sourceName",sourceName);b.putString("pendingLog",pendingLog);b.putInt("crfValue",selectedCrf());b.putInt("presetValue",presetSlider.getProgress());b.putInt("cpu",cpuMode.getSelectedItemPosition());b.putBoolean("bframes",bframeSwitch.isChecked());b.putBoolean("lookahead",lookaheadSwitch.isChecked());
     }
-    @Override protected void onResume(){super.onResume();AppSettings saved=new AppSettings(this);if(saved.revision!=settingsRevision&&!ConversionService.snapshot().running)applyDefaults(saved);ConversionService.uiVisible=true;previousWall=0;monitor.post(sample);ConversionService.observe(sessionObserver);renderSession();}
-    @Override protected void onPause(){ConversionService.uiVisible=false;monitor.removeCallbacks(sample);ConversionService.detach(sessionObserver);super.onPause();}
-    @Override protected void onDestroy(){destroyed=true;ConversionService.detach(sessionObserver);worker.shutdown();super.onDestroy();}
+    @Override protected void onResume(){super.onResume();conversionScreenVisible=true;AppSettings saved=new AppSettings(this);keepScreenOn.setChecked(saved.keepScreenOn);if(saved.revision!=settingsRevision&&!ConversionService.snapshot().running)applyDefaults(saved);ConversionService.uiVisible=true;previousWall=0;monitor.post(sample);ConversionService.observe(sessionObserver);renderSession();updateScreenAwake();}
+    @Override protected void onPause(){conversionScreenVisible=false;updateScreenAwake();ConversionService.uiVisible=false;monitor.removeCallbacks(sample);ConversionService.detach(sessionObserver);super.onPause();}
+    @Override protected void onDestroy(){conversionScreenVisible=false;updateScreenAwake();destroyed=true;ConversionService.detach(sessionObserver);worker.shutdown();super.onDestroy();}
 }
+
 
 
 

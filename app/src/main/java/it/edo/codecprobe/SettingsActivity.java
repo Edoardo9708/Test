@@ -18,6 +18,7 @@ public final class SettingsActivity extends Activity {
     private SeekBar preset,crf;
     private RadioGroup cpu,position;
     private Switch bframes,lookahead;
+    private CheckBox keepScreenOn;
     private EditText addition;
     private TextView presetValue,crfValue,preview;
     @Override public void onCreate(Bundle state){
@@ -42,14 +43,15 @@ public final class SettingsActivity extends Activity {
         label("CPU",20);cpu=radios("Limited","Auto","Max");
         bframes=toggle("B-frame");lookahead=toggle("Lookahead");
         label("AQ mode, AQ strength e CU-tree seguono il preset e i selettori.",13);
-        AppSettings saved=new AppSettings(this);preset.setProgress(saved.preset);crf.setProgress(saved.crf);cpu.check(cpu.getChildAt(saved.cpu).getId());bframes.setChecked(saved.bframes);lookahead.setChecked(saved.lookahead);addition.setText(saved.addition);position.check(position.getChildAt(saved.prefix?0:1).getId());
+        keepScreenOn=new CheckBox(this);keepScreenOn.setText("Mantieni schermo acceso");keepScreenOn.setTextColor(ink);keepScreenOn.setTextSize(17);keepScreenOn.setMinHeight(dp(48));keepScreenOn.setButtonTintList(android.content.res.ColorStateList.valueOf(accent));page.addView(keepScreenOn);
+        AppSettings saved=new AppSettings(this);keepScreenOn.setChecked(saved.keepScreenOn);preset.setProgress(saved.preset);crf.setProgress(saved.crf);cpu.check(cpu.getChildAt(saved.cpu).getId());bframes.setChecked(saved.bframes);lookahead.setChecked(saved.lookahead);addition.setText(saved.addition);position.check(position.getChildAt(saved.prefix?0:1).getId());
         presetValue.setText("Preset · "+AppSettings.PRESETS[saved.preset]);crfValue.setText("CRF · "+saved.crf);
         addition.addTextChangedListener(new TextWatcher(){public void beforeTextChanged(CharSequence s,int a,int c,int f){}public void onTextChanged(CharSequence s,int a,int b,int c){updatePreview();}public void afterTextChanged(Editable e){}});
         position.setOnCheckedChangeListener((g,id)->updatePreview());updatePreview();
         button("Usa la configurazione della schermata conversione",()->{
             preset.setProgress(getIntent().getIntExtra("preset",saved.preset));crf.setProgress(getIntent().getIntExtra("crf",saved.crf));int choice=Math.max(0,Math.min(2,getIntent().getIntExtra("cpu",saved.cpu)));cpu.check(cpu.getChildAt(choice).getId());bframes.setChecked(getIntent().getBooleanExtra("bframes",saved.bframes));lookahead.setChecked(getIntent().getBooleanExtra("lookahead",saved.lookahead));
         });
-        button("Salva impostazioni",()->{AppSettings.save(this,crf.getProgress(),preset.getProgress(),selected(cpu),bframes.isChecked(),lookahead.isChecked(),addition.getText().toString(),selected(position)==0);Toast.makeText(this,"Valori predefiniti salvati",Toast.LENGTH_SHORT).show();finish();});
+        button("Salva impostazioni",()->{AppSettings.setKeepScreenOn(this,keepScreenOn.isChecked());AppSettings.save(this,crf.getProgress(),preset.getProgress(),selected(cpu),bframes.isChecked(),lookahead.isChecked(),addition.getText().toString(),selected(position)==0);Toast.makeText(this,"Valori predefiniti salvati",Toast.LENGTH_SHORT).show();finish();});
         setContentView(scroll);page.requestApplyInsets();
         if(android.os.Build.VERSION.SDK_INT>=30)getWindow().getInsetsController().setSystemBarsAppearance(dark?0:WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS|WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS,WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS|WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS);
         else getWindow().getDecorView().setSystemUiVisibility(dark?0:View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR|View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR);
@@ -63,3 +65,4 @@ public final class SettingsActivity extends Activity {
     private Switch toggle(String s){Switch t=new Switch(this);t.setText(s);t.setTextSize(20);t.setTextColor(ink);t.setButtonTintList(android.content.res.ColorStateList.valueOf(accent));t.setPadding(0,dp(12),0,dp(12));page.addView(t);return t;}
     private SeekBar slider(int max,Runnable update){SeekBar s=new SeekBar(this);s.setMax(max);s.setProgressTintList(android.content.res.ColorStateList.valueOf(accent));s.setThumbTintList(android.content.res.ColorStateList.valueOf(accent));s.setMinHeight(dp(48));page.addView(s,new LinearLayout.LayoutParams(-1,-2));s.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener(){public void onProgressChanged(SeekBar b,int n,boolean user){update.run();}public void onStartTrackingTouch(SeekBar b){}public void onStopTrackingTouch(SeekBar b){}});return s;}
 }
+
