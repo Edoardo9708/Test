@@ -26,6 +26,9 @@ import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public final class MainActivity extends Activity {
+    static final String CONFIRM_CANCEL="it.edo.codecprobe.CONFIRM_CANCEL";
+    static final String CANCEL_SESSION="cancelSessionStartedAt";
+    private android.app.AlertDialog cancelConfirmation;
     private static final int PICK_VIDEO=1,PICK_FOLDER=2,SAVE_LOG=3,PICK_ORIGIN=7,PICK_ALL_FOLDER=10;
     private final ExecutorService worker=Executors.newSingleThreadExecutor();
     private final AtomicBoolean cancelled=new AtomicBoolean();
@@ -291,7 +294,7 @@ public final class MainActivity extends Activity {
         });
         pickFolder.setOnClickListener(v->{if(selectedInputs.isEmpty()){toast("Seleziona prima i video");return;}launchFolderPicker(PICK_FOLDER,selectedInputs.get(selectedVideoIndex));});
         convert.setOnClickListener(v->startConversion());
-        stop.setOnClickListener(v->{if(hdrTesting){cancelled.set(true);status.setText("Annullamento prova HDR…");}else startService(new Intent(this,ConversionService.class).setAction(ConversionService.CANCEL));stop.setEnabled(false);});
+        stop.setOnClickListener(v->confirmCancellation(-1));
         openVideo.setOnClickListener(v->{
             ConversionService.State current=ConversionService.snapshot();
             if(current.results.size()>1){String[] labels=new String[current.results.size()];for(int n=0;n<labels.length;n++)labels[n]=displayName(current.results.get(n));new android.app.AlertDialog.Builder(this).setTitle("Video completati").setItems(labels,(d,n)->openResult(current.results.get(n))).show();}
@@ -299,6 +302,41 @@ public final class MainActivity extends Activity {
         });
         saveLog.setOnClickListener(v->exportLog());
         saveMetadata.setOnClickListener(v->exportMetadata());
+        if(CONFIRM_CANCEL.equals(getIntent().getAction()))monitor.post(()->handleCancellationIntent(getIntent()));
+    }
+    @Override protected void onNewIntent(Intent intent){
+        super.onNewIntent(intent);setIntent(intent);handleCancellationIntent(intent);
+    }
+    private void handleCancellationIntent(Intent intent){
+        if(intent==null||!CONFIRM_CANCEL.equals(intent.getAction()))return;
+        long expected=intent.getLongExtra(CANCEL_SESSION,-1);intent.setAction(null);intent.removeExtra(CANCEL_SESSION);
+        if(expected<0)return;
+        if(metadataLoading)stopMetadataLoading();
+        confirmCancellation(expected);
+    }
+    private void confirmCancellation(long expectedSession){
+        if(destroyed||cancelConfirmation!=null&&cancelConfirmation.isShowing())return;
+        final boolean hdr=hdrTesting;final ConversionService.State current=ConversionService.snapshot();
+        if(expectedSession>=0&&(!current.running||current.startedAt!=expectedSession)){toast("Questa richiesta non riguarda più una conversione attiva.");return;}
+        if(!hdr&&!current.running)return;
+        final long session=current.startedAt;
+        cancelConfirmation=new android.app.AlertDialog.Builder(this)
+            .setTitle(hdr?"Annullare la prova HDR?":"Annullare la conversione?")
+            .setMessage(hdr?"Vuoi interrompere la prova HDR in corso?":"Verranno interrotti il file attuale e i video ancora in attesa. I video già completati restano salvati.\n\nLa conversione continua finché non confermi.")
+            .setNegativeButton("Continua",null)
+            .setPositiveButton("Sì, annulla",(dialog,which)->{
+                if(hdr){
+                    if(!hdrTesting)return;cancelled.set(true);status.setText("Annullamento prova HDR…");
+                }else{
+                    ConversionService.State active=ConversionService.snapshot();
+                    if(!active.running||active.startedAt!=session){toast("La conversione è già terminata.");return;}
+                    startService(new Intent(this,ConversionService.class).setAction(ConversionService.CANCEL).putExtra(CANCEL_SESSION,session));
+                    status.setText("Annullamento della coda…");
+                }
+                FolderPickerActivity.record(this,"*** ANNULLAMENTO CONFERMATO ***\nTipo: "+(hdr?"prova HDR":"coda conversione"));
+                stop.setEnabled(false);
+            }).create();
+        cancelConfirmation.setOnDismissListener(dialog->cancelConfirmation=null);cancelConfirmation.show();
     }
     private TextView parameterRow(LinearLayout parent,String title,String help){
         LinearLayout row=new LinearLayout(this);row.setGravity(Gravity.CENTER_VERTICAL);parent.addView(row);
@@ -766,5 +804,5 @@ public final class MainActivity extends Activity {
     }
     @Override protected void onResume(){super.onResume();conversionScreenVisible=true;AppSettings saved=new AppSettings(this);keepScreenOn.setChecked(saved.keepScreenOn);if(!java.util.Objects.equals(loadedDefault,saved.defaultFolder)&&!ConversionService.snapshot().running){loadedDefault=saved.defaultFolder;if(loadedDefault!=null){folder=Uri.parse(loadedDefault);}refreshLabels();}if(saved.revision!=settingsRevision&&!ConversionService.snapshot().running)applyDefaults(saved);ConversionService.uiVisible=true;previousWall=0;monitor.post(sample);ConversionService.observe(sessionObserver);renderSession();if(originPanel!=null&&!ConversionService.snapshot().running)originPanel.refresh();updateScreenAwake();}
     @Override protected void onPause(){conversionScreenVisible=false;updateScreenAwake();ConversionService.uiVisible=false;monitor.removeCallbacks(sample);ConversionService.detach(sessionObserver);super.onPause();}
-    @Override protected void onDestroy(){cancelled.set(true);conversionScreenVisible=false;updateScreenAwake();destroyed=true;if(originPanel!=null)originPanel.close();ConversionService.detach(sessionObserver);++metadataGeneration;++transitionGeneration;if(metadataDialog!=null){metadataDialog.dismiss();metadataDialog=null;}metadataWorker.shutdownNow();systemWorker.shutdownNow();worker.shutdown();super.onDestroy();}
+    @Override protected void onDestroy(){cancelled.set(true);conversionScreenVisible=false;updateScreenAwake();destroyed=true;if(originPanel!=null)originPanel.close();ConversionService.detach(sessionObserver);++metadataGeneration;++transitionGeneration;if(metadataDialog!=null){metadataDialog.dismiss();metadataDialog=null;}if(cancelConfirmation!=null){cancelConfirmation.dismiss();cancelConfirmation=null;}metadataWorker.shutdownNow();systemWorker.shutdownNow();worker.shutdown();super.onDestroy();}
 }

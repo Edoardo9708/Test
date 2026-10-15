@@ -83,14 +83,15 @@ public final class ConversionService extends Service {
             .setContentIntent(open).setOnlyAlertOnce(true).setOngoing(s.running);
         if(s.running){
             n.setProgress(100,s.filePercent,false);
-            PendingIntent stop=PendingIntent.getService(this,1,new Intent(this,ConversionService.class).setAction(CANCEL),PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
-            n.addAction(new Notification.Action.Builder(null,"Annulla",stop).build());
+            PendingIntent stop=PendingIntent.getActivity(this,1,new Intent(this,MainActivity.class).setAction(MainActivity.CONFIRM_CANCEL).putExtra(MainActivity.CANCEL_SESSION,s.startedAt).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP|Intent.FLAG_ACTIVITY_CLEAR_TOP),PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
+            n.addAction(new Notification.Action.Builder(null,"Annulla…",stop).build());
         }else n.setAutoCancel(true);
         return n.build();
     }
     @Override public int onStartCommand(Intent intent,int flags,int startId){
         if(intent==null){stopSelf();return START_NOT_STICKY;}
         if(CANCEL.equals(intent.getAction())) {
+            long expected=intent.getLongExtra(MainActivity.CANCEL_SESSION,-1);State current=snapshot();if(expected>=0&&(!current.running||current.startedAt!=expected))return START_NOT_STICKY;
             cancel.set(true);
             synchronized(LOCK){if(state.running)state.message="Annullamento della chiamata corrente…";}
             publish(true);if(!snapshot().running)stopSelf();return START_NOT_STICKY;
