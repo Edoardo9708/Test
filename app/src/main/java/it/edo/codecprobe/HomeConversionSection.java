@@ -38,6 +38,7 @@ final class HomeConversionSection {
     TextView sizeReportTitle;
     TextView sizeReport;
     LinearLayout sizeReportPanel;
+    LinearLayout failureReport;
     ProgressBar progress;
 
     HomeConversionSection(AppUi ui, LinearLayout work, AppSettings defaults, Bundle state) {
@@ -124,6 +125,10 @@ final class HomeConversionSection {
         sizeReport = ui.text(sizeReportPanel, "", 16);
         sizeReport.setTextIsSelectable(true);
         sizeReport.setLineSpacing(ui.dp(4), 1);
+        failureReport = new LinearLayout(ui.activity);
+        failureReport.setOrientation(LinearLayout.VERTICAL);
+        sizeReportPanel.addView(failureReport, new LinearLayout.LayoutParams(-1,-2));
+        failureReport.setVisibility(View.GONE);
         sizeReportPanel.setVisibility(View.GONE);
     }
 }

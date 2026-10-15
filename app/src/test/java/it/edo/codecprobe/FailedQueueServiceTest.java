@@ -31,6 +31,9 @@ public class FailedQueueServiceTest {
             ((ExecutorService)field.get(service)).submit(()->{}).get(5,TimeUnit.SECONDS);
             Shadows.shadowOf(Looper.getMainLooper()).idle();
             ConversionService.State state=ConversionService.snapshot();assertFalse(state.running);assertEquals(1,state.ignored);assertEquals(1,state.failed);assertEquals(0,state.notSaved);
+            assertEquals(1,state.failures.size());assertEquals(2,state.failures.get(0).number);
+            assertTrue(state.failures.get(0).details.contains("IOException"));assertFalse(state.failures.get(0).message.isEmpty());
+            assertTrue(java.nio.file.Files.readString(ConversionService.batchLogFile(service).toPath()).contains(state.failures.get(0).copyText()));
             Intent retry=BatchRetry.load(service);assertNotNull(retry);assertEquals(List.of("content://input/1"),retry.getStringArrayListExtra("inputs"));
             assertEquals(List.of("content://dirs/tree/one"),retry.getStringArrayListExtra("folders"));
             assertEquals(List.of("one.mp4"),retry.getStringArrayListExtra("requestedOutputNames"));

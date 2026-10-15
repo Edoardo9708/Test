@@ -18,11 +18,13 @@ final class HomeConversion {
     android.app.AlertDialog cancelConfirmation;
     final HomeOutputCheck outputCheck;
     final HomeRetry retry;
+    final HomeFailureReport failures;
 
     HomeConversion(HomeController home) {
         this.home = home;
         outputCheck = new HomeOutputCheck(home);
         retry = new HomeRetry(home);
+        failures = new HomeFailureReport(home);
     }
     final Runnable sessionObserver = this::renderSession;
 
@@ -187,6 +189,7 @@ final class HomeConversion {
     }
 
     void renderSizeReport(ConversionService.State s) {
+        failures.render(s);
         boolean show = !s.sizeReport.isEmpty();
         home.screen.conversion.sizeReportPanel.setVisibility(show ? View.VISIBLE : View.GONE);
         home.screen.conversion.sizeReportTitle.setText(s.running ? "RESOCONTO PARZIALE" : "RESOCONTO CONVERSIONE");

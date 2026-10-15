@@ -72,6 +72,7 @@ public class HomeRenderTest {
                 .putExtra("crf",23).putExtra("preset",5).putExtra("onlySmaller",true);
             ConversionService.rememberFailures(home.activity,BatchRetry.select(task,List.of(1)));
             ConversionService.State state=new ConversionService.State();state.batchIndex=3;state.batchTotal=3;state.succeeded=1;state.failed=1;state.notSaved=1;state.onlySmaller=true;state.filePercent=100;state.source="Video_di_prova_3.mp4";state.requestedCrf=23;state.requestedPreset="medium";state.requestedCpu=1;state.message="Coda terminata · 1 salvato · 1 fallito · 1 senza risparmio";
+            state.failures.add(new ConversionFailure(2,"Video_di_prova_2.mp4","Analisi del file",new java.io.IOException("Traccia audio non supportata")));
             state.sizeReport=CompressionSummary.render(List.of(
                 new CompressionSummary.Item(1,"Video_di_prova_1.mp4",CompressionSummary.Status.COMPLETE,10000000,5000000),
                 new CompressionSummary.Item(2,"Video_di_prova_2.mp4",CompressionSummary.Status.FAILED,-1,-1),

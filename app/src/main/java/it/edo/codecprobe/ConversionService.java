@@ -49,6 +49,7 @@ public final class ConversionService extends Service {
         int percent,filePercent,batchIndex,batchTotal,succeeded,failed,ignored,notSaved,doneFrames,totalFrames=-1;
         ArrayList<String> inputs=new ArrayList<>(),names=new ArrayList<>(),folders=new ArrayList<>();
         ArrayList<Uri> results=new ArrayList<>();
+        ArrayList<ConversionFailure> failures=new ArrayList<>();
         int bframeCount=-1,lookaheadCount=-1,cuTree=-1,aqMode=-1,aqStrength=-1;
         long done,total,startedAt,endedAt;
         int requestedCrf=-1,requestedCpu=-1;
@@ -56,7 +57,7 @@ public final class ConversionService extends Service {
         String message="",log="",source="",sizeReport="";
         Uri result,input,folder;
         State(){}
-        State(State s){startedAt=s.startedAt;endedAt=s.endedAt;requestedCrf=s.requestedCrf;requestedCpu=s.requestedCpu;requestedPreset=s.requestedPreset;sizeReport=s.sizeReport;applyAllDestinations=s.applyAllDestinations;allOrigin=s.allOrigin;allFolder=s.allFolder;individualOrigins=s.individualOrigins.clone();individualFolders=new ArrayList<>(s.individualFolders);originMode=s.originMode;inputs=new ArrayList<>(s.inputs);names=new ArrayList<>(s.names);folders=new ArrayList<>(s.folders);results=new ArrayList<>(s.results);filePercent=s.filePercent;batchIndex=s.batchIndex;batchTotal=s.batchTotal;succeeded=s.succeeded;failed=s.failed;ignored=s.ignored;notSaved=s.notSaved;onlySmaller=s.onlySmaller;hasSession=s.hasSession;running=s.running;bframeCount=s.bframeCount;lookaheadCount=s.lookaheadCount;cuTree=s.cuTree;aqMode=s.aqMode;aqStrength=s.aqStrength;percent=s.percent;doneFrames=s.doneFrames;totalFrames=s.totalFrames;done=s.done;total=s.total;message=s.message;log=s.log;source=s.source;result=s.result;input=s.input;folder=s.folder;}
+        State(State s){failures=new ArrayList<>(s.failures);startedAt=s.startedAt;endedAt=s.endedAt;requestedCrf=s.requestedCrf;requestedCpu=s.requestedCpu;requestedPreset=s.requestedPreset;sizeReport=s.sizeReport;applyAllDestinations=s.applyAllDestinations;allOrigin=s.allOrigin;allFolder=s.allFolder;individualOrigins=s.individualOrigins.clone();individualFolders=new ArrayList<>(s.individualFolders);originMode=s.originMode;inputs=new ArrayList<>(s.inputs);names=new ArrayList<>(s.names);folders=new ArrayList<>(s.folders);results=new ArrayList<>(s.results);filePercent=s.filePercent;batchIndex=s.batchIndex;batchTotal=s.batchTotal;succeeded=s.succeeded;failed=s.failed;ignored=s.ignored;notSaved=s.notSaved;onlySmaller=s.onlySmaller;hasSession=s.hasSession;running=s.running;bframeCount=s.bframeCount;lookaheadCount=s.lookaheadCount;cuTree=s.cuTree;aqMode=s.aqMode;aqStrength=s.aqStrength;percent=s.percent;doneFrames=s.doneFrames;totalFrames=s.totalFrames;done=s.done;total=s.total;message=s.message;log=s.log;source=s.source;result=s.result;input=s.input;folder=s.folder;}
     }
     static boolean clearLogsIfIdle(Runnable clear){synchronized(LOCK){if(state.running)return false;clear.run();state.log="";return true;}}
     static State snapshot(){synchronized(LOCK){return new State(state);}}
@@ -82,7 +83,7 @@ public final class ConversionService extends Service {
         channel.setDescription("Avanzamento e annullamento della conversione");
         getSystemService(NotificationManager.class).createNotificationChannel(channel);
     }
-    private void notifyState(State s){
+    private void notifyState(State s){failures=new ArrayList<>(s.failures);
         if(Build.VERSION.SDK_INT>=33&&checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)!=PackageManager.PERMISSION_GRANTED)return;
         getSystemService(NotificationManager.class).notify(NOTICE,notification(s));
     }
@@ -129,7 +130,7 @@ public final class ConversionService extends Service {
         synchronized(LOCK){state.individualOrigins=intent.getBooleanArrayExtra("individualOrigins");if(state.individualOrigins==null)state.individualOrigins=new boolean[queueInputs.size()];
             ArrayList<String> requestedChoices=intent.getStringArrayListExtra("individualFolders");state.individualFolders=requestedChoices==null?new ArrayList<>(queueFolders):new ArrayList<>(requestedChoices);
             state.applyAllDestinations=intent.getBooleanExtra("applyAllDestinations",false);state.allOrigin=intent.getBooleanExtra("allOrigin",true);state.allFolder=intent.getStringExtra("allFolder");
-            state.startedAt=SystemClock.elapsedRealtime();state.endedAt=0;state.requestedCrf=crf;state.requestedCpu=cpu;state.requestedPreset=AppSettings.PRESETS[Math.max(0,Math.min(8,preset))];state.originMode=intent.getBooleanExtra("originMode",false);state.inputs=queueInputs;state.names=queueNames;state.folders=queueFolders;state.results.clear();state.sizeReport=CompressionSummary.render(sizeResults,true);state.batchIndex=0;state.batchTotal=queueInputs.size();state.succeeded=0;state.failed=0;state.ignored=0;state.notSaved=0;state.onlySmaller=onlySmaller;state.filePercent=0;state.hasSession=true;state.running=true;state.bframeCount=-1;state.lookaheadCount=-1;state.cuTree=-1;state.aqMode=-1;state.aqStrength=-1;state.percent=0;state.doneFrames=0;state.totalFrames=-1;state.done=0;state.total=0;state.result=null;state.log="";state.message="Analisi video…";state.source=source;state.input=input;state.folder=folder;}
+            state.startedAt=SystemClock.elapsedRealtime();state.endedAt=0;state.requestedCrf=crf;state.requestedCpu=cpu;state.requestedPreset=AppSettings.PRESETS[Math.max(0,Math.min(8,preset))];state.originMode=intent.getBooleanExtra("originMode",false);state.inputs=queueInputs;state.names=queueNames;state.folders=queueFolders;state.results.clear();state.failures.clear();state.sizeReport=CompressionSummary.render(sizeResults,true);state.batchIndex=0;state.batchTotal=queueInputs.size();state.succeeded=0;state.failed=0;state.ignored=0;state.notSaved=0;state.onlySmaller=onlySmaller;state.filePercent=0;state.hasSession=true;state.running=true;state.bframeCount=-1;state.lookaheadCount=-1;state.cuTree=-1;state.aqMode=-1;state.aqStrength=-1;state.percent=0;state.doneFrames=0;state.totalFrames=-1;state.done=0;state.total=0;state.result=null;state.log="";state.message="Analisi video…";state.source=source;state.input=input;state.folder=folder;}
         try {
             int type=Build.VERSION.SDK_INT>=35?ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROCESSING:ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC;
             startForeground(NOTICE,notification(snapshot()),type);
@@ -188,8 +189,9 @@ public final class ConversionService extends Service {
                         sizeResults.set(index,new CompressionSummary.Item(index+1,queueNames.get(index),CompressionSummary.Status.FAILED,-1,-1));
                         failedIndices.add(index);rememberFailures(this,BatchRetry.select(originalRequest,failedIndices));
                         writeBatch(batchLog,"*** RIPROVA FALLITI AGGIORNATO ***\nVideo eleggibili: "+failedIndices.size()+" · parametri, cartelle e nomi originali conservati.");
-                        synchronized(LOCK){state.failed++;state.sizeReport=CompressionSummary.render(sizeResults,true);}
-                        writeBatch(batchLog,"*** VIDEO FALLITO · CONTINUO CON IL SUCCESSIVO ***\nNome: "+queueNames.get(index)+"\nErrore: "+e);
+                        ConversionFailure failure=new ConversionFailure(index+1,queueNames.get(index),snapshot().message,e);
+                        synchronized(LOCK){state.failures.add(failure);state.failed++;state.sizeReport=CompressionSummary.render(sizeResults,true);}
+                        writeBatch(batchLog,"*** VIDEO FALLITO · CONTINUO CON IL SUCCESSIVO ***\nNome: "+queueNames.get(index)+"\n"+failure.copyText());
                     }
                     synchronized(LOCK){state.percent=BatchProgress.percent(index+1,0,queueInputs.size());if(sizeResults.get(index).status==CompressionSummary.Status.COMPLETE)state.filePercent=100;}batchLog.flush();publish(true);
                 }
