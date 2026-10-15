@@ -11,9 +11,6 @@ import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.graphics.drawable.RippleDrawable;
-import android.text.InputType;
-import android.text.TextWatcher;
-import android.text.Editable;
 import java.util.Locale;
 import android.database.Cursor;
 import android.net.Uri;
@@ -54,7 +51,8 @@ public final class MainActivity extends Activity {
     private String loadedDefault;
     private boolean choosingOrigins;
     private String sourceName="video";
-    private Button pickVideo,pickFolder,convert,stop,saveLog,saveMetadata,openVideo,hdrTest,saveHdr;
+    private Button pickVideo,pickFolder,convert,stop,saveLog,saveMetadata,openVideo,hdrTest,saveHdr,clearLogs;
+    private boolean clearingLogs,exportingDiagnostics;
     private boolean hdrTesting;
     private TextView videoLabel,folderLabel,qualityHelp,status,logView;
     private Choice cpuMode;
@@ -168,14 +166,12 @@ public final class MainActivity extends Activity {
         presetValue=parameterRow(settings,"Preset","Il preset regola velocità e compressione. I preset lenti provano più alternative; osserva B-frame, lookahead e AQ mentre sposti lo slider.");
         presetSlider=new SeekBar(this);presetSlider.setMax(8);styleSlider(presetSlider);settings.addView(presetSlider,new LinearLayout.LayoutParams(-1,dp(48)));
         presetSlider.setProgress(state==null?defaults.preset:state.getInt("presetValue",defaults.preset));
-        qualityHelp=parameterRow(settings,"CRF","Valori da 0 a 51. Un numero più basso conserva generalmente più dettagli e produce file più grandi. CRF 0 non è lossless. I pulsanti 18, 23 e 28 selezionano i valori classici; ✎ permette di digitare un numero.");
+        qualityHelp=parameterRow(settings,"CRF","Valori da 0 a 51. Un numero più basso conserva generalmente più dettagli e produce file più grandi. CRF 0 non è lossless. Lo slider permette di scegliere ogni valore intero. I pulsanti 18, 23 e 28 selezionano i valori classici.");
         crfSlider=new SeekBar(this);crfSlider.setMax(51);styleSlider(crfSlider);settings.addView(crfSlider,new LinearLayout.LayoutParams(-1,dp(48)));
         crfSlider.setProgress(state==null?defaults.crf:state.getInt("crfValue",defaults.crf));
         crfSlider.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener(){public void onProgressChanged(SeekBar b,int n,boolean user){updateQualityHelp();}public void onStartTrackingTouch(SeekBar b){}public void onStopTrackingTouch(SeekBar b){}});
-        LinearLayout crfRow=new LinearLayout(this);settings.addView(crfRow);
-        for(int n:new int[]{18,23,28}){Button quick=new Button(this);quick.setText(Integer.toString(n));quick.setContentDescription("CRF "+n);styleButton(quick,false);quick.setOnClickListener(v->crfSlider.setProgress(n));crfRow.addView(quick,new LinearLayout.LayoutParams(0,-2,1));crfButtons.add(quick);}
-        Button manual=new Button(this);manual.setText("✎");manual.setContentDescription("Inserisci CRF manualmente");styleButton(manual,false);crfRow.addView(manual,new LinearLayout.LayoutParams(0,-2,1));crfButtons.add(manual);
-        manual.setOnClickListener(v->{EditText value=new EditText(this);value.setInputType(InputType.TYPE_CLASS_NUMBER);value.setText(Integer.toString(selectedCrf()));value.setSelectAllOnFocus(true);android.app.AlertDialog dialog=new android.app.AlertDialog.Builder(this).setTitle("CRF · 0–51").setView(value).setPositiveButton("Applica",null).setNegativeButton("Annulla",null).create();dialog.setOnShowListener(d->dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener(w->{try{int n=Integer.parseInt(value.getText().toString());if(n<0||n>51)throw new NumberFormatException();crfSlider.setProgress(n);dialog.dismiss();}catch(NumberFormatException e){value.setError("Inserisci un intero da 0 a 51");}}));dialog.show();});
+        LinearLayout crfRow=new LinearLayout(this);crfRow.setGravity(Gravity.CENTER);settings.addView(crfRow,new LinearLayout.LayoutParams(-1,-2));
+        for(int n:new int[]{18,23,28}){Button quick=new Button(this);quick.setText(Integer.toString(n));quick.setContentDescription("CRF "+n);styleButton(quick,false);quick.setGravity(Gravity.CENTER);quick.setOnClickListener(v->crfSlider.setProgress(n));crfRow.addView(quick,new LinearLayout.LayoutParams(0,-2,1));crfButtons.add(quick);}
         updateQualityHelp();
         bframeSwitch=new Switch(this);bframeSwitch.setText("B-frame");bframeSwitch.setTextColor(ink);bframeSwitch.setTextSize(20);bframeSwitch.setTypeface(null,Typeface.BOLD);bframeSwitch.setPadding(0,dp(12),0,dp(12));switchRow(settings,bframeSwitch,"B-frame","Fotogrammi che possono usare riferimenti precedenti e successivi. Il numero visualizzato è il massimo consecutivo; x265 può usarne meno in base alla scena. OFF imposta il massimo a zero.");bframeSwitch.setChecked(state==null?defaults.bframes:state.getBoolean("bframes",defaults.bframes));
         lookaheadSwitch=new Switch(this);lookaheadSwitch.setText("Lookahead esteso");lookaheadSwitch.setTextColor(ink);lookaheadSwitch.setTextSize(20);lookaheadSwitch.setTypeface(null,Typeface.BOLD);lookaheadSwitch.setPadding(0,dp(12),0,dp(12));switchRow(settings,lookaheadSwitch,"Lookahead","Numero di fotogrammi futuri analizzati per pianificare la codifica. ON usa il preset; OFF disattiva l’analisi estesa e CU-tree, mantenendo l’eventuale buffer minimo dei B-frame.");lookaheadSwitch.setChecked(state==null?defaults.lookahead:state.getBoolean("lookahead",defaults.lookahead));
@@ -215,6 +211,8 @@ public final class MainActivity extends Activity {
         saveMetadata=button(logs,"Esporta metadati originali · TXT");
         hdrTest=button(logs,"Test HDR · 10 bit (sperimentale)");hdrTest.setOnClickListener(v->startHdrTest());
         saveHdr=button(logs,"Esporta log HDR · TXT");saveHdr.setOnClickListener(v->exportLog(HdrProbe.logFile(this),"CodecProbe-HDR-log-"));
+        clearLogs=button(logs,"Cancella tutti i log");clearLogs.setOnClickListener(v->clearAllLogs());
+        text(logs,"Cancella i log nell’app. I TXT già esportati restano salvati.",13);
         Button toggle=button(logs,"Mostra ultimi messaggi");
         logView=text(logs,"",12);logView.setTypeface(Typeface.MONOSPACE);logView.setTextIsSelectable(true);logView.setMaxLines(16);logView.setVisibility(View.GONE);
         toggle.setOnClickListener(v->{boolean show=logView.getVisibility()!=View.VISIBLE;logView.setVisibility(show?View.VISIBLE:View.GONE);toggle.setText(show?"Nascondi ultimi messaggi":"Mostra ultimi messaggi");});
@@ -419,7 +417,7 @@ public final class MainActivity extends Activity {
     }
     private void setBusy(boolean value){
         busy=value;updateScreenAwake();if(originPanel!=null)originPanel.setBusy(value||choosingOrigins);boolean destinationEditable=!value&&!choosingOrigins;videoOrigin.setEnabled(destinationEditable&&!selectedInputs.isEmpty()&&!destinationPlan.applyAll);pickAllFolder.setEnabled(destinationEditable&&destinationPlan.applyAll);allOrigin.setEnabled(destinationEditable&&destinationPlan.applyAll);applyAllDestinations.setEnabled(destinationEditable&&!selectedInputs.isEmpty());pickVideo.setEnabled(!value&&!choosingOrigins);pickFolder.setEnabled(destinationEditable&&!selectedInputs.isEmpty()&&!destinationPlan.applyAll);crfSlider.setEnabled(!value);presetSlider.setEnabled(!value);for(Button b:crfButtons)b.setEnabled(!value);cpuMode.setEnabled(!value);bframeSwitch.setEnabled(!value);lookaheadSwitch.setEnabled(!value);
-        hdrTest.setEnabled(!value);saveHdr.setEnabled(!value);convert.setEnabled(!value&&!choosingOrigins&&originsReady&&!selectedInputs.isEmpty());saveLog.setEnabled(!value);saveMetadata.setEnabled(!value);stop.setVisibility(value?View.VISIBLE:View.GONE);stop.setEnabled(value);
+        hdrTest.setEnabled(!value&&!clearingLogs);saveHdr.setEnabled(!value&&!clearingLogs);convert.setEnabled(!value&&!clearingLogs&&!choosingOrigins&&originsReady&&!selectedInputs.isEmpty());saveLog.setEnabled(!value&&!clearingLogs);saveMetadata.setEnabled(!value&&!clearingLogs);updateClearLogsButton();stop.setVisibility(value?View.VISIBLE:View.GONE);stop.setEnabled(value);
 
     }
     private void updateScreenAwake(){
@@ -428,6 +426,7 @@ public final class MainActivity extends Activity {
         else getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
     }
     private void startConversion(){
+        if(clearingLogs){toast("Attendi la cancellazione dei log");return;}
         if(input==null){toast("Seleziona uno o più video");return;}
         if(!OriginalMedia.hasLocationPermission(this)){
             new android.app.AlertDialog.Builder(this).setTitle("Conserva la posizione del video")
@@ -483,6 +482,27 @@ public final class MainActivity extends Activity {
         }
         if(request==4){if(results.length==0||results[0]!=PackageManager.PERMISSION_GRANTED)toast("Notifiche disattivate: puoi abilitarle nelle impostazioni Android.");startConversion();}
     }
+    private void updateClearLogsButton(){if(clearLogs!=null)clearLogs.setEnabled(!busy&&!choosingOrigins&&!clearingLogs&&!exportingDiagnostics&&pendingLog==null);}
+    private void clearAllLogs(){
+        if(busy||ConversionService.snapshot().running||clearingLogs||exportingDiagnostics||pendingLog!=null||choosingOrigins){toast("Completa prima l’operazione in corso");return;}
+        clearingLogs=true;setBusy(busy);
+        worker.execute(()->{
+            final java.util.ArrayList<String> failures=new java.util.ArrayList<>();final int[] removed={0};
+            boolean idle=ConversionService.clearLogsIfIdle(()->{
+                synchronized(FolderPickerActivity.class){
+                    File[] logs={VideoConverter.logFile(this),ConversionService.batchLogFile(this),HdrProbe.logFile(this),X265Probe.logFile(this),FolderPickerActivity.logFile(this)};
+                    for(File file:logs)if(file.exists()){if(file.delete())removed[0]++;else failures.add(file.getName());}
+                    File[] snapshots=getCacheDir().listFiles(f->f.getName().endsWith(".txt")&&(f.getName().startsWith("log-export-")||f.getName().startsWith("metadata-export-")));
+                    if(snapshots!=null)for(File file:snapshots)if(file.delete())removed[0]++;else failures.add(file.getName());
+                }
+            });
+            runOnUiThread(()->{clearingLogs=false;if(destroyed)return;
+                if(idle){synchronized(recent){recent.clear();}logView.setText("");}
+                setBusy(busy);
+                toast(!idle?"Conversione avviata: log mantenuti":failures.isEmpty()?"Log cancellati · "+removed[0]+" file":"Alcuni log non sono stati cancellati: "+String.join(", ",failures));
+            });
+        });
+    }
     private void exportMetadata(){
         if(input==null){toast("Seleziona prima il video da analizzare");return;}
         if(!OriginalMedia.hasLocationPermission(this)||!OriginalMedia.hasVideoPermission(this)){
@@ -491,7 +511,7 @@ public final class MainActivity extends Activity {
             java.util.Collections.addAll(permissions,OriginalMedia.videoPermissions());
             requestPermissions(permissions.toArray(new String[0]),8);return;
         }
-        final Uri selected=input;final String name=sourceName;saveMetadata.setEnabled(false);saveLog.setEnabled(false);
+        final Uri selected=input;final String name=sourceName;exportingDiagnostics=true;updateClearLogsButton();saveMetadata.setEnabled(false);saveLog.setEnabled(false);
         toast("Leggo solo i blocchi dei metadati, senza copiare il video…");
         worker.execute(()->{
             File snapshot=null;
@@ -507,14 +527,15 @@ public final class MainActivity extends Activity {
                 }
                 final File result=snapshot;runOnUiThread(()->{
                     if(destroyed){result.delete();return;}
-                    pendingLog=result.getAbsolutePath();saveMetadata.setEnabled(!busy);saveLog.setEnabled(!busy);
+                    pendingLog=result.getAbsolutePath();exportingDiagnostics=false;updateClearLogsButton();saveMetadata.setEnabled(!busy);saveLog.setEnabled(!busy);
                     Intent i=new Intent(Intent.ACTION_CREATE_DOCUMENT).setType("text/plain").addCategory(Intent.CATEGORY_OPENABLE);
                     i.putExtra(Intent.EXTRA_TITLE,"v"+BuildConfig.VERSION_NAME+"-CodecProbe-metadati-"+System.currentTimeMillis()+".txt");startActivityForResult(i,SAVE_LOG);
                 });
-            }catch(Exception e){if(snapshot!=null)snapshot.delete();runOnUiThread(()->{if(!destroyed){saveMetadata.setEnabled(!busy);saveLog.setEnabled(!busy);toast("Esportazione metadati non riuscita: "+e.getMessage());}});}
+            }catch(Exception e){if(snapshot!=null)snapshot.delete();runOnUiThread(()->{if(!destroyed){exportingDiagnostics=false;updateClearLogsButton();saveMetadata.setEnabled(!busy);saveLog.setEnabled(!busy);toast("Esportazione metadati non riuscita: "+e.getMessage());}});}
         });
     }
     private void startHdrTest(){
+        if(clearingLogs){toast("Attendi la cancellazione dei log");return;}
         if(input==null){toast("Seleziona un video HDR HEVC");return;}if(busy||ConversionService.snapshot().running)return;
         final Uri selected=input;final int crf=selectedCrf();hdrTesting=true;if(selectedInputs.size()>1)toast("Prova HDR sul video visualizzato: "+sourceName);cancelled.set(false);setBusy(true);status.setText("Test HDR: resta su questa schermata…");recent.clear();logView.setText("");logView.setVisibility(View.VISIBLE);
         worker.execute(()->{String result;
@@ -526,7 +547,7 @@ public final class MainActivity extends Activity {
     private void exportLog(){File conversion=ConversionService.logFile(this);exportLog(conversion.isFile()?conversion:FolderPickerActivity.logFile(this),"CodecProbe-log-");}
     private void exportLog(File source,String prefix){
         if(!source.isFile()){toast("Nessun log di conversione disponibile");return;}
-        saveLog.setEnabled(false);
+        exportingDiagnostics=true;updateClearLogsButton();saveLog.setEnabled(false);
         worker.execute(()->{
             try{
                 File snapshot=File.createTempFile("log-export-",".txt",getCacheDir());
@@ -536,11 +557,11 @@ public final class MainActivity extends Activity {
                 }
                 runOnUiThread(()->{
                     if(destroyed)return;
-                    pendingLog=snapshot.getAbsolutePath();saveLog.setEnabled(true);
+                    pendingLog=snapshot.getAbsolutePath();exportingDiagnostics=false;updateClearLogsButton();saveLog.setEnabled(true);
                     Intent i=new Intent(Intent.ACTION_CREATE_DOCUMENT).setType("text/plain").addCategory(Intent.CATEGORY_OPENABLE);
                     i.putExtra(Intent.EXTRA_TITLE,prefix+System.currentTimeMillis()+".txt");startActivityForResult(i,SAVE_LOG);
                 });
-            }catch(Exception e){runOnUiThread(()->{if(!destroyed){saveLog.setEnabled(true);toast("Errore: "+e.getMessage());}});}
+            }catch(Exception e){runOnUiThread(()->{if(!destroyed){exportingDiagnostics=false;updateClearLogsButton();saveLog.setEnabled(true);toast("Errore: "+e.getMessage());}});}
         });
     }
     private static void copy(InputStream in,OutputStream out)throws IOException{byte[] b=new byte[65536];int n;while((n=in.read(b))!=-1)out.write(b,0,n);}
@@ -559,7 +580,7 @@ public final class MainActivity extends Activity {
             folder=chosen;getPreferences(0).edit().putString("folder",chosen.toString()).apply();destinationsChanged();return;
         }
         if(code!=RESULT_OK||data==null){
-            if(request==SAVE_LOG&&pendingLog!=null){new File(pendingLog).delete();pendingLog=null;}return;
+            if(request==SAVE_LOG&&pendingLog!=null){new File(pendingLog).delete();pendingLog=null;updateClearLogsButton();}return;
         }
         if(request==PICK_VIDEO){
             java.util.LinkedHashSet<Uri> chosen=new java.util.LinkedHashSet<>();
@@ -571,15 +592,15 @@ public final class MainActivity extends Activity {
             for(Uri chosenUri:chosen){try{getContentResolver().takePersistableUriPermission(chosenUri,Intent.FLAG_GRANT_READ_URI_PERMISSION);}catch(SecurityException ignored){}selectedInputs.add(chosenUri.toString());selectedNames.add(displayName(chosenUri));}
             input=Uri.parse(selectedInputs.get(0));sourceName=selectedNames.get(0);String defaultFolder=new AppSettings(this).defaultFolder;destinationPlan.reset(selectedInputs.size(),defaultFolder!=null?defaultFolder:folder==null?null:folder.toString());destinationsChanged();inspectInput();return;
         }
-        if(data.getData()==null){if(request==PICK_ORIGIN)cancelOrigins();if(request==SAVE_LOG&&pendingLog!=null){new File(pendingLog).delete();pendingLog=null;}return;}Uri uri=data.getData();
+        if(data.getData()==null){if(request==PICK_ORIGIN)cancelOrigins();if(request==SAVE_LOG&&pendingLog!=null){new File(pendingLog).delete();pendingLog=null;updateClearLogsButton();}return;}Uri uri=data.getData();
         if(request==SAVE_LOG&&pendingLog!=null){
-            final File snapshot=new File(pendingLog);pendingLog=null;
+            final File snapshot=new File(pendingLog);pendingLog=null;exportingDiagnostics=true;updateClearLogsButton();
             worker.execute(()->{
                 try(InputStream in=new FileInputStream(snapshot);OutputStream out=getContentResolver().openOutputStream(uri,"w")){
                     if(out==null)throw new IOException("Destinazione non disponibile");copy(in,out);
                     runOnUiThread(()->{if(!destroyed)toast("File TXT salvato");});
                 }catch(Exception e){runOnUiThread(()->{if(!destroyed)toast("Errore esportazione log: "+e.getMessage());});}
-                finally{snapshot.delete();}
+                finally{snapshot.delete();runOnUiThread(()->{exportingDiagnostics=false;if(!destroyed)updateClearLogsButton();});}
             });
         }
     }
