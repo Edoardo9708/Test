@@ -3,10 +3,32 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      full_tests:
+        description: 'Run native SDR, ARM64 and HDR smoke tests too'
+        type: boolean
+        default: true
 permissions:
   contents: read
 jobs:
+  scope:
+    name: Select relevant checks
+    runs-on: ubuntu-latest
+    outputs:
+      build: ${{ steps.scope.outputs.build }}
+      native: ${{ steps.scope.outputs.native }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Verify test selection rules
+        run: python3 -m unittest discover -s tests -p test_ci_scope.py -v
+      - name: Select checks for the complete push
+        id: scope
+        run: python3 scripts/ci-scope.py
   build:
+    needs: scope
+    if: needs.scope.outputs.build == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -38,6 +60,7 @@ jobs:
       - name: Render synthetic Home UI previews
         run: python3 scripts/emit-ui-previews.py
       - name: Build and run native software smoke test
+        if: needs.scope.outputs.native == 'true'
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends ffmpeg
@@ -51,6 +74,7 @@ jobs:
           done
           python3 scripts/verify-smoke.py
       - name: Run ARM64 assembly encode and decode smoke test
+        if: needs.scope.outputs.native == 'true'
         run: |
           sudo apt-get install -y --no-install-recommends g++-aarch64-linux-gnu qemu-user
           cmake -S app/src/main/cpp -B arm-smoke -DCMAKE_SYSTEM_NAME=Linux -DCMAKE_SYSTEM_PROCESSOR=aarch64 -DCMAKE_C_COMPILER=aarch64-linux-gnu-gcc -DCMAKE_CXX_COMPILER=aarch64-linux-gnu-g++
@@ -63,6 +87,7 @@ jobs:
           done
           python3 scripts/verify-smoke.py
       - name: Verify separate ten-bit HDR encoder
+        if: needs.scope.outputs.native == 'true'
         run: |
           cmake -S app/src/main/cpp/hdr -B hdr-smoke
           cmake --build hdr-smoke --parallel 2
@@ -97,7 +122,7 @@ jobs:
           name: v${{ steps.package.outputs.version }}-CodecProbe-source
           path: CodecProbe-source.tar.gz
       - uses: actions/upload-artifact@v4
-        if: always()
+        if: always() && needs.scope.outputs.native == 'true'
         with:
           name: Native-smoke-log
           path: |
