@@ -73,7 +73,7 @@ final class HomeConversion {
         }
         if (!hdr && !current.running) return;
         final long session = current.startedAt;
-        cancelConfirmation = new android.app.AlertDialog.Builder(home.activity).setTitle(hdr ? "Annullare la prova HDR?" : "Annullare la conversione?").setMessage(hdr ? "Vuoi interrompere la prova HDR in corso?" : "Verranno interrotti il file attuale e i video ancora in attesa. I video già completati restano salvati.\n\nLa conversione continua finché non confermi.").setNegativeButton("Continua", null).setPositiveButton("Sì, annulla", (dialog,which)->{
+        cancelConfirmation = new android.app.AlertDialog.Builder(home.activity).setTitle(hdr ? "Annullare la prova HDR?" : "Annullare la conversione?").setMessage(hdr ? "Vuoi interrompere la prova HDR in corso?" : "Verranno interrotti il file attuale e i video ancora in attesa. I video già completati restano salvati.\n\nConferma per interrompere la coda.").setNegativeButton("Continua", null).setPositiveButton("Sì, annulla", (dialog,which)->{
             if (hdr) {
                 if (!home.state.hdrTesting) return;
                 home.state.cancelled.set(true);
