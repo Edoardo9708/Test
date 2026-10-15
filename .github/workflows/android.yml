@@ -35,6 +35,8 @@ jobs:
         run: python3 scripts/restore-signing.py
       - name: Build and lint
         run: gradle --no-daemon :app:assembleDebug :app:testDebugUnitTest :app:lintDebug
+      - name: Render synthetic Home UI previews
+        run: python3 scripts/emit-ui-previews.py
       - name: Build and run native software smoke test
         run: |
           sudo apt-get update -qq
