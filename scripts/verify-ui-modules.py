@@ -6,7 +6,7 @@ root = Path('app/src/main/java/it/edo/codecprobe')
 entry = (root / 'MainActivity.java').read_text()
 for forbidden in ['new Button(', 'new LinearLayout(', 'ExecutorService', 'MediaCodec', 'FileInputStream', 'nativePresetSettings']:
     assert forbidden not in entry, ('Operational code in Activity', forbidden)
-for path in root.glob('Home*Section.java'):
+for path in [*root.glob('Home*Section.java'),root / 'HomeDirectoryRow.java',root / 'QualityButtons.java']:
     source = path.read_text()
     for forbidden in ['getContentResolver(', 'startActivityForResult(', 'ConversionService.snapshot(', 'System.loadLibrary(', 'new VideoConverter(']:
         assert forbidden not in source, (path, forbidden)

@@ -32,6 +32,7 @@ public class HomeLayoutTest {
             MainActivity activity=controller.get();
             HomeController home=activity.home;for(String title:home.screen.sections.bodies.keySet())home.screen.sections.setCardExpanded(title,true);
             assertTrue("Large font configuration not applied",home.screen.conversion.convert.getTextSize()/activity.getResources().getDisplayMetrics().density>=19);
+            HomeDirectoryRow.add(home.ui,home.screen.sections.bodies.get("01  FILE E DESTINAZIONE"),"DCIM/Una cartella con un nome molto lungo","1, 2",false,false,()->{});
             measure(home,320);checkButtons(home.screen.page,home.ui.dp(48));
             assertSame(home.screen.conversion.convert.getParent(),home.screen.conversion.stop.getParent());
         }finally{controller.pause().stop().destroy();}

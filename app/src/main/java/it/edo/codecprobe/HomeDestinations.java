@@ -37,7 +37,7 @@ final class HomeDestinations {
                 FolderPickerActivity.record(home.activity, "ERRORE · verifica cartella · " + message);
                 home.toast("Cartella: " + message);
             }
-        }, home.ui.ink, home.ui.dark);
+        }, home.ui);
         home.screen.destinations.pickFolder.setOnClickListener((v)->{
             if (home.state.selectedInputs.isEmpty()) {
                 home.toast("Seleziona prima i video");

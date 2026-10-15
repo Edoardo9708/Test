@@ -182,9 +182,16 @@ final class AppUi {
         LinearLayout row = row(parent);
         toggle.setTextSize(17);
         toggle.setMinHeight(dp(56));
-        toggle.setThumbTintList(ColorStateList.valueOf(accent));
+        styleSwitch(toggle);
         row.addView(toggle, new LinearLayout.LayoutParams(0, -2, 1));
         infoButton(row, title, help);
+    }
+
+    void styleSwitch(Switch toggle) {
+        int[][] states = {{-android.R.attr.state_enabled}, {android.R.attr.state_checked}, {}};
+        toggle.setThumbTintList(new ColorStateList(states, new int[]{border, accent, muted}));
+        toggle.setTrackTintList(new ColorStateList(states, new int[]{border, android.graphics.Color.argb(110, Color.red(accent), Color.green(accent), Color.blue(accent)), border}));
+        toggle.setTextColor(new ColorStateList(new int[][]{{-android.R.attr.state_enabled}, {}}, new int[]{muted, ink}));
     }
 
     void infoButton(LinearLayout row, String title, String help) {
@@ -214,7 +221,8 @@ final class AppUi {
         b.setText(title);
         b.setTextSize(16);
         b.setTextColor(ink);
-        b.setButtonTintList(ColorStateList.valueOf(accent));
+        b.setButtonTintList(new ColorStateList(new int[][]{{-android.R.attr.state_enabled}, {}}, new int[]{border, accent}));
+        b.setTextColor(new ColorStateList(new int[][]{{-android.R.attr.state_enabled}, {}}, new int[]{muted, ink}));
         b.setMinHeight(dp(48));
         parent.addView(b, new LinearLayout.LayoutParams(-1, -2));
         return b;

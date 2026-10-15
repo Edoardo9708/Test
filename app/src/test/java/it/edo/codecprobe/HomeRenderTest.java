@@ -40,7 +40,11 @@ public class HomeRenderTest {
         assertTrue("Empty UI rendering",output.length()>10000);
     }
     @Test public void inputPage()throws Exception{
-        ActivityController<MainActivity> controller=screen();try{controller.get().home.screen.sections.focusCard("01  FILE E DESTINAZIONE");image(controller.get().home,"home-input.png");}finally{controller.pause().stop().destroy();VideoMetadataCache.clear();}
+        ActivityController<MainActivity> controller=screen();try{HomeController home=controller.get().home;home.screen.sections.focusCard("01  FILE E DESTINAZIONE");
+            home.destinations.originPanel.close();home.screen.destinations.originRows.removeAllViews();
+            HomeDirectoryRow.add(home.ui,home.screen.destinations.originRows,"DCIM/Camera","1, 2",true,false,()->{});
+            HomeDirectoryRow.add(home.ui,home.screen.destinations.originRows,"Movies/Screen recordings","3",false,false,()->{});
+            home.ui.text(home.screen.destinations.originRows,"Cartelle autorizzate: 1 / 2",14);image(home,"home-input.png");}finally{controller.pause().stop().destroy();VideoMetadataCache.clear();}
     }
     @Test @Config(qualifiers="w360dp-h800dp-night-xhdpi") public void compressionDark()throws Exception{
         ActivityController<MainActivity> controller=screen();try{

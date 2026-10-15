@@ -67,7 +67,8 @@ public final class SettingsActivity extends Activity {
         addition.setTextColor(ink);
         addition.setTextSize(18);
         addition.setHint("Testo da aggiungere");
-        addition.setHintTextColor(ink);
+        addition.setHintTextColor(ui.muted);
+        addition.setBackgroundTintList(android.content.res.ColorStateList.valueOf(accent));
         addition.setFilters(new InputFilter[]{new InputFilter.LengthFilter(100)});
         page.addView(addition);
         position = radios("All’inizio", "Alla fine");
@@ -198,13 +199,6 @@ public final class SettingsActivity extends Activity {
         return t;
     }
 
-    private Button styledButton(String text) {
-        Button b = new Button(this);
-        b.setText(text);
-        ui.styleButton(b, false);
-        return b;
-    }
-
     private void button(String text, Runnable action) {
         Button b = ui.button(page, text);
         if (text.equals("Salva impostazioni")) ui.styleButton(b, true);
@@ -232,7 +226,7 @@ public final class SettingsActivity extends Activity {
         t.setText(s);
         t.setTextSize(20);
         t.setTextColor(ink);
-        t.setButtonTintList(android.content.res.ColorStateList.valueOf(accent));
+        ui.styleSwitch(t);
         t.setPadding(0, dp(12), 0, dp(12));
         page.addView(t);
         return t;

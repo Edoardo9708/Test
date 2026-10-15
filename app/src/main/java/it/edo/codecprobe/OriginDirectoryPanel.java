@@ -24,9 +24,10 @@ final class OriginDirectoryPanel {
         final ArrayList<Integer> files=new ArrayList<>();
     }
     private final Activity activity;
+    private final AppUi ui;
     private final LinearLayout rows;
     private final Listener listener;
-    private final int ink,green,red;
+    private final int ink;
     private final ExecutorService worker=Executors.newSingleThreadExecutor();
     private final ArrayList<Button> buttons=new ArrayList<>();
     private final SharedPreferences associations;
@@ -35,9 +36,9 @@ final class OriginDirectoryPanel {
     private volatile int generation;
     private volatile boolean closed;
     private boolean busy;
-    OriginDirectoryPanel(Activity a,LinearLayout rows,Listener listener,int ink,boolean dark){
+    OriginDirectoryPanel(Activity a,LinearLayout rows,Listener listener,AppUi ui){
+        this.ui=ui;int ink=ui.ink;
         activity=a;this.rows=rows;this.listener=listener;this.ink=ink;
-        green=android.graphics.Color.parseColor(dark?"#83D9A2":"#176D37");red=android.graphics.Color.parseColor(dark?"#FF9B98":"#AF2424");
         associations=a.getSharedPreferences("origin-associations",Activity.MODE_PRIVATE);
     }
     void setInputs(List<String> uris,List<String> labels,List<Boolean> sourceFolders,List<String> chosenFolders){
@@ -48,7 +49,7 @@ final class OriginDirectoryPanel {
     void setBusy(boolean value){busy=value;for(Button b:buttons)b.setEnabled(!value);}
     void close(){closed=true;generation++;worker.shutdown();}
     private TextView label(LinearLayout parent,String message,int color){
-        TextView t=new TextView(activity);t.setText(message);t.setTextSize(14);t.setTextColor(color);t.setPadding(0,8,0,8);t.setSingleLine(false);parent.addView(t);return t;
+        TextView t=ui.text(parent,message,14);t.setTextColor(color);return t;
     }
     void refresh(){
         if(closed)return;
@@ -92,12 +93,10 @@ final class OriginDirectoryPanel {
                 int authorized=0;
                 for(Group group:groups.values()){
                     boolean allowed=group.destination!=null;if(allowed)authorized++;
-                    LinearLayout row=new LinearLayout(activity);row.setOrientation(LinearLayout.HORIZONTAL);row.setGravity(android.view.Gravity.CENTER_VERTICAL);rows.addView(row,new LinearLayout.LayoutParams(-1,-2));
-                    LinearLayout description=new LinearLayout(activity);description.setOrientation(LinearLayout.VERTICAL);row.addView(description,new LinearLayout.LayoutParams(0,-2,1));
                     String numbers="";for(int file:group.files)numbers+=(numbers.isEmpty()?"":", ")+(file+1);
-                    label(description,(allowed?"✓ AUTORIZZATA":"✕ DA AUTORIZZARE")+"\n"+group.label+"\nVideo: "+numbers+(group.manual?"\nInclude file associati manualmente":""),allowed?green:red);
-                    Button action=new Button(activity);action.setText(allowed?"Gestisci":!group.origin&&(group.requestedFolder==null||group.requestedFolder.isEmpty())?"Scegli":"Autorizza");action.setAllCaps(false);action.setTextColor(allowed?green:red);action.setSingleLine(false);action.setMinHeight(Math.round(48*activity.getResources().getDisplayMetrics().density));row.addView(action,new LinearLayout.LayoutParams(-2,-2));buttons.add(action);action.setEnabled(!busy);
-                    action.setOnClickListener(v->listener.authorize(group.parent,sources.get(group.files.get(0)),group.origin,group.requestedFolder));
+                    Button action=HomeDirectoryRow.add(ui,rows,group.label,numbers,allowed,group.manual,()->listener.authorize(group.parent,sources.get(group.files.get(0)),group.origin,group.requestedFolder));
+                    if(!group.origin&&(group.requestedFolder==null||group.requestedFolder.isEmpty()))action.setText("Scegli");
+                    buttons.add(action);action.setEnabled(!busy);
                 }
                 label(rows,"Cartelle autorizzate: "+authorized+" / "+groups.size(),ink);
                 listener.changed(!destinations.contains(null),destinations,notes);

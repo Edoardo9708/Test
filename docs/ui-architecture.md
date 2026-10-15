@@ -10,6 +10,7 @@ La divisione segue le responsabilità, non il numero di pulsanti.
 | `HomeState` / `HomeSavedState` | Dati della selezione e ripristino di scelte, riquadri e selettori pendenti. Nessuna View nello stato. |
 | `HomeScreen` / `HomeSections` | Compongono la pagina e gestiscono i riquadri richiudibili. |
 | `Home…Section` | Costruiscono i controlli della rispettiva sezione. Nessuna lettura di file o avvio di conversioni. |
+| `HomeDirectoryRow` | Aspetto dei permessi di ogni cartella, con stato colorato e pulsante uniforme. |
 | `HomeSelection` | Selezione multipla, cache dei metadati, carosello e transizioni. |
 | `HomeDestinations` | Regole individuali e globali, cartelle e autorizzazioni. Riusa `DestinationPlan` e `OriginDirectoryPanel`. |
 | `HomeCompression` | Slider, scelte rapide e lettura dei parametri del preset tramite `EncoderPresetPreview`. |

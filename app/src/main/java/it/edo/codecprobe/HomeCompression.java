@@ -62,16 +62,6 @@ final class HomeCompression {
         }
     }
 
-    String qualityName(int crf) {
-        if (crf == 0) return "Qualità massima CRF, non senza perdita";
-        if (crf <= 17) return "Qualità molto alta · file più grandi";
-        if (crf <= 22) return "Qualità alta";
-        if (crf <= 27) return "Compromesso qualità / dimensioni";
-        if (crf <= 32) return "Più compressione · dettagli ridotti";
-        if (crf <= 40) return "Qualità bassa · perdite evidenti";
-        return "Compressione molto forte · qualità molto bassa";
-    }
-
     int selectedCrf() {
         return home.screen.compression.crfSlider.getProgress();
     }
