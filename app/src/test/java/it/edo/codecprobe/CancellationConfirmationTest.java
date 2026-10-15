@@ -3,6 +3,7 @@ package it.edo.codecprobe;
 import android.app.AlertDialog;
 import android.app.Notification;
 import android.content.Intent;
+import android.os.Looper;
 import android.widget.Button;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -31,15 +32,15 @@ public class CancellationConfirmationTest {
         try{
             startFakeHdr(activity);AtomicBoolean cancelled=(AtomicBoolean)field(activity,"cancelled");
             AlertDialog dialog=(AlertDialog)field(activity,"cancelConfirmation");assertNotNull(dialog);assertFalse(cancelled.get());
-            dialog.getButton(AlertDialog.BUTTON_NEGATIVE).performClick();assertFalse(cancelled.get());
-            ((Button)field(activity,"stop")).performClick();((AlertDialog)field(activity,"cancelConfirmation")).cancel();assertFalse(cancelled.get());
+            dialog.getButton(AlertDialog.BUTTON_NEGATIVE).performClick();shadowOf(Looper.getMainLooper()).idle();assertFalse(cancelled.get());
+            ((Button)field(activity,"stop")).performClick();((AlertDialog)field(activity,"cancelConfirmation")).cancel();shadowOf(Looper.getMainLooper()).idle();assertFalse(cancelled.get());
         }finally{controller.pause().stop().destroy();}
     }
     @Test public void onlyPositiveConfirmationCancels()throws Exception{
         ActivityController<MainActivity> controller=Robolectric.buildActivity(MainActivity.class).setup();MainActivity activity=controller.get();
         try{
             startFakeHdr(activity);AtomicBoolean cancelled=(AtomicBoolean)field(activity,"cancelled");assertFalse(cancelled.get());
-            ((AlertDialog)field(activity,"cancelConfirmation")).getButton(AlertDialog.BUTTON_POSITIVE).performClick();
+            ((AlertDialog)field(activity,"cancelConfirmation")).getButton(AlertDialog.BUTTON_POSITIVE).performClick();shadowOf(Looper.getMainLooper()).idle();
             assertTrue(cancelled.get());assertFalse(((Button)field(activity,"stop")).isEnabled());
         }finally{controller.pause().stop().destroy();}
     }
