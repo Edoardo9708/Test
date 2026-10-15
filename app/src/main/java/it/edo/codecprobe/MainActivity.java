@@ -58,6 +58,8 @@ public final class MainActivity extends Activity {
     private String pendingFixedFolder;
     private boolean pendingAuthorizationOrigin;
     private TextView queueLabel;
+    private LinearLayout sizeReportPanel;
+    private TextView sizeReport;
     private String loadedDefault;
     private boolean choosingOrigins;
     private String sourceName="video";
@@ -217,6 +219,9 @@ public final class MainActivity extends Activity {
         telemetry=text(work,"CPU APP   …     •     BATTERIA   …",14);
         parameterRow(work,"ⓘ Prestazioni","CPU app: 100% indica tutti i core disponibili occupati. La temperatura è della batteria, non della CPU. La conversione usa un servizio con notifica e un wake lock, ma Android può applicare limiti energetici. Supportati video SDR a 8 bit e audio AAC o assente.");
         openVideo=button(work,"Apri video convertito");openVideo.setVisibility(View.GONE);
+        sizeReportPanel=new LinearLayout(this);sizeReportPanel.setOrientation(LinearLayout.VERTICAL);sizeReportPanel.setPadding(dp(14),dp(12),dp(14),dp(12));sizeReportPanel.setBackground(shape(bg,14));LinearLayout.LayoutParams reportLayout=new LinearLayout.LayoutParams(-1,-2);reportLayout.setMargins(0,dp(14),0,0);work.addView(sizeReportPanel,reportLayout);
+        TextView reportTitle=text(sizeReportPanel,"RESOCONTO CONVERSIONE",16);reportTitle.setTypeface(null,Typeface.BOLD);reportTitle.setTextColor(accent);
+        sizeReport=text(sizeReportPanel,"",16);sizeReport.setTextIsSelectable(true);sizeReport.setLineSpacing(dp(4),1);sizeReportPanel.setVisibility(View.GONE);
         LinearLayout logs=card(page,"DIAGNOSTICA");saveLog=button(logs,"Esporta log completo · TXT");
         saveMetadata=button(logs,"Esporta metadati originali · TXT");
         hdrTest=button(logs,"Test HDR · 10 bit (sperimentale)");hdrTest.setOnClickListener(v->startHdrTest());
@@ -553,6 +558,8 @@ public final class MainActivity extends Activity {
     private void renderSession(){
         if(destroyed||hdrTesting)return;
         ConversionService.State s=ConversionService.snapshot();if(!s.hasSession)return;
+        boolean showReport=!s.running&&!s.sizeReport.isEmpty();sizeReportPanel.setVisibility(showReport?View.VISIBLE:View.GONE);
+        if(showReport&&!s.sizeReport.contentEquals(sizeReport.getText()))sizeReport.setText(s.sizeReport);
         frameLabel.setText("Fotogrammi: "+s.doneFrames+" / "+(s.totalFrames>0?s.totalFrames:"— (totale non dichiarato)"));
         queueLabel.setText("Video "+s.batchIndex+" / "+s.batchTotal+" · "+s.source+"\nRiusciti: "+s.succeeded+" · Falliti: "+s.failed);setBusy(s.running);progress.setProgress(s.percent);percentLabel.setText("Coda "+s.percent+"% · File "+s.filePercent+"%");status.setText(s.message);logView.setText(s.log);
         timeline.setText(String.format(Locale.ITALY,"Video convertito: %.1f s\nVideo rimanente: %s",s.done/1000000.0,s.total>0?String.format(Locale.ITALY,"%.1f s",Math.max(0,s.total-s.done)/1000000.0):"durata non disponibile"));
