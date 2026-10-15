@@ -31,7 +31,7 @@ public class FolderPickerActivityTest {
     }
     @Test public void restoresPendingSystemPickerWithoutLaunchingAnother(){
         Bundle saved=new Bundle();
-        try(ActivityController<FolderPickerActivity> first=Robolectric.buildActivity(FolderPickerActivity.class).setup()){first.saveInstanceState(saved);}
+        try(ActivityController<FolderPickerActivity> first=Robolectric.buildActivity(FolderPickerActivity.class).setup()){assertNotNull(shadowOf(first.get()).getNextStartedActivityForResult());first.saveInstanceState(saved);assertTrue(saved.getBoolean("launched"));}
         try(ActivityController<FolderPickerActivity> restored=Robolectric.buildActivity(FolderPickerActivity.class).setup(saved)){assertNull(shadowOf(restored.get()).getNextStartedActivityForResult());}
     }
     @Test public void cancellationReturnsToCallerWithoutClaimingAProvidedFolder(){
