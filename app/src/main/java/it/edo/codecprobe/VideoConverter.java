@@ -38,7 +38,8 @@ final class VideoConverter {
     private int preset,cpuMode;
     private boolean bframes,lookahead;
     private DataOutputStream inputTimestamps;
-    private File timestampFile;
+    private File timestampFile,hdrMetadataFile;
+    private boolean hdr;
     private long durationUs;
     private MediaFormat audioFormat;
     private int originalAudio=-1;
@@ -58,6 +59,7 @@ final class VideoConverter {
         listener.log(line);
     }
     public void onHeaders(byte[] headers) {
+        if(hdr)onLog("OK "+HdrHevcInfo.requireMain10(headers));
         ColorVui encodedColor=ColorVui.read("video/hevc",headers);
         onLog("COLORE USCITA x265: "+encodedColor);
         if(!sourceColor.same(encodedColor))throw new IllegalStateException("Dichiarazione colore x265 diversa dall’originale: conversione interrotta");
@@ -66,6 +68,7 @@ final class VideoConverter {
         MediaFormat f=MediaFormat.createVideoFormat("video/hevc",width,height);
         f.setByteBuffer("csd-0",ByteBuffer.wrap(headers));
         f.setFloat(MediaFormat.KEY_FRAME_RATE,fps);
+        if(hdr)f.setInteger(MediaFormat.KEY_PROFILE,MediaCodecInfo.CodecProfileLevel.HEVCProfileMain10);
         f.setInteger(MediaFormat.KEY_COLOR_STANDARD,standard);
         f.setInteger(MediaFormat.KEY_COLOR_TRANSFER,transfer);
         f.setInteger(MediaFormat.KEY_COLOR_RANGE,range);
@@ -109,7 +112,7 @@ final class VideoConverter {
     }
     private void rejectHdr(MediaFormat f) {
         int t=integer(f,MediaFormat.KEY_COLOR_TRANSFER,0);
-        if(t==6 || t==7) throw new IllegalArgumentException("Video HDR non ancora supportato: usa un video SDR a 8 bit.");
+        if(t==6 || t==7) throw new IllegalArgumentException("Dichiarazione HDR rilevata nel percorso SDR: conversione interrotta per evitare una riduzione a 8 bit.");
     }
     Uri convert(Uri input,Uri folder,int crf,String sourceName,int preset,int cpuMode,boolean bframes,boolean lookahead) throws Exception {
         final AppSettings naming=namingDefaults!=null?namingDefaults:new AppSettings(context);
@@ -138,9 +141,7 @@ final class VideoConverter {
                 onLog(InputInspector.describe(context,input,()->cancel.get()));
                 onLog("*** CONTROLLO CONSERVAZIONE METADATI ***");
                 sourceMetadata(input,null);
-                onLog("BEGIN loadLibrary x265probe");
-                System.loadLibrary("x265probe");
-                onLog("OK loadLibrary · CPU ARM64, O3, assembly NEON; preset selezionato indice="+preset+", modalità CPU="+cpuMode+".");
+                onLog("L’analisi del colore sceglierà la libreria CPU separata: SDR a 8 bit oppure HDR Main10.");
                 timestampFile=new File(context.getCacheDir(),"conversion-timestamps.bin");
                 try(DataOutputStream timestamps=new DataOutputStream(new BufferedOutputStream(new FileOutputStream(timestampFile)))) {
                     inputTimestamps=timestamps;decodeAndEncode(input,temporary,crf);
@@ -154,6 +155,7 @@ final class VideoConverter {
                 onLog("*** STEP 5 · VERIFICA VIDEO COMPLETO ***");
                 listener.progress(94,"Verifica del video...");
                 verify(temporary);
+                if(hdr)HdrTranscoder.verifyMetadata(temporary,hdrMetadataFile,sourceColor,()->cancel.get(),this::onLog);
                 if(originalAudio>=0)verifyCopiedTrack(input,temporary,originalAudio,audioTrack);
                 for(MetadataTrack track:metadataTracks)verifyCopiedTrack(input,temporary,track.input,track.output);
                 checkCancel();
@@ -203,6 +205,7 @@ final class VideoConverter {
             } finally {
                 onLog("SESSION END cancelled="+cancel.get());
                 if(timestampFile!=null)timestampFile.delete();
+                if(hdrMetadataFile!=null)hdrMetadataFile.delete();
                 if(temporary.exists()&&!temporary.delete()) onLog("AVVISO: file temporaneo non eliminato");
             }
         }
@@ -233,12 +236,8 @@ final class VideoConverter {
                 } else throw new IllegalArgumentException("Traccia "+mime+" non supportata: conversione interrotta per evitare la perdita dei metadati");
             }
             if(video==null) throw new IllegalArgumentException("Nessuna traccia video");
-            rejectHdr(video);
             int profile=integer(video,MediaFormat.KEY_PROFILE,0);
             String inputMime=video.getString(MediaFormat.KEY_MIME);
-            if(("video/hevc".equals(inputMime)&&profile!=0&&profile!=MediaCodecInfo.CodecProfileLevel.HEVCProfileMain)
-                    ||("video/avc".equals(inputMime)&&(profile==16||profile==32||profile==64)))
-                throw new IllegalArgumentException("Profilo video non supportato: questa versione richiede SDR a 8 bit.");
             java.util.List<byte[]> csds=new java.util.ArrayList<>();
             for(String key:video.getKeys())if(key.startsWith("csd-")){ByteBuffer b=video.getByteBuffer(key).duplicate();byte[] bytes=new byte[b.remaining()];b.get(bytes);csds.add(bytes);}
             onLog("*** DIAGNOSTICA COLORE ORIGINALE ***");
@@ -256,7 +255,17 @@ final class VideoConverter {
             }
             onLog("*** CONSERVAZIONE DICHIARAZIONE COLORE ***");
             onLog("COLORE DA CONSERVARE (SPS/VUI + colr): "+sourceColor+" · valori originali risolti, senza traduzione dell’enum SDR Android");
-            if(sourceColor.transfer==16||sourceColor.transfer==18)throw new IllegalArgumentException("Curva HDR non supportata");
+            hdr=sourceColor.transfer==16||sourceColor.transfer==18;
+            if(hdr){
+                if(android.os.Build.VERSION.SDK_INT<33)throw new IOException("HDR richiede Android 13/API 33 e decoder P010");
+                if(!"video/hevc".equals(inputMime))throw new IOException("Percorso HDR: richiesto HEVC Main10");
+                onLog("OK "+HdrHevcInfo.requireMain10(csds.toArray(new byte[0][])));
+            }else{
+                rejectHdr(video);
+                if(("video/hevc".equals(inputMime)&&profile!=0&&profile!=MediaCodecInfo.CodecProfileLevel.HEVCProfileMain)
+                        ||("video/avc".equals(inputMime)&&(profile==16||profile==32||profile==64)))
+                    throw new IllegalArgumentException("Profilo SDR non supportato: richiesti 8 bit.");
+            }
             width=integer(video,MediaFormat.KEY_WIDTH,0);height=integer(video,MediaFormat.KEY_HEIGHT,0);
             if(width<16||height<16||width>3840||height>3840||(long)width*height>3840L*2160||width%2!=0||height%2!=0)
                 throw new IllegalArgumentException("Supportati video con dimensioni pari, fino a 3840×2160 (anche verticali)");
@@ -271,95 +280,115 @@ final class VideoConverter {
             onLog("FOTOGRAMMI TOTALI: "+totalFrames+" · campi numerici letti tramite Number, compatibile con Integer e Long");
             listener.frames(0,totalFrames);
             int rotation=integer(video,MediaFormat.KEY_ROTATION,0);
-            standard=integer(video,MediaFormat.KEY_COLOR_STANDARD,height>576?1:2);
-            transfer=integer(video,MediaFormat.KEY_COLOR_TRANSFER,3);
-            range=integer(video,MediaFormat.KEY_COLOR_RANGE,2);
+            standard=hdr?6:integer(video,MediaFormat.KEY_COLOR_STANDARD,height>576?1:2);
+            transfer=hdr?(sourceColor.transfer==16?6:7):integer(video,MediaFormat.KEY_COLOR_TRANSFER,3);
+            range=hdr?(sourceColor.fullRange?1:2):integer(video,MediaFormat.KEY_COLOR_RANGE,2);
             onLog("FORMAT dimensioni="+width+"x"+height+" fps_nominali="+fps+" duration_us="+duration+" rotazione="+rotation);
             onLog("AUDIO: "+(audioFormat==null?"assente":"AAC, copia senza ricodifica"));
             muxer=new MediaMuxer(output.getAbsolutePath(),MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4);
             if(rotation==90||rotation==180||rotation==270) muxer.setOrientationHint(rotation);
             video.setInteger(MediaFormat.KEY_ROTATION,0);
-            video.setInteger(MediaFormat.KEY_COLOR_FORMAT,MediaCodecInfo.CodecCapabilities.COLOR_FormatYUV420Flexible);
             extractor.selectTrack(selected);
-            String mime=video.getString(MediaFormat.KEY_MIME);
-            decoder=MediaCodec.createDecoderByType(mime);
-            onLog("*** STEP 2/3 · DECODIFICA E CODIFICA ***");
-            onLog("BEGIN decoder.configure nome="+decoder.getName()+"; il decoder può usare hardware, x265 codifica sulla CPU.");
-            decoder.configure(video,null,null,0);decoder.start();decoderStarted=true;
-            onLog("OK decoder.start");
-            onLog("LEGENDA:\n• frame: indice del fotogramma\n• pts_us: posizione nel video, in microsecondi\n• rc: risultato x265 (0 = uscita in attesa, positivo = frame pronto)\n• nals: blocchi HEVC\n• elapsed_ms: durata chiamata\n• packet/bytes: numero e dimensione dei pacchetti MP4");
-            MediaCodec.BufferInfo info=new MediaCodec.BufferInfo();
-            boolean inputEnd=false,outputEnd=false;long lastActivity=SystemClock.elapsedRealtime();
-            MediaFormat decoded=video;ByteBuffer pixels=null;
-            while(!outputEnd) {
-                checkCancel();
-                if(SystemClock.elapsedRealtime()-lastActivity>60000) throw new IOException("Decoder bloccato: nessun progresso per 60 secondi");
-                if(!inputEnd) {
-                    int index=decoder.dequeueInputBuffer(1000);
-                    if(index>=0) {
-                        ByteBuffer b=decoder.getInputBuffer(index);
-                        if(b==null) throw new IOException("Buffer decoder assente");
-                        b.clear();long sampleSize=extractor.getSampleSize();
-                        if(sampleSize>b.capacity()) throw new IOException("Pacchetto video troppo grande per decoder");
-                        int size=extractor.readSampleData(b,0);
-                        if(size<0) {decoder.queueInputBuffer(index,0,0,0,MediaCodec.BUFFER_FLAG_END_OF_STREAM);inputEnd=true;onLog("OK decoder input EOS");}
-                        else {
-                            if((extractor.getSampleFlags()&MediaExtractor.SAMPLE_FLAG_ENCRYPTED)!=0) throw new IOException("Video protetto non supportato");
-                            decoder.queueInputBuffer(index,0,size,extractor.getSampleTime(),0);extractor.advance();
+            if(hdr){
+                hdrMetadataFile=new File(context.getCacheDir(),"conversion-hdr-metadata.bin");
+                HdrTranscoder.Sink sink=new HdrTranscoder.Sink(){
+                    public void log(String value){onLog(value);}
+                    public void headers(byte[] bytes){onHeaders(bytes);}
+                    public void packet(byte[] bytes,long pts,boolean key){onPacket(bytes,pts,key);}
+                    public void frame(long pts)throws IOException{
+                        inputTimestamps.writeLong(pts);frames++;
+                        int percent=durationUs>0?(int)Math.min(89,Math.max(0,pts)*89.0/durationUs):0;
+                        listener.timeline(Math.max(0,lastPacket),durationUs);listener.progress(percent,"Codifica HDR: "+frames+" fotogrammi · "+percent+"%");
+                    }
+                    public void settings(int[] values){reportEncoderSettings(values);}
+                };
+                new HdrTranscoder(()->cancel.get(),sink,sourceColor).run(extractor,video,hdrMetadataFile,width,height,Math.round(fps*1000),crf,preset,cpuMode,bframes,lookahead);
+                listener.frames(frames,frames);listener.timeline(durationUs,durationUs);
+            }else{
+                onLog("BEGIN loadLibrary x265probe · percorso SDR a 8 bit");
+                System.loadLibrary("x265probe");
+                onLog("OK libreria SDR · CPU ARM64, O3, assembly NEON");
+                video.setInteger(MediaFormat.KEY_COLOR_FORMAT,MediaCodecInfo.CodecCapabilities.COLOR_FormatYUV420Flexible);
+                extractor.selectTrack(selected);
+                String mime=video.getString(MediaFormat.KEY_MIME);
+                decoder=MediaCodec.createDecoderByType(mime);
+                onLog("*** STEP 2/3 · DECODIFICA E CODIFICA ***");
+                onLog("BEGIN decoder.configure nome="+decoder.getName()+"; il decoder può usare hardware, x265 codifica sulla CPU.");
+                decoder.configure(video,null,null,0);decoder.start();decoderStarted=true;
+                onLog("OK decoder.start");
+                onLog("LEGENDA:\n• frame: indice del fotogramma\n• pts_us: posizione nel video, in microsecondi\n• rc: risultato x265 (0 = uscita in attesa, positivo = frame pronto)\n• nals: blocchi HEVC\n• elapsed_ms: durata chiamata\n• packet/bytes: numero e dimensione dei pacchetti MP4");
+                MediaCodec.BufferInfo info=new MediaCodec.BufferInfo();
+                boolean inputEnd=false,outputEnd=false;long lastActivity=SystemClock.elapsedRealtime();
+                MediaFormat decoded=video;ByteBuffer pixels=null;
+                while(!outputEnd) {
+                    checkCancel();
+                    if(SystemClock.elapsedRealtime()-lastActivity>60000) throw new IOException("Decoder bloccato: nessun progresso per 60 secondi");
+                    if(!inputEnd) {
+                        int index=decoder.dequeueInputBuffer(1000);
+                        if(index>=0) {
+                            ByteBuffer b=decoder.getInputBuffer(index);
+                            if(b==null) throw new IOException("Buffer decoder assente");
+                            b.clear();long sampleSize=extractor.getSampleSize();
+                            if(sampleSize>b.capacity()) throw new IOException("Pacchetto video troppo grande per decoder");
+                            int size=extractor.readSampleData(b,0);
+                            if(size<0) {decoder.queueInputBuffer(index,0,0,0,MediaCodec.BUFFER_FLAG_END_OF_STREAM);inputEnd=true;onLog("OK decoder input EOS");}
+                            else {
+                                if((extractor.getSampleFlags()&MediaExtractor.SAMPLE_FLAG_ENCRYPTED)!=0) throw new IOException("Video protetto non supportato");
+                                decoder.queueInputBuffer(index,0,size,extractor.getSampleTime(),0);extractor.advance();
+                            }
+                            lastActivity=SystemClock.elapsedRealtime();
                         }
+                    }
+                    int index=decoder.dequeueOutputBuffer(info,1000);
+                    if(index==MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
+                        decoded=decoder.getOutputFormat();rejectHdr(decoded);onLog("DECODE FORMAT "+decoded);
+                        lastActivity=SystemClock.elapsedRealtime();
+                    } else if(index>=0) {
+                        try {
+                            if(info.size>0&&(info.flags&MediaCodec.BUFFER_FLAG_CODEC_CONFIG)==0) {
+                                try(Image image=decoder.getOutputImage(index)) {
+                                    if(image==null||image.getFormat()!=ImageFormat.YUV_420_888)
+                                        throw new IOException("Il decoder non fornisce fotogrammi YUV420 a 8 bit: formato non supportato");
+                                    Rect crop=image.getCropRect();
+                                    if(handle==0) {
+                                        width=crop.width();height=crop.height();
+                                        if(width%2!=0||height%2!=0||crop.left%2!=0||crop.top%2!=0) throw new IOException("Ritaglio YUV non allineato");
+                                        standard=integer(decoded,MediaFormat.KEY_COLOR_STANDARD,standard);
+                                        transfer=integer(decoded,MediaFormat.KEY_COLOR_TRANSFER,transfer);
+                                        range=integer(decoded,MediaFormat.KEY_COLOR_RANGE,range);
+                                        if(standard==0) standard=height>576?1:2;
+                                        if(transfer==0) transfer=3;
+                                        if(range==0) range=2;
+                                        onLog("YUV crop="+crop+" standard="+standard+" transfer="+transfer+" range="+range+" (default SDR per valori non dichiarati)");
+                                        handle=nativeOpen(width,height,Math.round(fps*1000),crf,standard,transfer,range,preset,cpuMode,Runtime.getRuntime().availableProcessors(),bframes,lookahead,sourceColor.primaries,sourceColor.transfer,sourceColor.matrix,sourceColor.flags());
+                                        int[] temporal=nativeEffectiveSettings(handle);
+                                        reportEncoderSettings(temporal);
+                                        onLog("PRESTAZIONI: ogni circa 5 secondi vedrai fps di codifica e CPU media normalizzata sui core; il log continua anche a schermata nascosta.\nStato termico Android: 0=regolare, 1=lieve, 2=moderato, 3=elevato, 4=critico, 5=emergenza, 6=spegnimento.\nLa temperatura riportata è della batteria, non della CPU.");
+                                        pixels=ByteBuffer.allocateDirect(width*height*3/2);
+                                    }
+                                    if(crop.width()!=width||crop.height()!=height) throw new IOException("Cambio risoluzione durante il video non supportato");
+                                    onLog("BEGIN conversione YUV frame="+frames+" pts_us="+info.presentationTimeUs);
+                                    packImage(image,pixels,width,height);
+                                    onLog("OK conversione YUV · invio a x265");
+                                    inputTimestamps.writeLong(info.presentationTimeUs);
+                                    nativeFrame(handle,pixels,info.presentationTimeUs);frames++;
+    
+                                    int percent=duration>0?(int)Math.min(89,Math.max(0,info.presentationTimeUs)*89.0/duration):0;
+                                    listener.timeline(duration>0?Math.min(duration,Math.max(0,lastPacket)):Math.max(0,lastPacket),duration);
+                                    listener.progress(percent,"Codifica: "+frames+" fotogrammi · "+percent+"%");
+                                }
+                            }
+                            outputEnd=(info.flags&MediaCodec.BUFFER_FLAG_END_OF_STREAM)!=0;
+                        } finally {decoder.releaseOutputBuffer(index,false);}
                         lastActivity=SystemClock.elapsedRealtime();
                     }
                 }
-                int index=decoder.dequeueOutputBuffer(info,1000);
-                if(index==MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
-                    decoded=decoder.getOutputFormat();rejectHdr(decoded);onLog("DECODE FORMAT "+decoded);
-                    lastActivity=SystemClock.elapsedRealtime();
-                } else if(index>=0) {
-                    try {
-                        if(info.size>0&&(info.flags&MediaCodec.BUFFER_FLAG_CODEC_CONFIG)==0) {
-                            try(Image image=decoder.getOutputImage(index)) {
-                                if(image==null||image.getFormat()!=ImageFormat.YUV_420_888)
-                                    throw new IOException("Il decoder non fornisce fotogrammi YUV420 a 8 bit: formato non supportato");
-                                Rect crop=image.getCropRect();
-                                if(handle==0) {
-                                    width=crop.width();height=crop.height();
-                                    if(width%2!=0||height%2!=0||crop.left%2!=0||crop.top%2!=0) throw new IOException("Ritaglio YUV non allineato");
-                                    standard=integer(decoded,MediaFormat.KEY_COLOR_STANDARD,standard);
-                                    transfer=integer(decoded,MediaFormat.KEY_COLOR_TRANSFER,transfer);
-                                    range=integer(decoded,MediaFormat.KEY_COLOR_RANGE,range);
-                                    if(standard==0) standard=height>576?1:2;
-                                    if(transfer==0) transfer=3;
-                                    if(range==0) range=2;
-                                    onLog("YUV crop="+crop+" standard="+standard+" transfer="+transfer+" range="+range+" (default SDR per valori non dichiarati)");
-                                    handle=nativeOpen(width,height,Math.round(fps*1000),crf,standard,transfer,range,preset,cpuMode,Runtime.getRuntime().availableProcessors(),bframes,lookahead,sourceColor.primaries,sourceColor.transfer,sourceColor.matrix,sourceColor.flags());
-                                    int[] temporal=nativeEffectiveSettings(handle);
-                                    listener.encoderSettings(temporal[0],temporal[1],temporal[2],temporal[3],temporal[4]);
-                                    onLog("*** PARAMETRI TEMPORALI EFFETTIVI ***\nB-frame massimi consecutivi: "+temporal[0]+"\nLookahead: "+temporal[1]+" fotogrammi\nCU-tree: "+temporal[2]+" (1=attivo, 0=disattivo)\nAQ mode: "+temporal[3]+"\nAQ strength: "+(temporal[4]/1000.0));
-                                    onLog("PRESTAZIONI: ogni circa 5 secondi vedrai fps di codifica e CPU media normalizzata sui core; il log continua anche a schermata nascosta.\nStato termico Android: 0=regolare, 1=lieve, 2=moderato, 3=elevato, 4=critico, 5=emergenza, 6=spegnimento.\nLa temperatura riportata è della batteria, non della CPU.");
-                                    pixels=ByteBuffer.allocateDirect(width*height*3/2);
-                                }
-                                if(crop.width()!=width||crop.height()!=height) throw new IOException("Cambio risoluzione durante il video non supportato");
-                                onLog("BEGIN conversione YUV frame="+frames+" pts_us="+info.presentationTimeUs);
-                                packImage(image,pixels,width,height);
-                                onLog("OK conversione YUV · invio a x265");
-                                inputTimestamps.writeLong(info.presentationTimeUs);
-                                nativeFrame(handle,pixels,info.presentationTimeUs);frames++;
-
-                                int percent=duration>0?(int)Math.min(89,Math.max(0,info.presentationTimeUs)*89.0/duration):0;
-                                listener.timeline(duration>0?Math.min(duration,Math.max(0,lastPacket)):Math.max(0,lastPacket),duration);
-                                listener.progress(percent,"Codifica: "+frames+" fotogrammi · "+percent+"%");
-                            }
-                        }
-                        outputEnd=(info.flags&MediaCodec.BUFFER_FLAG_END_OF_STREAM)!=0;
-                    } finally {decoder.releaseOutputBuffer(index,false);}
-                    lastActivity=SystemClock.elapsedRealtime();
-                }
+                if(handle==0) throw new IOException("Nessun fotogramma decodificato");
+                nativeFinish(handle);
+                listener.frames(frames,frames);
+                listener.timeline(durationUs>0?durationUs:Math.max(0,lastPacket),durationUs);
+                onLog("BEGIN nativeClose");nativeClose(handle);handle=0;onLog("OK nativeClose");
             }
-            if(handle==0) throw new IOException("Nessun fotogramma decodificato");
-            nativeFinish(handle);
-            listener.frames(frames,frames);
-            listener.timeline(durationUs>0?durationUs:Math.max(0,lastPacket),durationUs);
-            onLog("BEGIN nativeClose");nativeClose(handle);handle=0;onLog("OK nativeClose");
             if(frames!=packets) throw new IOException("Frame e pacchetti diversi: "+frames+"/"+packets);
             if(inputAudio>=0) {listener.progress(91,"Copia audio...");copyAudio(uri,inputAudio);}
             for(MetadataTrack track:metadataTracks)copyMetadataTrack(uri,track);
@@ -376,6 +405,11 @@ final class VideoConverter {
                 muxer.release();muxer=null;muxing=false;
             }
         }
+    }
+    private void reportEncoderSettings(int[] values){
+        if(values==null||values.length!=5)throw new IllegalStateException("Parametri encoder non disponibili");
+        listener.encoderSettings(values[0],values[1],values[2],values[3],values[4]);
+        onLog("*** PARAMETRI EFFETTIVI ***\nProfondità: "+(hdr?"10 bit HDR":"8 bit SDR")+"\nB-frame: "+values[0]+"\nLookahead: "+values[1]+" fotogrammi\nCU-tree: "+values[2]+"\nAQ mode: "+values[3]+"\nAQ strength: "+(values[4]/1000.0));
     }
     static void packImage(Image image,ByteBuffer target,int w,int h) throws IOException {
         Rect c=image.getCropRect();
@@ -476,7 +510,10 @@ final class VideoConverter {
             MediaFormat format=e.getTrackFormat(track);
             if(integer(format,MediaFormat.KEY_WIDTH,0)!=width||integer(format,MediaFormat.KEY_HEIGHT,0)!=height) throw new IOException("Risoluzione MP4 errata");
             if(e.getTrackCount()!=(audioFormat==null?1:2)+metadataTracks.size()) throw new IOException("Conteggio tracce errato");
-            e.selectTrack(track);d=MediaCodec.createDecoderByType("video/hevc");d.configure(format,null,null,0);d.start();running=true;
+            e.selectTrack(track);
+            if(hdr){HdrHevcInfo.requireMain10(HdrCodec.csds(format).toArray(new byte[0][]));d=HdrCodec.open(format,()->cancel.get(),this::onLog);}
+            else {d=MediaCodec.createDecoderByType("video/hevc");d.configure(format,null,null,0);d.start();}
+            running=true;
             MediaCodec.BufferInfo info=new MediaCodec.BufferInfo();boolean inEnd=false,outEnd=false;int count=0;
             long lastActivity=SystemClock.elapsedRealtime(),lastPts=-1;
             while(!outEnd) {
@@ -495,6 +532,12 @@ final class VideoConverter {
                 int i=d.dequeueOutputBuffer(info,1000);
                 if(i>=0) {
                     if(info.size>0&&(info.flags&MediaCodec.BUFFER_FLAG_CODEC_CONFIG)==0) {
+                        if(hdr){
+                            HdrCodec.check(d.getOutputFormat(i),sourceColor);
+                            try(Image image=d.getOutputImage(i)){
+                                if(image==null||image.getFormat()!=54||image.getCropRect().width()!=width||image.getCropRect().height()!=height)throw new IOException("Verifica HDR: attesi P010 e dimensioni originali");
+                            }
+                        }
                         if(info.presentationTimeUs<=lastPts)throw new IOException("Timestamp verifica non crescente");
                         long originalPts=expected.readLong();
                         if(Math.abs(info.presentationTimeUs-originalPts)>1000)throw new IOException("Timestamp MP4 diverso dall’originale: atteso="+originalPts+" ottenuto="+info.presentationTimeUs);
@@ -515,6 +558,7 @@ final class VideoConverter {
         }
     }
 }
+
 
 
 

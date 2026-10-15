@@ -76,7 +76,7 @@ final class InputInspector {
                     int transfer=integer(f,MediaFormat.KEY_COLOR_TRANSFER,-1);line(info,"Gamma dinamica",transfer==6?"HDR · PQ":transfer==7?"HDR · HLG":transfer==3||transfer==1?"SDR":"non determinabile dai metadati");
                     int profile=integer(f,MediaFormat.KEY_PROFILE,-1);String depth="non dichiarata";if("video/hevc".equals(mime)){if(profile==1)depth="8 bit · Main";else if(profile==2||profile==4096||profile==8192)depth="10 bit";}line(info,"Profondità colore",depth);
                     int bitrate=integer(f,MediaFormat.KEY_BIT_RATE,-1);if(bitrate>0)line(info,"Bitrate dichiarato",String.format(Locale.ITALY,"%.2f Mbit/s",bitrate/1000000.0));
-                    if(transfer==6||transfer==7)line(info,"Compatibilità","HDR non ancora supportato per la conversione");
+                    if(transfer==6||transfer==7)line(info,"Compatibilità","HEVC Main10 PQ/HLG: percorso HDR a 10 bit su Android 13+ con decoder P010. HDR10+ copiato per timestamp e verificato. Altri profili/SEI non supportati interrompono la conversione.");
                 }else if(mime!=null&&mime.startsWith("audio/")){
                     title="AUDIO "+(++audios);int channels=integer(f,MediaFormat.KEY_CHANNEL_COUNT,-1),hz=integer(f,MediaFormat.KEY_SAMPLE_RATE,-1);if(channels>0)line(info,"Canali",Integer.toString(channels));if(hz>0)line(info,"Campionamento",hz+" Hz");
                     int bitrate=integer(f,MediaFormat.KEY_BIT_RATE,-1);if(bitrate>0)line(info,"Bitrate dichiarato",String.format(Locale.ITALY,"%.1f kbit/s",bitrate/1000.0));
@@ -113,4 +113,5 @@ final class InputInspector {
     private static String containerName(String mime){switch(mime){case "video/mp4":return "MP4";case "video/quicktime":return "MOV / QuickTime";case "video/x-matroska":return "Matroska / MKV";case "video/webm":return "WebM";case "video/3gpp":return "3GP";default:return mime;}}
     private static String codecName(String mime){if(mime==null)return "sconosciuto";switch(mime){case "video/hevc":return "H.265 / HEVC";case "video/avc":return "H.264 / AVC";case "video/av01":return "AV1";case "video/x-vnd.on2.vp9":return "VP9";case "audio/mp4a-latm":return "AAC";case "audio/mpeg":return "MP3";case "audio/opus":return "Opus";default:return mime;}}
 }
+
 

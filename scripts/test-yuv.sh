@@ -30,3 +30,8 @@ java -cp yuv-test it.edo.codecprobe.FolderPathsTest
 
 javac -d yuv-test app/src/main/java/it/edo/codecprobe/DestinationPlan.java tests/DestinationPlanTest.java
 java -cp yuv-test it.edo.codecprobe.DestinationPlanTest
+
+javac -d yuv-test app/src/main/java/it/edo/codecprobe/HdrSei.java app/src/main/java/it/edo/codecprobe/HdrMetadataLedger.java tests/HdrMetadataTest.java
+java -cp yuv-test it.edo.codecprobe.HdrMetadataTest
+javac -cp yuv-test -d yuv-test tests/HdrNativeMetadataCheck.java
+

@@ -22,6 +22,8 @@ final class HdrProbe {
     private final Context context;private final BooleanSupplier cancelled;private final Consumer<String> listener;
     private final long start=SystemClock.elapsedRealtime();private Writer log;private RandomAccessFile elementary;
     private final List<Packet> packets=new ArrayList<>();private final List<Long> inputs=new ArrayList<>();
+    private HdrMetadataLedger metadata;
+    private File metadataFile;
     private byte[] headers;private ColorVui originalColor;private int width,height;private boolean decoderStarted;
     private static final class Packet {long at,pts;int size;Packet(long a,long p,int n){at=a;pts=p;size=n;}}
     private native long nativeOpen(int width,int height,int crf,int p,int t,int m,int flags);
@@ -34,12 +36,14 @@ final class HdrProbe {
     private void check()throws IOException{if(isCancelled())throw new IOException("Prova HDR annullata");}
     public void onLog(String value){String line="["+(SystemClock.elapsedRealtime()-start)+" ms] "+value;try{log.write(line+"\n");log.flush();}catch(IOException e){throw new IllegalStateException("Scrittura log HDR fallita",e);}listener.accept(line);}
     public void onHeaders(byte[] bytes){
+        bytes=HdrSei.replace(bytes,Collections.emptyList());
         onLog("*** VERIFICA HEADER REALI x265 ***");onLog("OK "+HdrHevcInfo.requireMain10(bytes));
         ColorVui encoded=ColorVui.read("video/hevc",bytes);onLog("COLORE HEVC GENERATO: "+encoded);
         if(!encoded.same(originalColor))throw new IllegalStateException("Colore HDR generato diverso dall’originale");
         headers=bytes.clone();try{elementary.write(bytes);}catch(IOException e){throw new IllegalStateException(e);}
     }
     public void onPacket(byte[] bytes,long pts,boolean key){
+        try{bytes=metadata.packet(bytes,pts);}catch(IOException e){throw new IllegalStateException(e);}
         if(bytes.length==0||bytes.length>16*1024*1024||packets.size()>=MAX_FRAMES)throw new IllegalStateException("Pacchetto HDR fuori limite");
         try{packets.add(new Packet(elementary.getFilePointer(),pts,bytes.length));elementary.write(bytes);}catch(IOException e){throw new IllegalStateException(e);}
         onLog("PACCHETTO HDR · indice="+packets.size()+" · pts_us="+pts+" · byte="+bytes.length+" · key="+key);
@@ -51,7 +55,7 @@ final class HdrProbe {
             try{
                 onLog("*** INIZIO TEST HDR · v"+BuildConfig.VERSION_NAME+" ***");
                 onLog("1. Leggo HEVC Main10 e dichiarazioni colore.\n2. Cerco decoder con uscita P010.\n3. Estraggo al massimo 6 fotogrammi a 10 bit.\n4. Ricodifico con x265 Main10 separato.\n5. Decodifico il campione e verifico fotogrammi e timestamp.");
-                onLog("TEST DI COMPATIBILITÀ: nessun MP4 finale, nessuna copia audio, nessuna validazione di qualità visiva.\nHDR10/HDR10+: metadati osservati e registrati; conservazione integrale non ancora implementata.\nIl flusso SDR e la sua libreria a 8 bit non vengono modificati.");
+                onLog("TEST DI COMPATIBILITÀ: nessun MP4 finale, nessuna copia audio, nessuna validazione di qualità visiva.\nHDR10/HDR10+: payload originali copiati per timestamp e verificati tramite SHA-256.\nIl flusso SDR e la sua libreria a 8 bit non vengono modificati.");
                 if(Build.VERSION.SDK_INT<33)throw new IOException("Questa prova richiede Android 13/API 33 per richiedere P010 al codec");
                 System.loadLibrary("x265hdrprobe");onLog("OK caricamento libreria HDR separata");
                 MediaExtractor extractor=new MediaExtractor();
@@ -73,14 +77,17 @@ final class HdrProbe {
                     if(width<16||height<16||width>3840||height>3840||(long)width*height>3840L*2160||width%2!=0||height%2!=0)throw new IOException("Prova HDR: dimensioni pari fino a 3840×2160, anche verticale");
                     extractor.selectTrack(track);format.setInteger(MediaFormat.KEY_COLOR_FORMAT,MediaCodecInfo.CodecCapabilities.COLOR_FormatYUVP010);format.setInteger(MediaFormat.KEY_ROTATION,0);
                     MediaCodec decoder=openDecoder(format);
-                    try{decodeSample(extractor,decoder,crf);}finally{if(decoderStarted)try{decoder.stop();}catch(RuntimeException ignored){}decoder.release();}
+                    metadataFile=new File(context.getCacheDir(),"hdr-diagnostic-metadata.bin");
+                    try(HdrMetadataLedger index=new HdrMetadataLedger(metadataFile,HdrCodec.metadata(format))){
+                        metadata=index;decodeSample(extractor,decoder,crf);
+                    }finally{metadata=null;if(decoderStarted)try{decoder.stop();}catch(RuntimeException ignored){}decoder.release();}
                 }finally{extractor.release();}
                 if(packets.size()!=inputs.size()||headers==null)throw new IOException("Campione HEVC incompleto");
-                verify();
+                verifyMetadata();verify();
                 String message="OK PROVA HDR · "+inputs.size()+" fotogrammi reali · P010 → x265 Main10 → decoder verificato";
-                onLog(message);onLog("*** FINE TEST HDR ***\nLa conversione HDR completa e la copia dei metadati HDR dinamici restano da abilitare. Il campione diagnostico temporaneo viene eliminato.");return message;
+                onLog(message);onLog("*** FINE TEST HDR ***\nPayload HDR originali verificati; il campione diagnostico temporaneo viene eliminato. La conversione completa usa il percorso HDR separato.");return message;
             }catch(Exception|LinkageError e){onLog("*** ERRORE TEST HDR ***\n"+e);StringWriter stack=new StringWriter();e.printStackTrace(new PrintWriter(stack));onLog(stack.toString());throw e;}
-        }finally{file.delete();}
+        }finally{file.delete();if(metadataFile!=null)metadataFile.delete();}
     }
     private MediaCodec openDecoder(MediaFormat format)throws IOException{
         MediaCodecList list=new MediaCodecList(MediaCodecList.ALL_CODECS);List<String> candidates=new ArrayList<>();
@@ -101,7 +108,11 @@ final class HdrProbe {
         MediaCodec.BufferInfo info=new MediaCodec.BufferInfo();boolean inputEnd=false,outputEnd=false;long handle=0,last=SystemClock.elapsedRealtime();ByteBuffer pixels=null;
         try{
             while(inputs.size()<MAX_FRAMES&&!outputEnd){check();if(SystemClock.elapsedRealtime()-last>30000)throw new IOException("Timeout decoder HDR: nessun progresso per 30 secondi");
-                if(!inputEnd){int index=decoder.dequeueInputBuffer(10000);if(index>=0){ByteBuffer b=decoder.getInputBuffer(index);if(b==null)throw new IOException("Buffer decoder HDR assente");b.clear();long sample=extractor.getSampleSize();if(sample>b.remaining())throw new IOException("Campione HDR troppo grande per il decoder");int n=extractor.readSampleData(b,0);if(n<0){decoder.queueInputBuffer(index,0,0,0,MediaCodec.BUFFER_FLAG_END_OF_STREAM);inputEnd=true;}else{decoder.queueInputBuffer(index,0,n,extractor.getSampleTime(),0);extractor.advance();}}}
+                if(!inputEnd){int index=decoder.dequeueInputBuffer(10000);if(index>=0){ByteBuffer b=decoder.getInputBuffer(index);if(b==null)throw new IOException("Buffer decoder HDR assente");b.clear();long sample=extractor.getSampleSize();if(sample>b.remaining())throw new IOException("Campione HDR troppo grande per il decoder");int n=extractor.readSampleData(b,0);if(n<0){decoder.queueInputBuffer(index,0,0,0,MediaCodec.BUFFER_FLAG_END_OF_STREAM);inputEnd=true;}else{
+                        if((extractor.getSampleFlags()&(MediaExtractor.SAMPLE_FLAG_ENCRYPTED|MediaExtractor.SAMPLE_FLAG_PARTIAL_FRAME))!=0)throw new IOException("Campione HDR protetto/parziale");
+                        byte[] original=new byte[n];ByteBuffer copy=b.duplicate();copy.position(0);copy.limit(n);copy.get(original);metadata.queued(extractor.getSampleTime(),original);
+                        decoder.queueInputBuffer(index,0,n,extractor.getSampleTime(),0);extractor.advance();
+                    }}}
                 int index=decoder.dequeueOutputBuffer(info,10000);
                 if(index==MediaCodec.INFO_OUTPUT_FORMAT_CHANGED){MediaFormat output=decoder.getOutputFormat();onLog("FORMATO DECODER HDR: "+output);dumpMetadata(output,"DECODER");last=SystemClock.elapsedRealtime();}
                 else if(index>=0)try{
@@ -114,6 +125,7 @@ final class HdrProbe {
                         long precise=HdrP010Packer.pack(planes,rows,strides,crop.left,crop.top,width,height,pixels);
                         onLog("OK PACK 10 BIT · byte="+pixels.remaining()+" · campioni con bit bassi utilizzati="+precise+" · nessuna riduzione a 8 bit");
                         MediaFormat frameFormat=decoder.getOutputFormat(index);checkDecodedFormat(frameFormat);dumpMetadata(frameFormat,"FRAME "+(inputs.size()+1));
+                        onLog("SEI ORIGINALI · "+metadata.beforeEncode(info.presentationTimeUs));
                         inputs.add(info.presentationTimeUs);nativeFrame(handle,pixels,info.presentationTimeUs);
                     }
                     outputEnd=(info.flags&MediaCodec.BUFFER_FLAG_END_OF_STREAM)!=0;last=SystemClock.elapsedRealtime();
@@ -129,6 +141,13 @@ final class HdrProbe {
         int standard=f.containsKey(MediaFormat.KEY_COLOR_STANDARD)?NumberValues.intExact(f.getNumber(MediaFormat.KEY_COLOR_STANDARD),"color-standard"):-1;
         int range=f.containsKey(MediaFormat.KEY_COLOR_RANGE)?NumberValues.intExact(f.getNumber(MediaFormat.KEY_COLOR_RANGE),"color-range"):-1;
         if(transfer!=expectedTransfer||standard!=MediaFormat.COLOR_STANDARD_BT2020||range!=expectedRange)throw new IOException("Colore del buffer HDR non verificabile o modificato: standard="+standard+" transfer="+transfer+" range="+range+" attesi=6/"+expectedTransfer+"/"+expectedRange);
+    }
+    private void verifyMetadata()throws IOException{
+        onLog("*** CONFRONTO PAYLOAD HDR DEL CAMPIONE ***");
+        try(HdrMetadataLedger.Verifier verifier=new HdrMetadataLedger.Verifier(metadataFile,Collections.emptyList())){
+            for(Packet p:packets){check();byte[] data=new byte[p.size];elementary.seek(p.at);elementary.readFully(data);verifier.sample(p.pts,data);onLog("OK VERIFY SEI HDR · pts_us="+p.pts+" · payload identici (SHA-256)");}
+            onLog("OK METADATI HDR · "+verifier.finish()+" fotogrammi verificati");
+        }
     }
     private void verify()throws Exception{
         onLog("*** VERIFICA DEL CAMPIONE HDR GENERATO ***");MediaFormat f=MediaFormat.createVideoFormat("video/hevc",width,height);f.setByteBuffer("csd-0",ByteBuffer.wrap(headers));f.setInteger(MediaFormat.KEY_COLOR_FORMAT,54);f.setInteger(MediaFormat.KEY_PROFILE,MediaCodecInfo.CodecProfileLevel.HEVCProfileMain10);
@@ -148,3 +167,4 @@ final class HdrProbe {
         }finally{try{decoder.stop();}catch(RuntimeException ignored){}decoder.release();}
     }
 }
+

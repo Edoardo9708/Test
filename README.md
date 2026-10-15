@@ -1,3 +1,17 @@
+# Conversione HDR e struttura del codice
+
+La coda riconosce HEVC Main10 PQ/HLG BT.2020 e usa il percorso separato a 10 bit su Android 13+ con decoder P010 accessibile. CRF, preset, CPU, B-frame e lookahead sono quelli selezionati; il log riporta i valori effettivi. Il percorso HDR è sperimentale: la libreria 10 bit non usa ancora assembly ARM. SDR continua a usare la propria libreria ottimizzata.
+
+- `HdrTranscoder`: decodifica P010 e codifica CPU Main10 dell'intero video.
+- `HdrCodec`: scelta decoder, controlli colore e accesso alle immagini Android.
+- `HdrP010Packer`: conversione campioni P010 in I420 a 10 bit, senza passare a 8 bit.
+- `HdrSei`: lettura SEI, copia esatta dei payload mastering display, content light, alternative transfer e HDR10+ T.35. Timing/hash del vecchio bitstream non vengono riutilizzati. SEI semantici sconosciuti e livelli Dolby Vision bloccano la conversione con dettaglio nel log.
+- `HdrMetadataLedger`: associazione per timestamp anche con B-frame e indice SHA-256 su disco; memoria limitata. Verifica tutti i payload nell'MP4 prima del salvataggio.
+- `cpp/hdr`: x265 Main10 e JNI in una libreria distinta dalla versione SDR.
+- `VideoConverter`: coordina i percorsi; riusa copia audio, metadati MP4/Samsung/GPS, verifica e salvataggio esistenti.
+
+Il test breve HDR conserva e verifica gli stessi payload su sei fotogrammi. La CI verifica PQ/HLG, campioni 10 bit, riordinamento con B-frame/lookahead, payload Samsung HDR10+, decodifica FFmpeg e conservazione dei byte dopo remux MP4. La verifica sul telefono resta necessaria per il decoder specifico e il video reale; non viene dichiarata una validazione percettiva della qualità.
+
 # Novità v0.26 · cartelle e conversione multipla
 
 - Impostazioni: cartella predefinita, salvata con un permesso SAF permanente. La scelta nella home vale per la coda corrente.
@@ -139,3 +153,4 @@ Read H.264/H.265 SPS VUI directly from codec CSD, including exact primaries, tra
 ## v0.17: small read-only metadata diagnostics
 
 The diagnostic screen adds Export original metadata TXT. It opens the selected original with the same media/location permissions and exports ftyp, udta/meta/uuid/meco and sefd blocks with original offsets, sizes, full HEX and SHA256. It skips mdat by seeking, so a multi-GB video yields a small metadata-only file. Limits: 4 MB per copied block and 8 MB total metadata; no partial-success report. Failed or cancelled exports delete their temporary file. Conversion still rejects unverified sefd; the diagnostic export does not enable blind copying. Attach the exported TXT to identify actual SEF entries and assess relocation.
+
