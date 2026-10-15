@@ -28,6 +28,7 @@ final class HomeController {
     final HomeConversion conversion;
     final HomeDiagnostics diagnostics;
     final HomeSystemMonitor system;
+    final HomeReset reset;
 
     HomeController(MainActivity activity, Bundle saved) {
         this.activity = activity;
@@ -41,11 +42,13 @@ final class HomeController {
         conversion = new HomeConversion(this);
         diagnostics = new HomeDiagnostics(this);
         system = new HomeSystemMonitor(this);
+        reset = new HomeReset(this);
         selection.bind();
         destinations.bind();
         compression.bind();
         conversion.bind();
         diagnostics.bind();
+        reset.bind();
         screen.preferences.setOnClickListener((v)->openSettings());
         HomeSavedState.restore(this, saved, defaults);
         if (saved != null && saved.getBoolean("videoDetailsExpanded")) {

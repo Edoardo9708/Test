@@ -21,7 +21,7 @@ final class HomeFailureReport {
         boolean structured = !state.failures.isEmpty();
         views.sizeReport.setVisibility(structured ? View.GONE : View.VISIBLE);
         views.failureReport.setVisibility(structured ? View.VISIBLE : View.GONE);
-        if (!structured) { rendered = ""; renderedFailures = java.util.Collections.emptyList(); return; }
+        if (!structured) { views.failureReport.removeAllViews(); rendered = ""; renderedFailures = java.util.Collections.emptyList(); return; }
         if (rendered.equals(state.sizeReport) && renderedFailures.equals(state.failures)) return;
         rendered = state.sizeReport;
         renderedFailures = new java.util.ArrayList<>(state.failures);

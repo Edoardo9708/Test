@@ -109,6 +109,7 @@ final class HomeConversion {
         retry.update(value);
         playback.render(ConversionService.snapshot());
         home.diagnostics.updateClearLogsButton();
+        home.reset.update(value);
     }
 
     void updateScreenAwake() {

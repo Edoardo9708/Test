@@ -18,7 +18,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public final class ConversionService extends Service {
     static final String START="it.edo.codecprobe.START",CANCEL="it.edo.codecprobe.CANCEL",PAUSE="it.edo.codecprobe.PAUSE",RESUME="it.edo.codecprobe.RESUME",SKIP="it.edo.codecprobe.SKIP";
     private static final Object LOCK=new Object();
-    private static final State state=new State();
+    private static State state=new State();
     private static Runnable observer;
     private static Intent lastRetry;
     private static boolean retryLoaded;
@@ -79,6 +79,16 @@ public final class ConversionService extends Service {
         State(State s){pauseRequested=s.pauseRequested;paused=s.paused;skipping=s.skipping;cancelling=s.cancelling;fileActive=s.fileActive;skipped=s.skipped;failures=new ArrayList<>(s.failures);startedAt=s.startedAt;endedAt=s.endedAt;requestedCrf=s.requestedCrf;requestedCpu=s.requestedCpu;requestedPreset=s.requestedPreset;sizeReport=s.sizeReport;applyAllDestinations=s.applyAllDestinations;allOrigin=s.allOrigin;allFolder=s.allFolder;individualOrigins=s.individualOrigins.clone();individualFolders=new ArrayList<>(s.individualFolders);originMode=s.originMode;inputs=new ArrayList<>(s.inputs);names=new ArrayList<>(s.names);folders=new ArrayList<>(s.folders);results=new ArrayList<>(s.results);filePercent=s.filePercent;batchIndex=s.batchIndex;batchTotal=s.batchTotal;succeeded=s.succeeded;failed=s.failed;ignored=s.ignored;notSaved=s.notSaved;onlySmaller=s.onlySmaller;hasSession=s.hasSession;running=s.running;bframeCount=s.bframeCount;lookaheadCount=s.lookaheadCount;cuTree=s.cuTree;aqMode=s.aqMode;aqStrength=s.aqStrength;percent=s.percent;doneFrames=s.doneFrames;totalFrames=s.totalFrames;done=s.done;total=s.total;message=s.message;log=s.log;source=s.source;result=s.result;input=s.input;folder=s.folder;}
     }
     static boolean clearLogsIfIdle(Runnable clear){synchronized(LOCK){if(state.running)return false;clear.run();state.log="";return true;}}
+    static boolean clearSessionIfIdle(android.content.Context context){
+        synchronized(LOCK){
+            if(state.running)return false;
+            BatchRetry.clear(context);
+            lastRetry=null;retryLoaded=true;
+            state=new State();
+        }
+        context.getSystemService(NotificationManager.class).cancel(NOTICE);
+        return true;
+    }
     static State snapshot(){synchronized(LOCK){return new State(state);}}
     static void observe(Runnable listener){synchronized(LOCK){observer=listener;}}
     static void detach(Runnable listener){synchronized(LOCK){if(observer==listener)observer=null;}}

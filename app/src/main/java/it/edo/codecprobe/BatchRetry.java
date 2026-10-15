@@ -46,6 +46,9 @@ final class BatchRetry {
             return editor.commit();
         }catch(JSONException|RuntimeException error){return false;}
     }
+    static void clear(Context context){
+        context.getSharedPreferences("failed-conversion-retry",0).edit().remove("request").apply();
+    }
     static Intent load(Context context){
         try{String saved=context.getSharedPreferences("failed-conversion-retry",0).getString("request",null);
             return saved==null?null:decode(context,new JSONObject(saved));

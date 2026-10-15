@@ -82,4 +82,9 @@ public class HomeRenderTest {
         }finally{ConversionService.rememberFailures(controller.get(),null);controller.pause().stop().destroy();VideoMetadataCache.clear();}
     }
 
+    @Test public void clearedHome()throws Exception{
+        ActivityController<MainActivity> controller=screen();try{
+            HomeController home=controller.get().home;home.reset.clear();image(home,"home-cleared.png");
+        }finally{controller.pause().stop().destroy();VideoMetadataCache.clear();}
+    }
 }

@@ -6,10 +6,11 @@ import android.view.*;
 import android.widget.*;
 
 /**
-* View construction only; actions are bound by HomeSelection.
+* View construction only; selection and reset have separate controllers.
 */
 final class HomeFilesSection {
     Button pickVideo;
+    Button clearSelection;
     Button reloadMetadata;
     Button details;
     TextView videoNumber;
@@ -25,8 +26,11 @@ final class HomeFilesSection {
     final java.util.ArrayList<Button> videoChips = new java.util.ArrayList<>();
 
     HomeFilesSection(AppUi ui, LinearLayout files, AppSettings defaults, Bundle state) {
-        pickVideo = ui.button(files, "Seleziona uno o più video");
-        ui.styleButton(pickVideo, true);
+        LinearLayout actions=ui.row(files);
+        pickVideo=ui.halfButton(actions,"Seleziona video",true);
+        clearSelection=ui.halfButton(actions,"Svuota tutto",false);
+        clearSelection.setContentDescription("Svuota selezione, avanzamento e resoconto senza eliminare i video");
+        clearSelection.setEnabled(false);
         videoNumber = ui.text(files, "", 15);
         videoCarousel = new HorizontalScrollView(ui.activity);
         videoCarousel.setHorizontalScrollBarEnabled(true);
