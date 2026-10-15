@@ -22,26 +22,25 @@ import static org.robolectric.Shadows.shadowOf;
 @Config(sdk=34)
 @LooperMode(LooperMode.Mode.PAUSED)
 public class CancellationConfirmationTest {
-    private Object field(MainActivity a,String name)throws Exception{Field f=MainActivity.class.getDeclaredField(name);f.setAccessible(true);return f.get(a);}
     private void startFakeHdr(MainActivity activity)throws Exception{
-        Field hdr=MainActivity.class.getDeclaredField("hdrTesting");hdr.setAccessible(true);hdr.setBoolean(activity,true);
-        Button stop=(Button)field(activity,"stop");stop.setEnabled(true);stop.performClick();
+        activity.home.state.hdrTesting=true;
+        Button stop=(Button)activity.home.screen.conversion.stop;stop.setEnabled(true);stop.performClick();
     }
     @Test public void continueOrDismissDoesNotCancel()throws Exception{
         ActivityController<MainActivity> controller=Robolectric.buildActivity(MainActivity.class).setup();MainActivity activity=controller.get();
         try{
-            startFakeHdr(activity);AtomicBoolean cancelled=(AtomicBoolean)field(activity,"cancelled");
-            AlertDialog dialog=(AlertDialog)field(activity,"cancelConfirmation");assertNotNull(dialog);assertFalse(cancelled.get());
+            startFakeHdr(activity);AtomicBoolean cancelled=(AtomicBoolean)activity.home.state.cancelled;
+            AlertDialog dialog=(AlertDialog)activity.home.conversion.cancelConfirmation;assertNotNull(dialog);assertFalse(cancelled.get());
             dialog.getButton(AlertDialog.BUTTON_NEGATIVE).performClick();shadowOf(Looper.getMainLooper()).idle();assertFalse(cancelled.get());
-            ((Button)field(activity,"stop")).performClick();((AlertDialog)field(activity,"cancelConfirmation")).cancel();shadowOf(Looper.getMainLooper()).idle();assertFalse(cancelled.get());
+            ((Button)activity.home.screen.conversion.stop).performClick();((AlertDialog)activity.home.conversion.cancelConfirmation).cancel();shadowOf(Looper.getMainLooper()).idle();assertFalse(cancelled.get());
         }finally{controller.pause().stop().destroy();}
     }
     @Test public void onlyPositiveConfirmationCancels()throws Exception{
         ActivityController<MainActivity> controller=Robolectric.buildActivity(MainActivity.class).setup();MainActivity activity=controller.get();
         try{
-            startFakeHdr(activity);AtomicBoolean cancelled=(AtomicBoolean)field(activity,"cancelled");assertFalse(cancelled.get());
-            ((AlertDialog)field(activity,"cancelConfirmation")).getButton(AlertDialog.BUTTON_POSITIVE).performClick();shadowOf(Looper.getMainLooper()).idle();
-            assertTrue(cancelled.get());assertFalse(((Button)field(activity,"stop")).isEnabled());
+            startFakeHdr(activity);AtomicBoolean cancelled=(AtomicBoolean)activity.home.state.cancelled;assertFalse(cancelled.get());
+            ((AlertDialog)activity.home.conversion.cancelConfirmation).getButton(AlertDialog.BUTTON_POSITIVE).performClick();shadowOf(Looper.getMainLooper()).idle();
+            assertTrue(cancelled.get());assertFalse(((Button)activity.home.screen.conversion.stop).isEnabled());
         }finally{controller.pause().stop().destroy();}
     }
     @Test public void notificationOpensConfirmationActivityInsteadOfStoppingService()throws Exception{
@@ -59,9 +58,10 @@ public class CancellationConfirmationTest {
     @Test public void staleNotificationDoesNotShowCancelDialog()throws Exception{
         ActivityController<MainActivity> controller=Robolectric.buildActivity(MainActivity.class).setup();MainActivity activity=controller.get();
         try{
-            Method handle=MainActivity.class.getDeclaredMethod("handleCancellationIntent",Intent.class);handle.setAccessible(true);
-            Intent request=new Intent(MainActivity.CONFIRM_CANCEL).putExtra(MainActivity.CANCEL_SESSION,999L);handle.invoke(activity,request);
-            assertNull(field(activity,"cancelConfirmation"));assertNull(request.getAction());
+            
+            Intent request=new Intent(MainActivity.CONFIRM_CANCEL).putExtra(MainActivity.CANCEL_SESSION,999L);activity.home.conversion.handleCancellationIntent(request);
+            assertNull(activity.home.conversion.cancelConfirmation);assertNull(request.getAction());
         }finally{controller.pause().stop().destroy();}
     }
 }
+

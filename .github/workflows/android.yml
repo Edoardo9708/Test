@@ -89,7 +89,7 @@ jobs:
           path: ${{ steps.package.outputs.apk_path }}
           if-no-files-found: error
       - name: Package corresponding source
-        run: tar --exclude=.git --exclude=.gradle --exclude=.cxx --exclude=app/build --exclude=native-smoke --exclude=arm-smoke --exclude=yuv-test --exclude=CodecProbe-source.tar.gz -czf CodecProbe-source.tar.gz app scripts tests vendor build.gradle settings.gradle gradle.properties README.md .github
+        run: tar --exclude=.git --exclude=.gradle --exclude=.cxx --exclude=app/build --exclude=native-smoke --exclude=arm-smoke --exclude=yuv-test --exclude=CodecProbe-source.tar.gz -czf CodecProbe-source.tar.gz app scripts tests vendor build.gradle settings.gradle gradle.properties README.md docs .github
       - uses: actions/upload-artifact@v4
         with:
           name: v${{ steps.package.outputs.version }}-CodecProbe-source
@@ -102,4 +102,5 @@ jobs:
             native-smoke.log
             arm-smoke.log
             hdr-smoke.log
+
 

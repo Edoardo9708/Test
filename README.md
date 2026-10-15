@@ -1,3 +1,5 @@
+Interfaccia modulare: pagina principale separata in sezioni e gestori delle azioni, tema e controlli condivisi con Impostazioni. Pulsanti uniformi, selezione qualità evidenziata, metriche a riquadri, larghezza massima sugli schermi grandi e stato ripristinato dopo ricreazione. Architettura e regole di manutenzione: [docs/ui-architecture.md](docs/ui-architecture.md).
+
 Samsung screen recordings: supporto del record SEF `Samsung_Capture_Info` con etichetta `Screen recording` e directory versione 107. Il blocco resta identico e viene verificato con SHA-256 dopo la copia; versioni o payload non verificati restano bloccati. Test di regressione con gli 84 byte originali del campione, riferimenti corrotti e copia insieme ai precedenti record HighlightVideo_Data.
 
 # Conversione HDR e struttura del codice

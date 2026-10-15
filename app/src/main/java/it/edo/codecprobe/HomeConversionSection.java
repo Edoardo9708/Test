@@ -1,0 +1,118 @@
+package it.edo.codecprobe;
+
+import android.content.res.ColorStateList;
+import android.graphics.Typeface;
+import android.os.*;
+import android.view.*;
+import android.widget.*;
+
+/**
+* View construction only; actions are bound by HomeConversion.
+*/
+final class HomeConversionSection {
+    Button convert;
+    Button stop;
+    Button openVideo;
+    CheckBox keepScreenOn;
+    TextView queueLabel;
+    TextView elapsedLabel;
+    TextView currentFile;
+    TextView percentLabel;
+    TextView frameLabel;
+    TextView timeline;
+    TextView status;
+    TextView activePreset;
+    TextView activeCrf;
+    TextView activeCpu;
+    TextView activeBframes;
+    TextView activeLookahead;
+    TextView activeTree;
+    TextView activeAq;
+    TextView activeStrength;
+    TextView cpuValue;
+    TextView ramValue;
+    TextView batteryValue;
+    TextView sizeReportTitle;
+    TextView sizeReport;
+    LinearLayout sizeReportPanel;
+    ProgressBar progress;
+
+    HomeConversionSection(AppUi ui, LinearLayout work, AppSettings defaults, Bundle state) {
+        LinearLayout actions = new LinearLayout(ui.activity);
+        actions.setGravity(Gravity.CENTER_VERTICAL);
+        work.addView(actions, new LinearLayout.LayoutParams(-1, -2));
+        convert = ui.halfButton(actions, "Converti e salva", true);
+        stop = ui.halfButton(actions, "Annulla", false);
+        stop.setEnabled(false);
+        ui.danger(stop);
+        keepScreenOn = new CheckBox(ui.activity);
+        keepScreenOn.setText("Mantieni schermo acceso");
+        keepScreenOn.setTextColor(ui.ink);
+        keepScreenOn.setTextSize(17);
+        keepScreenOn.setButtonTintList(ColorStateList.valueOf(ui.accent));
+        keepScreenOn.setMinHeight(ui.dp(48));
+        LinearLayout screenRow = new LinearLayout(ui.activity);
+        screenRow.setGravity(Gravity.CENTER_VERTICAL);
+        work.addView(screenRow);
+        screenRow.addView(keepScreenOn, new LinearLayout.LayoutParams(0, -2, 1));
+        keepScreenOn.setChecked(defaults.keepScreenOn);
+        ui.infoButton(screenRow, "Mantieni schermo acceso", "Evita lo spegnimento automatico mentre la conversione è in corso e questa schermata è visibile. Si disattiva al termine o uscendo dalla schermata. Puoi spegnere lo schermo con il tasto del telefono. La scelta viene salvata per gli avvii successivi; non garantisce una velocità di codifica maggiore.");
+        ui.sectionHeading(work, "SOMMARIO");
+        LinearLayout summary = ui.panel(work);
+        queueLabel = ui.text(summary, "Nessuna coda avviata", 16);
+        elapsedLabel = ui.dashboardRow(summary, "Tempo trascorso", "00:00:00");
+        ui.sectionHeading(work, "PROGRESSO · FILE ATTUALE");
+        currentFile = ui.text(work, "Nessun file in conversione", 16);
+        currentFile.setTypeface(null, Typeface.BOLD);
+        currentFile.setMaxLines(2);
+        currentFile.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        percentLabel = ui.text(work, "0%", 28);
+        percentLabel.setTypeface(null, Typeface.BOLD);
+        progress = new ProgressBar(ui.activity, null, android.R.attr.progressBarStyleHorizontal);
+        progress.setMax(100);
+        progress.setProgressTintList(ColorStateList.valueOf(ui.accent));
+        progress.setProgressBackgroundTintList(ColorStateList.valueOf(ui.border));
+        LinearLayout.LayoutParams bar = new LinearLayout.LayoutParams(-1, ui.dp(12));
+        bar.setMargins(0, ui.dp(8), 0, ui.dp(12));
+        work.addView(progress, bar);
+        frameLabel = ui.dashboardRow(work, "Fotogrammi", "0 / —");
+        timeline = ui.dashboardRow(work, "Secondi di video", "—");
+        status = ui.text(work, "Scegli video, cartella e qualità.", 14);
+        status.setTextColor(ui.muted);
+        ui.sectionHeading(work, "PARAMETRI IN USO");
+        ui.text(work, "x265 · codifica software su CPU", 14);
+        activePreset = ui.dashboardRow(work, "Preset", "—");
+        activeCrf = ui.dashboardRow(work, "CRF", "—");
+        activeCpu = ui.dashboardRow(work, "Modalità CPU", "—");
+        activeBframes = ui.dashboardRow(work, "B-frame", "—");
+        activeLookahead = ui.dashboardRow(work, "Lookahead", "—");
+        activeTree = ui.dashboardRow(work, "CU-tree", "—");
+        activeAq = ui.dashboardRow(work, "AQ mode", "—");
+        activeStrength = ui.dashboardRow(work, "AQ strength", "—");
+        ui.sectionHeading(work, "SISTEMA");
+        LinearLayout metrics = ui.row(work);
+        cpuValue = ui.metric(metrics, "CPU app");
+        ramValue = ui.metric(metrics, "RAM · PSS");
+        batteryValue = ui.metric(metrics, "Batteria °C");
+        ui.parameterRow(work, "Info misure", "CPU: percentuale del processo rispetto a tutti i core disponibili; 100% significa occupazione complessiva. Colori: blu sotto 30%, verde da 30%, ambra da 70%, arancio da 90%. Indicano intensità di utilizzo, non errori.\n\nRAM: PSS del processo, inclusi Java, codice nativo e quota proporzionale delle pagine condivise; non è la RAM totale del telefono. MiB = 1.048.576 byte. Aggiornamento circa ogni 3 secondi.\n\nLa temperatura è della batteria, non della CPU. Colori indicativi: verde sotto 35 °C, ambra da 35 °C, arancio da 40 °C, rosso da 45 °C. Non sono le soglie ufficiali del produttore.\n\nTempo trascorso: durata della coda, inclusi analisi, codifica, verifica e salvataggio. I secondi di video rappresentano il contenuto elaborato e rimanente, non una stima del tempo di attesa.");
+        LinearLayout outputActions = new LinearLayout(ui.activity);
+        outputActions.setWeightSum(2);
+        work.addView(outputActions, new LinearLayout.LayoutParams(-1, -2));
+        openVideo = ui.halfButton(outputActions, "Apri risultato", false);
+        openVideo.setVisibility(View.GONE);
+        sizeReportPanel = new LinearLayout(ui.activity);
+        sizeReportPanel.setOrientation(LinearLayout.VERTICAL);
+        sizeReportPanel.setPadding(ui.dp(14), ui.dp(12), ui.dp(14), ui.dp(12));
+        sizeReportPanel.setBackground(ui.shape(ui.bg, 14));
+        LinearLayout.LayoutParams reportLayout = new LinearLayout.LayoutParams(-1, -2);
+        reportLayout.setMargins(0, ui.dp(14), 0, 0);
+        work.addView(sizeReportPanel, reportLayout);
+        sizeReportTitle = ui.text(sizeReportPanel, "RESOCONTO CONVERSIONE", 16);
+        sizeReportTitle.setTypeface(null, Typeface.BOLD);
+        sizeReportTitle.setTextColor(ui.accent);
+        sizeReport = ui.text(sizeReportPanel, "", 16);
+        sizeReport.setTextIsSelectable(true);
+        sizeReport.setLineSpacing(ui.dp(4), 1);
+        sizeReportPanel.setVisibility(View.GONE);
+    }
+}

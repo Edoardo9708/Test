@@ -36,3 +36,5 @@ javac -d yuv-test app/src/main/java/it/edo/codecprobe/HdrSei.java app/src/main/j
 java -cp yuv-test it.edo.codecprobe.HdrMetadataTest
 javac -cp yuv-test -d yuv-test tests/HdrNativeMetadataCheck.java
 
+
+python3 scripts/verify-ui-modules.py

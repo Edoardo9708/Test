@@ -17,24 +17,23 @@ import static org.junit.Assert.*;
 @Config(sdk=34)
 @LooperMode(LooperMode.Mode.PAUSED)
 public class CollapsibleCardsTest {
-    private Object field(MainActivity a,String name)throws Exception{Field f=MainActivity.class.getDeclaredField(name);f.setAccessible(true);return f.get(a);}
-    @SuppressWarnings("unchecked") private Map<String,LinearLayout> bodies(MainActivity a)throws Exception{return (Map<String,LinearLayout>)field(a,"cardBodies");}
-    @SuppressWarnings("unchecked") private Map<String,Button> headers(MainActivity a)throws Exception{return (Map<String,Button>)field(a,"cardHeaders");}
+    @SuppressWarnings("unchecked") private Map<String,LinearLayout> bodies(MainActivity a)throws Exception{return (Map<String,LinearLayout>)a.home.screen.sections.bodies;}
+    @SuppressWarnings("unchecked") private Map<String,Button> headers(MainActivity a)throws Exception{return (Map<String,Button>)a.home.screen.sections.headers;}
     @Test public void onlyFirstCardOpensAndCollapseKeepsValues()throws Exception{
         ActivityController<MainActivity> controller=Robolectric.buildActivity(MainActivity.class).setup();MainActivity activity=controller.get();
         try{
             Map<String,LinearLayout> cards=bodies(activity);assertEquals(4,cards.size());int n=0;
             for(LinearLayout body:cards.values())assertEquals(n++==0?View.VISIBLE:View.GONE,body.getVisibility());
-            SeekBar crf=(SeekBar)field(activity,"crfSlider");crf.setProgress(28);
+            SeekBar crf=(SeekBar)activity.home.screen.compression.crfSlider;crf.setProgress(28);
             headers(activity).get("02  COMPRESSIONE").performClick();assertEquals(View.VISIBLE,cards.get("02  COMPRESSIONE").getVisibility());
             headers(activity).get("02  COMPRESSIONE").performClick();assertEquals(View.GONE,cards.get("02  COMPRESSIONE").getVisibility());
-            assertSame(crf,field(activity,"crfSlider"));assertEquals(28,crf.getProgress());
+            assertSame(crf,activity.home.screen.compression.crfSlider);assertEquals(28,crf.getProgress());
         }finally{controller.pause().stop().destroy();}
     }
     @Test public void focusConversionAndRecreationKeepExpansion()throws Exception{
         ActivityController<MainActivity> first=Robolectric.buildActivity(MainActivity.class).setup();Bundle saved=new Bundle();
         try{
-            Method focus=MainActivity.class.getDeclaredMethod("focusCard",String.class);focus.setAccessible(true);focus.invoke(first.get(),MainActivity.CARD_CONVERSION);
+            first.get().home.screen.sections.focusCard(MainActivity.CARD_CONVERSION);
             for(Map.Entry<String,LinearLayout> entry:bodies(first.get()).entrySet())assertEquals(entry.getKey().equals(MainActivity.CARD_CONVERSION)?View.VISIBLE:View.GONE,entry.getValue().getVisibility());
             first.saveInstanceState(saved);
         }finally{first.pause().stop().destroy();}
@@ -47,3 +46,4 @@ public class CollapsibleCardsTest {
         }finally{restored.pause().stop().destroy();}
     }
 }
+

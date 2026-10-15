@@ -22,9 +22,6 @@ import static org.junit.Assert.*;
 @Config(sdk=34)
 @LooperMode(LooperMode.Mode.PAUSED)
 public class VideoCarouselTest {
-    private Object field(MainActivity activity,String name)throws Exception{
-        Field f=MainActivity.class.getDeclaredField(name);f.setAccessible(true);return f.get(activity);
-    }
     @Test public void scrollingDoesNotSelectAndCachedSelectionDoesNotReadAgain()throws Exception{
         VideoMetadataCache.permissions("false:false");VideoMetadataCache.clear();long epoch=VideoMetadataCache.epoch();
         String first="content://test/video/one",second="content://test/video/two";
@@ -34,15 +31,16 @@ public class VideoCarouselTest {
         ActivityController<MainActivity> controller=Robolectric.buildActivity(MainActivity.class).create(state).start().resume().visible();
         MainActivity activity=controller.get();
         try{
-            assertFalse((Boolean)field(activity,"metadataLoading"));
-            assertEquals("Prima sintesi",((TextView)field(activity,"inputInfo")).getText().toString());
-            HorizontalScrollView carousel=(HorizontalScrollView)field(activity,"videoCarousel");carousel.scrollTo(200,0);
-            assertEquals(0,field(activity,"selectedVideoIndex"));
-            ArrayList<?> chips=(ArrayList<?>)field(activity,"videoChips");assertEquals(2,chips.size());
+            assertFalse((Boolean)activity.home.state.metadataLoading);
+            assertEquals("Prima sintesi",((TextView)activity.home.screen.files.inputInfo).getText().toString());
+            HorizontalScrollView carousel=(HorizontalScrollView)activity.home.screen.files.videoCarousel;carousel.scrollTo(200,0);
+            assertEquals(0,activity.home.state.selectedVideoIndex);
+            ArrayList<?> chips=(ArrayList<?>)activity.home.screen.files.videoChips;assertEquals(2,chips.size());
             ((Button)chips.get(1)).performClick();shadowOf(Looper.getMainLooper()).idleFor(Duration.ofSeconds(1));
-            assertEquals(1,field(activity,"selectedVideoIndex"));
-            assertEquals("Seconda sintesi",((TextView)field(activity,"inputInfo")).getText().toString());
-            assertFalse((Boolean)field(activity,"metadataLoading"));assertNull(field(activity,"metadataDialog"));
+            assertEquals(1,activity.home.state.selectedVideoIndex);
+            assertEquals("Seconda sintesi",((TextView)activity.home.screen.files.inputInfo).getText().toString());
+            assertFalse((Boolean)activity.home.state.metadataLoading);assertNull(activity.home.selection.metadataDialog);
         }finally{controller.pause().stop().destroy();VideoMetadataCache.clear();}
     }
 }
+
