@@ -33,15 +33,16 @@ final class SourceFolder {
     private static String queryParent(Context c,Uri uri){
         try(Cursor row=c.getContentResolver().query(uri,new String[]{"relative_path","volume_name"},null,null,null)){
             if(row!=null&&row.moveToFirst()){
-                int pathColumn=row.getColumnIndex("relative_path"),volumeColumn=row.getColumnIndex("volume_name");
-                String parent=FolderPaths.fromRelative(volumeColumn<0||row.isNull(volumeColumn)?null:row.getString(volumeColumn),pathColumn<0||row.isNull(pathColumn)?null:row.getString(pathColumn));
+                int pathColumn=row.getColumnIndexOrThrow("relative_path"),volumeColumn=row.getColumnIndexOrThrow("volume_name");
+                String parent=FolderPaths.fromRelative(row.isNull(volumeColumn)?null:row.getString(volumeColumn),row.isNull(pathColumn)?null:row.getString(pathColumn));
                 if(parent!=null)return parent;
             }
         }catch(Exception ignored){}
         // Metadata-only fallback. Opening files still uses SAF/MediaStore URIs.
         try(Cursor row=c.getContentResolver().query(uri,new String[]{"_data"},null,null,null)){
-            if(row!=null&&row.moveToFirst()&&row.getColumnIndex("_data")>=0&&!row.isNull(row.getColumnIndex("_data"))){
-                String path=row.getString(row.getColumnIndex("_data")),primary=Environment.getExternalStorageDirectory().getAbsolutePath()+"/";
+            if(row!=null&&row.moveToFirst()){
+                int dataColumn=row.getColumnIndexOrThrow("_data");if(row.isNull(dataColumn))return null;
+                String path=row.getString(dataColumn),primary=Environment.getExternalStorageDirectory().getAbsolutePath()+"/";
                 if(path.startsWith(primary))return FolderPaths.parent("primary:"+path.substring(primary.length()));
                 if(path.startsWith("/storage/")){String relative=path.substring(9);int slash=relative.indexOf('/');if(slash>0&&relative.substring(0,slash).matches("[0-9a-fA-F]{4}-[0-9a-fA-F]{4}"))return FolderPaths.parent(relative.substring(0,slash)+":"+relative.substring(slash+1));}
             }

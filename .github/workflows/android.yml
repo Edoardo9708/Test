@@ -28,6 +28,13 @@ jobs:
         run: sdkmanager "platforms;android-35" "build-tools;35.0.0" "ndk;27.2.12479018" "cmake;3.22.1"
       - name: Prepare pinned x265 source and license
         run: bash scripts/prepare-x265.sh
+      - name: Restore permanent APK signing key
+        id: signing
+        env:
+          CODECPROBE_SIGNING_JSON: ${{ secrets.CODECPROBE_SIGNING_JSON }}
+        run: python3 scripts/restore-signing.py
+      - name: Build and lint
+        run: gradle --no-daemon :app:assembleDebug :app:lintDebug
       - name: Build and run native software smoke test
         run: |
           sudo apt-get update -qq
@@ -61,13 +68,6 @@ jobs:
           python3 scripts/verify-hdr-smoke.py
           java -cp yuv-test it.edo.codecprobe.HdrHeaderCheck hdr10-16.hevc 16
           java -cp yuv-test it.edo.codecprobe.HdrHeaderCheck hdr10-18.hevc 18
-      - name: Restore permanent APK signing key
-        id: signing
-        env:
-          CODECPROBE_SIGNING_JSON: ${{ secrets.CODECPROBE_SIGNING_JSON }}
-        run: python3 scripts/restore-signing.py
-      - name: Build and lint
-        run: gradle --no-daemon :app:assembleDebug :app:lintDebug
       - name: Verify permanent APK signature
         if: steps.signing.outputs.ready == 'true'
         run: python3 scripts/verify-signing.py
@@ -98,5 +98,3 @@ jobs:
             native-smoke.log
             arm-smoke.log
             hdr-smoke.log
-
-
