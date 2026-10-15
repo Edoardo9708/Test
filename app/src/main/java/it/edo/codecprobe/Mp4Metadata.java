@@ -139,7 +139,7 @@ final class Mp4Metadata {
             for(Box b:input)if(TAGS.contains(b.type)){write(b,file);matches.add(new Match(b,b,"root/"+b.type));copied+=b.size;log.accept("COPIA BLOCCO root/"+b.type+" · "+b.size+" byte");}
             // SEFT must stay at EOF; no bytes may be appended after this block.
             Box sef=first(input,"sefd");
-            if(sef!=null){file.position(file.size());write(sef,file);copied+=sef.size;log.accept("*** COPIA METADATI SAMSUNG SEF ***\nRecord originale mantenuto in fondo al file · "+sef.size+" byte\nDirectory con riferimenti relativi conservata; contenuto HighlightVideo_Data invariato.");}
+            if(sef!=null){file.position(file.size());write(sef,file);copied+=sef.size;log.accept("*** COPIA METADATI SAMSUNG SEF ***\nRecord originale mantenuto in fondo al file · "+sef.size+" byte\nDirectory con riferimenti relativi conservata; tutti i record SEF riconosciuti restano invariati.");}
             // Old movie atom becomes padding: all mdat/stco/co64 media offsets stay fixed.
             free(old,file);for(Box b:output)if(TAGS.contains(b.type)||b.type.equals("sefd"))free(b,file);
             file.force(true);
@@ -177,4 +177,5 @@ final class Mp4Metadata {
     private static void put(FileChannel out,ByteBuffer b)throws IOException{while(b.hasRemaining())out.write(b);}
     private static byte[] read(FileChannel f,long at,int size)throws IOException{ByteBuffer b=ByteBuffer.allocate(size);f.position(at);while(b.hasRemaining())if(f.read(b)<=0)throw new EOFException();return b.array();}
 }
+
 

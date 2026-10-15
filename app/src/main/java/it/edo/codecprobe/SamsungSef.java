@@ -5,7 +5,7 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
 
-/** Relocatable Samsung SEF directory, restricted to the observed text highlight schema.
+/** Relocatable Samsung SEF directory with verified text highlight and screen-capture schemas.
  * Directory offsets are backwards from SEFH (Android SefReader); arbitrary SEF payloads
  * can contain other references and must not be accepted based on that fact alone. */
 final class SamsungSef {
@@ -20,20 +20,30 @@ final class SamsungSef {
         long tail=u32(b,b.length-8);
         if(tail<12||tail>b.length-16||(tail-12)%12!=0)throw bad("directory incompleta");
         int dir=b.length-8-(int)tail;
-        if(!signature(b,dir,"SEFH")||u32(b,dir+4)!=105)throw bad("firma/versione directory non riconosciuta");
+        if(!signature(b,dir,"SEFH"))throw bad("firma directory SEFH non riconosciuta");
+        long version=u32(b,dir+4);
+        if(version!=105&&version!=107)throw bad("versione directory non supportata: "+version+" (supportate: 105, 107)");
         long count=u32(b,dir+8);
         if(count==0||count!=(tail-12)/12)throw bad("conteggio record incoerente");
-        int expected=8,totalRows=0;
+        int expected=8,totalRows=0,captures=0,highlights=0;
         for(int i=0;i<count;i++){
             int entry=dir+12+i*12;long start=dir-u32(b,entry+4),size=u32(b,entry+8);
             if(start!=expected||size<9||start<8||size>dir-start)throw bad("riferimento esterno, record sovrapposti o dati non indicizzati");
             int at=(int)start,end=(int)(start+size);long names=u32(b,at+4);
-            if(u16(b,entry)!=0||u16(b,at)!=0||u16(b,entry+2)!=0x08b0||u16(b,at+2)!=0x08b0||names!=19||size<27||!signature(b,at+8,"HighlightVideo_Data"))throw bad("tipo record non ancora verificato (non viene copiato alla cieca)");
-            totalRows+=highlight(b,at+27,end);
+            int type=u16(b,entry+2);
+            if(u16(b,entry)!=0||u16(b,at)!=0||type!=u16(b,at+2)||names<1||names>256||names>size-8)throw bad("header record/nome non valido");
+            if(type==0x08b0&&names==19&&signature(b,at+8,"HighlightVideo_Data")){
+                totalRows+=highlight(b,at+27,end);highlights++;
+            }else if(type==0x0c51&&names==20&&signature(b,at+8,"Samsung_Capture_Info")){
+                // Verified screen-recorder schema: descriptive text, no offsets or timing fields.
+                // Directory back-offsets are validated above; preserve the entire box unchanged.
+                if(end-(at+28)!=16||!signature(b,at+28,"Screen recording"))throw bad("Samsung_Capture_Info: contenuto non ancora verificato");
+                captures++;
+            }else throw bad("tipo record non ancora verificato: 0x"+Integer.toHexString(type)+" (non viene copiato alla cieca)");
             expected=end;
         }
         if(expected!=dir)throw bad("dati fuori dalla directory");
-        return "HighlightVideo_Data · record="+count+" · righe="+totalRows+" · riferimenti interni verificati";
+        return "SEF versione="+version+" · record="+count+" · HighlightVideo_Data="+highlights+" · righe="+totalRows+" · Samsung_Capture_Info="+captures+(captures>0?" (Screen recording)":"")+" · riferimenti interni verificati";
     }
     private static int highlight(byte[] b,int start,int end)throws IOException {
         for(int p=start;p<end;p++){int c=b[p]&255;if(c!=10&&c!=13&&c!=9&&(c<32||c>126))throw bad("HighlightVideo_Data contiene dati non testuali");}
@@ -52,3 +62,4 @@ final class SamsungSef {
     }
     private static long nonnegative(String s){if(!s.matches("[0-9]{1,19}"))throw new NumberFormatException();return Long.parseLong(s);}
 }
+

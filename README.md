@@ -1,3 +1,5 @@
+Samsung screen recordings: supporto del record SEF `Samsung_Capture_Info` con etichetta `Screen recording` e directory versione 107. Il blocco resta identico e viene verificato con SHA-256 dopo la copia; versioni o payload non verificati restano bloccati. Test di regressione con gli 84 byte originali del campione, riferimenti corrotti e copia insieme ai precedenti record HighlightVideo_Data.
+
 # Conversione HDR e struttura del codice
 
 La coda riconosce HEVC Main10 PQ/HLG BT.2020 e usa il percorso separato a 10 bit su Android 13+ con decoder P010 accessibile. CRF, preset, CPU, B-frame e lookahead sono quelli selezionati; il log riporta i valori effettivi. Il percorso HDR è sperimentale: la libreria 10 bit non usa ancora assembly ARM. SDR continua a usare la propria libreria ottimizzata.

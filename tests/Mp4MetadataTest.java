@@ -45,7 +45,8 @@ public final class Mp4MetadataTest {
             Files.write(input,content(true));Files.write(output,content(false));failed=false;try(FileChannel src=FileChannel.open(input)){Mp4Metadata.copy(src,output.toFile(),()->true,s->{});}catch(IOException e){failed=true;}if(!failed)throw new AssertionError("Cancellation ignored");
             Files.write(input,join(content(false),box("uuid",new byte[24])));failed=false;try(FileChannel src=FileChannel.open(input)){Mp4Metadata.check(src,()->false);}catch(IOException e){failed=true;}if(!failed)throw new AssertionError("Unknown vendor UUID silently accepted");
             Files.write(input,join(content(false),box("meta",join(new byte[4],box("iloc",new byte[20])))));failed=false;try(FileChannel src=FileChannel.open(input)){Mp4Metadata.check(src,()->false);}catch(IOException e){failed=true;}if(!failed)throw new AssertionError("Old media item offsets silently accepted");
-            byte[] sef=sef();SamsungSef.validate(sef);
+            for(byte[] sef:new byte[][]{sef(),SamsungSefTest.screen()}){
+            SamsungSef.validate(sef);
             Files.write(input,join(content(true),sef));byte[] before=content(false);Files.write(output,before);
             try(FileChannel src=FileChannel.open(input)){Mp4Metadata.copy(src,output.toFile(),()->false,System.out::println);}
             byte[] after=Files.readAllBytes(output);byte[] relocated=Arrays.copyOfRange(after,after.length-sef.length,after.length);
@@ -54,6 +55,8 @@ public final class Mp4MetadataTest {
             int originalStart=content(true).length,newStart=after.length-sef.length;
             if(originalStart==newStart)throw new AssertionError("Test did not relocate SEF");
             SamsungSef.validate(relocated);
+            }
+            byte[] sef=sef();
             byte[] corrupt=sef.clone();ByteBuffer.wrap(corrupt).order(ByteOrder.LITTLE_ENDIAN).putInt(corrupt.length-16,Integer.MAX_VALUE);
             rejected(input,join(content(false),corrupt),"External SEF reference accepted");
             corrupt=sef.clone();corrupt[corrupt.length-2]='X';rejected(input,join(content(false),corrupt),"Broken SEFT accepted");
@@ -67,4 +70,5 @@ public final class Mp4MetadataTest {
         }finally{Files.deleteIfExists(input);Files.deleteIfExists(output);}
     }
 }
+
 
