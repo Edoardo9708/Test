@@ -500,7 +500,7 @@ public final class MainActivity extends Activity {
         }
         if(data.getData()==null){if(request==PICK_ORIGIN)cancelOrigins();if(request==SAVE_LOG&&pendingLog!=null){new File(pendingLog).delete();pendingLog=null;}return;}Uri uri=data.getData();
         if(request==PICK_FOLDER||request==PICK_ORIGIN){
-            try{int flags=data.getFlags()&(Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_WRITE_URI_PERMISSION);if((flags&(Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_WRITE_URI_PERMISSION))!=(Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_WRITE_URI_PERMISSION))throw new SecurityException("Lettura e scrittura non concesse");getContentResolver().takePersistableUriPermission(uri,flags);}
+            try{int flags=data.getFlags()&(Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_WRITE_URI_PERMISSION);if((flags&(Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_WRITE_URI_PERMISSION))!=(Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_WRITE_URI_PERMISSION))throw new SecurityException("Lettura e scrittura non concesse");getContentResolver().takePersistableUriPermission(uri,Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_WRITE_URI_PERMISSION);}
             catch(SecurityException e){toast("Serve l’accesso permanente in scrittura: "+e.getMessage());if(request==PICK_ORIGIN){choosingOrigins=false;pendingOrigins.clear();setBusy(busy);}return;}
             if(request==PICK_ORIGIN){
                 String expected=SourceFolder.parentId(this,Uri.parse(selectedInputs.get(originIndex)));
