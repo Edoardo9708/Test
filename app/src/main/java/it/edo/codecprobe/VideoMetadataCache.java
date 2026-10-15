@@ -12,7 +12,7 @@ final class VideoMetadataCache {
         Entry(String name,String quick,InputInspector.Report report){this.name=name;this.quick=quick;this.report=report;}
     }
     private static final Map<String,Entry> entries=new LinkedHashMap<String,Entry>(16,0.75f,true){
-        @Override protected boolean removeEldestEntry(Map.Entry<String,Entry> eldest){return size()>LIMIT;}
+        @Override protected boolean removeEldestEntry(Map.Entry<String,VideoMetadataCache.Entry> eldest){return size()>LIMIT;}
     };
     private static String permissions="";
     private static long epoch;

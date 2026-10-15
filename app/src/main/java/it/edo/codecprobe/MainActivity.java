@@ -437,7 +437,7 @@ public final class MainActivity extends Activity {
     }
     private void updateVideoSelection(boolean reveal){
         videoCarousel.setVisibility(selectedInputs.isEmpty()?View.GONE:View.VISIBLE);videoNumber.setText(selectedInputs.isEmpty()?"Nessun video selezionato":"Video "+(selectedVideoIndex+1)+" di "+selectedInputs.size());
-        for(int n=0;n<videoChips.size();n++){Button chip=videoChips.get(n);boolean active=n==selectedVideoIndex;chip.setSelected(active);chip.setTextColor(active?bg:accent);chip.setBackground(new RippleDrawable(ColorStateList.valueOf(border),shape(active?accent:surface,14)));}
+        for(int n=0;n<videoChips.size();n++){Button chip=videoChips.get(n);boolean active=n==selectedVideoIndex;chip.setSelected(active);chip.setTextColor(active?bg:accent);chip.setBackground(new RippleDrawable(ColorStateList.valueOf(border),shape(active?accent:surface,14),null));}
         if(reveal&&selectedVideoIndex<videoChips.size())videoCarousel.post(()->{if(destroyed||selectedVideoIndex>=videoChips.size())return;View chip=videoChips.get(selectedVideoIndex);int left=videoCarousel.getScrollX(),right=left+videoCarousel.getWidth();if(chip.getLeft()<left)videoCarousel.smoothScrollTo(chip.getLeft(),0);else if(chip.getRight()>right)videoCarousel.smoothScrollTo(chip.getRight()-videoCarousel.getWidth(),0);});
     }
     private void styleSlider(SeekBar slider){slider.setProgressTintList(ColorStateList.valueOf(accent));slider.setThumbTintList(ColorStateList.valueOf(accent));slider.setProgressBackgroundTintList(ColorStateList.valueOf(border));}
