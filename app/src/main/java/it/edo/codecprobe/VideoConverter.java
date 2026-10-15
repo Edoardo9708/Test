@@ -429,36 +429,34 @@ final class VideoConverter {
     }
     private void copyAudio(Uri uri,int track) throws Exception {
         onLog("*** STEP 4 · COPIA AUDIO AAC ***");
-        onLog("LEGENDA audio: sample = pacchetto AAC; pts_us = timestamp originale, conservato per sincronizzazione.");
+        onLog("1. Controllo se il pacchetto esiste, indipendentemente dal segno del timestamp.\n2. Copio tutti i pacchetti, anche prima dello zero, senza cambiare i tempi.\n3. Stampo i primi 12 timestamp e il conteggio dei pacchetti negativi.\nLegenda: sample = pacchetto AAC; pts_us = tempo originale in microsecondi; negativo = pacchetto prima dello zero temporale. La fine viene riconosciuta dall’assenza di campioni, non dal timestamp.");
         MediaExtractor e=new MediaExtractor();
         try {
             e.setDataSource(context,uri,null);e.selectTrack(track);
-            ByteBuffer buffer=ByteBuffer.allocateDirect(1024*1024);int count=0;long last=-1;
             MediaCodec.BufferInfo info=new MediaCodec.BufferInfo();
-            while(e.getSampleTime()>=0) {
-                checkCancel();long size=e.getSampleSize();
-                if(size>16*1024*1024) throw new IOException("Pacchetto AAC eccessivo");
-                if(size>buffer.capacity()) buffer=ByteBuffer.allocateDirect((int)size);
-                buffer.clear();int n=e.readSampleData(buffer,0);if(n<0)break;
-                if((e.getSampleFlags()&MediaExtractor.SAMPLE_FLAG_ENCRYPTED)!=0) throw new IOException("Audio protetto non supportato");
-                long pts=e.getSampleTime();
-                if(pts<=last) throw new IOException("Timestamp audio non crescente");
-                info.set(0,n,pts,0);muxer.writeSampleData(audioTrack,buffer,info);
-                onLog("OK audio sample="+(++count)+" pts_us="+pts+" bytes="+n);
-                last=pts;e.advance();
-            }
-            if(count==0) throw new IOException("Traccia audio vuota");
-            onLog("OK copia audio samples="+count);
+            AudioPacketCopier.copy(new AudioPacketCopier.Source(){
+                public int trackIndex(){return e.getSampleTrackIndex();}
+                public long size(){return e.getSampleSize();}
+                public long timeUs(){return e.getSampleTime();}
+                public boolean encrypted(){return (e.getSampleFlags()&MediaExtractor.SAMPLE_FLAG_ENCRYPTED)!=0;}
+                public int read(ByteBuffer buffer){return e.readSampleData(buffer,0);}
+                public void advance(){e.advance();}
+            },track,(buffer,size,pts)->{
+                info.set(0,size,pts,0);muxer.writeSampleData(audioTrack,buffer,info);
+            },this::checkCancel,this::onLog);
         } finally {e.release();}
     }
     private void verifyCopiedTrack(Uri source,File target,int inputTrack,int outputTrack)throws Exception {
         MediaExtractor original=new MediaExtractor(),result=new MediaExtractor();
         try{
             original.setDataSource(context,source,null);result.setDataSource(target.getAbsolutePath());original.selectTrack(inputTrack);result.selectTrack(outputTrack);int count=0;
+            onLog("*** VERIFICA TRACCIA COPIATA ***\nInput track="+inputTrack+" · output track="+outputTrack+"\nConfronto tutti i pacchetti: contenuto identico e differenza timestamp massima 1000 microsecondi per arrotondamenti MP4.");
             ByteBuffer in=ByteBuffer.allocateDirect(1024*1024),out=ByteBuffer.allocateDirect(1024*1024);
             while(original.getSampleTrackIndex()>=0){
                 checkCancel();long n=original.getSampleSize();if(n<0||n>16*1024*1024||result.getSampleSize()!=n)throw new IOException("Dimensione campioni copiati diversa");
-                if(Math.abs(original.getSampleTime()-result.getSampleTime())>1000)throw new IOException("Timestamp audio/metadati copiati diverso");
+                long sourcePts=original.getSampleTime(),savedPts=result.getSampleTime();
+                if(count<12)onLog("VERIFY TIMESTAMP TRACCIA · campione="+(count+1)+" · originale_us="+sourcePts+" · salvato_us="+savedPts);
+                if(Math.abs(sourcePts-savedPts)>1000)throw new IOException("Timestamp audio/metadati copiati diverso · campione="+(count+1)+" · originale_us="+sourcePts+" · salvato_us="+savedPts);
                 if(n>in.capacity()){in=ByteBuffer.allocateDirect((int)n);out=ByteBuffer.allocateDirect((int)n);}
                 in.clear();out.clear();int a=original.readSampleData(in,0),b=result.readSampleData(out,0);if(a!=b||a<0)throw new IOException("Campione copiato assente");
                 in.position(0);in.limit(a);out.position(0);out.limit(b);if(!in.equals(out))throw new IOException("Contenuto audio/metadati copiati diverso");
