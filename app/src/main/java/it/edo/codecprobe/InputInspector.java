@@ -17,7 +17,9 @@ final class InputInspector {
     static final class Report {
         final Map<String,String> summarySections,detailSections;
         final String summary,details;
-        Report(Map<String,String> summary,Map<String,String> details){summarySections=summary;detailSections=details;this.summary=flatten(summary);this.details=flatten(details);}
+        final boolean readError;
+        Report(Map<String,String> summary,Map<String,String> details){this(summary,details,false);}
+        Report(Map<String,String> summary,Map<String,String> details,boolean error){summarySections=Collections.unmodifiableMap(new LinkedHashMap<>(summary));detailSections=Collections.unmodifiableMap(new LinkedHashMap<>(details));this.summary=flatten(summary);this.details=flatten(details);readError=error;}
         Report(String summary,String details){this(Collections.singletonMap("INFORMAZIONI",summary),Collections.singletonMap("DETTAGLI",details));}
         String full(){return summary+"\n\nMETADATI E DETTAGLI\n"+details;}
         private static String flatten(Map<String,String> sections){StringBuilder out=new StringBuilder();for(Map.Entry<String,String> e:sections.entrySet())out.append("\n*** ").append(e.getKey()).append(" ***\n").append(e.getValue()).append("\n");return out.toString();}
@@ -36,7 +38,7 @@ final class InputInspector {
         String access;
         if(OriginalMedia.hasLocationPermission(context)){
             try{uri=OriginalMedia.resolve(context,uri);access=OriginalMedia.requiresOriginal(uri)?"Originale richiesto senza oscuramento GPS":"Provider esterno: originale senza oscuramento non garantito";}
-            catch(Exception e){return new Report("Apertura originale non riuscita",String.valueOf(e.getMessage()));}
+            catch(Exception e){return new Report(Collections.singletonMap("ERRORE LETTURA","Apertura originale non riuscita"),Collections.singletonMap("DETTAGLI",String.valueOf(e.getMessage())),true);}
         }else access="Permesso posizione dei file non ancora concesso: il GPS potrebbe essere nascosto. Sarà richiesto prima della conversione.";
         StringBuilder file=new StringBuilder(),dates=new StringBuilder(),authorship=new StringBuilder(),other=new StringBuilder(),sizes=new StringBuilder(),structure=new StringBuilder();
         line(dates,"Accesso alla posizione",access);
@@ -60,7 +62,7 @@ final class InputInspector {
             }
         }catch(Exception e){line(other,"Lettura metadati",e.getMessage());}finally{try{retriever.release();}catch(Exception ignored){}}
         line(file,"Contenitore",container);summary.put("FILE ORIGINALE",file.toString());
-        MediaExtractor extractor=new MediaExtractor();int videos=0,audios=0,metadata=0;long sampleTotal=0;boolean counted=false;
+        MediaExtractor extractor=new MediaExtractor();int videos=0,audios=0,metadata=0;long sampleTotal=0;boolean counted=false,readError=false;
         List<String> names=new ArrayList<>();
         try {
             extractor.setDataSource(context,uri,null);
@@ -88,9 +90,9 @@ final class InputInspector {
             long[] trackBytes=new long[names.size()];for(int i=0;i<trackBytes.length;i++)extractor.selectTrack(i);
             while(extractor.getSampleTrackIndex()>=0){if(cancel.getAsBoolean())return new Report("Analisi annullata","");int i=extractor.getSampleTrackIndex();long n=extractor.getSampleSize();if(n<0)throw new IllegalStateException("Dimensione campione assente");trackBytes[i]=Math.addExact(trackBytes[i],n);sampleTotal=Math.addExact(sampleTotal,n);if(!extractor.advance())break;}
             for(int i=0;i<trackBytes.length;i++)line(sizes,names.get(i),sizeText(trackBytes[i]));counted=true;
-            if(videos==0)summary.put("VIDEO","Nessuna traccia video rilevata");if(audios==0)summary.put("AUDIO","Assente");
+            if(videos==0){readError=true;summary.put("VIDEO","Nessuna traccia video rilevata");}if(audios==0)summary.put("AUDIO","Assente");
             if(videos>1||audios>1)line(structure,"Compatibilità","Più tracce video o audio non ancora supportate");
-        }catch(Exception e){line(structure,"Analisi tracce",e.getMessage());}finally{extractor.release();}
+        }catch(Exception e){readError=true;line(structure,"Analisi tracce",e.getMessage());}finally{extractor.release();}
         summary.put("OCCUPAZIONE DELLE TRACCE",sizes.length()==0?"Non disponibile":sizes.toString());
         if(counted&&bytes>=sampleTotal)line(structure,"Dati fuori dai campioni",sizeText(bytes-sampleTotal)+" · struttura, tag e padding");
         if(container.startsWith("MP4")||container.equals("MOV / QuickTime")){
@@ -102,7 +104,7 @@ final class InputInspector {
         summary.put("METADATI E CONTENITORE",structure.toString());
         Map<String,String> ordered=new LinkedHashMap<>();ordered.put("DATE E POSIZIONE",dates.length()==0?"Nessun campo esposto da Android":dates.toString());ordered.put("TITOLO, AUTORE E CONTENUTO",authorship.length()==0?"Nessun campo esposto da Android":authorship.toString());ordered.put("ALTRI CAMPI DEL FILE",other.toString());ordered.putAll(details);
         ordered.put("COME VENGONO CONSERVATI","I blocchi descrittivi vengono copiati integralmente e verificati tramite SHA-256, anche se i singoli tag non sono leggibili da Android. Date interne e lingua sono conservate. Codec, bitrate, indici e struttura del nuovo video vengono rigenerati. Blocchi o tracce non supportati interrompono la conversione. Tag proprietari con riferimenti interni possono richiedere una gestione specifica.");
-        return new Report(summary,ordered);
+        return new Report(summary,ordered,readError);
     }
     private static void line(StringBuilder b,String key,String value){if(b.length()>0)b.append("\n\n");b.append(key).append("\n").append(value==null?"non disponibile":value);}
     private static String label(String key){switch(key){case "DATE":return "Data dichiarata dal file";case "LOCATION":return "Posizione GPS";case "TITLE":return "Titolo";case "ARTIST":return "Artista";case "AUTHOR":return "Autore";case "ALBUM":return "Album";case "ALBUMARTIST":return "Artista dell’album";case "COMPOSER":return "Compositore";case "GENRE":return "Genere";case "WRITER":return "Autore del contenuto";case "YEAR":return "Anno";case "language":return "Lingua della traccia";case "durationUs":return "Durata · microsecondi";case "frame-rate":return "FPS dichiarati";case "width":return "Larghezza · pixel";case "height":return "Altezza · pixel";case "bitrate":return "Bitrate · bit/s";case "mime":return "Tipo MIME";default:return key.replace('_',' ').replace('-',' ')+" · campo originale";}}

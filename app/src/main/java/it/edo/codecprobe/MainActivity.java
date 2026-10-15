@@ -34,7 +34,17 @@ public final class MainActivity extends Activity {
     private final java.util.ArrayList<String> selectedInputs=new java.util.ArrayList<>(),selectedNames=new java.util.ArrayList<>(),originFolders=new java.util.ArrayList<>();
     private final java.util.ArrayList<String> destinationNotes=new java.util.ArrayList<>();
     private OriginDirectoryPanel originPanel;
-    private Button previousVideo,nextVideo;
+    private HorizontalScrollView videoCarousel;
+    private final java.util.ArrayList<Button> videoChips=new java.util.ArrayList<>();
+    private LinearLayout videoPreview;
+    private Button reloadMetadata;
+    private final ExecutorService metadataWorker=Executors.newSingleThreadExecutor();
+    private volatile int metadataGeneration;
+    private boolean metadataLoading;
+    private android.app.AlertDialog metadataDialog;
+    private ProgressBar metadataProgress;
+    private TextView metadataMessage;
+    private int transitionGeneration;
     private TextView videoNumber;
     private LinearLayout videoNavigator;
     private int selectedVideoIndex;
@@ -69,8 +79,7 @@ public final class MainActivity extends Activity {
     private final Runnable sessionObserver=this::renderSession;
     private TextView inputInfo;
     private LinearLayout inputSummary,inputDetails,videoDetails;
-    private int detailGeneration=-1;
-    private volatile int infoGeneration;
+
 
     private TextView timeline,telemetry,percentLabel,frameLabel;
     private int bg,surface,ink,muted,accent,border;
@@ -122,21 +131,21 @@ public final class MainActivity extends Activity {
         Button preferences=button(page,"⚙ Impostazioni");preferences.setOnClickListener(v->startActivity(new Intent(this,SettingsActivity.class).putExtra("preset",presetSlider.getProgress()).putExtra("crf",selectedCrf()).putExtra("cpu",cpuMode.getSelectedItemPosition()).putExtra("bframes",bframeSwitch.isChecked()).putExtra("lookahead",lookaheadSwitch.isChecked()).putExtra("sourceName",sourceName)));
 
         LinearLayout files=card(page,"01  FILE E DESTINAZIONE");
-        pickVideo=button(files,"Seleziona uno o più video");videoLabel=text(files,"Nessun video selezionato",23);videoLabel.setTypeface(null,Typeface.BOLD);
-        videoNavigator=new LinearLayout(this);videoNavigator.setGravity(Gravity.CENTER_VERTICAL);files.addView(videoNavigator);
-        previousVideo=new Button(this);previousVideo.setText("‹");previousVideo.setContentDescription("Video precedente");styleButton(previousVideo,false);videoNavigator.addView(previousVideo,new LinearLayout.LayoutParams(dp(56),-2));
-        videoNumber=new TextView(this);videoNumber.setTextColor(ink);videoNumber.setTextSize(18);videoNumber.setGravity(Gravity.CENTER);videoNavigator.addView(videoNumber,new LinearLayout.LayoutParams(0,-2,1));
-        nextVideo=new Button(this);nextVideo.setText("›");nextVideo.setContentDescription("Video successivo");styleButton(nextVideo,false);videoNavigator.addView(nextVideo,new LinearLayout.LayoutParams(dp(56),-2));
-        previousVideo.setOnClickListener(v->selectVideo(selectedVideoIndex-1));nextVideo.setOnClickListener(v->selectVideo(selectedVideoIndex+1));
-        videoNumber.setOnClickListener(v->{if(selectedNames.isEmpty())return;String[] entries=new String[selectedNames.size()];for(int n=0;n<entries.length;n++)entries[n]=(n+1)+". "+selectedNames.get(n);new android.app.AlertDialog.Builder(this).setTitle("Mostra dettagli del video").setSingleChoiceItems(entries,selectedVideoIndex,(d,n)->{selectVideo(n);d.dismiss();}).setNegativeButton("Chiudi",null).show();});
-        android.view.GestureDetector swipeVideos=new android.view.GestureDetector(this,new android.view.GestureDetector.SimpleOnGestureListener(){@Override public boolean onDown(android.view.MotionEvent e){return true;}@Override public boolean onFling(android.view.MotionEvent first,android.view.MotionEvent last,float x,float y){if(first==null||last==null||Math.abs(last.getX()-first.getX())<dp(48)||Math.abs(x)<=Math.abs(y))return false;selectVideo(selectedVideoIndex+(last.getX()<first.getX()?1:-1));return true;}@Override public boolean onSingleTapUp(android.view.MotionEvent e){videoNumber.performClick();return true;}});
-        videoNumber.setOnTouchListener((v,e)->swipeVideos.onTouchEvent(e));
-        inputInfo=text(files,"Seleziona un video",15);
-        Button details=button(files,"▸ Dettagli video");
-        videoDetails=new LinearLayout(this);videoDetails.setOrientation(LinearLayout.VERTICAL);files.addView(videoDetails);videoDetails.setVisibility(View.GONE);
+        pickVideo=button(files,"Seleziona uno o più video");
+        videoNumber=text(files,"",15);
+        videoCarousel=new HorizontalScrollView(this);videoCarousel.setHorizontalScrollBarEnabled(true);videoCarousel.setFillViewport(false);
+        videoNavigator=new LinearLayout(this);videoNavigator.setGravity(Gravity.CENTER_VERTICAL);videoCarousel.addView(videoNavigator,new HorizontalScrollView.LayoutParams(-2,-2));files.addView(videoCarousel,new LinearLayout.LayoutParams(-1,-2));
+        text(files,"Scorri la barra e tocca un video per mostrarne i dettagli.",13);
+        videoPreview=new LinearLayout(this);videoPreview.setOrientation(LinearLayout.VERTICAL);files.addView(videoPreview,new LinearLayout.LayoutParams(-1,-2));
+        videoLabel=text(videoPreview,"Nessun video selezionato",23);videoLabel.setTypeface(null,Typeface.BOLD);
+        inputInfo=text(videoPreview,"Seleziona un video",15);
+        Button details=button(videoPreview,"▸ Dettagli video");
+        videoDetails=new LinearLayout(this);videoDetails.setOrientation(LinearLayout.VERTICAL);videoPreview.addView(videoDetails);videoDetails.setVisibility(View.GONE);
         inputSummary=new LinearLayout(this);inputSummary.setOrientation(LinearLayout.VERTICAL);videoDetails.addView(inputSummary);
         inputDetails=new LinearLayout(this);inputDetails.setOrientation(LinearLayout.VERTICAL);videoDetails.addView(inputDetails);
         details.setOnClickListener(v->{boolean show=videoDetails.getVisibility()!=View.VISIBLE;videoDetails.setVisibility(show?View.VISIBLE:View.GONE);details.setText(show?"▾ Dettagli video":"▸ Dettagli video");if(show)loadInputDetails();});
+        reloadMetadata=button(files,"Rileggi metadati");
+        reloadMetadata.setOnClickListener(v->{VideoMetadataCache.clear();inspectInput();});
         divider(files);
         videoDestinationTitle=text(files,"DESTINAZIONE DEL VIDEO",16);videoDestinationTitle.setTypeface(null,Typeface.BOLD);
         videoDestinationHelp=text(files,"Vale solo per il video visualizzato.",14);
@@ -342,16 +351,94 @@ public final class MainActivity extends Activity {
     }
     private Choice spinner(LinearLayout parent,String[] entries){Choice c=new Choice(entries);LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);lp.setMargins(0,dp(6),0,dp(6));parent.addView(c,lp);return c;}
     private void inspectInput(){
-        final int generation=++infoGeneration;detailGeneration=-1;inputSummary.removeAllViews();inputDetails.removeAllViews();
+        if(destroyed)return;
+        VideoMetadataCache.permissions(OriginalMedia.hasLocationPermission(this)+":"+OriginalMedia.hasVideoPermission(this));
+        rebuildVideoCarousel();
         if(input==null){inputInfo.setText("Seleziona uno o più video");return;}
-        final Uri selected=input;inputInfo.setText("Leggo dimensione e tracce…");
-        worker.execute(()->{String quick=InputInspector.quickSummary(this,selected);runOnUiThread(()->{if(!destroyed&&generation==infoGeneration){inputInfo.setText((selectedInputs.size()>1?"Coda: "+selectedInputs.size()+" file\nDettagli del video: "+sourceName+"\n":"")+quick);if(videoDetails.getVisibility()==View.VISIBLE)loadInputDetails();}});});
+        boolean missing=false;for(String uri:selectedInputs)if(VideoMetadataCache.get(uri)==null){missing=true;break;}
+        showCachedInput();
+        if(missing&&!metadataLoading)preloadMetadata();
+    }
+    private void showCachedInput(){
+        inputSummary.removeAllViews();inputDetails.removeAllViews();
+        if(input==null){inputInfo.setText("Seleziona uno o più video");return;}
+        VideoMetadataCache.Entry entry=VideoMetadataCache.get(input.toString());
+        if(entry==null){inputInfo.setText("Metadati non ancora letti · premi Rileggi metadati");return;}
+        sourceName=entry.name;videoLabel.setText(sourceName);
+        inputInfo.setText(entry.quick+(entry.report.readError?"\nLettura incompleta · apri i dettagli per l’errore":""));
+        if(videoDetails.getVisibility()==View.VISIBLE)loadInputDetails();
     }
     private void loadInputDetails(){
-        if(input==null||detailGeneration==infoGeneration)return;
-        final int generation=infoGeneration;detailGeneration=generation;final Uri selected=input;
-        inputSummary.removeAllViews();text(inputSummary,"Analisi dei dettagli…",14);
-        worker.execute(()->{InputInspector.Report info=InputInspector.inspect(this,selected,()->destroyed||generation!=infoGeneration);runOnUiThread(()->{if(!destroyed&&generation==infoGeneration){renderInfoSections(inputSummary,info.summarySections);renderInfoSections(inputDetails,info.detailSections);}});});
+        if(input==null)return;
+        VideoMetadataCache.Entry entry=VideoMetadataCache.get(input.toString());if(entry==null)return;
+        renderInfoSections(inputSummary,entry.report.summarySections);renderInfoSections(inputDetails,entry.report.detailSections);
+    }
+    private void preloadMetadata(){
+        final int generation=++metadataGeneration;metadataLoading=true;reloadMetadata.setEnabled(false);
+        final java.util.ArrayList<String> uris=new java.util.ArrayList<>(selectedInputs);
+        final long cacheEpoch=VideoMetadataCache.epoch();
+        LinearLayout panel=new LinearLayout(this);panel.setOrientation(LinearLayout.VERTICAL);panel.setPadding(dp(24),dp(12),dp(24),dp(12));
+        metadataMessage=new TextView(this);metadataMessage.setText("Preparo la lettura di "+uris.size()+" video…");metadataMessage.setTextSize(16);metadataMessage.setTextColor(ink);panel.addView(metadataMessage);
+        metadataProgress=new ProgressBar(this,null,android.R.attr.progressBarStyleHorizontal);metadataProgress.setProgressTintList(ColorStateList.valueOf(accent));metadataProgress.setMax(uris.size());panel.addView(metadataProgress,new LinearLayout.LayoutParams(-1,dp(24)));
+        TextView note=new TextView(this);note.setTextColor(muted);note.setText("Leggo formato, tracce, dimensioni e metadati. I video non vengono decodificati. I risultati restano in memoria.");note.setPadding(0,dp(12),0,0);panel.addView(note);
+        TextView heading=new TextView(this);heading.setText("Lettura metadati dei video");heading.setTextColor(ink);heading.setTextSize(21);heading.setTypeface(null,Typeface.BOLD);heading.setPadding(dp(24),dp(20),dp(24),dp(8));
+        metadataDialog=new android.app.AlertDialog.Builder(this).setCustomTitle(heading).setView(panel).setNegativeButton("Interrompi",(d,w)->stopMetadataLoading()).create();
+        metadataDialog.setCanceledOnTouchOutside(false);metadataDialog.setOnCancelListener(d->stopMetadataLoading());metadataDialog.show();metadataDialog.getButton(android.app.AlertDialog.BUTTON_NEGATIVE).setTextColor(accent);metadataDialog.getWindow().setBackgroundDrawable(shape(surface,20));metadataDialog.getWindow().setDimAmount(0.65f);
+        FolderPickerActivity.record(this,"*** INIZIO LETTURA METADATI DELLA CODA ***\n1. Leggo nome e riepilogo.\n2. Analizzo tracce e metadati.\n3. Conservo il risultato in memoria.\nVideo selezionati: "+uris.size());
+        metadataWorker.execute(()->{
+            int failures=0;
+            for(int index=0;index<uris.size();index++){
+                if(destroyed||generation!=metadataGeneration)return;
+                final int position=index;final String uri=uris.get(index);
+                runOnUiThread(()->{if(!destroyed&&generation==metadataGeneration){metadataMessage.setText("Video "+(position+1)+" di "+uris.size()+"\n"+selectedNames.get(position));metadataProgress.setProgress(position);}});
+                VideoMetadataCache.Entry entry=VideoMetadataCache.get(uri);
+                if(entry==null){
+                    long begin=SystemClock.elapsedRealtime();String name=displayName(Uri.parse(uri));
+                    FolderPickerActivity.record(this,"BEGIN METADATI · video="+(index+1)+"/"+uris.size()+" · "+name);
+                    try{
+                        String quick=InputInspector.quickSummary(this,Uri.parse(uri));
+                        InputInspector.Report report=InputInspector.inspect(this,Uri.parse(uri),()->destroyed||generation!=metadataGeneration);
+                        entry=new VideoMetadataCache.Entry(name,quick,report);
+                    }catch(Exception e){
+                        entry=new VideoMetadataCache.Entry(name,"Informazioni non disponibili",new InputInspector.Report(java.util.Collections.singletonMap("ERRORE LETTURA",String.valueOf(e)),java.util.Collections.emptyMap(),true));
+                    }
+                    if(destroyed||generation!=metadataGeneration)return;
+                    if(!VideoMetadataCache.put(uri,entry,cacheEpoch)){runOnUiThread(()->{if(!destroyed&&generation==metadataGeneration){stopMetadataLoading();inspectInput();}});return;}
+                    FolderPickerActivity.record(this,"END METADATI · video="+(index+1)+" · esito="+(entry.report.readError?"INCOMPLETO":"OK")+" · tempo_ms="+(SystemClock.elapsedRealtime()-begin));
+                }
+                if(entry.report.readError)failures++;
+                final String name=entry.name;
+                runOnUiThread(()->{if(!destroyed&&generation==metadataGeneration){selectedNames.set(position,name);metadataProgress.setProgress(position+1);}});
+            }
+            final int errors=failures;
+            runOnUiThread(()->{
+                if(destroyed||generation!=metadataGeneration)return;
+                metadataLoading=false;metadataDialog.dismiss();metadataDialog=null;reloadMetadata.setEnabled(true);
+                sourceName=selectedNames.get(selectedVideoIndex);rebuildVideoCarousel();refreshLabels();showCachedInput();updateDestinationPanel();originPanel.refresh();
+                FolderPickerActivity.record(this,"*** FINE LETTURA METADATI ***\nVideo: "+uris.size()+" · letture incomplete: "+errors);
+                if(errors>0)toast(errors+" video con lettura incompleta: apri le schede contrassegnate con !");
+            });
+        });
+    }
+    private void stopMetadataLoading(){
+        ++metadataGeneration;metadataLoading=false;if(metadataDialog!=null){metadataDialog.dismiss();metadataDialog=null;}
+        reloadMetadata.setEnabled(true);rebuildVideoCarousel();refreshLabels();showCachedInput();updateDestinationPanel();originPanel.refresh();
+        FolderPickerActivity.record(this,"*** LETTURA METADATI INTERROTTA ***\nI risultati già letti restano in memoria.");
+    }
+    private void rebuildVideoCarousel(){
+        videoNavigator.removeAllViews();videoChips.clear();
+        for(int index=0;index<selectedInputs.size();index++){
+            final int position=index;String name=selectedNames.get(index);VideoMetadataCache.Entry entry=VideoMetadataCache.get(selectedInputs.get(index));if(entry!=null){name=entry.name;selectedNames.set(index,name);}
+            int count=name.codePointCount(0,name.length());String shortName=count>10?name.substring(0,name.offsetByCodePoints(0,10))+"…":name;
+            Button chip=new Button(this);styleButton(chip,false);chip.setSingleLine(true);chip.setTextSize(14);chip.setPadding(dp(12),dp(10),dp(12),dp(10));chip.setText((index+1)+" · "+shortName+(entry!=null&&entry.report.readError?" !":""));chip.setContentDescription("Video "+(index+1)+" di "+selectedInputs.size()+": "+name+(entry!=null&&entry.report.readError?", lettura incompleta":""));chip.setOnClickListener(v->selectVideo(position));
+            LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-2,-2);lp.setMargins(0,dp(6),dp(8),dp(6));videoNavigator.addView(chip,lp);videoChips.add(chip);
+        }
+        updateVideoSelection(false);
+    }
+    private void updateVideoSelection(boolean reveal){
+        videoCarousel.setVisibility(selectedInputs.isEmpty()?View.GONE:View.VISIBLE);videoNumber.setText(selectedInputs.isEmpty()?"Nessun video selezionato":"Video "+(selectedVideoIndex+1)+" di "+selectedInputs.size());
+        for(int n=0;n<videoChips.size();n++){Button chip=videoChips.get(n);boolean active=n==selectedVideoIndex;chip.setSelected(active);chip.setTextColor(active?bg:accent);chip.setBackground(new RippleDrawable(ColorStateList.valueOf(border),shape(active?accent:surface,14)));}
+        if(reveal&&selectedVideoIndex<videoChips.size())videoCarousel.post(()->{if(destroyed||selectedVideoIndex>=videoChips.size())return;View chip=videoChips.get(selectedVideoIndex);int left=videoCarousel.getScrollX(),right=left+videoCarousel.getWidth();if(chip.getLeft()<left)videoCarousel.smoothScrollTo(chip.getLeft(),0);else if(chip.getRight()>right)videoCarousel.smoothScrollTo(chip.getRight()-videoCarousel.getWidth(),0);});
     }
     private void styleSlider(SeekBar slider){slider.setProgressTintList(ColorStateList.valueOf(accent));slider.setThumbTintList(ColorStateList.valueOf(accent));slider.setProgressBackgroundTintList(ColorStateList.valueOf(border));}
     private void applyDefaults(AppSettings defaults){
@@ -374,8 +461,15 @@ public final class MainActivity extends Activity {
     }
     private void openResult(Uri uri){try{startActivity(new Intent(Intent.ACTION_VIEW).setDataAndType(uri,"video/mp4").addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION));}catch(Exception e){toast("Nessun lettore video disponibile");}}
     private void selectVideo(int index){
-        if(index<0||index>=selectedInputs.size())return;
-        selectedVideoIndex=index;input=Uri.parse(selectedInputs.get(index));sourceName=selectedNames.get(index);refreshLabels();inspectInput();
+        if(index<0||index>=selectedInputs.size()||metadataLoading)return;
+        final int generation=++transitionGeneration;videoPreview.animate().cancel();
+        if(index==selectedVideoIndex){videoPreview.setAlpha(1);return;}
+        videoPreview.animate().alpha(0).setDuration(90).withEndAction(()->{
+            if(destroyed||generation!=transitionGeneration)return;
+            selectedVideoIndex=index;input=Uri.parse(selectedInputs.get(index));sourceName=selectedNames.get(index);
+            refreshLabels();showCachedInput();updateVideoSelection(true);
+            videoPreview.animate().alpha(1).setDuration(140).withEndAction(null).start();
+        }).start();
     }
     private void divider(LinearLayout parent){View line=new View(this);line.setBackgroundColor(border);LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,dp(1));lp.setMargins(0,dp(16),0,dp(12));parent.addView(line,lp);}
     private CheckBox destinationCheck(LinearLayout parent,String title){CheckBox c=new CheckBox(this);c.setText(title);c.setTextSize(17);c.setTextColor(ink);c.setButtonTintList(ColorStateList.valueOf(accent));c.setMinHeight(dp(48));parent.addView(c,new LinearLayout.LayoutParams(-1,-2));return c;}
@@ -405,7 +499,7 @@ public final class MainActivity extends Activity {
     private void cancelOrigins(){choosingOrigins=false;pendingOriginParent=null;pendingOriginSource=null;pendingFixedFolder=null;pendingAuthorizationOrigin=false;setBusy(busy);}
     private void refreshLabels(){
         videoLabel.setText(input==null?"Nessun video selezionato":sourceName);
-        videoNavigator.setVisibility(selectedInputs.size()>1?View.VISIBLE:View.GONE);videoNumber.setText("Video "+(selectedVideoIndex+1)+" di "+selectedInputs.size()+"  ▾");previousVideo.setEnabled(selectedVideoIndex>0);nextVideo.setEnabled(selectedVideoIndex+1<selectedInputs.size());
+        updateVideoSelection(false);
         updatingDestinationUi=true;
         applyAllDestinations.setChecked(destinationPlan.applyAll);allOrigin.setChecked(destinationPlan.all.origin);
         allFolderLabel.setText(destinationPlan.all.origin?"Ogni video nella propria directory di origine":folderPath(destinationPlan.all.folder));
@@ -589,7 +683,7 @@ public final class MainActivity extends Activity {
             if(data.getData()!=null)chosen.add(data.getData());
             if(chosen.isEmpty())return;
             if(chosen.size()>BatchProgress.MAX_FILES){toast("Seleziona al massimo "+BatchProgress.MAX_FILES+" video per coda");return;}
-            selectedInputs.clear();selectedNames.clear();originFolders.clear();cancelOrigins();selectedVideoIndex=0;
+            ++metadataGeneration;metadataLoading=false;VideoMetadataCache.clear();++transitionGeneration;videoPreview.animate().cancel();videoPreview.setAlpha(1);selectedInputs.clear();selectedNames.clear();originFolders.clear();cancelOrigins();selectedVideoIndex=0;
             for(Uri chosenUri:chosen){try{getContentResolver().takePersistableUriPermission(chosenUri,Intent.FLAG_GRANT_READ_URI_PERMISSION);}catch(SecurityException ignored){}selectedInputs.add(chosenUri.toString());selectedNames.add(displayName(chosenUri));}
             input=Uri.parse(selectedInputs.get(0));sourceName=selectedNames.get(0);String defaultFolder=new AppSettings(this).defaultFolder;destinationPlan.reset(selectedInputs.size(),defaultFolder!=null?defaultFolder:folder==null?null:folder.toString());destinationsChanged();inspectInput();return;
         }
@@ -616,5 +710,5 @@ public final class MainActivity extends Activity {
     }
     @Override protected void onResume(){super.onResume();conversionScreenVisible=true;AppSettings saved=new AppSettings(this);keepScreenOn.setChecked(saved.keepScreenOn);if(!java.util.Objects.equals(loadedDefault,saved.defaultFolder)&&!ConversionService.snapshot().running){loadedDefault=saved.defaultFolder;if(loadedDefault!=null){folder=Uri.parse(loadedDefault);}refreshLabels();}if(saved.revision!=settingsRevision&&!ConversionService.snapshot().running)applyDefaults(saved);ConversionService.uiVisible=true;previousWall=0;monitor.post(sample);ConversionService.observe(sessionObserver);renderSession();if(originPanel!=null&&!ConversionService.snapshot().running)originPanel.refresh();updateScreenAwake();}
     @Override protected void onPause(){conversionScreenVisible=false;updateScreenAwake();ConversionService.uiVisible=false;monitor.removeCallbacks(sample);ConversionService.detach(sessionObserver);super.onPause();}
-    @Override protected void onDestroy(){cancelled.set(true);conversionScreenVisible=false;updateScreenAwake();destroyed=true;if(originPanel!=null)originPanel.close();ConversionService.detach(sessionObserver);worker.shutdown();super.onDestroy();}
+    @Override protected void onDestroy(){cancelled.set(true);conversionScreenVisible=false;updateScreenAwake();destroyed=true;if(originPanel!=null)originPanel.close();ConversionService.detach(sessionObserver);++metadataGeneration;++transitionGeneration;if(metadataDialog!=null){metadataDialog.dismiss();metadataDialog=null;}metadataWorker.shutdownNow();worker.shutdown();super.onDestroy();}
 }
