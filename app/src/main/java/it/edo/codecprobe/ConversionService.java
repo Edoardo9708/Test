@@ -96,6 +96,7 @@ public final class ConversionService extends Service {
         }
         final ArrayList<String> queueInputs=new ArrayList<>(inputs),queueNames=new ArrayList<>(names),queueFolders=new ArrayList<>(folders);
         final AppSettings naming=new AppSettings(this);
+        final ArrayList<String> destinationNotes=intent.getStringArrayListExtra("destinationNotes");
         Uri input=Uri.parse(inputs.get(0)),folder=Uri.parse(folders.get(0));String source=names.get(0);
         int crf=intent.getIntExtra("crf",23),preset=intent.getIntExtra("preset",6),cpu=intent.getIntExtra("cpu",1);
         boolean bframes=intent.getBooleanExtra("bframes",true),lookahead=intent.getBooleanExtra("lookahead",true);
@@ -117,7 +118,7 @@ public final class ConversionService extends Service {
                 for(int index=0;index<queueInputs.size()&&!cancel.get();index++){
                     final int current=index;
                     synchronized(LOCK){state.batchIndex=index+1;state.filePercent=0;state.percent=BatchProgress.percent(index,0,queueInputs.size());state.doneFrames=0;state.totalFrames=-1;state.done=0;state.total=0;state.source=queueNames.get(index);state.input=Uri.parse(queueInputs.get(index));state.folder=Uri.parse(queueFolders.get(index));state.message="Analisi video "+(index+1)+" / "+queueInputs.size();state.bframeCount=-1;}
-                    writeBatch(batchLog,"\n*** INIZIO VIDEO "+(index+1)+" / "+queueInputs.size()+" ***\nNome: "+queueNames.get(index)+"\nInput: "+queueInputs.get(index)+"\nCartella: "+queueFolders.get(index));publish(true);
+                    writeBatch(batchLog,"\n*** INIZIO VIDEO "+(index+1)+" / "+queueInputs.size()+" ***\nNome: "+queueNames.get(index)+"\nInput: "+queueInputs.get(index)+"\nCartella: "+queueFolders.get(index)+(destinationNotes!=null&&destinationNotes.size()==queueInputs.size()?"\nAssociazione origine: "+destinationNotes.get(index):""));publish(true);
                     try{
                         requireWritableFolder(Uri.parse(queueFolders.get(index)));
                         VideoConverter converter=new VideoConverter(getApplicationContext(),cancel,new VideoConverter.Listener(){

@@ -35,11 +35,17 @@ public final class MainActivity extends Activity {
     private final ArrayDeque<String> recent=new ArrayDeque<>();
     private Uri input,folder,resultUri;
     private final java.util.ArrayList<String> selectedInputs=new java.util.ArrayList<>(),selectedNames=new java.util.ArrayList<>(),originFolders=new java.util.ArrayList<>();
-    private final java.util.ArrayList<String> pendingOrigins=new java.util.ArrayList<>();
+    private final java.util.ArrayList<String> destinationNotes=new java.util.ArrayList<>();
+    private OriginDirectoryPanel originPanel;
+    private Button previousVideo,nextVideo;
+    private TextView videoNumber;
+    private LinearLayout videoNavigator;
+    private int selectedVideoIndex;
+    private boolean originsReady;
+    private String pendingOriginParent,pendingOriginSource;
     private Button saveInOrigin;
     private TextView queueLabel;
     private String loadedDefault;
-    private int originIndex;
     private boolean originMode,choosingOrigins;
     private String sourceName="video";
     private Button pickVideo,pickFolder,convert,stop,saveLog,saveMetadata,openVideo,hdrTest,saveHdr;
@@ -113,7 +119,14 @@ public final class MainActivity extends Activity {
 
         LinearLayout files=card(page,"01  FILE E DESTINAZIONE");
         pickVideo=button(files,"Seleziona uno o più video");videoLabel=text(files,"Nessun video selezionato",23);videoLabel.setTypeface(null,Typeface.BOLD);
-        Button showQueue=button(files,"Mostra video selezionati");showQueue.setOnClickListener(v->{if(selectedNames.isEmpty()){toast("Seleziona prima i video");return;}String[] entries=new String[selectedNames.size()];for(int n=0;n<entries.length;n++)entries[n]=(n+1)+". "+selectedNames.get(n);new android.app.AlertDialog.Builder(this).setTitle("Video selezionati · "+entries.length).setItems(entries,(d,n)->{input=Uri.parse(selectedInputs.get(n));sourceName=selectedNames.get(n);inspectInput();}).setPositiveButton("Chiudi",null).show();});
+        videoNavigator=new LinearLayout(this);videoNavigator.setGravity(Gravity.CENTER_VERTICAL);files.addView(videoNavigator);
+        previousVideo=new Button(this);previousVideo.setText("‹");previousVideo.setContentDescription("Video precedente");styleButton(previousVideo,false);videoNavigator.addView(previousVideo,new LinearLayout.LayoutParams(dp(56),-2));
+        videoNumber=new TextView(this);videoNumber.setTextColor(ink);videoNumber.setTextSize(18);videoNumber.setGravity(Gravity.CENTER);videoNavigator.addView(videoNumber,new LinearLayout.LayoutParams(0,-2,1));
+        nextVideo=new Button(this);nextVideo.setText("›");nextVideo.setContentDescription("Video successivo");styleButton(nextVideo,false);videoNavigator.addView(nextVideo,new LinearLayout.LayoutParams(dp(56),-2));
+        previousVideo.setOnClickListener(v->selectVideo(selectedVideoIndex-1));nextVideo.setOnClickListener(v->selectVideo(selectedVideoIndex+1));
+        videoNumber.setOnClickListener(v->{if(selectedNames.isEmpty())return;String[] entries=new String[selectedNames.size()];for(int n=0;n<entries.length;n++)entries[n]=(n+1)+". "+selectedNames.get(n);new android.app.AlertDialog.Builder(this).setTitle("Mostra dettagli del video").setSingleChoiceItems(entries,selectedVideoIndex,(d,n)->{selectVideo(n);d.dismiss();}).setNegativeButton("Chiudi",null).show();});
+        android.view.GestureDetector swipeVideos=new android.view.GestureDetector(this,new android.view.GestureDetector.SimpleOnGestureListener(){@Override public boolean onDown(android.view.MotionEvent e){return true;}@Override public boolean onFling(android.view.MotionEvent first,android.view.MotionEvent last,float x,float y){if(first==null||last==null||Math.abs(last.getX()-first.getX())<dp(48)||Math.abs(x)<=Math.abs(y))return false;selectVideo(selectedVideoIndex+(last.getX()<first.getX()?1:-1));return true;}@Override public boolean onSingleTapUp(android.view.MotionEvent e){videoNumber.performClick();return true;}});
+        videoNumber.setOnTouchListener((v,e)->swipeVideos.onTouchEvent(e));
         inputInfo=text(files,"Seleziona un video",15);
         Button details=button(files,"▸ Dettagli video");
         videoDetails=new LinearLayout(this);videoDetails.setOrientation(LinearLayout.VERTICAL);files.addView(videoDetails);videoDetails.setVisibility(View.GONE);
@@ -121,7 +134,13 @@ public final class MainActivity extends Activity {
         inputDetails=new LinearLayout(this);inputDetails.setOrientation(LinearLayout.VERTICAL);videoDetails.addView(inputDetails);
         details.setOnClickListener(v->{boolean show=videoDetails.getVisibility()!=View.VISIBLE;videoDetails.setVisibility(show?View.VISIBLE:View.GONE);details.setText(show?"▾ Dettagli video":"▸ Dettagli video");if(show)loadInputDetails();});
         saveInOrigin=button(files,"Salva nella cartella di origine");saveInOrigin.setOnClickListener(v->chooseOrigins());
-        pickFolder=button(files,"Scegli cartella");folderLabel=text(files,"Nessuna cartella selezionata",14);
+        LinearLayout originRows=new LinearLayout(this);originRows.setOrientation(LinearLayout.VERTICAL);files.addView(originRows);
+        originPanel=new OriginDirectoryPanel(this,originRows,new OriginDirectoryPanel.Listener(){
+            public void authorize(String parent,String representative){requestOrigin(parent,representative);}
+            public void changed(boolean ready,java.util.ArrayList<String> destinations,java.util.ArrayList<String> notes){originsReady=ready;originFolders.clear();originFolders.addAll(destinations);destinationNotes.clear();destinationNotes.addAll(notes);setBusy(busy);}
+            public void error(String message){toast("Autorizzazione cartella: "+message);}
+        },ink,dark);
+        pickFolder=button(files,"Salva in un’unica cartella…");folderLabel=text(files,"Nessuna cartella selezionata",14);
         LinearLayout settings=card(page,"02  COMPRESSIONE");
         presetValue=parameterRow(settings,"Preset","Il preset regola velocità e compressione. I preset lenti provano più alternative; osserva B-frame, lookahead e AQ mentre sposti lo slider.");
         presetSlider=new SeekBar(this);presetSlider.setMax(8);styleSlider(presetSlider);settings.addView(presetSlider,new LinearLayout.LayoutParams(-1,dp(48)));
@@ -189,12 +208,13 @@ public final class MainActivity extends Activity {
             if(state.getStringArrayList("inputs")!=null){selectedInputs.addAll(state.getStringArrayList("inputs"));selectedNames.addAll(state.getStringArrayList("names"));}
             if(state.getString("folder")!=null)folder=Uri.parse(state.getString("folder"));
             if(state.getStringArrayList("origins")!=null)originFolders.addAll(state.getStringArrayList("origins"));originMode=state.getBoolean("originMode",false);
-            if(state.getStringArrayList("pendingOrigins")!=null)pendingOrigins.addAll(state.getStringArrayList("pendingOrigins"));originIndex=state.getInt("originIndex",0);choosingOrigins=state.getBoolean("choosingOrigins",false);
+            selectedVideoIndex=state.getInt("selectedVideoIndex",0);pendingOriginParent=state.getString("pendingOriginParent");pendingOriginSource=state.getString("pendingOriginSource");choosingOrigins=state.getBoolean("choosingOrigins",false);
             pendingLog=state.getString("pendingLog");
             if(state.getString("result")!=null)resultUri=Uri.parse(state.getString("result"));
         }
         if(selectedInputs.isEmpty()&&input!=null){selectedInputs.add(input.toString());selectedNames.add(sourceName);}
-        refreshLabels();inspectInput();
+        if(!selectedInputs.isEmpty()){int restored=selectedInputs.indexOf(input==null?"":input.toString());selectedVideoIndex=restored>=0?restored:Math.min(selectedVideoIndex,selectedInputs.size()-1);input=Uri.parse(selectedInputs.get(selectedVideoIndex));sourceName=selectedNames.get(selectedVideoIndex);}
+        originPanel.setInputs(selectedInputs,selectedNames);refreshLabels();inspectInput();
         if(resultUri!=null)openVideo.setVisibility(View.VISIBLE);
         File old=ConversionService.logFile(this);
         if(old.isFile())worker.execute(()->{
@@ -333,35 +353,35 @@ public final class MainActivity extends Activity {
         try(Cursor c=getContentResolver().query(uri,new String[]{OpenableColumns.DISPLAY_NAME},null,null,null)){if(c!=null&&c.moveToFirst()&&!c.isNull(0))return c.getString(0);}catch(Exception ignored){}return "video";
     }
     private void openResult(Uri uri){try{startActivity(new Intent(Intent.ACTION_VIEW).setDataAndType(uri,"video/mp4").addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION));}catch(Exception e){toast("Nessun lettore video disponibile");}}
+    private void selectVideo(int index){
+        if(index<0||index>=selectedInputs.size())return;
+        selectedVideoIndex=index;input=Uri.parse(selectedInputs.get(index));sourceName=selectedNames.get(index);refreshLabels();inspectInput();
+    }
     private void chooseOrigins(){
         if(selectedInputs.isEmpty()){toast("Seleziona prima uno o più video");return;}
-        choosingOrigins=true;pendingOrigins.clear();originIndex=0;continueOrigins();
+        originMode=true;refreshLabels();
+        if(!OriginalMedia.hasVideoPermission(this)){requestPermissions(OriginalMedia.videoPermissions(),9);return;}
+        originPanel.refresh();
     }
-    private void continueOrigins(){
-        while(originIndex<selectedInputs.size()){
-            String parent=SourceFolder.parentId(this,Uri.parse(selectedInputs.get(originIndex)));
-            Uri permitted=SourceFolder.granted(this,parent);
-            if(permitted==null){promptOrigin();return;}
-            pendingOrigins.add(permitted.toString());originIndex++;
-        }
-        originFolders.clear();originFolders.addAll(pendingOrigins);pendingOrigins.clear();originMode=true;choosingOrigins=false;refreshLabels();setBusy(busy);toast("Ogni video sarà salvato nella propria cartella di origine");
+    private void requestOrigin(String parent,String representative){
+        if(busy||choosingOrigins)return;
+        pendingOriginParent=parent;pendingOriginSource=representative;choosingOrigins=true;setBusy(busy);
+        Runnable open=()->{Intent i=new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_WRITE_URI_PERMISSION|Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);if(parent!=null)i.putExtra(android.provider.DocumentsContract.EXTRA_INITIAL_URI,android.provider.DocumentsContract.buildDocumentUri(SourceFolder.EXTERNAL,parent));startActivityForResult(i,PICK_ORIGIN);};
+        if(parent!=null){open.run();return;}
+        new android.app.AlertDialog.Builder(this).setTitle("Cartella di origine non rilevata")
+            .setMessage("Seleziona la cartella che contiene "+displayName(Uri.parse(representative))+". Cercherò anche gli altri video selezionati nella stessa cartella. I file non riconosciuti resteranno da autorizzare.")
+            .setPositiveButton("Scegli cartella",(d,w)->open.run()).setNegativeButton("Annulla",(d,w)->cancelOrigins()).setOnCancelListener(d->cancelOrigins()).show();
     }
-    private void promptOrigin(){
-        setBusy(busy);pickVideo.setEnabled(false);pickFolder.setEnabled(false);convert.setEnabled(false);
-        String parent=SourceFolder.parentId(this,Uri.parse(selectedInputs.get(originIndex)));
-        new android.app.AlertDialog.Builder(this).setTitle("Cartella di origine · "+(originIndex+1)+" / "+selectedInputs.size())
-            .setMessage("Video: "+selectedNames.get(originIndex)+"\n\n"+(parent==null?"Android non comunica la cartella di questo file. Seleziona manualmente la sua cartella di origine; non posso verificarla automaticamente.":"Autorizza questa cartella: "+parent)+"\n\nIl video originale viene mantenuto. Creo un nuovo MP4.")
-            .setPositiveButton("Scegli cartella",(d,w)->{Intent i=new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_WRITE_URI_PERMISSION|Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);if(parent!=null)i.putExtra("android.provider.extra.INITIAL_URI",android.provider.DocumentsContract.buildDocumentUri(SourceFolder.EXTERNAL,parent));startActivityForResult(i,PICK_ORIGIN);})
-            .setNegativeButton("Annulla",(d,w)->cancelOrigins()).setOnCancelListener(d->cancelOrigins()).show();
-    }
-    private void cancelOrigins(){choosingOrigins=false;pendingOrigins.clear();setBusy(busy);}
+    private void cancelOrigins(){choosingOrigins=false;pendingOriginParent=null;pendingOriginSource=null;setBusy(busy);}
     private void refreshLabels(){
-        videoLabel.setText(input==null?"Nessun video selezionato":selectedInputs.size()>1?selectedInputs.size()+" video selezionati":sourceName);
+        videoLabel.setText(input==null?"Nessun video selezionato":sourceName);
+        videoNavigator.setVisibility(selectedInputs.size()>1?View.VISIBLE:View.GONE);videoNumber.setText("Video "+(selectedVideoIndex+1)+" di "+selectedInputs.size()+"  ▾");previousVideo.setEnabled(selectedVideoIndex>0);nextVideo.setEnabled(selectedVideoIndex+1<selectedInputs.size());
+        saveInOrigin.setText(originMode?"✓ Salva nella cartella di origine":"Salva nella cartella di origine");
         folderLabel.setText(originMode?"Cartella di origine di ciascun video":folder==null?"Nessuna cartella selezionata":Uri.decode(folder.getLastPathSegment()));
     }
     private void setBusy(boolean value){
-        busy=value;updateScreenAwake();saveInOrigin.setEnabled(!value&&!choosingOrigins);pickVideo.setEnabled(!value&&!choosingOrigins);pickFolder.setEnabled(!value&&!choosingOrigins);crfSlider.setEnabled(!value);presetSlider.setEnabled(!value);for(Button b:crfButtons)b.setEnabled(!value);cpuMode.setEnabled(!value);bframeSwitch.setEnabled(!value);lookaheadSwitch.setEnabled(!value);
-        hdrTest.setEnabled(!value);saveHdr.setEnabled(!value);convert.setEnabled(!value&&!choosingOrigins);saveLog.setEnabled(!value);saveMetadata.setEnabled(!value);stop.setVisibility(value?View.VISIBLE:View.GONE);stop.setEnabled(value);
+        busy=value;updateScreenAwake();if(originPanel!=null)originPanel.setBusy(value||choosingOrigins);saveInOrigin.setEnabled(!value&&!choosingOrigins);pickVideo.setEnabled(!value&&!choosingOrigins);pickFolder.setEnabled(!value&&!choosingOrigins);crfSlider.setEnabled(!value);presetSlider.setEnabled(!value);for(Button b:crfButtons)b.setEnabled(!value);cpuMode.setEnabled(!value);bframeSwitch.setEnabled(!value);lookaheadSwitch.setEnabled(!value);
+        hdrTest.setEnabled(!value);saveHdr.setEnabled(!value);convert.setEnabled(!value&&!choosingOrigins&&(!originMode||originsReady));saveLog.setEnabled(!value);saveMetadata.setEnabled(!value);stop.setVisibility(value?View.VISIBLE:View.GONE);stop.setEnabled(value);
 
     }
     private void updateScreenAwake(){
@@ -384,7 +404,7 @@ public final class MainActivity extends Activity {
                 .setNegativeButton("Annulla",null).show();return;
         }
         if(choosingOrigins){toast("Completa prima la scelta delle cartelle di origine");return;}
-        if(originMode&&originFolders.size()!=selectedInputs.size()){toast("Seleziona nuovamente le cartelle di origine");return;}
+        if(originMode&&(!originsReady||originFolders.size()!=selectedInputs.size()||originFolders.contains(null))){toast("Autorizza tutte le cartelle rosse prima di avviare la coda");return;}
         java.util.ArrayList<String> destinations=new java.util.ArrayList<>();
         for(int n=0;n<selectedInputs.size();n++)destinations.add(originMode?originFolders.get(n):folder.toString());
         final int crf=selectedCrf();
@@ -392,7 +412,7 @@ public final class MainActivity extends Activity {
         final int preset=presetSlider.getProgress(),cpu=cpuMode.getSelectedItemPosition();
         if(Build.VERSION.SDK_INT>=33&&!notificationsRequested&&checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)!=PackageManager.PERMISSION_GRANTED){notificationsRequested=true;requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS},4);return;}
         Intent task=new Intent(this,ConversionService.class).setAction(ConversionService.START)
-            .putStringArrayListExtra("inputs",new java.util.ArrayList<>(selectedInputs)).putStringArrayListExtra("names",new java.util.ArrayList<>(selectedNames)).putStringArrayListExtra("folders",destinations)
+            .putStringArrayListExtra("inputs",new java.util.ArrayList<>(selectedInputs)).putStringArrayListExtra("names",new java.util.ArrayList<>(selectedNames)).putStringArrayListExtra("folders",destinations).putStringArrayListExtra("destinationNotes",originMode?new java.util.ArrayList<>(destinationNotes):new java.util.ArrayList<>())
             .putExtra("originMode",originMode).putExtra("crf",crf).putExtra("preset",preset).putExtra("cpu",cpu)
             .putExtra("bframes",bframeSwitch.isChecked()).putExtra("lookahead",lookaheadSwitch.isChecked());
         try{startForegroundService(task);setBusy(true);status.setText("Avvio conversione…");}
@@ -406,10 +426,11 @@ public final class MainActivity extends Activity {
         timeline.setText(String.format(Locale.ITALY,"Video convertito: %.1f s\nVideo rimanente: %s",s.done/1000000.0,s.total>0?String.format(Locale.ITALY,"%.1f s",Math.max(0,s.total-s.done)/1000000.0):"durata non disponibile"));
         effectiveTemporal.setText(s.bframeCount>=0?String.format(Locale.ITALY,"Encoder: B-frame %d · Lookahead %d\nCU-tree %s · AQ %d · Strength %.2f",s.bframeCount,s.lookaheadCount,s.cuTree!=0?"ON":"OFF",s.aqMode,s.aqStrength/1000.0):"Encoder: in attesa");
         resultUri=s.result;openVideo.setVisibility(resultUri==null?View.GONE:View.VISIBLE);
-        if(input==null){selectedInputs.addAll(s.inputs);selectedNames.addAll(s.names);input=Uri.parse(selectedInputs.get(0));folder=s.folder;originMode=s.originMode;originFolders.clear();if(originMode)originFolders.addAll(s.folders);sourceName=selectedNames.get(0);refreshLabels();inspectInput();}
+        if(input==null){selectedInputs.addAll(s.inputs);selectedNames.addAll(s.names);input=Uri.parse(selectedInputs.get(0));folder=s.folder;originMode=s.originMode;originFolders.clear();if(originMode)originFolders.addAll(s.folders);sourceName=selectedNames.get(0);selectedVideoIndex=0;originPanel.setInputs(selectedInputs,selectedNames);refreshLabels();inspectInput();}
     }
     @Override public void onRequestPermissionsResult(int request,String[] permissions,int[] results){
         super.onRequestPermissionsResult(request,permissions,results);
+        if(request==9){originPanel.refresh();if(!OriginalMedia.hasVideoPermission(this))toast("Android può nascondere i percorsi: usa Autorizza per associare le cartelle manualmente.");return;}
         if(request==8){
             if(OriginalMedia.hasLocationPermission(this)&&OriginalMedia.hasVideoPermission(this))exportMetadata();
             else toast("Per esportare i metadati originali, consenti posizione dei file e lettura del video selezionato.");
@@ -485,7 +506,7 @@ public final class MainActivity extends Activity {
     @Override protected void onActivityResult(int request,int code,Intent data){
         super.onActivityResult(request,code,data);
         if(code!=RESULT_OK||data==null){
-            if(request==PICK_ORIGIN){choosingOrigins=false;pendingOrigins.clear();toast("Scelta origine annullata: destinazione precedente mantenuta");setBusy(busy);}
+            if(request==PICK_ORIGIN){cancelOrigins();toast("Autorizzazione annullata");}
             if(request==SAVE_LOG&&pendingLog!=null){new File(pendingLog).delete();pendingLog=null;}return;
         }
         if(request==PICK_VIDEO){
@@ -494,18 +515,17 @@ public final class MainActivity extends Activity {
             if(data.getData()!=null)chosen.add(data.getData());
             if(chosen.isEmpty())return;
             if(chosen.size()>BatchProgress.MAX_FILES){toast("Seleziona al massimo "+BatchProgress.MAX_FILES+" video per coda");return;}
-            selectedInputs.clear();selectedNames.clear();originMode=false;originFolders.clear();choosingOrigins=false;pendingOrigins.clear();
+            selectedInputs.clear();selectedNames.clear();originMode=false;originFolders.clear();cancelOrigins();selectedVideoIndex=0;
             for(Uri chosenUri:chosen){try{getContentResolver().takePersistableUriPermission(chosenUri,Intent.FLAG_GRANT_READ_URI_PERMISSION);}catch(SecurityException ignored){}selectedInputs.add(chosenUri.toString());selectedNames.add(displayName(chosenUri));}
-            input=Uri.parse(selectedInputs.get(0));sourceName=selectedNames.get(0);refreshLabels();inspectInput();return;
+            input=Uri.parse(selectedInputs.get(0));sourceName=selectedNames.get(0);originPanel.setInputs(selectedInputs,selectedNames);refreshLabels();inspectInput();return;
         }
         if(data.getData()==null){if(request==PICK_ORIGIN)cancelOrigins();if(request==SAVE_LOG&&pendingLog!=null){new File(pendingLog).delete();pendingLog=null;}return;}Uri uri=data.getData();
         if(request==PICK_FOLDER||request==PICK_ORIGIN){
             try{int flags=data.getFlags()&(Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_WRITE_URI_PERMISSION);if((flags&(Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_WRITE_URI_PERMISSION))!=(Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_WRITE_URI_PERMISSION))throw new SecurityException("Lettura e scrittura non concesse");getContentResolver().takePersistableUriPermission(uri,Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_WRITE_URI_PERMISSION);}
-            catch(SecurityException e){toast("Serve l’accesso permanente in scrittura: "+e.getMessage());if(request==PICK_ORIGIN){choosingOrigins=false;pendingOrigins.clear();setBusy(busy);}return;}
+            catch(SecurityException e){toast("Serve l’accesso permanente in scrittura: "+e.getMessage());if(request==PICK_ORIGIN)cancelOrigins();return;}
             if(request==PICK_ORIGIN){
-                String expected=SourceFolder.parentId(this,Uri.parse(selectedInputs.get(originIndex)));
-                if(!SourceFolder.matches(expected,uri)){toast("La cartella scelta non è quella di origine: "+expected);promptOrigin();return;}
-                pendingOrigins.add(uri.toString());originIndex++;continueOrigins();return;
+                String parent=pendingOriginParent,source=pendingOriginSource;cancelOrigins();
+                if(source!=null)originPanel.accept(parent,source,uri);else originPanel.refresh();return;
             }
             folder=uri;originMode=false;getPreferences(0).edit().putString("folder",uri.toString()).apply();refreshLabels();
         }else if(request==SAVE_LOG&&pendingLog!=null){
@@ -524,17 +544,11 @@ public final class MainActivity extends Activity {
         if(input!=null)b.putString("input",input.toString());
         if(folder!=null)b.putString("folder",folder.toString());
         b.putStringArrayList("inputs",new java.util.ArrayList<>(selectedInputs));b.putStringArrayList("names",new java.util.ArrayList<>(selectedNames));b.putStringArrayList("origins",new java.util.ArrayList<>(originFolders));b.putBoolean("originMode",originMode);
-        b.putStringArrayList("pendingOrigins",new java.util.ArrayList<>(pendingOrigins));b.putInt("originIndex",originIndex);b.putBoolean("choosingOrigins",choosingOrigins);
+        b.putInt("selectedVideoIndex",selectedVideoIndex);b.putString("pendingOriginParent",pendingOriginParent);b.putString("pendingOriginSource",pendingOriginSource);b.putBoolean("choosingOrigins",choosingOrigins);
         if(resultUri!=null)b.putString("result",resultUri.toString());
         b.putString("sourceName",sourceName);b.putString("pendingLog",pendingLog);b.putInt("crfValue",selectedCrf());b.putInt("presetValue",presetSlider.getProgress());b.putInt("cpu",cpuMode.getSelectedItemPosition());b.putBoolean("bframes",bframeSwitch.isChecked());b.putBoolean("lookahead",lookaheadSwitch.isChecked());
     }
-    @Override protected void onResume(){super.onResume();conversionScreenVisible=true;AppSettings saved=new AppSettings(this);keepScreenOn.setChecked(saved.keepScreenOn);if(!java.util.Objects.equals(loadedDefault,saved.defaultFolder)&&!ConversionService.snapshot().running){loadedDefault=saved.defaultFolder;if(loadedDefault!=null){folder=Uri.parse(loadedDefault);originMode=false;}refreshLabels();}if(saved.revision!=settingsRevision&&!ConversionService.snapshot().running)applyDefaults(saved);ConversionService.uiVisible=true;previousWall=0;monitor.post(sample);ConversionService.observe(sessionObserver);renderSession();updateScreenAwake();}
+    @Override protected void onResume(){super.onResume();conversionScreenVisible=true;AppSettings saved=new AppSettings(this);keepScreenOn.setChecked(saved.keepScreenOn);if(!java.util.Objects.equals(loadedDefault,saved.defaultFolder)&&!ConversionService.snapshot().running){loadedDefault=saved.defaultFolder;if(loadedDefault!=null){folder=Uri.parse(loadedDefault);originMode=false;}refreshLabels();}if(saved.revision!=settingsRevision&&!ConversionService.snapshot().running)applyDefaults(saved);ConversionService.uiVisible=true;previousWall=0;monitor.post(sample);ConversionService.observe(sessionObserver);renderSession();if(originPanel!=null&&!ConversionService.snapshot().running)originPanel.refresh();updateScreenAwake();}
     @Override protected void onPause(){conversionScreenVisible=false;updateScreenAwake();ConversionService.uiVisible=false;monitor.removeCallbacks(sample);ConversionService.detach(sessionObserver);super.onPause();}
-    @Override protected void onDestroy(){cancelled.set(true);conversionScreenVisible=false;updateScreenAwake();destroyed=true;ConversionService.detach(sessionObserver);worker.shutdown();super.onDestroy();}
+    @Override protected void onDestroy(){cancelled.set(true);conversionScreenVisible=false;updateScreenAwake();destroyed=true;if(originPanel!=null)originPanel.close();ConversionService.detach(sessionObserver);worker.shutdown();super.onDestroy();}
 }
-
-
-
-
-
-

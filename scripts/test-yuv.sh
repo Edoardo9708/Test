@@ -25,3 +25,5 @@ java -cp yuv-test it.edo.codecprobe.Mp4MetadataTest
 
 javac -d yuv-test app/src/main/java/it/edo/codecprobe/BatchProgress.java tests/BatchProgressTest.java
 java -cp yuv-test it.edo.codecprobe.BatchProgressTest
+javac -d yuv-test app/src/main/java/it/edo/codecprobe/FolderPaths.java tests/FolderPathsTest.java
+java -cp yuv-test it.edo.codecprobe.FolderPathsTest
