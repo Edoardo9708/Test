@@ -83,7 +83,7 @@ public final class ConversionService extends Service {
         channel.setDescription("Avanzamento e annullamento della conversione");
         getSystemService(NotificationManager.class).createNotificationChannel(channel);
     }
-    private void notifyState(State s){failures=new ArrayList<>(s.failures);
+    private void notifyState(State s){
         if(Build.VERSION.SDK_INT>=33&&checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)!=PackageManager.PERMISSION_GRANTED)return;
         getSystemService(NotificationManager.class).notify(NOTICE,notification(s));
     }
