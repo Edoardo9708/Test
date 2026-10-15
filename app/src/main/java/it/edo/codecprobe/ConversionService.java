@@ -39,11 +39,13 @@ public final class ConversionService extends Service {
         ArrayList<String> inputs=new ArrayList<>(),names=new ArrayList<>(),folders=new ArrayList<>();
         ArrayList<Uri> results=new ArrayList<>();
         int bframeCount=-1,lookaheadCount=-1,cuTree=-1,aqMode=-1,aqStrength=-1;
-        long done,total;
+        long done,total,startedAt,endedAt;
+        int requestedCrf=-1,requestedCpu=-1;
+        String requestedPreset="—";
         String message="",log="",source="",sizeReport="";
         Uri result,input,folder;
         State(){}
-        State(State s){sizeReport=s.sizeReport;applyAllDestinations=s.applyAllDestinations;allOrigin=s.allOrigin;allFolder=s.allFolder;individualOrigins=s.individualOrigins.clone();individualFolders=new ArrayList<>(s.individualFolders);originMode=s.originMode;inputs=new ArrayList<>(s.inputs);names=new ArrayList<>(s.names);folders=new ArrayList<>(s.folders);results=new ArrayList<>(s.results);filePercent=s.filePercent;batchIndex=s.batchIndex;batchTotal=s.batchTotal;succeeded=s.succeeded;failed=s.failed;hasSession=s.hasSession;running=s.running;bframeCount=s.bframeCount;lookaheadCount=s.lookaheadCount;cuTree=s.cuTree;aqMode=s.aqMode;aqStrength=s.aqStrength;percent=s.percent;doneFrames=s.doneFrames;totalFrames=s.totalFrames;done=s.done;total=s.total;message=s.message;log=s.log;source=s.source;result=s.result;input=s.input;folder=s.folder;}
+        State(State s){startedAt=s.startedAt;endedAt=s.endedAt;requestedCrf=s.requestedCrf;requestedCpu=s.requestedCpu;requestedPreset=s.requestedPreset;sizeReport=s.sizeReport;applyAllDestinations=s.applyAllDestinations;allOrigin=s.allOrigin;allFolder=s.allFolder;individualOrigins=s.individualOrigins.clone();individualFolders=new ArrayList<>(s.individualFolders);originMode=s.originMode;inputs=new ArrayList<>(s.inputs);names=new ArrayList<>(s.names);folders=new ArrayList<>(s.folders);results=new ArrayList<>(s.results);filePercent=s.filePercent;batchIndex=s.batchIndex;batchTotal=s.batchTotal;succeeded=s.succeeded;failed=s.failed;hasSession=s.hasSession;running=s.running;bframeCount=s.bframeCount;lookaheadCount=s.lookaheadCount;cuTree=s.cuTree;aqMode=s.aqMode;aqStrength=s.aqStrength;percent=s.percent;doneFrames=s.doneFrames;totalFrames=s.totalFrames;done=s.done;total=s.total;message=s.message;log=s.log;source=s.source;result=s.result;input=s.input;folder=s.folder;}
     }
     static boolean clearLogsIfIdle(Runnable clear){synchronized(LOCK){if(state.running)return false;clear.run();state.log="";return true;}}
     static State snapshot(){synchronized(LOCK){return new State(state);}}
@@ -76,11 +78,11 @@ public final class ConversionService extends Service {
     private Notification notification(State s){
         PendingIntent open=PendingIntent.getActivity(this,0,new Intent(this,MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP|Intent.FLAG_ACTIVITY_CLEAR_TOP),PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
         Notification.Builder n=new Notification.Builder(this,CHANNEL).setSmallIcon(R.drawable.ic_notification_video)
-            .setContentTitle(s.running?"Conversione video · "+s.percent+"%":"Conversione video")
+            .setContentTitle(s.running?"Video "+Math.max(1,s.batchIndex)+"/"+s.batchTotal+" · "+s.filePercent+"%":"Conversione video")
             .setContentText(s.message).setStyle(new Notification.BigTextStyle().bigText(s.message+"\n"+s.source))
             .setContentIntent(open).setOnlyAlertOnce(true).setOngoing(s.running);
         if(s.running){
-            n.setProgress(100,s.percent,false);
+            n.setProgress(100,s.filePercent,false);
             PendingIntent stop=PendingIntent.getService(this,1,new Intent(this,ConversionService.class).setAction(CANCEL),PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
             n.addAction(new Notification.Action.Builder(null,"Annulla",stop).build());
         }else n.setAutoCancel(true);
@@ -109,7 +111,7 @@ public final class ConversionService extends Service {
         synchronized(LOCK){state.individualOrigins=intent.getBooleanArrayExtra("individualOrigins");if(state.individualOrigins==null)state.individualOrigins=new boolean[queueInputs.size()];
             ArrayList<String> requestedChoices=intent.getStringArrayListExtra("individualFolders");state.individualFolders=requestedChoices==null?new ArrayList<>(queueFolders):new ArrayList<>(requestedChoices);
             state.applyAllDestinations=intent.getBooleanExtra("applyAllDestinations",false);state.allOrigin=intent.getBooleanExtra("allOrigin",true);state.allFolder=intent.getStringExtra("allFolder");
-            state.originMode=intent.getBooleanExtra("originMode",false);state.inputs=queueInputs;state.names=queueNames;state.folders=queueFolders;state.results.clear();state.sizeReport="";state.batchIndex=0;state.batchTotal=queueInputs.size();state.succeeded=0;state.failed=0;state.filePercent=0;state.hasSession=true;state.running=true;state.bframeCount=-1;state.lookaheadCount=-1;state.cuTree=-1;state.aqMode=-1;state.aqStrength=-1;state.percent=0;state.doneFrames=0;state.totalFrames=-1;state.done=0;state.total=0;state.result=null;state.log="";state.message="Analisi video…";state.source=source;state.input=input;state.folder=folder;}
+            state.startedAt=SystemClock.elapsedRealtime();state.endedAt=0;state.requestedCrf=crf;state.requestedCpu=cpu;state.requestedPreset=AppSettings.PRESETS[Math.max(0,Math.min(8,preset))];state.originMode=intent.getBooleanExtra("originMode",false);state.inputs=queueInputs;state.names=queueNames;state.folders=queueFolders;state.results.clear();state.sizeReport="";state.batchIndex=0;state.batchTotal=queueInputs.size();state.succeeded=0;state.failed=0;state.filePercent=0;state.hasSession=true;state.running=true;state.bframeCount=-1;state.lookaheadCount=-1;state.cuTree=-1;state.aqMode=-1;state.aqStrength=-1;state.percent=0;state.doneFrames=0;state.totalFrames=-1;state.done=0;state.total=0;state.result=null;state.log="";state.message="Analisi video…";state.source=source;state.input=input;state.folder=folder;}
         try {
             int type=Build.VERSION.SDK_INT>=35?ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROCESSING:ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC;
             startForeground(NOTICE,notification(snapshot()),type);
@@ -117,7 +119,7 @@ public final class ConversionService extends Service {
             wake=pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK,"CodecProbe:conversion");
             wake.acquire(6*60*60*1000L);
         }catch(RuntimeException e){
-            synchronized(LOCK){state.running=false;state.message="Impossibile avviare il servizio: "+e.getMessage();}
+            synchronized(LOCK){state.endedAt=SystemClock.elapsedRealtime();state.running=false;state.message="Impossibile avviare il servizio: "+e.getMessage();}
             releaseWake();publish(true);stopSelf();return START_NOT_STICKY;
         }
         cancel.set(false);timedOut=false;tail.clear();publish(true);
@@ -153,17 +155,17 @@ public final class ConversionService extends Service {
                         synchronized(LOCK){state.failed++;}
                         writeBatch(batchLog,"*** VIDEO FALLITO · CONTINUO CON IL SUCCESSIVO ***\nNome: "+queueNames.get(index)+"\nErrore: "+e);
                     }
-                    synchronized(LOCK){state.percent=BatchProgress.percent(index+1,0,queueInputs.size());state.filePercent=100;}batchLog.flush();publish(true);
+                    synchronized(LOCK){state.percent=BatchProgress.percent(index+1,0,queueInputs.size());if(sizeResults.get(index).status==CompressionSummary.Status.COMPLETE)state.filePercent=100;}batchLog.flush();publish(true);
                 }
                 synchronized(LOCK){int remaining=state.batchTotal-state.succeeded-state.failed;state.message=(cancel.get()?"Coda interrotta":"Coda terminata")+" · riusciti "+state.succeeded+" · falliti "+state.failed+" · non completati "+remaining;}
                 synchronized(LOCK){state.sizeReport=CompressionSummary.render(sizeResults);}
                 writeBatch(batchLog,"\n*** RESOCONTO DIMENSIONI ***\n"+snapshot().sizeReport);
-                writeBatch(batchLog,"\n*** FINE CODA ***\n"+snapshot().message+"\nI file completati restano salvati. Esporta questo TXT per tutti i dettagli.");
+                writeBatch(batchLog,"\n*** FINE CODA ***\n"+snapshot().message+"\nTempo trascorso: "+DashboardMetrics.elapsed(snapshot().startedAt,0,SystemClock.elapsedRealtime())+"\nI file completati restano salvati. Esporta questo TXT per tutti i dettagli.");
             }catch(Exception e){
                 synchronized(LOCK){state.message="Coda interrotta: "+e.getMessage();}
             }finally {
                 main.post(()->{
-                    synchronized(LOCK){state.sizeReport=CompressionSummary.render(sizeResults);state.running=false;}
+                    synchronized(LOCK){state.sizeReport=CompressionSummary.render(sizeResults);state.endedAt=SystemClock.elapsedRealtime();state.running=false;}
                     releaseWake();stopForeground(STOP_FOREGROUND_REMOVE);publish(true);
                     if(!timedOut)notifyState(snapshot());
                     stopSelf();

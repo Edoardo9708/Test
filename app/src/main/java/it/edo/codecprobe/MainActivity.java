@@ -75,7 +75,7 @@ public final class MainActivity extends Activity {
     private Switch bframeSwitch,lookaheadSwitch;
     private CheckBox keepScreenOn;
     private boolean conversionScreenVisible;
-    private TextView temporalHelp,effectiveTemporal,aqModeLabel,aqStrengthLabel,cuTreeLabel;
+    private TextView temporalHelp,aqModeLabel,aqStrengthLabel,cuTreeLabel;
     private static native int[] nativePresetSettings(int preset,boolean bframes,boolean lookahead);
     private boolean notificationsRequested;
     private final Runnable sessionObserver=this::renderSession;
@@ -83,7 +83,12 @@ public final class MainActivity extends Activity {
     private LinearLayout inputSummary,inputDetails,videoDetails;
 
 
-    private TextView timeline,telemetry,percentLabel,frameLabel;
+    private TextView timeline,percentLabel,frameLabel,elapsedLabel,currentFile,cpuValue,ramValue,batteryValue;
+    private TextView activePreset,activeCrf,activeCpu,activeBframes,activeLookahead,activeTree,activeAq,activeStrength;
+    private boolean darkTheme;
+    private final ExecutorService systemWorker=Executors.newSingleThreadExecutor();
+    private boolean memorySamplePending;
+    private long lastMemorySample;
     private int bg,surface,ink,muted,accent,border;
     
     private final Handler monitor=new Handler(Looper.getMainLooper());
@@ -92,17 +97,25 @@ public final class MainActivity extends Activity {
         if(destroyed)return;
         long now=SystemClock.elapsedRealtime(),cpu=android.os.Process.getElapsedCpuTime();
         int cores=Runtime.getRuntime().availableProcessors();
-        String usage=previousWall==0?"…":String.format(Locale.ITALY,"%.1f%%",Math.min(100,Math.max(0,100.0*(cpu-previousCpu)/Math.max(1,now-previousWall)/cores)));
+        double usage=previousWall==0?-1:Math.min(100,Math.max(0,100.0*(cpu-previousCpu)/Math.max(1,now-previousWall)/Math.max(1,cores)));
         previousCpu=cpu;previousWall=now;
-        String temp="non disponibile",thermal="non disponibile";
-        try {
+        cpuValue.setText(usage<0?"—":String.format(Locale.ITALY,"%.1f%%",usage));cpuValue.setTextColor(systemColor(DashboardMetrics.cpuBand(usage),false));
+        double temperature=Double.NaN;
+        try{
             Intent battery=registerReceiver(null,new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
-            if(battery!=null&&battery.hasExtra(BatteryManager.EXTRA_TEMPERATURE))temp=String.format(Locale.ITALY,"%.1f °C",battery.getIntExtra(BatteryManager.EXTRA_TEMPERATURE,0)/10.0);
-            PowerManager pm=(PowerManager)getSystemService(POWER_SERVICE);
-            String[] levels={"regolare","lieve","moderato","elevato","critico","emergenza","spegnimento"};
-            int level=pm.getCurrentThermalStatus();if(level>=0&&level<levels.length)thermal=levels[level];
+            if(battery!=null&&battery.hasExtra(BatteryManager.EXTRA_TEMPERATURE))temperature=battery.getIntExtra(BatteryManager.EXTRA_TEMPERATURE,0)/10.0;
         }catch(RuntimeException ignored){}
-        telemetry.setText("CPU APP   "+usage+"     •     BATTERIA   "+temp+"\nStato termico: "+thermal);
+        batteryValue.setText(Double.isFinite(temperature)?String.format(Locale.ITALY,"%.1f °C",temperature):"non disponibile");batteryValue.setTextColor(systemColor(DashboardMetrics.batteryBand(temperature),true));
+        if(!memorySamplePending&&(lastMemorySample==0||now-lastMemorySample>=3000)){
+            memorySamplePending=true;lastMemorySample=now;
+            systemWorker.execute(()->{
+                String ram;
+                try{Debug.MemoryInfo memory=new Debug.MemoryInfo();Debug.getMemoryInfo(memory);ram=String.format(Locale.ITALY,"%.1f MiB",memory.getTotalPss()/1024.0);}
+                catch(RuntimeException|LinkageError e){ram="non disponibile";}
+                final String measured=ram;runOnUiThread(()->{memorySamplePending=false;if(!destroyed)ramValue.setText(measured);});
+            });
+        }
+        if(!hdrTesting){ConversionService.State session=ConversionService.snapshot();elapsedLabel.setText(DashboardMetrics.elapsed(session.startedAt,session.endedAt,now));}
         monitor.postDelayed(this,1000);
     }};
     private ProgressBar progress;
@@ -113,6 +126,7 @@ public final class MainActivity extends Activity {
         super.onCreate(state);
         AppSettings defaults=new AppSettings(this);settingsRevision=defaults.revision;
         boolean dark=(getResources().getConfiguration().uiMode&Configuration.UI_MODE_NIGHT_MASK)==Configuration.UI_MODE_NIGHT_YES;
+        darkTheme=dark;
         bg=Color.parseColor(dark?"#10151D":"#F2F5FA");surface=Color.parseColor(dark?"#1B2330":"#FFFFFF");
         ink=Color.parseColor(dark?"#EDF3FC":"#172236");muted=Color.parseColor(dark?"#A7B6CA":"#53647A");
         accent=Color.parseColor(dark?"#99C1FF":"#215CBD");border=Color.parseColor(dark?"#34445B":"#D7E1EF");
@@ -201,24 +215,32 @@ public final class MainActivity extends Activity {
         cpuMode.setSelection(state==null?defaults.cpu:state.getInt("cpu",defaults.cpu));
 
         LinearLayout work=card(page,"03  CONVERSIONE");
-        convert=button(work,"Converti e salva MP4");styleButton(convert,true);
-        stop=button(work,"Annulla conversione");stop.setVisibility(View.GONE);
+        LinearLayout actions=new LinearLayout(this);actions.setGravity(Gravity.CENTER_VERTICAL);work.addView(actions,new LinearLayout.LayoutParams(-1,-2));
+        convert=halfButton(actions,"Converti e salva",true);stop=halfButton(actions,"Annulla",false);stop.setEnabled(false);
         keepScreenOn=new CheckBox(this);keepScreenOn.setText("Mantieni schermo acceso");keepScreenOn.setTextColor(ink);keepScreenOn.setTextSize(17);keepScreenOn.setButtonTintList(ColorStateList.valueOf(accent));keepScreenOn.setMinHeight(dp(48));LinearLayout screenRow=new LinearLayout(this);screenRow.setGravity(Gravity.CENTER_VERTICAL);work.addView(screenRow);screenRow.addView(keepScreenOn,new LinearLayout.LayoutParams(0,-2,1));
         keepScreenOn.setChecked(defaults.keepScreenOn);
         keepScreenOn.setOnCheckedChangeListener((v,checked)->{AppSettings.setKeepScreenOn(this,checked);updateScreenAwake();});
         infoButton(screenRow,"Mantieni schermo acceso","Evita lo spegnimento automatico mentre la conversione è in corso e questa schermata è visibile. Si disattiva al termine o uscendo dalla schermata. Puoi spegnere lo schermo con il tasto del telefono. La scelta viene salvata per gli avvii successivi; non garantisce una velocità di codifica maggiore.");
+        sectionHeading(work,"SOMMARIO");
         queueLabel=text(work,"Nessuna coda avviata",16);
+        elapsedLabel=dashboardRow(work,"Tempo trascorso","00:00:00");
+        sectionHeading(work,"PROGRESSO · FILE ATTUALE");
+        currentFile=text(work,"Nessun file in conversione",16);currentFile.setTypeface(null,Typeface.BOLD);currentFile.setMaxLines(2);currentFile.setEllipsize(android.text.TextUtils.TruncateAt.END);
         percentLabel=text(work,"0%",28);percentLabel.setTypeface(null,Typeface.BOLD);
         progress=new ProgressBar(this,null,android.R.attr.progressBarStyleHorizontal);progress.setMax(100);
         progress.setProgressTintList(ColorStateList.valueOf(accent));progress.setProgressBackgroundTintList(ColorStateList.valueOf(border));
         LinearLayout.LayoutParams bar=new LinearLayout.LayoutParams(-1,dp(12));bar.setMargins(0,dp(8),0,dp(12));work.addView(progress,bar);
-        frameLabel=text(work,"Fotogrammi: 0 / —",18);
-        effectiveTemporal=text(work,"Parametri effettivi: disponibili all’avvio dell’encoder.",14);
-        timeline=text(work,"Video convertito: — s\nVideo rimanente: — s",16);
-        status=text(work,"Scegli video, cartella e qualità.",14);
-        telemetry=text(work,"CPU APP   …     •     BATTERIA   …",14);
-        parameterRow(work,"ⓘ Prestazioni","CPU app: 100% indica tutti i core disponibili occupati. La temperatura è della batteria, non della CPU. La conversione usa un servizio con notifica e un wake lock, ma Android può applicare limiti energetici. Supportati video SDR a 8 bit e audio AAC o assente.");
-        openVideo=button(work,"Apri video convertito");openVideo.setVisibility(View.GONE);
+        frameLabel=dashboardRow(work,"Fotogrammi","0 / —");
+        timeline=dashboardRow(work,"Secondi di video","—");
+        status=text(work,"Scegli video, cartella e qualità.",14);status.setTextColor(muted);
+        sectionHeading(work,"PARAMETRI IN USO");
+        text(work,"x265 · codifica software su CPU",14);
+        activePreset=dashboardRow(work,"Preset","—");activeCrf=dashboardRow(work,"CRF","—");activeCpu=dashboardRow(work,"Modalità CPU","—");
+        activeBframes=dashboardRow(work,"B-frame","—");activeLookahead=dashboardRow(work,"Lookahead","—");activeTree=dashboardRow(work,"CU-tree","—");activeAq=dashboardRow(work,"AQ mode","—");activeStrength=dashboardRow(work,"AQ strength","—");
+        sectionHeading(work,"SISTEMA");
+        cpuValue=dashboardRow(work,"Uso CPU app","—");ramValue=dashboardRow(work,"RAM app · PSS","—");batteryValue=dashboardRow(work,"Temperatura batteria","—");
+        parameterRow(work,"Info misure","CPU: percentuale del processo rispetto a tutti i core disponibili; 100% significa occupazione complessiva. Colori: blu sotto 30%, verde da 30%, ambra da 70%, arancio da 90%. Indicano intensità di utilizzo, non errori.\n\nRAM: PSS del processo, inclusi Java, codice nativo e quota proporzionale delle pagine condivise; non è la RAM totale del telefono. MiB = 1.048.576 byte. Aggiornamento circa ogni 3 secondi.\n\nLa temperatura è della batteria, non della CPU. Colori indicativi: verde sotto 35 °C, ambra da 35 °C, arancio da 40 °C, rosso da 45 °C. Non sono le soglie ufficiali del produttore.\n\nTempo trascorso: durata della coda, inclusi analisi, codifica, verifica e salvataggio. I secondi di video rappresentano il contenuto elaborato e rimanente, non una stima del tempo di attesa.");
+        LinearLayout outputActions=new LinearLayout(this);outputActions.setWeightSum(2);work.addView(outputActions,new LinearLayout.LayoutParams(-1,-2));openVideo=halfButton(outputActions,"Apri risultato",false);openVideo.setVisibility(View.GONE);
         sizeReportPanel=new LinearLayout(this);sizeReportPanel.setOrientation(LinearLayout.VERTICAL);sizeReportPanel.setPadding(dp(14),dp(12),dp(14),dp(12));sizeReportPanel.setBackground(shape(bg,14));LinearLayout.LayoutParams reportLayout=new LinearLayout.LayoutParams(-1,-2);reportLayout.setMargins(0,dp(14),0,0);work.addView(sizeReportPanel,reportLayout);
         TextView reportTitle=text(sizeReportPanel,"RESOCONTO CONVERSIONE",16);reportTitle.setTypeface(null,Typeface.BOLD);reportTitle.setTextColor(accent);
         sizeReport=text(sizeReportPanel,"",16);sizeReport.setTextIsSelectable(true);sizeReport.setLineSpacing(dp(4),1);sizeReportPanel.setVisibility(View.GONE);
@@ -517,7 +539,7 @@ public final class MainActivity extends Activity {
     }
     private void setBusy(boolean value){
         busy=value;updateScreenAwake();if(originPanel!=null)originPanel.setBusy(value||choosingOrigins);boolean destinationEditable=!value&&!choosingOrigins;videoOrigin.setEnabled(destinationEditable&&!selectedInputs.isEmpty()&&!destinationPlan.applyAll);pickAllFolder.setEnabled(destinationEditable&&destinationPlan.applyAll);allOrigin.setEnabled(destinationEditable&&destinationPlan.applyAll);applyAllDestinations.setEnabled(destinationEditable&&!selectedInputs.isEmpty());pickVideo.setEnabled(!value&&!choosingOrigins);pickFolder.setEnabled(destinationEditable&&!selectedInputs.isEmpty()&&!destinationPlan.applyAll);crfSlider.setEnabled(!value);presetSlider.setEnabled(!value);for(Button b:crfButtons)b.setEnabled(!value);cpuMode.setEnabled(!value);bframeSwitch.setEnabled(!value);lookaheadSwitch.setEnabled(!value);
-        hdrTest.setEnabled(!value&&!clearingLogs);saveHdr.setEnabled(!value&&!clearingLogs);convert.setEnabled(!value&&!clearingLogs&&!choosingOrigins&&originsReady&&!selectedInputs.isEmpty());saveLog.setEnabled(!value&&!clearingLogs);saveMetadata.setEnabled(!value&&!clearingLogs);updateClearLogsButton();stop.setVisibility(value?View.VISIBLE:View.GONE);stop.setEnabled(value);
+        hdrTest.setEnabled(!value&&!clearingLogs);saveHdr.setEnabled(!value&&!clearingLogs);convert.setEnabled(!value&&!clearingLogs&&!choosingOrigins&&originsReady&&!selectedInputs.isEmpty());saveLog.setEnabled(!value&&!clearingLogs);saveMetadata.setEnabled(!value&&!clearingLogs);updateClearLogsButton();stop.setVisibility(View.VISIBLE);stop.setEnabled(value);
 
     }
     private void updateScreenAwake(){
@@ -560,12 +582,39 @@ public final class MainActivity extends Activity {
         ConversionService.State s=ConversionService.snapshot();if(!s.hasSession)return;
         boolean showReport=!s.running&&!s.sizeReport.isEmpty();sizeReportPanel.setVisibility(showReport?View.VISIBLE:View.GONE);
         if(showReport&&!s.sizeReport.contentEquals(sizeReport.getText()))sizeReport.setText(s.sizeReport);
-        frameLabel.setText("Fotogrammi: "+s.doneFrames+" / "+(s.totalFrames>0?s.totalFrames:"— (totale non dichiarato)"));
-        queueLabel.setText("Video "+s.batchIndex+" / "+s.batchTotal+" · "+s.source+"\nRiusciti: "+s.succeeded+" · Falliti: "+s.failed);setBusy(s.running);progress.setProgress(s.percent);percentLabel.setText("Coda "+s.percent+"% · File "+s.filePercent+"%");status.setText(s.message);logView.setText(s.log);
-        timeline.setText(String.format(Locale.ITALY,"Video convertito: %.1f s\nVideo rimanente: %s",s.done/1000000.0,s.total>0?String.format(Locale.ITALY,"%.1f s",Math.max(0,s.total-s.done)/1000000.0):"durata non disponibile"));
-        effectiveTemporal.setText(s.bframeCount>=0?String.format(Locale.ITALY,"Encoder: B-frame %d · Lookahead %d\nCU-tree %s · AQ %d · Strength %.2f",s.bframeCount,s.lookaheadCount,s.cuTree!=0?"ON":"OFF",s.aqMode,s.aqStrength/1000.0):"Encoder: in attesa");
+        renderConversionDashboard(s);
         resultUri=s.result;openVideo.setVisibility(resultUri==null?View.GONE:View.VISIBLE);
         if(input==null){selectedInputs.addAll(s.inputs);selectedNames.addAll(s.names);input=Uri.parse(selectedInputs.get(0));folder=s.folder;destinationPlan.reset(selectedInputs.size(),null);destinationPlan.restore(s.individualOrigins,s.individualFolders,s.applyAllDestinations,s.allOrigin,s.allFolder);sourceName=selectedNames.get(0);selectedVideoIndex=0;updateDestinationPanel();refreshLabels();inspectInput();}
+    }
+    private void renderConversionDashboard(ConversionService.State s){
+        int pending=Math.max(0,s.batchTotal-(s.running?Math.max(s.batchIndex,s.succeeded+s.failed):s.succeeded+s.failed));
+        queueLabel.setText("Video "+s.batchIndex+" / "+s.batchTotal+"\nRiusciti: "+s.succeeded+" · Falliti: "+s.failed+"\n"+(s.running?"In attesa: ":"Non completati: ")+pending);
+        elapsedLabel.setText(DashboardMetrics.elapsed(s.startedAt,s.endedAt,SystemClock.elapsedRealtime()));
+        currentFile.setText(s.source.isEmpty()?"In attesa del file":s.source);currentFile.setContentDescription("File attuale: "+s.source);
+        frameLabel.setText(s.doneFrames+" / "+(s.totalFrames>0?s.totalFrames:"—"));
+        setBusy(s.running);progress.setProgress(s.filePercent);percentLabel.setText(s.filePercent+"%");status.setText(s.message);logView.setText(s.log);
+        timeline.setText(String.format(Locale.ITALY,"%.1f s convertiti\n%s",s.done/1000000.0,s.total>0?String.format(Locale.ITALY,"%.1f s rimanenti",Math.max(0,s.total-s.done)/1000000.0):"durata totale non disponibile"));
+        activePreset.setText(s.requestedPreset);activeCrf.setText(s.requestedCrf>=0?Integer.toString(s.requestedCrf):"—");
+        String[] cpuModes={"Limited","Auto","Max"};activeCpu.setText(s.requestedCpu>=0&&s.requestedCpu<cpuModes.length?cpuModes[s.requestedCpu]:"—");
+        boolean opened=s.bframeCount>=0;
+        activeBframes.setText(opened?Integer.toString(s.bframeCount):"in attesa");activeLookahead.setText(opened?Integer.toString(s.lookaheadCount):"in attesa");
+        activeTree.setText(opened?(s.cuTree!=0?"ON":"OFF"):"in attesa");activeAq.setText(opened?Integer.toString(s.aqMode):"in attesa");activeStrength.setText(opened?String.format(Locale.ITALY,"%.2f",s.aqStrength/1000.0):"in attesa");
+    }
+    private int systemColor(int band,boolean battery){
+        if(band<0)return muted;
+        String[] light=battery?new String[]{"#18713E","#8A6000","#B54A00","#B51F35"}:new String[]{"#215CBD","#18713E","#8A6000","#B54A00"};
+        String[] dark=battery?new String[]{"#80D5A0","#F2C66D","#FFAF75","#FF909F"}:new String[]{"#99C1FF","#80D5A0","#F2C66D","#FFAF75"};
+        return Color.parseColor((darkTheme?dark:light)[Math.min(3,band)]);
+    }
+    private void sectionHeading(LinearLayout parent,String title){divider(parent);TextView label=text(parent,title,14);label.setTextColor(accent);label.setTypeface(null,Typeface.BOLD);}
+    private TextView dashboardRow(LinearLayout parent,String title,String initial){
+        LinearLayout row=new LinearLayout(this);row.setGravity(Gravity.TOP);LinearLayout.LayoutParams rp=new LinearLayout.LayoutParams(-1,-2);rp.setMargins(0,dp(5),0,dp(5));parent.addView(row,rp);
+        TextView label=new TextView(this);label.setText(title);label.setTextSize(15);label.setTextColor(muted);label.setPadding(0,dp(4),dp(10),dp(4));row.addView(label,new LinearLayout.LayoutParams(0,-2,1));
+        TextView value=new TextView(this);value.setText(initial);value.setTextSize(16);value.setTextColor(ink);value.setTypeface(null,Typeface.BOLD);value.setGravity(Gravity.END);value.setPadding(0,dp(4),0,dp(4));row.addView(value,new LinearLayout.LayoutParams(0,-2,1));return value;
+    }
+    private Button halfButton(LinearLayout row,String title,boolean primary){
+        Button button=new Button(this);button.setText(title);styleButton(button,primary);button.setSingleLine(false);button.setGravity(Gravity.CENTER);button.setPadding(dp(8),dp(10),dp(8),dp(10));
+        LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(0,-2,1);lp.setMargins(dp(3),dp(6),dp(3),dp(6));row.addView(button,lp);return button;
     }
     @Override public void onRequestPermissionsResult(int request,String[] permissions,int[] results){
         super.onRequestPermissionsResult(request,permissions,results);
@@ -717,5 +766,5 @@ public final class MainActivity extends Activity {
     }
     @Override protected void onResume(){super.onResume();conversionScreenVisible=true;AppSettings saved=new AppSettings(this);keepScreenOn.setChecked(saved.keepScreenOn);if(!java.util.Objects.equals(loadedDefault,saved.defaultFolder)&&!ConversionService.snapshot().running){loadedDefault=saved.defaultFolder;if(loadedDefault!=null){folder=Uri.parse(loadedDefault);}refreshLabels();}if(saved.revision!=settingsRevision&&!ConversionService.snapshot().running)applyDefaults(saved);ConversionService.uiVisible=true;previousWall=0;monitor.post(sample);ConversionService.observe(sessionObserver);renderSession();if(originPanel!=null&&!ConversionService.snapshot().running)originPanel.refresh();updateScreenAwake();}
     @Override protected void onPause(){conversionScreenVisible=false;updateScreenAwake();ConversionService.uiVisible=false;monitor.removeCallbacks(sample);ConversionService.detach(sessionObserver);super.onPause();}
-    @Override protected void onDestroy(){cancelled.set(true);conversionScreenVisible=false;updateScreenAwake();destroyed=true;if(originPanel!=null)originPanel.close();ConversionService.detach(sessionObserver);++metadataGeneration;++transitionGeneration;if(metadataDialog!=null){metadataDialog.dismiss();metadataDialog=null;}metadataWorker.shutdownNow();worker.shutdown();super.onDestroy();}
+    @Override protected void onDestroy(){cancelled.set(true);conversionScreenVisible=false;updateScreenAwake();destroyed=true;if(originPanel!=null)originPanel.close();ConversionService.detach(sessionObserver);++metadataGeneration;++transitionGeneration;if(metadataDialog!=null){metadataDialog.dismiss();metadataDialog=null;}metadataWorker.shutdownNow();systemWorker.shutdownNow();worker.shutdown();super.onDestroy();}
 }
