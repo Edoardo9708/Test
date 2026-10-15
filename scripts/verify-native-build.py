@@ -40,3 +40,15 @@ assert "setupAssemblyPrimitives" in symbols, "Assembly dispatcher not linked"
 assert any("aarch64/asm-primitives.cpp" in e["file"]
            for d in databases for e in json.loads(d.read_text())), "Missing ARM64 dispatcher compilation"
 print("OK: ARM64 assembly dispatcher and SAD routines linked")
+
+
+# HDR uses an additional ELF, while SDR still contains its original eight-bit API.
+with zipfile.ZipFile(apk) as archive:
+    hdr = archive.read("lib/arm64-v8a/libx265hdrprobe.so")
+    assert hdr[:4] == b"\x7fELF" and hdr[4] == 2 and struct.unpack_from("<H", hdr, 18)[0] == 183
+hdr_libraries = list(Path("app/build/intermediates/cxx").rglob("libx265hdrprobe.so")) + list(Path("app/.cxx").rglob("libx265hdrprobe.so"))
+assert hdr_libraries, "Missing HDR DSO"
+dynamic = subprocess.check_output([str(nm), "--dynamic", "--defined-only", str(hdr_libraries[0])], text=True)
+assert "Java_it_edo_codecprobe_HdrProbe_nativeOpen" in dynamic, "HDR JNI missing"
+assert not any(line.split()[-1].startswith("x265_") for line in dynamic.splitlines() if line.split()), "HDR x265 API exported: may collide with SDR"
+print("OK: separate HDR ELF64 AArch64; x265 symbols hidden to isolate SDR")

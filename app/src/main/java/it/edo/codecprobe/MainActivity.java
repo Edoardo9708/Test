@@ -35,7 +35,8 @@ public final class MainActivity extends Activity {
     private final ArrayDeque<String> recent=new ArrayDeque<>();
     private Uri input,folder,resultUri;
     private String sourceName="video";
-    private Button pickVideo,pickFolder,convert,stop,saveLog,saveMetadata,openVideo;
+    private Button pickVideo,pickFolder,convert,stop,saveLog,saveMetadata,openVideo,hdrTest,saveHdr;
+    private boolean hdrTesting;
     private TextView videoLabel,folderLabel,qualityHelp,status,logView;
     private Choice cpuMode;
     private SeekBar presetSlider,crfSlider;
@@ -160,6 +161,8 @@ public final class MainActivity extends Activity {
         openVideo=button(work,"Apri video convertito");openVideo.setVisibility(View.GONE);
         LinearLayout logs=card(page,"DIAGNOSTICA");saveLog=button(logs,"Esporta log completo · TXT");
         saveMetadata=button(logs,"Esporta metadati originali · TXT");
+        hdrTest=button(logs,"Test HDR · 10 bit (sperimentale)");hdrTest.setOnClickListener(v->startHdrTest());
+        saveHdr=button(logs,"Esporta log HDR · TXT");saveHdr.setOnClickListener(v->exportLog(HdrProbe.logFile(this),"CodecProbe-HDR-log-"));
         Button toggle=button(logs,"Mostra ultimi messaggi");
         logView=text(logs,"",12);logView.setTypeface(Typeface.MONOSPACE);logView.setTextIsSelectable(true);logView.setMaxLines(16);logView.setVisibility(View.GONE);
         toggle.setOnClickListener(v->{boolean show=logView.getVisibility()!=View.VISIBLE;logView.setVisibility(show?View.VISIBLE:View.GONE);toggle.setText(show?"Nascondi ultimi messaggi":"Mostra ultimi messaggi");});
@@ -196,7 +199,7 @@ public final class MainActivity extends Activity {
             startActivityForResult(i,PICK_FOLDER);
         });
         convert.setOnClickListener(v->startConversion());
-        stop.setOnClickListener(v->{startService(new Intent(this,ConversionService.class).setAction(ConversionService.CANCEL));stop.setEnabled(false);});
+        stop.setOnClickListener(v->{if(hdrTesting){cancelled.set(true);status.setText("Annullamento prova HDR…");}else startService(new Intent(this,ConversionService.class).setAction(ConversionService.CANCEL));stop.setEnabled(false);});
         openVideo.setOnClickListener(v->{
             if(resultUri==null)return;
             try{startActivity(new Intent(Intent.ACTION_VIEW).setDataAndType(resultUri,"video/mp4").addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION));}
@@ -316,7 +319,7 @@ public final class MainActivity extends Activity {
     }
     private void setBusy(boolean value){
         busy=value;updateScreenAwake();pickVideo.setEnabled(!value);pickFolder.setEnabled(!value);crfSlider.setEnabled(!value);presetSlider.setEnabled(!value);for(Button b:crfButtons)b.setEnabled(!value);cpuMode.setEnabled(!value);bframeSwitch.setEnabled(!value);lookaheadSwitch.setEnabled(!value);
-        convert.setEnabled(!value);saveLog.setEnabled(!value);saveMetadata.setEnabled(!value);stop.setVisibility(value?View.VISIBLE:View.GONE);stop.setEnabled(value);
+        hdrTest.setEnabled(!value);saveHdr.setEnabled(!value);convert.setEnabled(!value);saveLog.setEnabled(!value);saveMetadata.setEnabled(!value);stop.setVisibility(value?View.VISIBLE:View.GONE);stop.setEnabled(value);
 
     }
     private void updateScreenAwake(){
@@ -350,7 +353,7 @@ public final class MainActivity extends Activity {
         catch(RuntimeException e){setBusy(false);status.setText("Avvio non riuscito: "+e.getMessage());}
     }
     private void renderSession(){
-        if(destroyed)return;
+        if(destroyed||hdrTesting)return;
         ConversionService.State s=ConversionService.snapshot();if(!s.hasSession)return;
         frameLabel.setText("Fotogrammi: "+s.doneFrames+" / "+(s.totalFrames>0?s.totalFrames:"— (totale non dichiarato)"));
         setBusy(s.running);progress.setProgress(s.percent);percentLabel.setText(s.percent+"%");status.setText(s.message);logView.setText(s.log);
@@ -406,8 +409,17 @@ public final class MainActivity extends Activity {
             }catch(Exception e){if(snapshot!=null)snapshot.delete();runOnUiThread(()->{if(!destroyed){saveMetadata.setEnabled(!busy);saveLog.setEnabled(!busy);toast("Esportazione metadati non riuscita: "+e.getMessage());}});}
         });
     }
-    private void exportLog(){
-        File source=VideoConverter.logFile(this);
+    private void startHdrTest(){
+        if(input==null){toast("Seleziona un video HDR HEVC");return;}if(busy||ConversionService.snapshot().running)return;
+        final Uri selected=input;final int crf=selectedCrf();hdrTesting=true;cancelled.set(false);setBusy(true);status.setText("Test HDR: resta su questa schermata…");recent.clear();logView.setText("");logView.setVisibility(View.VISIBLE);
+        worker.execute(()->{String result;
+            try{result=new HdrProbe(getApplicationContext(),()->destroyed||cancelled.get(),line->{synchronized(recent){recent.addLast(line);while(recent.size()>14)recent.removeFirst();}runOnUiThread(()->{if(!destroyed){synchronized(recent){logView.setText(String.join("\n",recent));}}});}).run(selected,crf);}
+            catch(Exception|LinkageError e){result="Test HDR non completato: "+e.getMessage()+"\nEsporta il log HDR.";}
+            final String message=result;runOnUiThread(()->{hdrTesting=false;if(!destroyed){setBusy(false);status.setText(message);}});
+        });
+    }
+    private void exportLog(){exportLog(VideoConverter.logFile(this),"CodecProbe-log-");}
+    private void exportLog(File source,String prefix){
         if(!source.isFile()){toast("Nessun log di conversione disponibile");return;}
         saveLog.setEnabled(false);
         worker.execute(()->{
@@ -418,7 +430,7 @@ public final class MainActivity extends Activity {
                     if(destroyed)return;
                     pendingLog=snapshot.getAbsolutePath();saveLog.setEnabled(true);
                     Intent i=new Intent(Intent.ACTION_CREATE_DOCUMENT).setType("text/plain").addCategory(Intent.CATEGORY_OPENABLE);
-                    i.putExtra(Intent.EXTRA_TITLE,"CodecProbe-log-"+System.currentTimeMillis()+".txt");startActivityForResult(i,SAVE_LOG);
+                    i.putExtra(Intent.EXTRA_TITLE,prefix+System.currentTimeMillis()+".txt");startActivityForResult(i,SAVE_LOG);
                 });
             }catch(Exception e){runOnUiThread(()->{if(!destroyed){saveLog.setEnabled(true);toast("Errore: "+e.getMessage());}});}
         });
@@ -474,8 +486,9 @@ public final class MainActivity extends Activity {
     }
     @Override protected void onResume(){super.onResume();conversionScreenVisible=true;AppSettings saved=new AppSettings(this);keepScreenOn.setChecked(saved.keepScreenOn);if(saved.revision!=settingsRevision&&!ConversionService.snapshot().running)applyDefaults(saved);ConversionService.uiVisible=true;previousWall=0;monitor.post(sample);ConversionService.observe(sessionObserver);renderSession();updateScreenAwake();}
     @Override protected void onPause(){conversionScreenVisible=false;updateScreenAwake();ConversionService.uiVisible=false;monitor.removeCallbacks(sample);ConversionService.detach(sessionObserver);super.onPause();}
-    @Override protected void onDestroy(){conversionScreenVisible=false;updateScreenAwake();destroyed=true;ConversionService.detach(sessionObserver);worker.shutdown();super.onDestroy();}
+    @Override protected void onDestroy(){cancelled.set(true);conversionScreenVisible=false;updateScreenAwake();destroyed=true;ConversionService.detach(sessionObserver);worker.shutdown();super.onDestroy();}
 }
+
 
 
 

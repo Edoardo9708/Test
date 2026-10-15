@@ -53,6 +53,14 @@ jobs:
             ffprobe -v error -count_frames -select_streams v:0 -show_entries stream=width,height,nb_read_frames -of json "smoke-${crf}.hevc" > "smoke-${crf}.json"
           done
           python3 scripts/verify-smoke.py
+      - name: Verify separate ten-bit HDR encoder
+        run: |
+          cmake -S app/src/main/cpp/hdr -B hdr-smoke
+          cmake --build hdr-smoke --parallel 2
+          hdr-smoke/hdr10_smoke > hdr-smoke.log 2>&1
+          python3 scripts/verify-hdr-smoke.py
+          java -cp yuv-test it.edo.codecprobe.HdrHeaderCheck hdr10-16.hevc 16
+          java -cp yuv-test it.edo.codecprobe.HdrHeaderCheck hdr10-18.hevc 18
       - name: Restore permanent APK signing key
         id: signing
         env:
@@ -89,4 +97,6 @@ jobs:
           path: |
             native-smoke.log
             arm-smoke.log
+            hdr-smoke.log
+
 

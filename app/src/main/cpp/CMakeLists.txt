@@ -46,3 +46,28 @@ target_include_directories(${PROBE_TARGET} PRIVATE
 target_compile_definitions(${PROBE_TARGET} PRIVATE PROBE_BUILD_TYPE="RelWithDebInfo" PROBE_OPT_LEVEL="O3")
 
 target_compile_definitions(${PROBE_TARGET} PRIVATE PROBE_ARM_ASM=${PROBE_ARM_ASM})
+
+
+# HDR diagnostic is an independent 10-bit build with a separate cache and DSO.
+# The existing 8-bit target, options and converter remain unchanged.
+if(ANDROID)
+    include(ExternalProject)
+    set(HDR_BINARY "${CMAKE_CURRENT_BINARY_DIR}/hdr10-project")
+    ExternalProject_Add(x265hdr10_build
+        SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/hdr"
+        BINARY_DIR "${HDR_BINARY}"
+        CMAKE_ARGS -DCMAKE_TOOLCHAIN_FILE=${CMAKE_TOOLCHAIN_FILE}
+            -DANDROID_ABI=${ANDROID_ABI} -DANDROID_PLATFORM=${ANDROID_PLATFORM}
+            -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_MAKE_PROGRAM=${CMAKE_MAKE_PROGRAM}
+        BUILD_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --target x265-static --parallel 2
+        INSTALL_COMMAND ""
+        BUILD_BYPRODUCTS "${HDR_BINARY}/x26510-build/libx265.a")
+    add_library(x265hdr10_static STATIC IMPORTED)
+    set_target_properties(x265hdr10_static PROPERTIES IMPORTED_LOCATION "${HDR_BINARY}/x26510-build/libx265.a")
+    add_library(x265hdrprobe SHARED hdr/hdr_encoder.cpp hdr/hdr_jni.cpp)
+    add_dependencies(x265hdrprobe x265hdr10_build)
+    target_include_directories(x265hdrprobe PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../../../../vendor/x265/source" "${HDR_BINARY}/x26510-build")
+    target_link_libraries(x265hdrprobe PRIVATE x265hdr10_static log)
+    target_link_options(x265hdrprobe PRIVATE "-Wl,-z,max-page-size=16384" "-Wl,--exclude-libs,ALL" "-Wl,-Bsymbolic")
+    set_target_properties(x265hdrprobe PROPERTIES CXX_VISIBILITY_PRESET hidden VISIBILITY_INLINES_HIDDEN YES)
+endif()
