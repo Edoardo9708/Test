@@ -34,7 +34,7 @@ jobs:
           CODECPROBE_SIGNING_JSON: ${{ secrets.CODECPROBE_SIGNING_JSON }}
         run: python3 scripts/restore-signing.py
       - name: Build and lint
-        run: gradle --no-daemon :app:assembleDebug :app:lintDebug
+        run: gradle --no-daemon :app:assembleDebug :app:testDebugUnitTest :app:lintDebug
       - name: Build and run native software smoke test
         run: |
           sudo apt-get update -qq

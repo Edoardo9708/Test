@@ -29,7 +29,7 @@ import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public final class MainActivity extends Activity {
-    private static final int PICK_VIDEO=1,PICK_FOLDER=2,SAVE_LOG=3,PICK_ORIGIN=7;
+    private static final int PICK_VIDEO=1,PICK_FOLDER=2,SAVE_LOG=3,PICK_ORIGIN=7,PICK_ALL_FOLDER=10;
     private final ExecutorService worker=Executors.newSingleThreadExecutor();
     private final AtomicBoolean cancelled=new AtomicBoolean();
     private final ArrayDeque<String> recent=new ArrayDeque<>();
@@ -43,10 +43,16 @@ public final class MainActivity extends Activity {
     private int selectedVideoIndex;
     private boolean originsReady;
     private String pendingOriginParent,pendingOriginSource;
-    private Button saveInOrigin;
+    private final DestinationPlan destinationPlan=new DestinationPlan();
+    private CheckBox videoOrigin,allOrigin,applyAllDestinations;
+    private Button pickAllFolder;
+    private TextView videoDestinationTitle,videoDestinationHelp,allFolderLabel;
+    private boolean updatingDestinationUi;
+    private String pendingFixedFolder;
+    private boolean pendingAuthorizationOrigin;
     private TextView queueLabel;
     private String loadedDefault;
-    private boolean originMode,choosingOrigins;
+    private boolean choosingOrigins;
     private String sourceName="video";
     private Button pickVideo,pickFolder,convert,stop,saveLog,saveMetadata,openVideo,hdrTest,saveHdr;
     private boolean hdrTesting;
@@ -133,14 +139,31 @@ public final class MainActivity extends Activity {
         inputSummary=new LinearLayout(this);inputSummary.setOrientation(LinearLayout.VERTICAL);videoDetails.addView(inputSummary);
         inputDetails=new LinearLayout(this);inputDetails.setOrientation(LinearLayout.VERTICAL);videoDetails.addView(inputDetails);
         details.setOnClickListener(v->{boolean show=videoDetails.getVisibility()!=View.VISIBLE;videoDetails.setVisibility(show?View.VISIBLE:View.GONE);details.setText(show?"▾ Dettagli video":"▸ Dettagli video");if(show)loadInputDetails();});
-        saveInOrigin=button(files,"Salva nella cartella di origine");saveInOrigin.setOnClickListener(v->chooseOrigins());
+        divider(files);
+        videoDestinationTitle=text(files,"DESTINAZIONE DEL VIDEO",16);videoDestinationTitle.setTypeface(null,Typeface.BOLD);
+        videoDestinationHelp=text(files,"Vale solo per il video visualizzato.",14);
+        videoOrigin=destinationCheck(files,"Salva nella cartella di origine");
+        pickFolder=button(files,"Scegli cartella per questo video…");folderLabel=text(files,"Nessuna cartella scelta",14);
+        videoOrigin.setOnCheckedChangeListener((v,checked)->{if(!updatingDestinationUi&&!selectedInputs.isEmpty()){destinationPlan.files.get(selectedVideoIndex).origin=checked;destinationsChanged();}});
+        divider(files);
+        text(files,"DESTINAZIONE PER TUTTA LA CODA",16).setTypeface(null,Typeface.BOLD);
+        applyAllDestinations=destinationCheck(files,"Applica a tutti i video");
+        text(files,"Questa regola sostituisce temporaneamente le scelte individuali. Togliendo la spunta, le ritrovi come prima.",14);
+        allOrigin=destinationCheck(files,"Salva nella cartella di origine");
+        pickAllFolder=button(files,"Scegli una cartella per tutti i video…");allFolderLabel=text(files,"Nessuna cartella scelta",14);
+        text(files,"Origine: ciascun video nella propria directory. Cartella scelta: la stessa per tutta la coda.",13);
+        applyAllDestinations.setOnCheckedChangeListener((v,checked)->{if(!updatingDestinationUi){destinationPlan.applyAll=checked;destinationsChanged();}});
+        allOrigin.setOnCheckedChangeListener((v,checked)->{if(!updatingDestinationUi){destinationPlan.all.origin=checked;destinationsChanged();}});
+        pickAllFolder.setOnClickListener(v->launchFolderPicker(PICK_ALL_FOLDER,null));
+        divider(files);
+        text(files,"CARTELLE UTILIZZATE",16).setTypeface(null,Typeface.BOLD);
+        text(files,"Destinazioni attive per tutta la coda. Verde: accesso verificato. Rosso: cartella da scegliere o autorizzare.",14);
         LinearLayout originRows=new LinearLayout(this);originRows.setOrientation(LinearLayout.VERTICAL);files.addView(originRows);
         originPanel=new OriginDirectoryPanel(this,originRows,new OriginDirectoryPanel.Listener(){
-            public void authorize(String parent,String representative){requestOrigin(parent,representative);}
+            public void authorize(String parent,String representative,boolean origin,String requestedFolder){requestDirectoryAccess(parent,representative,origin,requestedFolder);}
             public void changed(boolean ready,java.util.ArrayList<String> destinations,java.util.ArrayList<String> notes){originsReady=ready;originFolders.clear();originFolders.addAll(destinations);destinationNotes.clear();destinationNotes.addAll(notes);setBusy(busy);}
-            public void error(String message){toast("Autorizzazione cartella: "+message);}
+            public void error(String message){FolderPickerActivity.record(MainActivity.this,"ERRORE · verifica cartella · "+message);toast("Cartella: "+message);}
         },ink,dark);
-        pickFolder=button(files,"Salva in un’unica cartella…");folderLabel=text(files,"Nessuna cartella selezionata",14);
         LinearLayout settings=card(page,"02  COMPRESSIONE");
         presetValue=parameterRow(settings,"Preset","Il preset regola velocità e compressione. I preset lenti provano più alternative; osserva B-frame, lookahead e AQ mentre sposti lo slider.");
         presetSlider=new SeekBar(this);presetSlider.setMax(8);styleSlider(presetSlider);settings.addView(presetSlider,new LinearLayout.LayoutParams(-1,dp(48)));
@@ -207,14 +230,16 @@ public final class MainActivity extends Activity {
             sourceName=state.getString("sourceName","video");
             if(state.getStringArrayList("inputs")!=null){selectedInputs.addAll(state.getStringArrayList("inputs"));selectedNames.addAll(state.getStringArrayList("names"));}
             if(state.getString("folder")!=null)folder=Uri.parse(state.getString("folder"));
-            if(state.getStringArrayList("origins")!=null)originFolders.addAll(state.getStringArrayList("origins"));originMode=state.getBoolean("originMode",false);
-            selectedVideoIndex=state.getInt("selectedVideoIndex",0);pendingOriginParent=state.getString("pendingOriginParent");pendingOriginSource=state.getString("pendingOriginSource");choosingOrigins=state.getBoolean("choosingOrigins",false);
+            if(state.getStringArrayList("origins")!=null)originFolders.addAll(state.getStringArrayList("origins"));
+            selectedVideoIndex=state.getInt("selectedVideoIndex",0);pendingOriginParent=state.getString("pendingOriginParent");pendingOriginSource=state.getString("pendingOriginSource");choosingOrigins=state.getBoolean("choosingOrigins",false);pendingFixedFolder=state.getString("pendingFixedFolder");pendingAuthorizationOrigin=state.getBoolean("pendingAuthorizationOrigin",false);
             pendingLog=state.getString("pendingLog");
             if(state.getString("result")!=null)resultUri=Uri.parse(state.getString("result"));
         }
         if(selectedInputs.isEmpty()&&input!=null){selectedInputs.add(input.toString());selectedNames.add(sourceName);}
         if(!selectedInputs.isEmpty()){int restored=selectedInputs.indexOf(input==null?"":input.toString());selectedVideoIndex=restored>=0?restored:Math.min(selectedVideoIndex,selectedInputs.size()-1);input=Uri.parse(selectedInputs.get(selectedVideoIndex));sourceName=selectedNames.get(selectedVideoIndex);}
-        originPanel.setInputs(selectedInputs,selectedNames);refreshLabels();inspectInput();
+        destinationPlan.reset(selectedInputs.size(),savedFolder);
+        if(state!=null)destinationPlan.restore(state.getBooleanArray("individualOrigins"),state.getStringArrayList("individualFolders"),state.getBoolean("applyAllDestinations"),state.getBoolean("allOrigin",true),state.getString("allFolder",""));
+        updateDestinationPanel();refreshLabels();inspectInput();
         if(resultUri!=null)openVideo.setVisibility(View.VISIBLE);
         File old=ConversionService.logFile(this);
         if(old.isFile())worker.execute(()->{
@@ -229,11 +254,7 @@ public final class MainActivity extends Activity {
             i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
             startActivityForResult(i,PICK_VIDEO);
         });
-        pickFolder.setOnClickListener(v->{
-            Intent i=new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
-            i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_WRITE_URI_PERMISSION|Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
-            startActivityForResult(i,PICK_FOLDER);
-        });
+        pickFolder.setOnClickListener(v->{if(selectedInputs.isEmpty()){toast("Seleziona prima i video");return;}launchFolderPicker(PICK_FOLDER,selectedInputs.get(selectedVideoIndex));});
         convert.setOnClickListener(v->startConversion());
         stop.setOnClickListener(v->{if(hdrTesting){cancelled.set(true);status.setText("Annullamento prova HDR…");}else startService(new Intent(this,ConversionService.class).setAction(ConversionService.CANCEL));stop.setEnabled(false);});
         openVideo.setOnClickListener(v->{
@@ -357,31 +378,48 @@ public final class MainActivity extends Activity {
         if(index<0||index>=selectedInputs.size())return;
         selectedVideoIndex=index;input=Uri.parse(selectedInputs.get(index));sourceName=selectedNames.get(index);refreshLabels();inspectInput();
     }
-    private void chooseOrigins(){
-        if(selectedInputs.isEmpty()){toast("Seleziona prima uno o più video");return;}
-        originMode=true;refreshLabels();
-        if(!OriginalMedia.hasVideoPermission(this)){requestPermissions(OriginalMedia.videoPermissions(),9);return;}
-        originPanel.refresh();
+    private void divider(LinearLayout parent){View line=new View(this);line.setBackgroundColor(border);LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,dp(1));lp.setMargins(0,dp(16),0,dp(12));parent.addView(line,lp);}
+    private CheckBox destinationCheck(LinearLayout parent,String title){CheckBox c=new CheckBox(this);c.setText(title);c.setTextSize(17);c.setTextColor(ink);c.setButtonTintList(ColorStateList.valueOf(accent));c.setMinHeight(dp(48));parent.addView(c,new LinearLayout.LayoutParams(-1,-2));return c;}
+    private String folderPath(String value){if(value==null||value.isEmpty())return "Nessuna cartella scelta";Uri uri=Uri.parse(value);return Uri.decode(uri.getLastPathSegment());}
+    private void updateDestinationPanel(){originPanel.setInputs(selectedInputs,selectedNames,destinationPlan.effectiveOrigins(),destinationPlan.effectiveFolders());}
+    private void destinationsChanged(){
+        originsReady=false;refreshLabels();updateDestinationPanel();originPanel.refresh();setBusy(busy);
+        FolderPickerActivity.record(this,"PIANO DESTINAZIONI · override_coda="+destinationPlan.applyAll+" · video_visualizzato="+(selectedVideoIndex+1));
     }
-    private void requestOrigin(String parent,String representative){
+    private void launchFolderPicker(int request,String source){
         if(busy||choosingOrigins)return;
-        pendingOriginParent=parent;pendingOriginSource=representative;choosingOrigins=true;setBusy(busy);
-        Runnable open=()->{Intent i=new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_WRITE_URI_PERMISSION|Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);if(parent!=null)i.putExtra(android.provider.DocumentsContract.EXTRA_INITIAL_URI,android.provider.DocumentsContract.buildDocumentUri(SourceFolder.EXTERNAL,parent));startActivityForResult(i,PICK_ORIGIN);};
-        if(parent!=null){open.run();return;}
-        new android.app.AlertDialog.Builder(this).setTitle("Cartella di origine non rilevata")
-            .setMessage("Seleziona la cartella che contiene "+displayName(Uri.parse(representative))+". Cercherò anche gli altri video selezionati nella stessa cartella. I file non riconosciuti resteranno da autorizzare.")
-            .setPositiveButton("Scegli cartella",(d,w)->open.run()).setNegativeButton("Annulla",(d,w)->cancelOrigins()).setOnCancelListener(d->cancelOrigins()).show();
+        pendingOriginSource=source;choosingOrigins=true;setBusy(busy);
+        FolderPickerActivity.record(this,"RICHIESTA CARTELLA · tipo="+request+" · video="+source);
+        try{startActivityForResult(new Intent(this,FolderPickerActivity.class),request);}
+        catch(RuntimeException e){cancelOrigins();toast("Selettore cartelle non avviato: "+e.getMessage());FolderPickerActivity.record(this,"ERRORE apertura · "+e);}
     }
-    private void cancelOrigins(){choosingOrigins=false;pendingOriginParent=null;pendingOriginSource=null;setBusy(busy);}
+    private void requestDirectoryAccess(String parent,String representative,boolean origin,String requestedFolder){
+        if(busy||choosingOrigins)return;
+        if(!origin&&(requestedFolder==null||requestedFolder.isEmpty())){launchFolderPicker(destinationPlan.applyAll?PICK_ALL_FOLDER:PICK_FOLDER,representative);return;}
+        pendingOriginParent=parent;pendingFixedFolder=requestedFolder;pendingAuthorizationOrigin=origin;
+        if(origin&&parent==null){
+            new android.app.AlertDialog.Builder(this).setTitle("Origine non rilevata")
+                .setMessage("Scegli la directory che contiene "+displayName(Uri.parse(representative))+". Verificherò anche gli altri video presenti nella stessa cartella.")
+                .setPositiveButton("Scegli cartella",(d,w)->launchFolderPicker(PICK_ORIGIN,representative)).setNegativeButton("Annulla",(d,w)->cancelOrigins()).show();
+        }else launchFolderPicker(PICK_ORIGIN,representative);
+    }
+    private void cancelOrigins(){choosingOrigins=false;pendingOriginParent=null;pendingOriginSource=null;pendingFixedFolder=null;pendingAuthorizationOrigin=false;setBusy(busy);}
     private void refreshLabels(){
         videoLabel.setText(input==null?"Nessun video selezionato":sourceName);
         videoNavigator.setVisibility(selectedInputs.size()>1?View.VISIBLE:View.GONE);videoNumber.setText("Video "+(selectedVideoIndex+1)+" di "+selectedInputs.size()+"  ▾");previousVideo.setEnabled(selectedVideoIndex>0);nextVideo.setEnabled(selectedVideoIndex+1<selectedInputs.size());
-        saveInOrigin.setText(originMode?"✓ Salva nella cartella di origine":"Salva nella cartella di origine");
-        folderLabel.setText(originMode?"Cartella di origine di ciascun video":folder==null?"Nessuna cartella selezionata":Uri.decode(folder.getLastPathSegment()));
+        updatingDestinationUi=true;
+        applyAllDestinations.setChecked(destinationPlan.applyAll);allOrigin.setChecked(destinationPlan.all.origin);
+        allFolderLabel.setText(destinationPlan.all.origin?"Ogni video nella propria directory di origine":folderPath(destinationPlan.all.folder));
+        boolean selected=!selectedInputs.isEmpty()&&selectedVideoIndex<destinationPlan.files.size();
+        videoDestinationTitle.setText(selected?"DESTINAZIONE · VIDEO "+(selectedVideoIndex+1)+" DI "+selectedInputs.size():"DESTINAZIONE DEL VIDEO");
+        videoDestinationHelp.setText(destinationPlan.applyAll?"È attiva la regola della coda. La scelta individuale qui sotto viene conservata.":"Questa scelta riguarda solo il video visualizzato.");
+        videoOrigin.setChecked(selected&&destinationPlan.files.get(selectedVideoIndex).origin);
+        folderLabel.setText(selected?(destinationPlan.files.get(selectedVideoIndex).origin?"Directory di origine del video selezionato":folderPath(destinationPlan.files.get(selectedVideoIndex).folder)):"Seleziona prima un video");
+        updatingDestinationUi=false;
     }
     private void setBusy(boolean value){
-        busy=value;updateScreenAwake();if(originPanel!=null)originPanel.setBusy(value||choosingOrigins);saveInOrigin.setEnabled(!value&&!choosingOrigins);pickVideo.setEnabled(!value&&!choosingOrigins);pickFolder.setEnabled(!value&&!choosingOrigins);crfSlider.setEnabled(!value);presetSlider.setEnabled(!value);for(Button b:crfButtons)b.setEnabled(!value);cpuMode.setEnabled(!value);bframeSwitch.setEnabled(!value);lookaheadSwitch.setEnabled(!value);
-        hdrTest.setEnabled(!value);saveHdr.setEnabled(!value);convert.setEnabled(!value&&!choosingOrigins&&(!originMode||originsReady));saveLog.setEnabled(!value);saveMetadata.setEnabled(!value);stop.setVisibility(value?View.VISIBLE:View.GONE);stop.setEnabled(value);
+        busy=value;updateScreenAwake();if(originPanel!=null)originPanel.setBusy(value||choosingOrigins);boolean destinationEditable=!value&&!choosingOrigins;videoOrigin.setEnabled(destinationEditable&&!selectedInputs.isEmpty()&&!destinationPlan.applyAll);pickAllFolder.setEnabled(destinationEditable&&destinationPlan.applyAll);allOrigin.setEnabled(destinationEditable&&destinationPlan.applyAll);applyAllDestinations.setEnabled(destinationEditable&&!selectedInputs.isEmpty());pickVideo.setEnabled(!value&&!choosingOrigins);pickFolder.setEnabled(destinationEditable&&!selectedInputs.isEmpty()&&!destinationPlan.applyAll);crfSlider.setEnabled(!value);presetSlider.setEnabled(!value);for(Button b:crfButtons)b.setEnabled(!value);cpuMode.setEnabled(!value);bframeSwitch.setEnabled(!value);lookaheadSwitch.setEnabled(!value);
+        hdrTest.setEnabled(!value);saveHdr.setEnabled(!value);convert.setEnabled(!value&&!choosingOrigins&&originsReady&&!selectedInputs.isEmpty());saveLog.setEnabled(!value);saveMetadata.setEnabled(!value);stop.setVisibility(value?View.VISIBLE:View.GONE);stop.setEnabled(value);
 
     }
     private void updateScreenAwake(){
@@ -390,7 +428,7 @@ public final class MainActivity extends Activity {
         else getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
     }
     private void startConversion(){
-        if(input==null||(!originMode&&folder==null)){toast("Seleziona il video e la cartella di destinazione");return;}
+        if(input==null){toast("Seleziona uno o più video");return;}
         if(!OriginalMedia.hasLocationPermission(this)){
             new android.app.AlertDialog.Builder(this).setTitle("Conserva la posizione del video")
                 .setMessage("Android può nascondere le coordinate salvate nei video. Il permesso serve a leggerle e copiarle: non rileva la tua posizione attuale. Senza il permesso la conversione non parte, per evitare di perdere il GPS.")
@@ -404,16 +442,16 @@ public final class MainActivity extends Activity {
                 .setNegativeButton("Annulla",null).show();return;
         }
         if(choosingOrigins){toast("Completa prima la scelta delle cartelle di origine");return;}
-        if(originMode&&(!originsReady||originFolders.size()!=selectedInputs.size()||originFolders.contains(null))){toast("Autorizza tutte le cartelle rosse prima di avviare la coda");return;}
+        if(!originsReady||originFolders.size()!=selectedInputs.size()||originFolders.contains(null)){toast("Completa le scelte e autorizza tutte le cartelle rosse prima di avviare la coda");return;}
         java.util.ArrayList<String> destinations=new java.util.ArrayList<>();
-        for(int n=0;n<selectedInputs.size();n++)destinations.add(originMode?originFolders.get(n):folder.toString());
+        destinations.addAll(originFolders);
         final int crf=selectedCrf();
 
         final int preset=presetSlider.getProgress(),cpu=cpuMode.getSelectedItemPosition();
         if(Build.VERSION.SDK_INT>=33&&!notificationsRequested&&checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)!=PackageManager.PERMISSION_GRANTED){notificationsRequested=true;requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS},4);return;}
         Intent task=new Intent(this,ConversionService.class).setAction(ConversionService.START)
-            .putStringArrayListExtra("inputs",new java.util.ArrayList<>(selectedInputs)).putStringArrayListExtra("names",new java.util.ArrayList<>(selectedNames)).putStringArrayListExtra("folders",destinations).putStringArrayListExtra("destinationNotes",originMode?new java.util.ArrayList<>(destinationNotes):new java.util.ArrayList<>())
-            .putExtra("originMode",originMode).putExtra("crf",crf).putExtra("preset",preset).putExtra("cpu",cpu)
+            .putStringArrayListExtra("inputs",new java.util.ArrayList<>(selectedInputs)).putStringArrayListExtra("names",new java.util.ArrayList<>(selectedNames)).putStringArrayListExtra("folders",destinations).putStringArrayListExtra("destinationNotes",new java.util.ArrayList<>(destinationNotes))
+            .putExtra("individualOrigins",destinationPlan.individualOrigins()).putStringArrayListExtra("individualFolders",destinationPlan.individualFolders()).putExtra("applyAllDestinations",destinationPlan.applyAll).putExtra("allOrigin",destinationPlan.all.origin).putExtra("allFolder",destinationPlan.all.folder).putExtra("crf",crf).putExtra("preset",preset).putExtra("cpu",cpu)
             .putExtra("bframes",bframeSwitch.isChecked()).putExtra("lookahead",lookaheadSwitch.isChecked());
         try{startForegroundService(task);setBusy(true);status.setText("Avvio conversione…");}
         catch(RuntimeException e){setBusy(false);status.setText("Avvio non riuscito: "+e.getMessage());}
@@ -426,11 +464,11 @@ public final class MainActivity extends Activity {
         timeline.setText(String.format(Locale.ITALY,"Video convertito: %.1f s\nVideo rimanente: %s",s.done/1000000.0,s.total>0?String.format(Locale.ITALY,"%.1f s",Math.max(0,s.total-s.done)/1000000.0):"durata non disponibile"));
         effectiveTemporal.setText(s.bframeCount>=0?String.format(Locale.ITALY,"Encoder: B-frame %d · Lookahead %d\nCU-tree %s · AQ %d · Strength %.2f",s.bframeCount,s.lookaheadCount,s.cuTree!=0?"ON":"OFF",s.aqMode,s.aqStrength/1000.0):"Encoder: in attesa");
         resultUri=s.result;openVideo.setVisibility(resultUri==null?View.GONE:View.VISIBLE);
-        if(input==null){selectedInputs.addAll(s.inputs);selectedNames.addAll(s.names);input=Uri.parse(selectedInputs.get(0));folder=s.folder;originMode=s.originMode;originFolders.clear();if(originMode)originFolders.addAll(s.folders);sourceName=selectedNames.get(0);selectedVideoIndex=0;originPanel.setInputs(selectedInputs,selectedNames);refreshLabels();inspectInput();}
+        if(input==null){selectedInputs.addAll(s.inputs);selectedNames.addAll(s.names);input=Uri.parse(selectedInputs.get(0));folder=s.folder;destinationPlan.reset(selectedInputs.size(),null);destinationPlan.restore(s.individualOrigins,s.individualFolders,s.applyAllDestinations,s.allOrigin,s.allFolder);sourceName=selectedNames.get(0);selectedVideoIndex=0;updateDestinationPanel();refreshLabels();inspectInput();}
     }
     @Override public void onRequestPermissionsResult(int request,String[] permissions,int[] results){
         super.onRequestPermissionsResult(request,permissions,results);
-        if(request==9){originPanel.refresh();if(!OriginalMedia.hasVideoPermission(this))toast("Android può nascondere i percorsi: usa Autorizza per associare le cartelle manualmente.");return;}
+        if(request==9){updateDestinationPanel();originPanel.refresh();if(!OriginalMedia.hasVideoPermission(this))toast("Android può nascondere i percorsi: usa Autorizza per associare le cartelle manualmente.");return;}
         if(request==8){
             if(OriginalMedia.hasLocationPermission(this)&&OriginalMedia.hasVideoPermission(this))exportMetadata();
             else toast("Per esportare i metadati originali, consenti posizione dei file e lettura del video selezionato.");
@@ -485,14 +523,17 @@ public final class MainActivity extends Activity {
             final String message=result;runOnUiThread(()->{hdrTesting=false;if(!destroyed){setBusy(false);status.setText(message);}});
         });
     }
-    private void exportLog(){exportLog(ConversionService.logFile(this),"CodecProbe-log-");}
+    private void exportLog(){File conversion=ConversionService.logFile(this);exportLog(conversion.isFile()?conversion:FolderPickerActivity.logFile(this),"CodecProbe-log-");}
     private void exportLog(File source,String prefix){
         if(!source.isFile()){toast("Nessun log di conversione disponibile");return;}
         saveLog.setEnabled(false);
         worker.execute(()->{
             try{
                 File snapshot=File.createTempFile("log-export-",".txt",getCacheDir());
-                try(InputStream in=new FileInputStream(source);OutputStream out=new FileOutputStream(snapshot)){copy(in,out);}
+                try(InputStream in=new FileInputStream(source);OutputStream out=new FileOutputStream(snapshot)){copy(in,out);
+                    File access=FolderPickerActivity.logFile(this);
+                    if(prefix.equals("CodecProbe-log-")&&access.isFile()&&!access.equals(source)){out.write("\n\n*** DIAGNOSTICA CARTELLE E SELETTORE ANDROID ***\n".getBytes(StandardCharsets.UTF_8));try(InputStream extra=new FileInputStream(access)){copy(extra,out);}}
+                }
                 runOnUiThread(()->{
                     if(destroyed)return;
                     pendingLog=snapshot.getAbsolutePath();saveLog.setEnabled(true);
@@ -505,8 +546,19 @@ public final class MainActivity extends Activity {
     private static void copy(InputStream in,OutputStream out)throws IOException{byte[] b=new byte[65536];int n;while((n=in.read(b))!=-1)out.write(b,0,n);}
     @Override protected void onActivityResult(int request,int code,Intent data){
         super.onActivityResult(request,code,data);
+        if(request==PICK_FOLDER||request==PICK_ALL_FOLDER||request==PICK_ORIGIN){
+            String source=pendingOriginSource,parent=pendingOriginParent,requested=pendingFixedFolder;boolean sourceFolder=pendingAuthorizationOrigin;
+            FolderPickerActivity.record(this,"RISPOSTA ALLA HOME · tipo="+request+" result="+code+" uri="+(data==null?null:data.getData()));
+            cancelOrigins();
+            String error=data==null?null:data.getStringExtra(FolderPickerActivity.ERROR);
+            if(code!=RESULT_OK||data==null||data.getData()==null){toast(error!=null?error:"Il selettore Android non ha restituito una cartella. Ricontrollo i permessi già presenti.");originPanel.refresh();return;}
+            Uri chosen=data.getData();
+            if(request==PICK_ORIGIN){if(sourceFolder&&source!=null)originPanel.accept(parent,source,chosen);else if(requested!=null&&!requested.isEmpty())originPanel.acceptFixed(parent,requested,chosen);else originPanel.refresh();return;}
+            if(request==PICK_ALL_FOLDER)destinationPlan.setAllFolder(chosen.toString());
+            else {int index=selectedInputs.indexOf(source);if(index<0){toast("Il video della richiesta non è più nella coda");return;}destinationPlan.setFolder(index,chosen.toString());}
+            folder=chosen;getPreferences(0).edit().putString("folder",chosen.toString()).apply();destinationsChanged();return;
+        }
         if(code!=RESULT_OK||data==null){
-            if(request==PICK_ORIGIN){cancelOrigins();toast("Autorizzazione annullata");}
             if(request==SAVE_LOG&&pendingLog!=null){new File(pendingLog).delete();pendingLog=null;}return;
         }
         if(request==PICK_VIDEO){
@@ -515,20 +567,12 @@ public final class MainActivity extends Activity {
             if(data.getData()!=null)chosen.add(data.getData());
             if(chosen.isEmpty())return;
             if(chosen.size()>BatchProgress.MAX_FILES){toast("Seleziona al massimo "+BatchProgress.MAX_FILES+" video per coda");return;}
-            selectedInputs.clear();selectedNames.clear();originMode=false;originFolders.clear();cancelOrigins();selectedVideoIndex=0;
+            selectedInputs.clear();selectedNames.clear();originFolders.clear();cancelOrigins();selectedVideoIndex=0;
             for(Uri chosenUri:chosen){try{getContentResolver().takePersistableUriPermission(chosenUri,Intent.FLAG_GRANT_READ_URI_PERMISSION);}catch(SecurityException ignored){}selectedInputs.add(chosenUri.toString());selectedNames.add(displayName(chosenUri));}
-            input=Uri.parse(selectedInputs.get(0));sourceName=selectedNames.get(0);originPanel.setInputs(selectedInputs,selectedNames);refreshLabels();inspectInput();return;
+            input=Uri.parse(selectedInputs.get(0));sourceName=selectedNames.get(0);String defaultFolder=new AppSettings(this).defaultFolder;destinationPlan.reset(selectedInputs.size(),defaultFolder!=null?defaultFolder:folder==null?null:folder.toString());destinationsChanged();inspectInput();return;
         }
         if(data.getData()==null){if(request==PICK_ORIGIN)cancelOrigins();if(request==SAVE_LOG&&pendingLog!=null){new File(pendingLog).delete();pendingLog=null;}return;}Uri uri=data.getData();
-        if(request==PICK_FOLDER||request==PICK_ORIGIN){
-            try{int flags=data.getFlags()&(Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_WRITE_URI_PERMISSION);if((flags&(Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_WRITE_URI_PERMISSION))!=(Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_WRITE_URI_PERMISSION))throw new SecurityException("Lettura e scrittura non concesse");getContentResolver().takePersistableUriPermission(uri,Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_WRITE_URI_PERMISSION);}
-            catch(SecurityException e){toast("Serve l’accesso permanente in scrittura: "+e.getMessage());if(request==PICK_ORIGIN)cancelOrigins();return;}
-            if(request==PICK_ORIGIN){
-                String parent=pendingOriginParent,source=pendingOriginSource;cancelOrigins();
-                if(source!=null)originPanel.accept(parent,source,uri);else originPanel.refresh();return;
-            }
-            folder=uri;originMode=false;getPreferences(0).edit().putString("folder",uri.toString()).apply();refreshLabels();
-        }else if(request==SAVE_LOG&&pendingLog!=null){
+        if(request==SAVE_LOG&&pendingLog!=null){
             final File snapshot=new File(pendingLog);pendingLog=null;
             worker.execute(()->{
                 try(InputStream in=new FileInputStream(snapshot);OutputStream out=getContentResolver().openOutputStream(uri,"w")){
@@ -543,12 +587,12 @@ public final class MainActivity extends Activity {
         super.onSaveInstanceState(b);
         if(input!=null)b.putString("input",input.toString());
         if(folder!=null)b.putString("folder",folder.toString());
-        b.putStringArrayList("inputs",new java.util.ArrayList<>(selectedInputs));b.putStringArrayList("names",new java.util.ArrayList<>(selectedNames));b.putStringArrayList("origins",new java.util.ArrayList<>(originFolders));b.putBoolean("originMode",originMode);
-        b.putInt("selectedVideoIndex",selectedVideoIndex);b.putString("pendingOriginParent",pendingOriginParent);b.putString("pendingOriginSource",pendingOriginSource);b.putBoolean("choosingOrigins",choosingOrigins);
+        b.putStringArrayList("inputs",new java.util.ArrayList<>(selectedInputs));b.putStringArrayList("names",new java.util.ArrayList<>(selectedNames));b.putStringArrayList("origins",new java.util.ArrayList<>(originFolders));b.putBooleanArray("individualOrigins",destinationPlan.individualOrigins());b.putStringArrayList("individualFolders",destinationPlan.individualFolders());b.putBoolean("applyAllDestinations",destinationPlan.applyAll);b.putBoolean("allOrigin",destinationPlan.all.origin);b.putString("allFolder",destinationPlan.all.folder);
+        b.putInt("selectedVideoIndex",selectedVideoIndex);b.putString("pendingOriginParent",pendingOriginParent);b.putString("pendingOriginSource",pendingOriginSource);b.putBoolean("choosingOrigins",choosingOrigins);b.putString("pendingFixedFolder",pendingFixedFolder);b.putBoolean("pendingAuthorizationOrigin",pendingAuthorizationOrigin);
         if(resultUri!=null)b.putString("result",resultUri.toString());
         b.putString("sourceName",sourceName);b.putString("pendingLog",pendingLog);b.putInt("crfValue",selectedCrf());b.putInt("presetValue",presetSlider.getProgress());b.putInt("cpu",cpuMode.getSelectedItemPosition());b.putBoolean("bframes",bframeSwitch.isChecked());b.putBoolean("lookahead",lookaheadSwitch.isChecked());
     }
-    @Override protected void onResume(){super.onResume();conversionScreenVisible=true;AppSettings saved=new AppSettings(this);keepScreenOn.setChecked(saved.keepScreenOn);if(!java.util.Objects.equals(loadedDefault,saved.defaultFolder)&&!ConversionService.snapshot().running){loadedDefault=saved.defaultFolder;if(loadedDefault!=null){folder=Uri.parse(loadedDefault);originMode=false;}refreshLabels();}if(saved.revision!=settingsRevision&&!ConversionService.snapshot().running)applyDefaults(saved);ConversionService.uiVisible=true;previousWall=0;monitor.post(sample);ConversionService.observe(sessionObserver);renderSession();if(originPanel!=null&&!ConversionService.snapshot().running)originPanel.refresh();updateScreenAwake();}
+    @Override protected void onResume(){super.onResume();conversionScreenVisible=true;AppSettings saved=new AppSettings(this);keepScreenOn.setChecked(saved.keepScreenOn);if(!java.util.Objects.equals(loadedDefault,saved.defaultFolder)&&!ConversionService.snapshot().running){loadedDefault=saved.defaultFolder;if(loadedDefault!=null){folder=Uri.parse(loadedDefault);}refreshLabels();}if(saved.revision!=settingsRevision&&!ConversionService.snapshot().running)applyDefaults(saved);ConversionService.uiVisible=true;previousWall=0;monitor.post(sample);ConversionService.observe(sessionObserver);renderSession();if(originPanel!=null&&!ConversionService.snapshot().running)originPanel.refresh();updateScreenAwake();}
     @Override protected void onPause(){conversionScreenVisible=false;updateScreenAwake();ConversionService.uiVisible=false;monitor.removeCallbacks(sample);ConversionService.detach(sessionObserver);super.onPause();}
     @Override protected void onDestroy(){cancelled.set(true);conversionScreenVisible=false;updateScreenAwake();destroyed=true;if(originPanel!=null)originPanel.close();ConversionService.detach(sessionObserver);worker.shutdown();super.onDestroy();}
 }

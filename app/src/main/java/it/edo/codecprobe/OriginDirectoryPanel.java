@@ -12,14 +12,15 @@ import java.util.concurrent.*;
 /** Directory access UI; provider queries stay off the UI thread. */
 final class OriginDirectoryPanel {
     interface Listener {
-        void authorize(String parent,String representative);
+        void authorize(String parent,String representative,boolean origin,String requestedFolder);
         void changed(boolean ready,ArrayList<String> destinations,ArrayList<String> notes);
         void error(String message);
     }
     private static final class Group {
         String parent,label;
         Uri destination;
-        boolean manual;
+        boolean manual,origin;
+        String requestedFolder;
         final ArrayList<Integer> files=new ArrayList<>();
     }
     private final Activity activity;
@@ -29,7 +30,8 @@ final class OriginDirectoryPanel {
     private final ExecutorService worker=Executors.newSingleThreadExecutor();
     private final ArrayList<Button> buttons=new ArrayList<>();
     private final SharedPreferences associations;
-    private ArrayList<String> inputs=new ArrayList<>(),names=new ArrayList<>();
+    private ArrayList<String> inputs=new ArrayList<>(),names=new ArrayList<>(),fixedFolders=new ArrayList<>();
+    private ArrayList<Boolean> origins=new ArrayList<>();
     private volatile int generation;
     private volatile boolean closed;
     private boolean busy;
@@ -38,9 +40,10 @@ final class OriginDirectoryPanel {
         green=android.graphics.Color.parseColor(dark?"#83D9A2":"#176D37");red=android.graphics.Color.parseColor(dark?"#FF9B98":"#AF2424");
         associations=a.getSharedPreferences("origin-associations",Activity.MODE_PRIVATE);
     }
-    void setInputs(List<String> uris,List<String> labels){
-        if(inputs.equals(uris)&&names.equals(labels))return;
-        inputs=new ArrayList<>(uris);names=new ArrayList<>(labels);refresh();
+    void setInputs(List<String> uris,List<String> labels,List<Boolean> sourceFolders,List<String> chosenFolders){
+        if(uris.size()!=labels.size()||uris.size()!=sourceFolders.size()||uris.size()!=chosenFolders.size())throw new IllegalArgumentException("Piano cartelle incompleto");
+        if(inputs.equals(uris)&&names.equals(labels)&&origins.equals(sourceFolders)&&fixedFolders.equals(chosenFolders))return;
+        inputs=new ArrayList<>(uris);names=new ArrayList<>(labels);origins=new ArrayList<>(sourceFolders);fixedFolders=new ArrayList<>(chosenFolders);refresh();
     }
     void setBusy(boolean value){busy=value;for(Button b:buttons)b.setEnabled(!value);}
     void close(){closed=true;generation++;worker.shutdown();}
@@ -49,30 +52,39 @@ final class OriginDirectoryPanel {
     }
     void refresh(){
         if(closed)return;
-        final int revision=++generation;final ArrayList<String> sources=new ArrayList<>(inputs),labels=new ArrayList<>(names);
+        final int revision=++generation;final ArrayList<String> sources=new ArrayList<>(inputs),labels=new ArrayList<>(names),folders=new ArrayList<>(fixedFolders);final ArrayList<Boolean> useOrigins=new ArrayList<>(origins);
         rows.removeAllViews();buttons.clear();
-        label(rows,sources.isEmpty()?"Le cartelle di origine appariranno qui dopo la selezione dei video.":"Controllo delle cartelle e dei permessi…",ink);
+        label(rows,sources.isEmpty()?"Le destinazioni utilizzate appariranno qui dopo la selezione dei video.":"Controllo delle cartelle e dei permessi…",ink);
         listener.changed(false,new ArrayList<>(),new ArrayList<>());
         if(sources.isEmpty())return;
         worker.execute(()->{
             LinkedHashMap<String,Group> groups=new LinkedHashMap<>();
             ArrayList<String> destinations=new ArrayList<>(Collections.nCopies(sources.size(),null));
             ArrayList<String> notes=new ArrayList<>(Collections.nCopies(sources.size(),""));
+            java.util.Map<String,Uri> grants=new java.util.HashMap<>();java.util.Map<Uri,Boolean> permissions=new java.util.HashMap<>();
             for(int i=0;i<sources.size();i++){
                 if(closed||revision!=generation)return;
-                Uri source=Uri.parse(sources.get(i));String parent=SourceFolder.parentId(activity,source);
-                String cached=associations.getString(sources.get(i),null);Uri destination=parent==null?null:SourceFolder.granted(activity,parent);boolean manual=false;
-                if(destination==null&&cached!=null){Uri previous=Uri.parse(cached);boolean compatible=parent==null;
-                    try{compatible|=SourceFolder.EXTERNAL.equals(previous.getAuthority())&&parent!=null&&parent.equals(SourceFolder.documentId(activity,previous));}catch(Exception ignored){}
-                    if(compatible&&SourceFolder.writable(activity,previous)){destination=previous;manual=parent==null;}
+                Uri source=Uri.parse(sources.get(i));boolean origin=useOrigins.get(i),manual=false;
+                String parent=null;Uri destination=null;String requested=folders.get(i);
+                if(origin){
+                    parent=SourceFolder.parentId(activity,source);destination=parent==null?null:cachedGrant(parent,grants);
+                    String cached=associations.getString(sources.get(i),null);
+                    if(destination==null&&cached!=null){Uri previous=Uri.parse(cached);boolean compatible=parent==null;
+                        try{compatible|=SourceFolder.EXTERNAL.equals(previous.getAuthority())&&parent!=null&&FolderPaths.groupKey(parent,null,"").equals(FolderPaths.groupKey(SourceFolder.documentId(activity,previous),null,""));}catch(Exception ignored){}
+                        if(compatible&&cachedWritable(previous,permissions)){destination=previous;manual=parent==null;}
+                    }
+                }else if(requested!=null&&!requested.isEmpty()){
+                    Uri chosen=Uri.parse(requested);
+                    try{if(SourceFolder.EXTERNAL.equals(chosen.getAuthority()))parent=SourceFolder.documentId(activity,chosen);}catch(Exception ignored){}
+                    if(cachedWritable(chosen,permissions))destination=chosen;else if(parent!=null)destination=cachedGrant(parent,grants);
                 }
                 String displayParent=parent;
                 if(displayParent==null&&destination!=null&&SourceFolder.EXTERNAL.equals(destination.getAuthority()))try{displayParent=SourceFolder.documentId(activity,destination);}catch(Exception ignored){}
-                String key=FolderPaths.groupKey(parent,displayParent,destination!=null?"uri:"+destination:"unknown:"+sources.get(i));
+                String key=FolderPaths.groupKey(parent,displayParent,destination!=null?"uri:"+destination:!origin?"chosen:"+requested:"unknown:"+sources.get(i));
                 Group group=groups.get(key);
-                if(group==null){group=new Group();group.parent=parent;group.destination=destination;group.manual=manual;group.label=displayParent!=null?displayParent:destination!=null?Uri.decode(destination.getLastPathSegment()):"Cartella non rilevata · "+labels.get(i);groups.put(key,group);}
+                if(group==null){group=new Group();group.parent=parent;group.destination=destination;group.manual=manual;group.origin=origin;group.requestedFolder=requested;group.label=displayParent!=null?displayParent:destination!=null?Uri.decode(destination.getLastPathSegment()):!origin?(requested==null||requested.isEmpty()?"Cartella da scegliere":Uri.decode(Uri.parse(requested).getLastPathSegment())):"Origine non rilevata · "+labels.get(i);groups.put(key,group);}
                 group.manual|=manual;group.files.add(i);destinations.set(i,destination==null?null:destination.toString());
-                notes.set(i,"Video "+(i+1)+" · "+labels.get(i)+" · origine="+group.label+" · "+(destination==null?"ACCESSO MANCANTE":manual?"accesso verificato; origine associata manualmente":"origine rilevata e accesso verificato"));
+                notes.set(i,"Video "+(i+1)+" · "+labels.get(i)+" · regola="+(origin?"origine":"cartella scelta")+" · destinazione="+group.label+" · "+(destination==null?"ACCESSO MANCANTE":manual?"accesso verificato; origine associata manualmente":origin?"origine rilevata e accesso verificato":"cartella scelta e accesso verificato"));
             }
             activity.runOnUiThread(()->{
                 if(closed||revision!=generation)return;
@@ -84,12 +96,28 @@ final class OriginDirectoryPanel {
                     LinearLayout description=new LinearLayout(activity);description.setOrientation(LinearLayout.VERTICAL);row.addView(description,new LinearLayout.LayoutParams(0,-2,1));
                     String numbers="";for(int file:group.files)numbers+=(numbers.isEmpty()?"":", ")+(file+1);
                     label(description,(allowed?"✓ AUTORIZZATA":"✕ DA AUTORIZZARE")+"\n"+group.label+"\nVideo: "+numbers+(group.manual?"\nInclude file associati manualmente":""),allowed?green:red);
-                    Button action=new Button(activity);action.setText(allowed?"Gestisci":"Autorizza");action.setAllCaps(false);action.setTextColor(allowed?green:red);action.setSingleLine(false);action.setMinHeight(Math.round(48*activity.getResources().getDisplayMetrics().density));row.addView(action,new LinearLayout.LayoutParams(-2,-2));buttons.add(action);action.setEnabled(!busy);
-                    action.setOnClickListener(v->listener.authorize(group.parent,sources.get(group.files.get(0))));
+                    Button action=new Button(activity);action.setText(allowed?"Gestisci":!group.origin&&(group.requestedFolder==null||group.requestedFolder.isEmpty())?"Scegli":"Autorizza");action.setAllCaps(false);action.setTextColor(allowed?green:red);action.setSingleLine(false);action.setMinHeight(Math.round(48*activity.getResources().getDisplayMetrics().density));row.addView(action,new LinearLayout.LayoutParams(-2,-2));buttons.add(action);action.setEnabled(!busy);
+                    action.setOnClickListener(v->listener.authorize(group.parent,sources.get(group.files.get(0)),group.origin,group.requestedFolder));
                 }
                 label(rows,"Cartelle autorizzate: "+authorized+" / "+groups.size(),ink);
                 listener.changed(!destinations.contains(null),destinations,notes);
             });
+        });
+    }
+    private Uri cachedGrant(String parent,java.util.Map<String,Uri> grants){if(!grants.containsKey(parent))grants.put(parent,SourceFolder.granted(activity,parent));return grants.get(parent);}
+    private boolean cachedWritable(Uri uri,java.util.Map<Uri,Boolean> permissions){if(!permissions.containsKey(uri))permissions.put(uri,SourceFolder.writable(activity,uri));return permissions.get(uri);}
+    void acceptFixed(String parent,String requested,Uri tree){
+        worker.execute(()->{
+            try{
+                Uri intended=Uri.parse(requested);
+                if(parent!=null){
+                    if(!SourceFolder.EXTERNAL.equals(tree.getAuthority())||!FolderPaths.covers(DocumentsContract.getTreeDocumentId(tree),parent))throw new IllegalArgumentException("Autorizza "+parent+" oppure una cartella superiore.");
+                    intended=SourceFolder.underTree(tree,parent);
+                }else if(!java.util.Objects.equals(intended.getAuthority(),tree.getAuthority())||!SourceFolder.documentId(activity,intended).equals(SourceFolder.documentId(activity,tree)))throw new IllegalArgumentException("La cartella autorizzata non corrisponde a quella scelta.");
+                if(!SourceFolder.writable(activity,intended))throw new IllegalArgumentException("Permesso di scrittura non disponibile per la cartella scelta.");
+                FolderPickerActivity.record(activity,"OK · accesso verificato per destinazione scelta · "+intended);
+                activity.runOnUiThread(()->{if(!closed)refresh();});
+            }catch(Exception e){activity.runOnUiThread(()->{if(!closed){listener.error(e.getMessage());refresh();}});}
         });
     }
     void accept(String parent,String representative,Uri tree){
@@ -117,7 +145,7 @@ final class OriginDirectoryPanel {
                         }
                     }catch(Exception ignored){/* The manually selected source remains usable; other files stay red. */}
                 }
-                edit.apply();
+                edit.apply();FolderPickerActivity.record(activity,"OK · associazione cartella origine · video="+representative+" · directory="+destination);
                 activity.runOnUiThread(()->{if(!closed){refresh();}});
             }catch(Exception e){activity.runOnUiThread(()->{if(!closed){listener.error(e.getMessage());refresh();}});}
         });

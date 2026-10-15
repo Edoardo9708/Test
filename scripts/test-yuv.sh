@@ -27,3 +27,6 @@ javac -d yuv-test app/src/main/java/it/edo/codecprobe/BatchProgress.java tests/B
 java -cp yuv-test it.edo.codecprobe.BatchProgressTest
 javac -d yuv-test app/src/main/java/it/edo/codecprobe/FolderPaths.java tests/FolderPathsTest.java
 java -cp yuv-test it.edo.codecprobe.FolderPathsTest
+
+javac -d yuv-test app/src/main/java/it/edo/codecprobe/DestinationPlan.java tests/DestinationPlanTest.java
+java -cp yuv-test it.edo.codecprobe.DestinationPlanTest

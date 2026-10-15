@@ -36,7 +36,7 @@ public final class SettingsActivity extends Activity {
         label("CARTELLA PREDEFINITA",16);
         defaultFolder=state!=null?state.getString("defaultFolder"):new AppSettings(this).defaultFolder;
         folderValue=label("",16);updateFolder();
-        button("Scegli cartella predefinita",()->{android.content.Intent i=new android.content.Intent(android.content.Intent.ACTION_OPEN_DOCUMENT_TREE);i.addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION|android.content.Intent.FLAG_GRANT_WRITE_URI_PERMISSION|android.content.Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);startActivityForResult(i,10);});
+        button("Scegli cartella predefinita",()->startActivityForResult(new android.content.Intent(this,FolderPickerActivity.class),10));
         button("Rimuovi cartella predefinita",()->{defaultFolder=null;updateFolder();});
         label("Usata all’apertura dell’app. Nella home puoi scegliere una destinazione diversa per la coda corrente.",13);
         label("NOME FILE",16);
@@ -68,7 +68,8 @@ public final class SettingsActivity extends Activity {
     @Override protected void onSaveInstanceState(Bundle b){super.onSaveInstanceState(b);b.putString("defaultFolder",defaultFolder);}
     @Override protected void onActivityResult(int request,int code,android.content.Intent data){
         super.onActivityResult(request,code,data);
-        if(request!=10||code!=RESULT_OK||data==null||data.getData()==null)return;
+        if(request!=10)return;
+        if(code!=RESULT_OK||data==null||data.getData()==null){String error=data==null?null:data.getStringExtra(FolderPickerActivity.ERROR);if(error!=null)Toast.makeText(this,error,Toast.LENGTH_LONG).show();return;}
         try{int flags=data.getFlags()&(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION|android.content.Intent.FLAG_GRANT_WRITE_URI_PERMISSION);if((flags&(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION|android.content.Intent.FLAG_GRANT_WRITE_URI_PERMISSION))!=(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION|android.content.Intent.FLAG_GRANT_WRITE_URI_PERMISSION))throw new SecurityException("Lettura e scrittura non concesse");getContentResolver().takePersistableUriPermission(data.getData(),android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION|android.content.Intent.FLAG_GRANT_WRITE_URI_PERMISSION);defaultFolder=data.getData().toString();updateFolder();}
         catch(SecurityException e){Toast.makeText(this,"Cartella non salvata: serve accesso permanente in scrittura. "+e.getMessage(),Toast.LENGTH_LONG).show();}
     }
@@ -81,5 +82,3 @@ public final class SettingsActivity extends Activity {
     private Switch toggle(String s){Switch t=new Switch(this);t.setText(s);t.setTextSize(20);t.setTextColor(ink);t.setButtonTintList(android.content.res.ColorStateList.valueOf(accent));t.setPadding(0,dp(12),0,dp(12));page.addView(t);return t;}
     private SeekBar slider(int max,Runnable update){SeekBar s=new SeekBar(this);s.setMax(max);s.setProgressTintList(android.content.res.ColorStateList.valueOf(accent));s.setThumbTintList(android.content.res.ColorStateList.valueOf(accent));s.setMinHeight(dp(48));page.addView(s,new LinearLayout.LayoutParams(-1,-2));s.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener(){public void onProgressChanged(SeekBar b,int n,boolean user){update.run();}public void onStartTrackingTouch(SeekBar b){}public void onStopTrackingTouch(SeekBar b){}});return s;}
 }
-
-

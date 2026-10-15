@@ -31,7 +31,10 @@ public final class ConversionService extends Service {
     private static final int NOTICE=10;
     private static final String CHANNEL="conversion";
     static final class State {
-        boolean hasSession,running,originMode;
+        boolean hasSession,running,originMode,applyAllDestinations,allOrigin=true;
+        String allFolder="";
+        boolean[] individualOrigins=new boolean[0];
+        ArrayList<String> individualFolders=new ArrayList<>();
         int percent,filePercent,batchIndex,batchTotal,succeeded,failed,doneFrames,totalFrames=-1;
         ArrayList<String> inputs=new ArrayList<>(),names=new ArrayList<>(),folders=new ArrayList<>();
         ArrayList<Uri> results=new ArrayList<>();
@@ -40,7 +43,7 @@ public final class ConversionService extends Service {
         String message="",log="",source="";
         Uri result,input,folder;
         State(){}
-        State(State s){originMode=s.originMode;inputs=new ArrayList<>(s.inputs);names=new ArrayList<>(s.names);folders=new ArrayList<>(s.folders);results=new ArrayList<>(s.results);filePercent=s.filePercent;batchIndex=s.batchIndex;batchTotal=s.batchTotal;succeeded=s.succeeded;failed=s.failed;hasSession=s.hasSession;running=s.running;bframeCount=s.bframeCount;lookaheadCount=s.lookaheadCount;cuTree=s.cuTree;aqMode=s.aqMode;aqStrength=s.aqStrength;percent=s.percent;doneFrames=s.doneFrames;totalFrames=s.totalFrames;done=s.done;total=s.total;message=s.message;log=s.log;source=s.source;result=s.result;input=s.input;folder=s.folder;}
+        State(State s){applyAllDestinations=s.applyAllDestinations;allOrigin=s.allOrigin;allFolder=s.allFolder;individualOrigins=s.individualOrigins.clone();individualFolders=new ArrayList<>(s.individualFolders);originMode=s.originMode;inputs=new ArrayList<>(s.inputs);names=new ArrayList<>(s.names);folders=new ArrayList<>(s.folders);results=new ArrayList<>(s.results);filePercent=s.filePercent;batchIndex=s.batchIndex;batchTotal=s.batchTotal;succeeded=s.succeeded;failed=s.failed;hasSession=s.hasSession;running=s.running;bframeCount=s.bframeCount;lookaheadCount=s.lookaheadCount;cuTree=s.cuTree;aqMode=s.aqMode;aqStrength=s.aqStrength;percent=s.percent;doneFrames=s.doneFrames;totalFrames=s.totalFrames;done=s.done;total=s.total;message=s.message;log=s.log;source=s.source;result=s.result;input=s.input;folder=s.folder;}
     }
     static State snapshot(){synchronized(LOCK){return new State(state);}}
     static void observe(Runnable listener){synchronized(LOCK){observer=listener;}}
@@ -100,7 +103,10 @@ public final class ConversionService extends Service {
         Uri input=Uri.parse(inputs.get(0)),folder=Uri.parse(folders.get(0));String source=names.get(0);
         int crf=intent.getIntExtra("crf",23),preset=intent.getIntExtra("preset",6),cpu=intent.getIntExtra("cpu",1);
         boolean bframes=intent.getBooleanExtra("bframes",true),lookahead=intent.getBooleanExtra("lookahead",true);
-        synchronized(LOCK){state.originMode=intent.getBooleanExtra("originMode",false);state.inputs=queueInputs;state.names=queueNames;state.folders=queueFolders;state.results.clear();state.batchIndex=0;state.batchTotal=queueInputs.size();state.succeeded=0;state.failed=0;state.filePercent=0;state.hasSession=true;state.running=true;state.bframeCount=-1;state.lookaheadCount=-1;state.cuTree=-1;state.aqMode=-1;state.aqStrength=-1;state.percent=0;state.doneFrames=0;state.totalFrames=-1;state.done=0;state.total=0;state.result=null;state.log="";state.message="Analisi video…";state.source=source;state.input=input;state.folder=folder;}
+        synchronized(LOCK){state.individualOrigins=intent.getBooleanArrayExtra("individualOrigins");if(state.individualOrigins==null)state.individualOrigins=new boolean[queueInputs.size()];
+            ArrayList<String> requestedChoices=intent.getStringArrayListExtra("individualFolders");state.individualFolders=requestedChoices==null?new ArrayList<>(queueFolders):new ArrayList<>(requestedChoices);
+            state.applyAllDestinations=intent.getBooleanExtra("applyAllDestinations",false);state.allOrigin=intent.getBooleanExtra("allOrigin",true);state.allFolder=intent.getStringExtra("allFolder");
+            state.originMode=intent.getBooleanExtra("originMode",false);state.inputs=queueInputs;state.names=queueNames;state.folders=queueFolders;state.results.clear();state.batchIndex=0;state.batchTotal=queueInputs.size();state.succeeded=0;state.failed=0;state.filePercent=0;state.hasSession=true;state.running=true;state.bframeCount=-1;state.lookaheadCount=-1;state.cuTree=-1;state.aqMode=-1;state.aqStrength=-1;state.percent=0;state.doneFrames=0;state.totalFrames=-1;state.done=0;state.total=0;state.result=null;state.log="";state.message="Analisi video…";state.source=source;state.input=input;state.folder=folder;}
         try {
             int type=Build.VERSION.SDK_INT>=35?ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROCESSING:ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC;
             startForeground(NOTICE,notification(snapshot()),type);
@@ -118,7 +124,7 @@ public final class ConversionService extends Service {
                 for(int index=0;index<queueInputs.size()&&!cancel.get();index++){
                     final int current=index;
                     synchronized(LOCK){state.batchIndex=index+1;state.filePercent=0;state.percent=BatchProgress.percent(index,0,queueInputs.size());state.doneFrames=0;state.totalFrames=-1;state.done=0;state.total=0;state.source=queueNames.get(index);state.input=Uri.parse(queueInputs.get(index));state.folder=Uri.parse(queueFolders.get(index));state.message="Analisi video "+(index+1)+" / "+queueInputs.size();state.bframeCount=-1;}
-                    writeBatch(batchLog,"\n*** INIZIO VIDEO "+(index+1)+" / "+queueInputs.size()+" ***\nNome: "+queueNames.get(index)+"\nInput: "+queueInputs.get(index)+"\nCartella: "+queueFolders.get(index)+(destinationNotes!=null&&destinationNotes.size()==queueInputs.size()?"\nAssociazione origine: "+destinationNotes.get(index):""));publish(true);
+                    writeBatch(batchLog,"\n*** INIZIO VIDEO "+(index+1)+" / "+queueInputs.size()+" ***\nNome: "+queueNames.get(index)+"\nInput: "+queueInputs.get(index)+"\nCartella: "+queueFolders.get(index)+(destinationNotes!=null&&destinationNotes.size()==queueInputs.size()?"\nScelta destinazione: "+destinationNotes.get(index):""));publish(true);
                     try{
                         requireWritableFolder(Uri.parse(queueFolders.get(index)));
                         VideoConverter converter=new VideoConverter(getApplicationContext(),cancel,new VideoConverter.Listener(){
@@ -182,6 +188,3 @@ public final class ConversionService extends Service {
     @Override public void onDestroy(){cancel.set(true);releaseWake();worker.shutdown();super.onDestroy();}
     @Override public IBinder onBind(Intent intent){return null;}
 }
-
-
-
