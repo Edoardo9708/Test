@@ -57,9 +57,10 @@ public class HomeRenderTest {
     @Test public void activeConversion()throws Exception{
         ActivityController<MainActivity> controller=screen();try{
             HomeController home=controller.get().home;home.screen.sections.focusCard(MainActivity.CARD_CONVERSION);
-            ConversionService.State state=new ConversionService.State();state.running=true;state.onlySmaller=true;state.batchIndex=2;state.batchTotal=3;state.succeeded=1;state.source="Video_di_prova_2.mp4";state.filePercent=19;state.doneFrames=340;state.totalFrames=1800;state.done=11333333;state.total=60000000;state.requestedPreset="medium";state.requestedCrf=23;state.requestedCpu=2;state.bframeCount=4;state.lookaheadCount=20;state.cuTree=1;state.aqMode=2;state.aqStrength=1000;state.message="Codifica software in corso";
+            ConversionService.State state=new ConversionService.State();state.running=true;state.fileActive=true;state.onlySmaller=true;state.batchIndex=2;state.batchTotal=3;state.succeeded=1;state.source="Video_di_prova_2.mp4";state.filePercent=19;state.doneFrames=340;state.totalFrames=1800;state.done=11333333;state.total=60000000;state.requestedPreset="medium";state.requestedCrf=23;state.requestedCpu=2;state.bframeCount=4;state.lookaheadCount=20;state.cuTree=1;state.aqMode=2;state.aqStrength=1000;state.message="Codifica software in corso";
             home.conversion.renderConversionDashboard(state);home.screen.conversion.cpuValue.setText("48,2%");home.screen.conversion.ramValue.setText("320 MiB");home.screen.conversion.batteryValue.setText("39,0 °C");
             state.sizeReport="Video 1 · Video_di_prova_1.mp4\n10 MB → 5 MB · −50%";home.conversion.renderSizeReport(state);image(home,"home-conversion.png");
+            state.pauseRequested=true;state.paused=true;home.conversion.renderConversionDashboard(state);image(home,"home-paused.png");
         }finally{controller.pause().stop().destroy();VideoMetadataCache.clear();}
     }
     @Test public void batchResults()throws Exception{

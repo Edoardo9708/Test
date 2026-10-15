@@ -5,7 +5,7 @@ import java.util.Locale;
 
 /** Whole-file byte sizes, including audio and metadata. Failed outputs never count as savings. */
 final class CompressionSummary {
-    enum Status { COMPLETE, FAILED, CANCELLED, IN_PROGRESS, SKIPPED, OMITTED, NO_SAVING, SIZE_UNKNOWN }
+    enum Status { COMPLETE, FAILED, CANCELLED, IN_PROGRESS, SKIPPED, OMITTED, NO_SAVING, SIZE_UNKNOWN, USER_SKIPPED }
     static final class Item {
         final int number;final String name;final Status status;final long before,after;
         Item(int number,String name,Status status,long before,long after){this.number=number;this.name=name;this.status=status;this.before=before;this.after=after;}
@@ -28,6 +28,7 @@ final class CompressionSummary {
             case IN_PROGRESS:return title+"\n"+(ongoing?"In corso":"Non completato");
             case NO_SAVING:return title+"\nNessun risparmio · risultato non salvato\nOriginale "+size(item.before)+" · convertito "+size(item.after)+" · "+change(item.before,item.after);
             case SIZE_UNKNOWN:return title+"\nConfronto dimensioni non disponibile · risultato non salvato\nOriginale "+size(item.before)+" · convertito "+size(item.after);
+            case USER_SKIPPED:return title+"\nSaltato dall’utente · nessun nuovo file salvato";
             case OMITTED:return title+"\nIgnorato su richiesta · file già presente";
             case FAILED:return title+"\nConversione fallita · nessun nuovo file completato";
             case CANCELLED:return title+"\nConversione annullata";

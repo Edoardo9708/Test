@@ -16,12 +16,14 @@ final class HdrTranscoder {
     }
     private final BooleanSupplier cancelled;private final Sink sink;private final ColorVui color;
     private HdrMetadataLedger ledger;
+    private final java.util.function.LongSupplier activeClock;
     private native long nativeOpen(int w,int h,int fps,int crf,int preset,int cpu,int cores,boolean bframes,boolean lookahead,int p,int t,int m,int flags);
     private native void nativeFrame(long handle,ByteBuffer pixels,long pts);
     private native void nativeFinish(long handle);
     private native void nativeClose(long handle);
     private native int[] nativeEffectiveSettings(long handle);
-    HdrTranscoder(BooleanSupplier cancelled,Sink sink,ColorVui color){this.cancelled=cancelled;this.sink=sink;this.color=color;}
+    HdrTranscoder(BooleanSupplier cancelled,Sink sink,ColorVui color){this(cancelled,sink,color,SystemClock::elapsedRealtime);}
+    HdrTranscoder(BooleanSupplier cancelled,Sink sink,ColorVui color,java.util.function.LongSupplier activeClock){this.cancelled=cancelled;this.sink=sink;this.color=color;this.activeClock=activeClock;}
     public boolean isCancelled(){return cancelled.getAsBoolean();}
     public void onLog(String value){sink.log(value);}
     public void onHeaders(byte[] data){HdrHevcInfo.requireMain10(data);sink.headers(HdrSei.replace(data,Collections.emptyList()));}
@@ -37,20 +39,20 @@ final class HdrTranscoder {
         MediaCodec decoder=null;long handle=0;
         try(HdrMetadataLedger index=new HdrMetadataLedger(metadataIndex,HdrCodec.metadata(format))){
             ledger=index;decoder=HdrCodec.open(format,cancelled,this::onLog);
-            MediaCodec.BufferInfo info=new MediaCodec.BufferInfo();boolean inputEnd=false,outputEnd=false;int frames=0;long last=SystemClock.elapsedRealtime(),lastPts=-1;
+            MediaCodec.BufferInfo info=new MediaCodec.BufferInfo();boolean inputEnd=false,outputEnd=false;int frames=0;long last=activeClock.getAsLong(),lastPts=-1;
             ByteBuffer pixels=ByteBuffer.allocateDirect(Math.multiplyExact(Math.multiplyExact(w,h),3));
             while(!outputEnd){
-                check();if(SystemClock.elapsedRealtime()-last>60000)throw new IOException("Decoder HDR senza progresso per 60 secondi");
+                check();if(activeClock.getAsLong()-last>60000)throw new IOException("Decoder HDR senza progresso per 60 secondi");
                 if(!inputEnd){int i=decoder.dequeueInputBuffer(1000);if(i>=0){ByteBuffer b=decoder.getInputBuffer(i);if(b==null)throw new IOException("Buffer HDR assente");b.clear();
                     long size=extractor.getSampleSize();if(size>b.remaining()||size>32*1024*1024)throw new IOException("Campione HDR troppo grande");
                     int n=extractor.readSampleData(b,0);
                     if(n<0){decoder.queueInputBuffer(i,0,0,0,MediaCodec.BUFFER_FLAG_END_OF_STREAM);inputEnd=true;onLog("OK decoder HDR input EOS");}
                     else {if((extractor.getSampleFlags()&(MediaExtractor.SAMPLE_FLAG_ENCRYPTED|MediaExtractor.SAMPLE_FLAG_PARTIAL_FRAME))!=0)throw new IOException("Campione HDR protetto/parziale non supportato");
                         byte[] original=new byte[n];ByteBuffer copy=b.duplicate();copy.position(0);copy.limit(n);copy.get(original);long pts=extractor.getSampleTime();index.queued(pts,original);
-                        decoder.queueInputBuffer(i,0,n,pts,0);extractor.advance();}last=SystemClock.elapsedRealtime();
+                        decoder.queueInputBuffer(i,0,n,pts,0);extractor.advance();}last=activeClock.getAsLong();
                 }}
                 int i=decoder.dequeueOutputBuffer(info,1000);
-                if(i==MediaCodec.INFO_OUTPUT_FORMAT_CHANGED){onLog("FORMATO P010 · "+decoder.getOutputFormat());last=SystemClock.elapsedRealtime();}
+                if(i==MediaCodec.INFO_OUTPUT_FORMAT_CHANGED){onLog("FORMATO P010 · "+decoder.getOutputFormat());last=activeClock.getAsLong();}
                 else if(i>=0)try{
                     if(info.size>0&&(info.flags&MediaCodec.BUFFER_FLAG_CODEC_CONFIG)==0){
                         if(info.presentationTimeUs<=lastPts)throw new IOException("Timestamp HDR decodificati non crescenti");lastPts=info.presentationTimeUs;
@@ -63,7 +65,7 @@ final class HdrTranscoder {
                             nativeFrame(handle,pixels,info.presentationTimeUs);
                         }
                     }
-                    outputEnd=(info.flags&MediaCodec.BUFFER_FLAG_END_OF_STREAM)!=0;last=SystemClock.elapsedRealtime();
+                    outputEnd=(info.flags&MediaCodec.BUFFER_FLAG_END_OF_STREAM)!=0;last=activeClock.getAsLong();
                 }finally{decoder.releaseOutputBuffer(i,false);}
             }
             if(handle==0)throw new IOException("Nessun fotogramma HDR decodificato");

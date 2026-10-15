@@ -166,6 +166,7 @@ final class HomeController {
         home.conversion.outputCheck.close();
         home.conversion.retry.close();
         home.conversion.failures.close();
+        home.conversion.playback.close();
         home.screen.sections.closed = true;
         home.handler.removeCallbacksAndMessages(null);
         home.screen.files.videoPreview.animate().cancel();

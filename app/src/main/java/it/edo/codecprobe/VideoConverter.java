@@ -50,8 +50,15 @@ final class VideoConverter {
     private AppSettings namingDefaults;
     VideoConverter(Context c,AtomicBoolean cancel,Listener listener) {context=c;this.cancel=cancel;this.listener=listener;}
     VideoConverter(Context c,AtomicBoolean cancel,Listener listener,AppSettings naming) {this(c,cancel,listener);namingDefaults=naming;}
-    public boolean isCancelled() {return cancel.get();}
-    private void checkCancel() throws InterruptedException {if(cancel.get()) throw new InterruptedException("Conversione annullata");}
+    ConversionControl control;
+    public boolean isCancelled() {return cancel.get() || control != null && control.checkpoint();}
+    private boolean stopping() {return cancel.get() || control != null && control.stopping();}
+    private long activeNow() {return SystemClock.elapsedRealtime() - (control == null ? 0 : control.pausedMillis());}
+    private void checkCancel() throws InterruptedException {if(isCancelled()) throw new InterruptedException("Conversione interrotta su richiesta");}
+    private void finishFile() throws InterruptedException {
+        checkCancel();
+        if(control != null && !control.finishFile())throw new InterruptedException("Conversione interrotta prima del completamento");
+    }
     public void onLog(String message) {
         String line="["+ (SystemClock.elapsedRealtime()-start)+" ms] "+message;
         if(message.startsWith("***")) line="\n━━━━━━━━━━━━━━━━━━━━━━━━\n"+line+"\n━━━━━━━━━━━━━━━━━━━━━━━━";
@@ -125,9 +132,11 @@ final class VideoConverter {
         this.preset=preset;
         File temporary=new File(context.getCacheDir(),"conversion-working.mp4");
         Uri destination=null;
+        Throwable pendingFailure=null;
         try(FileOutputStream fileLog=new FileOutputStream(logFile(context),false)) {
             log=fileLog;
             try {
+                checkCancel();
                 if(plannedOutputName!=null)OutputDocuments.requireFree(context,folder,plannedOutputName);
                 onLog("*** INIZIO CONVERSIONE v"+BuildConfig.VERSION_NAME+" ***");
                 onLog("PERCORSO:\n1. Analizzo video e audio\n2. Decodifico i fotogrammi\n3. Ricodifico con x265 CRF\n4. Copio audio AAC\n5. Verifico il video\n6. Salvo nella cartella scelta");
@@ -144,7 +153,7 @@ final class VideoConverter {
                 final String sourceGps=OriginalMedia.location(context,input);
                 onLog("GPS ORIGINALE: "+OriginalMedia.display(sourceGps));
                 onLog("*** INFORMAZIONI FILE IN INPUT ***");
-                onLog(InputInspector.describe(context,input,()->cancel.get()));
+                onLog(InputInspector.describe(context,input,this::isCancelled));
                 onLog("*** CONTROLLO CONSERVAZIONE METADATI ***");
                 sourceMetadata(input,null);
                 onLog("L’analisi del colore sceglierà la libreria CPU separata: SDR a 8 bit oppure HDR Main10.");
@@ -161,14 +170,14 @@ final class VideoConverter {
                 onLog("*** STEP 5 · VERIFICA VIDEO COMPLETO ***");
                 listener.progress(94,"Verifica del video...");
                 verify(temporary);
-                if(hdr)HdrTranscoder.verifyMetadata(temporary,hdrMetadataFile,sourceColor,()->cancel.get(),this::onLog);
+                if(hdr)HdrTranscoder.verifyMetadata(temporary,hdrMetadataFile,sourceColor,this::isCancelled,this::onLog);
                 if(originalAudio>=0)verifyCopiedTrack(input,temporary,originalAudio,audioTrack);
                 for(MetadataTrack track:metadataTracks)verifyCopiedTrack(input,temporary,track.input,track.output);
                 checkCancel();
                 long candidateBytes=temporary.length();
                 SavingsPolicy.Decision saving=SavingsPolicy.decide(onlySmaller,originalByteSize,candidateBytes);
                 onLog("*** CONTROLLO RISPARMIO PRIMA DEL SALVATAGGIO ***\nSalva solo se più piccolo="+onlySmaller+"\nOriginale byte="+originalByteSize+"\nConvertito completo byte="+candidateBytes+"\nEsito="+saving);
-                if(saving!=SavingsPolicy.Decision.SAVE)throw new SavingsPolicy.NotSaved(saving,originalByteSize,candidateBytes);
+                if(saving!=SavingsPolicy.Decision.SAVE){finishFile();throw new SavingsPolicy.NotSaved(saving,originalByteSize,candidateBytes);}
                 onLog("*** STEP 6 · SALVATAGGIO NELLA CARTELLA SCELTA ***");
                 listener.progress(98,"Salvataggio MP4...");
                 String requested=plannedOutputName!=null?plannedOutputName:OutputName.base(sourceName,naming.addition,naming.prefix);
@@ -183,6 +192,7 @@ final class VideoConverter {
                 String name=plannedOutputName!=null?requested:OutputName.unique(requested,occupied);
                 onLog("NOME OUTPUT · posizione="+(naming.prefix?"prefisso":"suffisso")+" · testo="+naming.addition+"\nNome richiesto: "+requested+"\nNome scelto senza sovrascrittura: "+name);
                 Uri parent=DocumentsContract.buildDocumentUriUsingTree(folder,folderId);
+                checkCancel();
                 destination=DocumentsContract.createDocument(context.getContentResolver(),parent,"video/mp4",name);
                 if(destination==null) throw new IOException("Impossibile creare il file nella cartella");
                 if(destination.equals(input)){destination=null;throw new IOException("Il provider ha restituito l’originale come destinazione: scrittura rifiutata");}
@@ -197,30 +207,40 @@ final class VideoConverter {
                 // Read the created document directly: it may not be indexed yet.
                 // ACCESS_MEDIA_LOCATION is already granted; no redacted fallback is used for the source.
                 verifyGps(sourceGps,OriginalMedia.location(context,destination),"file salvato");
+                finishFile();
                 onLog("OK SALVATAGGIO nome="+name+" bytes="+temporary.length());
                 onLog("*** CONVERSIONE RIUSCITA ***");
                 onLog("SUMMARY frames="+frames+" packets="+packets+" elapsed_ms="+(SystemClock.elapsedRealtime()-start));
                 listener.progress(100,"Completato: "+name);
                 return destination;
             } catch(SavingsPolicy.NotSaved skipped) {
+                pendingFailure=skipped;
                 onLog("*** RISULTATO NON SALVATO ***\n"+skipped.getMessage()+"\nNessun documento di destinazione creato; elimino solo il temporaneo di questa conversione.");
                 listener.progress(100,skipped.getMessage());throw skipped;
             } catch(Exception | LinkageError e) {
+                pendingFailure=e;
                 if(destination!=null) {
-                    try {DocumentsContract.deleteDocument(context.getContentResolver(),destination);}
-                    catch(Exception cleanup) {onLog("AVVISO: impossibile eliminare il file incompleto: "+cleanup);}
+                    try {if(!DocumentsContract.deleteDocument(context.getContentResolver(),destination))throw new IOException("Il provider ha rifiutato la cancellazione");}
+                    catch(Exception cleanup) {
+                        ConversionCleanup.Failed problem=new ConversionCleanup.Failed("Impossibile eliminare il risultato incompleto: "+destination,cleanup);
+                        problem.addSuppressed(e);pendingFailure=problem;
+                        onLog("*** ERRORE PULIZIA FILE INCOMPLETO ***\n"+problem+"\nControlla la cartella di destinazione.");
+                        throw problem;
+                    }
                 }
                 StringWriter stack=new StringWriter();e.printStackTrace(new PrintWriter(stack));
-                onLog(cancel.get()?"*** CONVERSIONE ANNULLATA ***":"*** ERRORE · CONVERSIONE INTERROTTA ***");
-                if(cancel.get())onLog("MOTIVO: "+listener.cancellationReason());
+                onLog(stopping()?"*** CONVERSIONE INTERROTTA SU RICHIESTA ***":"*** ERRORE · CONVERSIONE INTERROTTA ***");
+                if(stopping())onLog("MOTIVO: "+listener.cancellationReason());
                 onLog(stack.toString());
                 if(e instanceof Exception) throw (Exception)e;
                 throw new IllegalStateException("Caricamento codec fallito",e);
             } finally {
-                onLog("SESSION END cancelled="+cancel.get());
-                if(timestampFile!=null)timestampFile.delete();
-                if(hdrMetadataFile!=null)hdrMetadataFile.delete();
-                if(temporary.exists()&&!temporary.delete()) onLog("AVVISO: file temporaneo non eliminato");
+                onLog("SESSION END cancelled="+cancel.get()+" skipped="+(control!=null&&control.skipped()));
+                try {ConversionCleanup.temporaryFiles(timestampFile,hdrMetadataFile,temporary);}
+                catch(ConversionCleanup.Failed cleanup) {
+                    if(pendingFailure!=null)cleanup.addSuppressed(pendingFailure);
+                    onLog("*** ERRORE PULIZIA TEMPORANEI ***\n"+cleanup);throw cleanup;
+                }
             }
         }
     }
@@ -316,7 +336,7 @@ final class VideoConverter {
                     }
                     public void settings(int[] values){reportEncoderSettings(values);}
                 };
-                new HdrTranscoder(()->cancel.get(),sink,sourceColor).run(extractor,video,hdrMetadataFile,width,height,Math.round(fps*1000),crf,preset,cpuMode,bframes,lookahead);
+                new HdrTranscoder(this::isCancelled,sink,sourceColor,this::activeNow).run(extractor,video,hdrMetadataFile,width,height,Math.round(fps*1000),crf,preset,cpuMode,bframes,lookahead);
                 listener.frames(frames,frames);listener.timeline(durationUs,durationUs);
             }else{
                 onLog("BEGIN loadLibrary x265probe · percorso SDR a 8 bit");
@@ -332,11 +352,11 @@ final class VideoConverter {
                 onLog("OK decoder.start");
                 onLog("LEGENDA:\n• frame: indice del fotogramma\n• pts_us: posizione nel video, in microsecondi\n• rc: risultato x265 (0 = uscita in attesa, positivo = frame pronto)\n• nals: blocchi HEVC\n• elapsed_ms: durata chiamata\n• packet/bytes: numero e dimensione dei pacchetti MP4");
                 MediaCodec.BufferInfo info=new MediaCodec.BufferInfo();
-                boolean inputEnd=false,outputEnd=false;long lastActivity=SystemClock.elapsedRealtime();
+                boolean inputEnd=false,outputEnd=false;long lastActivity=activeNow();
                 MediaFormat decoded=video;ByteBuffer pixels=null;
                 while(!outputEnd) {
                     checkCancel();
-                    if(SystemClock.elapsedRealtime()-lastActivity>60000) throw new IOException("Decoder bloccato: nessun progresso per 60 secondi");
+                    if(activeNow()-lastActivity>60000) throw new IOException("Decoder bloccato: nessun progresso per 60 secondi");
                     if(!inputEnd) {
                         int index=decoder.dequeueInputBuffer(1000);
                         if(index>=0) {
@@ -350,13 +370,13 @@ final class VideoConverter {
                                 if((extractor.getSampleFlags()&MediaExtractor.SAMPLE_FLAG_ENCRYPTED)!=0) throw new IOException("Video protetto non supportato");
                                 decoder.queueInputBuffer(index,0,size,extractor.getSampleTime(),0);extractor.advance();
                             }
-                            lastActivity=SystemClock.elapsedRealtime();
+                            lastActivity=activeNow();
                         }
                     }
                     int index=decoder.dequeueOutputBuffer(info,1000);
                     if(index==MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
                         decoded=decoder.getOutputFormat();rejectHdr(decoded);onLog("DECODE FORMAT "+decoded);
-                        lastActivity=SystemClock.elapsedRealtime();
+                        lastActivity=activeNow();
                     } else if(index>=0) {
                         try {
                             if(info.size>0&&(info.flags&MediaCodec.BUFFER_FLAG_CODEC_CONFIG)==0) {
@@ -394,7 +414,7 @@ final class VideoConverter {
                             }
                             outputEnd=(info.flags&MediaCodec.BUFFER_FLAG_END_OF_STREAM)!=0;
                         } finally {decoder.releaseOutputBuffer(index,false);}
-                        lastActivity=SystemClock.elapsedRealtime();
+                        lastActivity=activeNow();
                     }
                 }
                 if(handle==0) throw new IOException("Nessun fotogramma decodificato");
@@ -487,8 +507,8 @@ final class VideoConverter {
         ParcelFileDescriptor fd=context.getContentResolver().openFileDescriptor(uri,"r");
         if(fd==null)throw new IOException("File originale non disponibile per conservare i metadati");
         try(ParcelFileDescriptor.AutoCloseInputStream in=new ParcelFileDescriptor.AutoCloseInputStream(fd)){
-            if(target==null){long created=Mp4Metadata.creationTime(in.getChannel(),()->cancel.get());fallbackCreationSeconds=InputCreationDate.read(context,uri,created,this::onLog);onLog("OK struttura MP4/MOV compatibile con copia dei metadati");}
-            else {Mp4Metadata.copy(in.getChannel(),target,()->cancel.get(),this::onLog,fallbackCreationSeconds);InputCreationDate.verify(target,fallbackCreationSeconds,this::onLog);}
+            if(target==null){long created=Mp4Metadata.creationTime(in.getChannel(),this::isCancelled);fallbackCreationSeconds=InputCreationDate.read(context,uri,created,this::onLog);onLog("OK struttura MP4/MOV compatibile con copia dei metadati");}
+            else {Mp4Metadata.copy(in.getChannel(),target,this::isCancelled,this::onLog,fallbackCreationSeconds);InputCreationDate.verify(target,fallbackCreationSeconds,this::onLog);}
         }
     }
     private void copyMetadataTrack(Uri uri,MetadataTrack track)throws Exception {
@@ -523,14 +543,14 @@ final class VideoConverter {
             if(integer(format,MediaFormat.KEY_WIDTH,0)!=width||integer(format,MediaFormat.KEY_HEIGHT,0)!=height) throw new IOException("Risoluzione MP4 errata");
             if(e.getTrackCount()!=(audioFormat==null?1:2)+metadataTracks.size()) throw new IOException("Conteggio tracce errato");
             e.selectTrack(track);
-            if(hdr){HdrHevcInfo.requireMain10(HdrCodec.csds(format).toArray(new byte[0][]));d=HdrCodec.open(format,()->cancel.get(),this::onLog);}
+            if(hdr){HdrHevcInfo.requireMain10(HdrCodec.csds(format).toArray(new byte[0][]));d=HdrCodec.open(format,this::isCancelled,this::onLog);}
             else {d=MediaCodec.createDecoderByType("video/hevc");d.configure(format,null,null,0);d.start();}
             running=true;
             MediaCodec.BufferInfo info=new MediaCodec.BufferInfo();boolean inEnd=false,outEnd=false;int count=0;
-            long lastActivity=SystemClock.elapsedRealtime(),lastPts=-1;
+            long lastActivity=activeNow(),lastPts=-1;
             while(!outEnd) {
                 checkCancel();
-                if(SystemClock.elapsedRealtime()-lastActivity>60000)throw new IOException("Timeout verifica decoder");
+                if(activeNow()-lastActivity>60000)throw new IOException("Timeout verifica decoder");
                 if(!inEnd) {
                     int i=d.dequeueInputBuffer(1000);
                     if(i>=0) {
@@ -538,7 +558,7 @@ final class VideoConverter {
                         b.clear();int n=e.readSampleData(b,0);
                         if(n<0){d.queueInputBuffer(i,0,0,0,MediaCodec.BUFFER_FLAG_END_OF_STREAM);inEnd=true;}
                         else {d.queueInputBuffer(i,0,n,e.getSampleTime(),0);e.advance();}
-                        lastActivity=SystemClock.elapsedRealtime();
+                        lastActivity=activeNow();
                     }
                 }
                 int i=d.dequeueOutputBuffer(info,1000);
@@ -557,7 +577,7 @@ final class VideoConverter {
                         onLog("VERIFY frame="+count+" pts_us="+lastPts);
                     }
                     outEnd=(info.flags&MediaCodec.BUFFER_FLAG_END_OF_STREAM)!=0;d.releaseOutputBuffer(i,false);
-                    lastActivity=SystemClock.elapsedRealtime();
+                    lastActivity=activeNow();
                 }
             }
             if(count!=frames)throw new IOException("Verifica fallita: "+count+"/"+frames);

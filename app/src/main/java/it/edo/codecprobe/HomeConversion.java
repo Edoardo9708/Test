@@ -19,17 +19,20 @@ final class HomeConversion {
     final HomeOutputCheck outputCheck;
     final HomeRetry retry;
     final HomeFailureReport failures;
+    final HomePlaybackControls playback;
 
     HomeConversion(HomeController home) {
         this.home = home;
         outputCheck = new HomeOutputCheck(home);
         retry = new HomeRetry(home);
         failures = new HomeFailureReport(home);
+        playback = new HomePlaybackControls(home);
     }
     final Runnable sessionObserver = this::renderSession;
 
     void bind() {
         retry.bind();
+        playback.bind();
         home.screen.conversion.onlySmaller.setOnCheckedChangeListener((v,c)->AppSettings.setOnlySmaller(home.activity,c));
         home.screen.conversion.convert.setOnClickListener((v)->startConversion());
         home.screen.conversion.stop.setOnClickListener((v)->confirmCancellation(-1));
@@ -104,11 +107,12 @@ final class HomeConversion {
         home.screen.conversion.stop.setEnabled(value && !outputCheck.checking);
         home.screen.conversion.onlySmaller.setEnabled(!value);
         retry.update(value);
+        playback.render(ConversionService.snapshot());
         home.diagnostics.updateClearLogsButton();
     }
 
     void updateScreenAwake() {
-        boolean enabled = home.state.conversionScreenVisible && home.state.busy && home.screen.conversion.keepScreenOn != null && home.screen.conversion.keepScreenOn.isChecked();
+        boolean enabled = home.state.conversionScreenVisible && home.state.busy && !playback.paused && home.screen.conversion.keepScreenOn != null && home.screen.conversion.keepScreenOn.isChecked();
         if (enabled) home.activity.getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON); else home.activity.getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
     }
 
@@ -197,16 +201,18 @@ final class HomeConversion {
     }
 
     void renderConversionDashboard(ConversionService.State s) {
-        int pending = Math.max(0, s.batchTotal - (s.running ? Math.max(s.batchIndex, s.succeeded + s.failed + s.ignored + s.notSaved) : s.succeeded + s.failed + s.ignored + s.notSaved));
-        home.screen.conversion.queueLabel.setText("Video " + s.batchIndex + " / " + s.batchTotal + "\nRiusciti: " + s.succeeded + " · Falliti: " + s.failed + " · Ignorati: " + s.ignored + "\nNon salvati: " + s.notSaved + "\n" + (s.running ? "In attesa: " : "Non completati: ") + pending);
+        int pending = Math.max(0, s.batchTotal - (s.running ? Math.max(s.batchIndex, s.succeeded + s.failed + s.ignored + s.notSaved + s.skipped) : s.succeeded + s.failed + s.ignored + s.notSaved + s.skipped));
+        home.screen.conversion.queueLabel.setText("Video " + s.batchIndex + " / " + s.batchTotal + "\nRiusciti: " + s.succeeded + " · Falliti: " + s.failed + " · Ignorati: " + s.ignored + "\nSaltati: " + s.skipped + " · Non salvati: " + s.notSaved + "\n" + (s.running ? "In attesa: " : "Non completati: ") + pending);
         home.screen.conversion.elapsedLabel.setText(DashboardMetrics.elapsed(s.startedAt, s.endedAt, SystemClock.elapsedRealtime()));
         home.screen.conversion.currentFile.setText(s.source.isEmpty() ? "In attesa del file" : s.source);
         home.screen.conversion.currentFile.setContentDescription("File attuale: " + s.source);
         home.screen.conversion.frameLabel.setText(s.doneFrames + " / " + (s.totalFrames > 0 ? s.totalFrames : "—"));
         setBusy(s.running);
+        playback.render(s);
+        updateScreenAwake();
         home.screen.conversion.progress.setProgress(s.filePercent);
         home.screen.conversion.percentLabel.setText(s.filePercent + "%");
-        home.screen.conversion.status.setText(s.message);
+        home.screen.conversion.status.setText(ConversionService.displayMessage(s));
         home.screen.diagnostics.logView.setText(s.log);
         home.screen.conversion.timeline.setText(String.format(Locale.ITALY, "%.1f s convertiti\n%s", s.done / 1000000.0, s.total > 0 ? String.format(Locale.ITALY, "%.1f s rimanenti", Math.max(0, s.total - s.done) / 1000000.0) : "durata totale non disponibile"));
         home.screen.conversion.activeOnlySmaller.setText(s.onlySmaller?"ON":"OFF");

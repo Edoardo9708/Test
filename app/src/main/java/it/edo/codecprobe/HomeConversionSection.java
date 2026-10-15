@@ -12,6 +12,9 @@ import android.widget.*;
 final class HomeConversionSection {
     Button convert;
     Button stop;
+    Button pause;
+    Button skip;
+    LinearLayout playbackActions;
     Button openVideo;
     Button retryFailed;
     CheckBox onlySmaller;
@@ -49,6 +52,11 @@ final class HomeConversionSection {
         stop = ui.halfButton(actions, "Annulla", false);
         stop.setEnabled(false);
         ui.danger(stop);
+        playbackActions=ui.row(work);
+        pause=ui.halfButton(playbackActions,"Pausa",false);
+        skip=ui.halfButton(playbackActions,"Salta video",false);
+        ui.danger(skip);
+        playbackActions.setVisibility(View.GONE);
         keepScreenOn = new CheckBox(ui.activity);
         keepScreenOn.setText("Mantieni schermo acceso");
         keepScreenOn.setTextColor(ui.ink);
