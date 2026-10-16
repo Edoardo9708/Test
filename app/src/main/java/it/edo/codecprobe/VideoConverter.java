@@ -59,7 +59,9 @@ final class VideoConverter {
         checkCancel();
         if(control != null && !control.finishFile())throw new InterruptedException("Conversione interrotta prima del completamento");
     }
-    public void onLog(String message) {
+    private final CompactLog compactLog=new CompactLog(this::writeLog);
+    public void onLog(String message) {compactLog.accept(message,SystemClock.elapsedRealtime()-start);}
+    private void writeLog(String message) {
         String line="["+ (SystemClock.elapsedRealtime()-start)+" ms] "+message;
         if(message.startsWith("***")) line="\n━━━━━━━━━━━━━━━━━━━━━━━━\n"+line+"\n━━━━━━━━━━━━━━━━━━━━━━━━";
         try { log.write((line+"\n").getBytes(StandardCharsets.UTF_8)); log.flush(); }
@@ -139,6 +141,7 @@ final class VideoConverter {
                 checkCancel();
                 if(plannedOutputName!=null)OutputDocuments.requireFree(context,folder,plannedOutputName);
                 onLog("*** INIZIO CONVERSIONE v"+BuildConfig.VERSION_NAME+" ***");
+                onLog("LOG COMPATTO: primi due esempi per tipo, poi riepiloghi ogni circa 15 secondi. Errori e ultimi 24 eventi dettagliati conservati; la verifica continua a controllare tutti i fotogrammi.");
                 onLog("PERCORSO:\n1. Analizzo video e audio\n2. Decodifico i fotogrammi\n3. Ricodifico con x265 CRF\n4. Copio audio AAC\n5. Verifico il video\n6. Salvo nella cartella scelta");
                 onLog("QUALITÀ: CRF="+crf+" · valore minore = più dettagli, file generalmente più grande. Il risultato dipende dal contenuto.");
                 onLog("INPUT: "+sourceName+"\nPROCESSO 64 bit="+android.os.Process.is64Bit());
@@ -508,7 +511,8 @@ final class VideoConverter {
         if(fd==null)throw new IOException("File originale non disponibile per conservare i metadati");
         try(ParcelFileDescriptor.AutoCloseInputStream in=new ParcelFileDescriptor.AutoCloseInputStream(fd)){
             if(target==null){long created=Mp4Metadata.creationTime(in.getChannel(),this::isCancelled);fallbackCreationSeconds=InputCreationDate.read(context,uri,created,this::onLog);onLog("OK struttura MP4/MOV compatibile con copia dei metadati");}
-            else {Mp4Metadata.copy(in.getChannel(),target,this::isCancelled,this::onLog,fallbackCreationSeconds);InputCreationDate.verify(target,fallbackCreationSeconds,this::onLog);}
+            else {onLog("*** CONTROLLO MP4 TEMPORANEO PRIMA DEI METADATI ***\nByte temporaneo="+target.length()+" · fotogrammi inviati="+frames+" · pacchetti scritti="+packets);
+                Mp4Metadata.copy(in.getChannel(),target,this::isCancelled,this::onLog,fallbackCreationSeconds);InputCreationDate.verify(target,fallbackCreationSeconds,this::onLog);}
         }
     }
     private void copyMetadataTrack(Uri uri,MetadataTrack track)throws Exception {

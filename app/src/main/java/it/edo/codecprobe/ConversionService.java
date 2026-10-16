@@ -56,7 +56,7 @@ public final class ConversionService extends Service {
     private final ArrayDeque<String> tail=new ArrayDeque<>();
     private PowerManager.WakeLock wake;
     private volatile boolean timedOut;
-    private long lastPublish,lastNotification;
+    private long lastPublish,lastNotification,lastLogFlush;
     private static final int NOTICE=10;
     private static final String CHANNEL="conversion";
     static final class State {
@@ -297,7 +297,7 @@ public final class ConversionService extends Service {
     static File batchLogFile(android.content.Context c){return new File(c.getFilesDir(),"conversion-batch-last.txt");}
     static File logFile(android.content.Context c){File f=batchLogFile(c);return f.isFile()?f:VideoConverter.logFile(c);}
     private void writeBatch(BufferedWriter writer,String line){
-        try{writer.write(line);writer.newLine();if(line.contains("***"))writer.flush();}
+        try{writer.write(line);writer.newLine();long now=SystemClock.elapsedRealtime();if(line.contains("***")||now-lastLogFlush>=5000){writer.flush();lastLogFlush=now;}}
         catch(IOException e){throw new java.io.UncheckedIOException("Scrittura log della coda fallita",e);}
         synchronized(LOCK){tail.addLast(line);while(tail.size()>14)tail.removeFirst();state.log=String.join("\n",tail);}
         publish(line.contains("***")||line.contains("SESSION END"));

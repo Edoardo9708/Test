@@ -220,7 +220,7 @@ final class HomeDiagnostics {
                 File snapshot = File.createTempFile("log-export-", ".txt", home.activity.getCacheDir());
                 try (final InputStream in = new FileInputStream(source);
                     final OutputStream out = new FileOutputStream(snapshot);) {
-                    copy(in, out);
+                    if(prefix.equals("CodecProbe-log-"))CompactLog.export(in,out);else copy(in,out);
                     File access = FolderPickerActivity.logFile(home.activity);
                     if (prefix.equals("CodecProbe-log-") && access.isFile() && !access.equals(source)) {
                         out.write("\n\n*** DIAGNOSTICA CARTELLE E SELETTORE ANDROID ***\n".getBytes(StandardCharsets.UTF_8));
