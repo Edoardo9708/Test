@@ -22,7 +22,7 @@ final class HomeSavedState {
             if(cached)return saved; // Compatibility with old Bundles whose metadata are still resident.
         }
         Bundle clean=new Bundle(saved);
-        for(String key:new String[]{"input","inputs","names","origins","sourceName","selectedVideoIndex","result",
+        for(String key:new String[]{"selectionSession","input","inputs","names","origins","sourceName","selectedVideoIndex","result",
             "individualOrigins","individualFolders","applyAllDestinations","allOrigin","allFolder",
             "choosingOrigins","pendingOriginParent","pendingOriginSource","pendingFixedFolder","pendingAuthorizationOrigin","pendingRetry","pendingSavedResume","videoDetailsExpanded"})clean.remove(key);
         return clean;
@@ -37,6 +37,7 @@ final class HomeSavedState {
             home.conversion.savedSession.pendingResume=state.getParcelable("pendingSavedResume");
             if (state.getString("input") != null) home.state.input = Uri.parse(state.getString("input"));
             home.state.sourceName = state.getString("sourceName", "video");
+            home.state.selectionSession = state.getString("selectionSession", "");
             if (state.getStringArrayList("inputs") != null) {
                 home.state.selectedInputs.addAll(state.getStringArrayList("inputs"));
                 home.state.selectedNames.addAll(state.getStringArrayList("names"));
@@ -68,6 +69,7 @@ final class HomeSavedState {
 
     static void save(HomeController home, Bundle b) {
         b.putString("homeProcess",PROCESS);
+        b.putString("selectionSession",home.state.selectionSession);
         home.screen.sections.save(b);
         if(home.conversion.retry.pending!=null)b.putParcelable("pendingRetry",home.conversion.retry.pending);
         if(home.conversion.savedSession.pendingResume!=null)b.putParcelable("pendingSavedResume",home.conversion.savedSession.pendingResume);

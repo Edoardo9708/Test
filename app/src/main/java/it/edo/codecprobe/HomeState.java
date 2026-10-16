@@ -32,6 +32,7 @@ final class HomeState {
     int selectedVideoIndex;
     long settingsRevision;
     String sourceName = "video";
+    String selectionSession = "";
     final java.util.ArrayList<String> selectedInputs = new java.util.ArrayList<>();
     final java.util.ArrayList<String> selectedNames = new java.util.ArrayList<>();
     final java.util.ArrayList<String> originFolders = new java.util.ArrayList<>();

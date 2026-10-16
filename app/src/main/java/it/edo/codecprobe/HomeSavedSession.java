@@ -21,12 +21,12 @@ final class HomeSavedSession {
     void render(ConversionService.State state){
         home.screen.conversion.savedSession.setVisibility(state.running||state.recoverable?View.VISIBLE:View.GONE);
         home.screen.conversion.savedSession.setText(state.running?"Salva e interrompi":"Riprendi sessione salvata");
-        home.screen.conversion.savedSession.setEnabled(!home.conversion.outputCheck.checking&&!home.state.metadataLoading
+        home.screen.conversion.savedSession.setEnabled(!home.conversion.outputCheck.checking&&(!home.state.metadataLoading||home.selection.metadataBackground)
             &&!home.state.clearingLogs&&!home.state.exportingDiagnostics&&!home.state.choosingOrigins&&!state.cancelling&&!state.skipping);
         home.screen.conversion.sessionHint.setVisibility(state.running||state.recoverable?View.VISIBLE:View.GONE);
         home.screen.conversion.sessionHint.setText(state.running
             ?"La coda viene salvata anche automaticamente. Con Salva e interrompi puoi chiudere l’app: alla ripresa il solo video interrotto ricomincerà dall’inizio."
-            :"Report e risultati sono conservati. L’avanzamento mostrato è quello salvato; il video interrotto ricomincerà dall’inizio.");
+            :"Report e risultati sono conservati. Il progresso del file interrotto è azzerato: ricomincerà dall’inizio.");
     }
 
     void confirm(){

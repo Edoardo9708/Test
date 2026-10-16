@@ -155,6 +155,7 @@ final class HomeConversion {
     void launchPrepared(Intent task) {
         try {
             home.activity.startForegroundService(task);
+            if(task.hasExtra(SavedSession.RESTORE))new HomeRecoveredSelection(home).restore(task);
             home.screen.sections.focusCard(CARD_CONVERSION);
             setBusy(true);
             home.screen.conversion.status.setText("Avvio conversione…");
@@ -182,31 +183,32 @@ final class HomeConversion {
     }
 
     void renderConversionDashboard(ConversionService.State s) {
+        boolean waiting = s.hasSession && s.recoverable && !s.running;
         int pending = Math.max(0, s.batchTotal - (s.running ? Math.max(s.batchIndex, s.succeeded + s.failed + s.ignored + s.notSaved + s.skipped) : s.succeeded + s.failed + s.ignored + s.notSaved + s.skipped));
         home.screen.conversion.queueLabel.setText("Video " + s.batchIndex + " / " + s.batchTotal + "\nRiusciti: " + s.succeeded + " · Falliti: " + s.failed + " · Ignorati: " + s.ignored + "\nSaltati: " + s.skipped + " · Non salvati: " + s.notSaved + "\n" + (s.running ? "In attesa: " : "Non completati: ") + pending);
         renderElapsed(s,SystemClock.elapsedRealtime());
-        home.screen.conversion.currentFile.setText(s.source.isEmpty() ? "In attesa del file" : s.source);
-        home.screen.conversion.currentFile.setContentDescription("File attuale: " + s.source);
-        home.screen.conversion.frameLabel.setText(s.doneFrames + " / " + (s.totalFrames > 0 ? s.totalFrames : "—"));
+        home.screen.conversion.currentFile.setText(waiting ? "Nessun file in conversione" : s.source.isEmpty() ? "In attesa del file" : s.source);
+        home.screen.conversion.currentFile.setContentDescription(waiting ? "Nessun file in conversione" : "File attuale: " + s.source);
+        home.screen.conversion.frameLabel.setText(waiting ? "—" : s.doneFrames + " / " + (s.totalFrames > 0 ? s.totalFrames : "—"));
         setBusy(s.running);
         playback.render(s);
         savedSession.render(s);
         updateScreenAwake();
-        home.screen.conversion.progress.setProgress(s.filePercent);
-        home.screen.conversion.percentLabel.setText(s.filePercent + "%");
+        home.screen.conversion.progress.setProgress(waiting ? 0 : s.filePercent);
+        home.screen.conversion.percentLabel.setText((waiting ? 0 : s.filePercent) + "%");
         home.screen.conversion.status.setText(ConversionService.displayMessage(s));
         home.screen.diagnostics.logView.setText(s.log);
-        home.screen.conversion.timeline.setText(String.format(Locale.ITALY, "%.1f s convertiti\n%s", s.done / 1000000.0, s.total > 0 ? String.format(Locale.ITALY, "%.1f s rimanenti", Math.max(0, s.total - s.done) / 1000000.0) : "durata totale non disponibile"));
-        home.screen.conversion.activeOnlySmaller.setText(s.onlySmaller?"ON":"OFF");
-        home.screen.conversion.activePreset.setText(s.requestedPreset);
-        home.screen.conversion.activeCrf.setText(s.requestedCrf >= 0 ? Integer.toString(s.requestedCrf) : "—");
-        home.screen.conversion.activeCpu.setText(MemoryProtection.cpuLabel(s.memoryProtection,s.requestedCpu));
-        boolean opened = s.bframeCount >= 0;
-        home.screen.conversion.activeBframes.setText(opened ? Integer.toString(s.bframeCount) : "in attesa");
-        home.screen.conversion.activeLookahead.setText(opened ? Integer.toString(s.lookaheadCount) : "in attesa");
-        home.screen.conversion.activeTree.setText(opened ? (s.cuTree != 0 ? "ON" : "OFF") : "in attesa");
-        home.screen.conversion.activeAq.setText(opened ? Integer.toString(s.aqMode) : "in attesa");
-        home.screen.conversion.activeStrength.setText(opened ? String.format(Locale.ITALY, "%.2f", s.aqStrength / 1000.0) : "in attesa");
+        home.screen.conversion.timeline.setText(waiting ? "—" : String.format(Locale.ITALY, "%.1f s convertiti\n%s", s.done / 1000000.0, s.total > 0 ? String.format(Locale.ITALY, "%.1f s rimanenti", Math.max(0, s.total - s.done) / 1000000.0) : "durata totale non disponibile"));
+        home.screen.conversion.activeOnlySmaller.setText(waiting ? "—" : s.onlySmaller?"ON":"OFF");
+        home.screen.conversion.activePreset.setText(waiting ? "—" : s.requestedPreset);
+        home.screen.conversion.activeCrf.setText(!waiting && s.requestedCrf >= 0 ? Integer.toString(s.requestedCrf) : "—");
+        home.screen.conversion.activeCpu.setText(waiting ? "—" : MemoryProtection.cpuLabel(s.memoryProtection,s.requestedCpu));
+        boolean opened = !waiting && s.bframeCount >= 0;
+        home.screen.conversion.activeBframes.setText(opened ? Integer.toString(s.bframeCount) : waiting ? "—" : "in attesa");
+        home.screen.conversion.activeLookahead.setText(opened ? Integer.toString(s.lookaheadCount) : waiting ? "—" : "in attesa");
+        home.screen.conversion.activeTree.setText(opened ? (s.cuTree != 0 ? "ON" : "OFF") : waiting ? "—" : "in attesa");
+        home.screen.conversion.activeAq.setText(opened ? Integer.toString(s.aqMode) : waiting ? "—" : "in attesa");
+        home.screen.conversion.activeStrength.setText(opened ? String.format(Locale.ITALY, "%.2f", s.aqStrength / 1000.0) : waiting ? "—" : "in attesa");
     }
 
     void renderElapsed(ConversionService.State session,long now){

@@ -28,7 +28,8 @@ public class MemoryProtectionTest {
             assertEquals(2,saved.resumeRequest().getIntExtra("cpu",-1));
             var activity=Robolectric.buildActivity(MainActivity.class).setup();
             try{
-                HomeController home=activity.get().home;home.conversion.renderConversionDashboard(saved.state);
+                HomeController home=activity.get().home;
+                saved.state.running=true;home.conversion.renderConversionDashboard(saved.state);
                 assertEquals("Limited · protezione memoria 4K",home.screen.conversion.activeCpu.getText().toString());
                 assertEquals("4",home.screen.conversion.activeBframes.getText().toString());
                 assertEquals("5",home.screen.conversion.activeLookahead.getText().toString());

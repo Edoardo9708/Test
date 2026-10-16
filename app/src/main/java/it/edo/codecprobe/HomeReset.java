@@ -41,6 +41,7 @@ final class HomeReset {
         home.state.input = null;
         home.state.resultUri = null;
         home.state.sourceName = "video";
+        home.state.selectionSession = "";
         home.state.selectedVideoIndex = 0;
         home.state.selectedInputs.clear();
         home.state.selectedNames.clear();

@@ -19,6 +19,7 @@ final class HomeSelection {
     private final HomeController home;
     final ExecutorService worker = Executors.newSingleThreadExecutor();
     android.app.AlertDialog metadataDialog;
+    boolean metadataBackground;
     ProgressBar metadataProgress;
     TextView metadataMessage;
 
@@ -61,7 +62,7 @@ final class HomeSelection {
             break;
         }
         showCachedInput();
-        if (missing && !home.state.metadataLoading) preloadMetadata();
+        if (missing && !home.state.metadataLoading) preloadMetadata(!home.state.selectionSession.isEmpty());
     }
 
     void showCachedInput() {
@@ -73,7 +74,7 @@ final class HomeSelection {
         }
         VideoMetadataCache.Entry entry = VideoMetadataCache.get(home.state.input.toString());
         if (entry == null) {
-            home.screen.files.inputInfo.setText("Metadati non ancora letti · premi Rileggi metadati");
+            home.screen.files.inputInfo.setText(home.state.metadataLoading && metadataBackground ? "Lettura metadati in background…" : "Metadati non ancora letti · premi Rileggi metadati");
             return;
         }
         home.state.sourceName = entry.name;
@@ -90,42 +91,19 @@ final class HomeSelection {
         home.ui.renderInfoSections(home.screen.files.inputDetails, entry.report.detailSections);
     }
 
-    void preloadMetadata() {
+    void preloadMetadata() { preloadMetadata(false); }
+
+    void preloadMetadata(boolean background) {
+        if (home.state.destroyed || home.state.metadataLoading) return;
         final int generation = ++home.state.metadataGeneration;
         home.state.metadataLoading = true;
         home.screen.files.reloadMetadata.setEnabled(false);
         final java.util.ArrayList<String> uris = new java.util.ArrayList<>(home.state.selectedInputs);
         final long cacheEpoch = VideoMetadataCache.epoch();
-        LinearLayout panel = new LinearLayout(home.activity);
-        panel.setOrientation(LinearLayout.VERTICAL);
-        panel.setPadding(home.ui.dp(24), home.ui.dp(12), home.ui.dp(24), home.ui.dp(12));
-        metadataMessage = new TextView(home.activity);
-        metadataMessage.setText("Preparo la lettura di " + uris.size() + " video…");
-        metadataMessage.setTextSize(16);
-        metadataMessage.setTextColor(home.ui.ink);
-        panel.addView(metadataMessage);
-        metadataProgress = new ProgressBar(home.activity, null, android.R.attr.progressBarStyleHorizontal);
-        metadataProgress.setProgressTintList(ColorStateList.valueOf(home.ui.accent));
-        metadataProgress.setMax(uris.size());
-        panel.addView(metadataProgress, new LinearLayout.LayoutParams(-1, home.ui.dp(24)));
-        TextView note = new TextView(home.activity);
-        note.setTextColor(home.ui.muted);
-        note.setText("Leggo formato, tracce, dimensioni e metadati. I video non vengono decodificati. I risultati restano in memoria.");
-        note.setPadding(0, home.ui.dp(12), 0, 0);
-        panel.addView(note);
-        TextView heading = new TextView(home.activity);
-        heading.setText("Lettura metadati dei video");
-        heading.setTextColor(home.ui.ink);
-        heading.setTextSize(21);
-        heading.setTypeface(null, Typeface.BOLD);
-        heading.setPadding(home.ui.dp(24), home.ui.dp(20), home.ui.dp(24), home.ui.dp(8));
-        metadataDialog = new android.app.AlertDialog.Builder(home.activity).setCustomTitle(heading).setView(panel).setNegativeButton("Interrompi", (d,w)->stopMetadataLoading()).create();
-        metadataDialog.setCanceledOnTouchOutside(false);
-        metadataDialog.setOnCancelListener((d)->stopMetadataLoading());
-        metadataDialog.show();
-        metadataDialog.getButton(android.app.AlertDialog.BUTTON_NEGATIVE).setTextColor(home.ui.accent);
-        metadataDialog.getWindow().setBackgroundDrawable(home.ui.shape(home.ui.surface, 20));
-        metadataDialog.getWindow().setDimAmount(0.65F);
+        final java.util.ArrayList<String> names = new java.util.ArrayList<>(home.state.selectedNames);
+        metadataBackground = background;
+        if (background) { home.toast("Rileggo i metadati in background"); showCachedInput(); }
+        else showMetadataDialog(uris.size());
         FolderPickerActivity.record(home.activity, "*** INIZIO LETTURA METADATI DELLA CODA ***\n1. Leggo nome e riepilogo.\n2. Analizzo tracce e metadati.\n3. Conservo il risultato in memoria.\nVideo selezionati: " + uris.size());
         worker.execute(()->{
             int failures = 0;
@@ -134,8 +112,8 @@ final class HomeSelection {
                 final int position = index;
                 final String uri = uris.get(index);
                 home.activity.runOnUiThread(()->{
-                    if (!home.state.destroyed && generation == home.state.metadataGeneration) {
-                        metadataMessage.setText("Video " + (position + 1) + " di " + uris.size() + "\n" + home.state.selectedNames.get(position));
+                    if (!home.state.destroyed && generation == home.state.metadataGeneration && !background) {
+                        metadataMessage.setText("Video " + (position + 1) + " di " + uris.size() + "\n" + names.get(position));
                         metadataProgress.setProgress(position);
                     }
                 });
@@ -168,7 +146,8 @@ final class HomeSelection {
                 home.activity.runOnUiThread(()->{
                     if (!home.state.destroyed && generation == home.state.metadataGeneration) {
                         home.state.selectedNames.set(position, name);
-                        metadataProgress.setProgress(position + 1);
+                        if (!background) metadataProgress.setProgress(position + 1);
+                        if (background && home.state.input != null && home.state.input.toString().equals(uri)) showCachedInput();
                     }
                 });
             }
@@ -176,8 +155,9 @@ final class HomeSelection {
             home.activity.runOnUiThread(()->{
                 if (home.state.destroyed || generation != home.state.metadataGeneration) return;
                 home.state.metadataLoading = false;
-                metadataDialog.dismiss();
+                if (metadataDialog != null) metadataDialog.dismiss();
                 metadataDialog = null;
+                metadataBackground = false;
                 home.screen.files.reloadMetadata.setEnabled(true);
                 home.state.sourceName = home.state.selectedNames.get(home.state.selectedVideoIndex);
                 rebuildVideoCarousel();
@@ -185,15 +165,50 @@ final class HomeSelection {
                 showCachedInput();
                 home.destinations.updateDestinationPanel();
                 home.destinations.originPanel.refresh();
+                home.conversion.setBusy(home.state.busy);
                 FolderPickerActivity.record(home.activity, "*** FINE LETTURA METADATI ***\nVideo: " + uris.size() + " · letture incomplete: " + errors);
                 if (errors > 0) home.toast(errors + " video con lettura incompleta: apri le schede contrassegnate con !");
             });
         });
     }
 
+    private void showMetadataDialog(int count) {
+        LinearLayout panel = new LinearLayout(home.activity);
+        panel.setOrientation(LinearLayout.VERTICAL);
+        panel.setPadding(home.ui.dp(24), home.ui.dp(12), home.ui.dp(24), home.ui.dp(12));
+        metadataMessage = new TextView(home.activity);
+        metadataMessage.setText("Preparo la lettura di " + count + " video…");
+        metadataMessage.setTextSize(16);
+        metadataMessage.setTextColor(home.ui.ink);
+        panel.addView(metadataMessage);
+        metadataProgress = new ProgressBar(home.activity, null, android.R.attr.progressBarStyleHorizontal);
+        metadataProgress.setProgressTintList(ColorStateList.valueOf(home.ui.accent));
+        metadataProgress.setMax(count);
+        panel.addView(metadataProgress, new LinearLayout.LayoutParams(-1, home.ui.dp(24)));
+        TextView note = new TextView(home.activity);
+        note.setTextColor(home.ui.muted);
+        note.setText("Leggo formato, tracce, dimensioni e metadati. I video non vengono decodificati. I risultati restano in memoria.");
+        note.setPadding(0, home.ui.dp(12), 0, 0);
+        panel.addView(note);
+        TextView heading = new TextView(home.activity);
+        heading.setText("Lettura metadati dei video");
+        heading.setTextColor(home.ui.ink);
+        heading.setTextSize(21);
+        heading.setTypeface(null, Typeface.BOLD);
+        heading.setPadding(home.ui.dp(24), home.ui.dp(20), home.ui.dp(24), home.ui.dp(8));
+        metadataDialog = new android.app.AlertDialog.Builder(home.activity).setCustomTitle(heading).setView(panel).setNegativeButton("Interrompi", (d,w)->stopMetadataLoading()).create();
+        metadataDialog.setCanceledOnTouchOutside(false);
+        metadataDialog.setOnCancelListener((d)->stopMetadataLoading());
+        metadataDialog.show();
+        metadataDialog.getButton(android.app.AlertDialog.BUTTON_NEGATIVE).setTextColor(home.ui.accent);
+        metadataDialog.getWindow().setBackgroundDrawable(home.ui.shape(home.ui.surface, 20));
+        metadataDialog.getWindow().setDimAmount(0.65F);
+    }
+
     void stopMetadataLoading() {
         ++home.state.metadataGeneration;
         home.state.metadataLoading = false;
+        metadataBackground = false;
         if (metadataDialog != null) {
             metadataDialog.dismiss();
             metadataDialog = null;
@@ -258,7 +273,7 @@ final class HomeSelection {
     }
 
     void selectVideo(int index) {
-        if (index < 0 || index >= home.state.selectedInputs.size() || home.state.metadataLoading) return;
+        if (index < 0 || index >= home.state.selectedInputs.size() || home.state.metadataLoading && !metadataBackground) return;
         final int generation = ++home.state.transitionGeneration;
         home.screen.files.videoPreview.animate().cancel();
         if (index == home.state.selectedVideoIndex) {
@@ -290,10 +305,12 @@ final class HomeSelection {
             }
             ++home.state.metadataGeneration;
             home.state.metadataLoading = false;
+            metadataBackground = false;
             VideoMetadataCache.clear();
             ++home.state.transitionGeneration;
             home.screen.files.videoPreview.animate().cancel();
             home.screen.files.videoPreview.setAlpha(1);
+            home.state.selectionSession = "";
             home.state.selectedInputs.clear();
             home.state.selectedNames.clear();
             home.state.originFolders.clear();
