@@ -26,9 +26,8 @@ final class HomeRecoveredSelection {
         ArrayList<String> notes=request.getStringArrayListExtra("destinationNotes");if(notes!=null)home.state.destinationNotes.addAll(notes);
         home.state.destinationPlan.reset(inputs.size(),null);
         boolean[] origins=request.getBooleanArrayExtra("individualOrigins");ArrayList<String> individual=request.getStringArrayListExtra("individualFolders");
-        if(origins==null||origins.length!=inputs.size()||individual==null||individual.size()!=inputs.size()){
-            origins=new boolean[inputs.size()];individual=new ArrayList<>(folders);
-        }
+        if(origins==null||origins.length!=inputs.size())origins=new boolean[inputs.size()];
+        if(individual==null||individual.size()!=inputs.size())individual=new ArrayList<>(folders);
         home.state.destinationPlan.restore(origins,individual,request.getBooleanExtra("applyAllDestinations",false),
             request.getBooleanExtra("allOrigin",true),request.getStringExtra("allFolder"));
         home.destinations.refreshLabels();home.destinations.updateDestinationPanel();

@@ -50,7 +50,9 @@ public class RecoveryPresentationTest {
             assertTrue(entered.await(2,TimeUnit.SECONDS));Intent resume=SavedSession.load(context).resumeRequest();
             home.conversion.launchPrepared(resume);
             assertEquals(request.getStringArrayListExtra("inputs"),home.state.selectedInputs);assertEquals(request.getStringArrayListExtra("names"),home.state.selectedNames);
-            assertEquals(request.getStringArrayListExtra("folders"),home.state.originFolders);assertEquals("saved-test-session",home.state.selectionSession);
+            assertEquals(request.getStringArrayListExtra("folders"),home.state.destinationPlan.individualFolders());
+            assertArrayEquals(request.getBooleanArrayExtra("individualOrigins"),home.state.destinationPlan.individualOrigins());
+            assertEquals("saved-test-session",home.state.selectionSession);
             assertTrue(home.state.metadataLoading);assertTrue(home.selection.metadataBackground);assertNull(home.selection.metadataDialog);
             assertEquals("Rileggo i metadati in background",ShadowToast.getTextOfLatestToast());assertEquals(3,home.screen.files.videoChips.size());
             assertTrue(home.screen.conversion.savedSession.isEnabled());
