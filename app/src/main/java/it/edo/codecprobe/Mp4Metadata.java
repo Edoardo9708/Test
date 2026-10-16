@@ -98,7 +98,7 @@ final class Mp4Metadata {
             validateTags(b);
             if(b.type.equals("sefd")){
                 if(b.at+b.size!=f.size()||b.header!=8||b.size>SamsungSef.MAX_BYTES)throw new IOException("SEF deve essere un blocco finale autonomo entro 4 MiB");
-                String info=SamsungSef.validate(read(f,b.at,(int)b.size));
+                String info=SamsungSef.validate(read(f,b.at,(int)b.size),b.at);
                 log.accept("OK STRUTTURA SAMSUNG SEF · "+info);
             }
         }
