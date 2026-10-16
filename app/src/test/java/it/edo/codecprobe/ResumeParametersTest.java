@@ -54,10 +54,10 @@ public class ResumeParametersTest {
             home.conversion.savedSession.confirm();AlertDialog dialog=home.conversion.savedSession.dialog;
             RadioButton saved=option(dialog.getWindow().getDecorView(),"Usa i parametri salvati"),current=option(dialog.getWindow().getDecorView(),"Usa quelli attuali");
             assertNotNull(saved);assertNotNull(current);assertTrue(saved.isChecked());assertTrue(saved.getText().toString().contains("CPU: Max"));assertTrue(current.getText().toString().contains("CPU: Limited"));
-            // Hold continuation at the busy guard so this test can inspect the frozen request
-            // independently of the test framework's automatic permission-result delivery.
+            // Hold continuation so the Activity can be recreated before a permission result.
             home.state.busy=true;
             current.performClick();dialog.getButton(AlertDialog.BUTTON_POSITIVE).performClick();
+            Shadows.shadowOf(android.os.Looper.getMainLooper()).idle();
             assertNotNull(home.conversion.savedSession.pendingResume);assertEquals(0,home.conversion.savedSession.pendingResume.getIntExtra("cpu",-1));
             home.screen.compression.cpuMode.setSelection(2);assertEquals(0,home.conversion.savedSession.pendingResume.getIntExtra("cpu",-1));
             activity.saveInstanceState(bundle);assertEquals(2,SavedSession.load(context).request.getIntExtra("cpu",-1));
