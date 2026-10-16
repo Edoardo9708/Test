@@ -43,7 +43,7 @@ public class ResumeParametersTest {
         return null;
     }
 
-    @Test public void popupDefaultsToSavedAndCurrentChoiceRemainsFrozenAcrossPermissionRecreation()throws Exception{
+    @Test public void popupChoiceSurvivesRecreationAndPermissionDenialLeavesDiskUnchanged()throws Exception{
         Context context=RuntimeEnvironment.getApplication();Field field=ConversionService.class.getDeclaredField("state");field.setAccessible(true);ConversionService.State before=ConversionService.snapshot();
         Intent original=BatchRetryTest.queue(context);SavedSession.save(context,original,SavedSessionTest.sample(original));field.set(null,new ConversionService.State());
         var activity=Robolectric.buildActivity(MainActivity.class).setup();Bundle bundle=new Bundle();
@@ -54,6 +54,9 @@ public class ResumeParametersTest {
             home.conversion.savedSession.confirm();AlertDialog dialog=home.conversion.savedSession.dialog;
             RadioButton saved=option(dialog.getWindow().getDecorView(),"Usa i parametri salvati"),current=option(dialog.getWindow().getDecorView(),"Usa quelli attuali");
             assertNotNull(saved);assertNotNull(current);assertTrue(saved.isChecked());assertTrue(saved.getText().toString().contains("CPU: Max"));assertTrue(current.getText().toString().contains("CPU: Limited"));
+            // Hold continuation at the busy guard so this test can inspect the frozen request
+            // independently of the test framework's automatic permission-result delivery.
+            home.state.busy=true;
             current.performClick();dialog.getButton(AlertDialog.BUTTON_POSITIVE).performClick();
             assertNotNull(home.conversion.savedSession.pendingResume);assertEquals(0,home.conversion.savedSession.pendingResume.getIntExtra("cpu",-1));
             home.screen.compression.cpuMode.setSelection(2);assertEquals(0,home.conversion.savedSession.pendingResume.getIntExtra("cpu",-1));
