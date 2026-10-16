@@ -21,3 +21,11 @@ Il log HDR diagnostico dei soli sei fotogrammi e l'esportazione dedicata dei met
 Test: 300.000 messaggi ripetitivi, negativi del codec, errori e righe nuove conservati; vecchio log di otto video con timestamp che ripartono; HDR multilinea e campioni grandi; fine improvvisa; stream con available=0. Test Android: riapertura con log sul disco, esportazione compatta tramite ACTION_CREATE_DOCUMENT, originale non modificato e snapshot cancellato se si annulla. Prova locale di 2,1 milioni di righe con heap massimo 64 MiB.
 
 Il log aggiunge dimensione del temporaneo e conteggi frame/pacchetti prima della copia metadati, per aiutare la diagnosi del precedente errore moov. Questa versione non dichiara risolta la causa di quell'errore, ancora da analizzare sul TXT completo.
+
+## v0.49: righe HDR mancanti e ZIP
+
+Il file reale allegato mostrava ancora circa 31,4 MB di righe FORMATO P010 e OK VERIFY HDR SEI. Entrambe le categorie vengono ora campionate; i controlli e i confronti SHA-256 restano eseguiti su ogni fotogramma. Il test di regressione include queste due forme.
+
+Esporta log propone ZIP compatto oppure TXT compatto. Lo ZIP contiene un solo TXT UTF-8 con le stesse procedure, diagnostica cartelle ed errori dell'opzione testo; la compressione ZIP non elimina informazioni. Il selettore usa application/zip e nome .zip. Cancellazione, salvataggio e pulizia degli snapshot supportano entrambe le estensioni; i log HDR diagnostici restano TXT. Il menu viene chiuso alla distruzione della schermata.
+
+Il controllo moov ora riporta conteggio effettivo, byte del file e i primi 16 blocchi con offset e dimensioni: evita il vecchio messaggio generico e aiuta la diagnosi di un temporaneo non finalizzato. Il vincolo non viene rimosso e non si dichiara risolta la causa dell'errore del contenitore.

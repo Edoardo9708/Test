@@ -11,7 +11,8 @@ final class CompactLog {
         "BEGIN conversione YUV frame=", "OK conversione YUV", "BEGIN x265_encoder_encode frame=",
         "END x265_encoder_encode rc=", "PACCHETTO: pts_us=", "BEGIN scrittura MP4 packet=",
         "OK scrittura MP4 packet=", "VERIFY frame=", "OK audio sample=", "OK metadati sample=",
-        "FRAME HDR ·", "CODIFICA HDR · frame=", "FLUSH rc=", "Metadati originali:"
+        "FRAME HDR ·", "CODIFICA HDR · frame=", "FLUSH rc=", "Metadati originali:",
+        "FORMATO P010 ·", "OK VERIFY HDR SEI · frame="
     };
     private static final long INTERVAL_MS=15000;
     private static final int CONTEXT_LINES=24,MAX_SAMPLE_CHARS=2048;

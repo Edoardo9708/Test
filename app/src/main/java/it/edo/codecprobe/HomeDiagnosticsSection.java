@@ -19,9 +19,9 @@ final class HomeDiagnosticsSection {
 
     HomeDiagnosticsSection(AppUi ui, LinearLayout logs, AppSettings defaults, Bundle state) {
         LinearLayout exports = ui.row(logs);
-        saveLog = ui.halfButton(exports, "Log compatto · TXT", false);
+        saveLog = ui.halfButton(exports, "Esporta log", false);
         saveMetadata = ui.halfButton(exports, "Metadati · TXT", false);
-        ui.text(logs,"Esporta anche i vecchi log in forma compatta: errori e procedure restano leggibili, le righe ripetitive vengono raggruppate.",13);
+        ui.text(logs,"Scegli ZIP per un allegato più piccolo oppure TXT. Anche i vecchi log vengono compattati; errori e procedure restano conservati.",13);
         ui.sectionHeading(logs, "PROVE HDR");
         LinearLayout hdr = ui.row(logs);
         hdrTest = ui.halfButton(hdr, "Test HDR · 10 bit", false);

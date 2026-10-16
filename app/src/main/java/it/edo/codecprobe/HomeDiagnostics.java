@@ -20,13 +20,14 @@ final class HomeDiagnostics {
     private final HomeController home;
     final ExecutorService worker = Executors.newSingleThreadExecutor();
     final ArrayDeque<String> recent = new ArrayDeque<>();
+    android.app.AlertDialog logFormatDialog;
 
     HomeDiagnostics(HomeController home) {
         this.home = home;
     }
 
     void bind() {
-        home.screen.diagnostics.saveLog.setOnClickListener((v)->exportLog());
+        home.screen.diagnostics.saveLog.setOnClickListener((v)->chooseLogFormat());
         home.screen.diagnostics.saveMetadata.setOnClickListener((v)->exportMetadata());
         home.screen.diagnostics.hdrTest.setOnClickListener((v)->startHdrTest());
         home.screen.diagnostics.saveHdr.setOnClickListener((v)->exportLog(HdrProbe.logFile(home.activity), "CodecProbe-HDR-log-"));
@@ -68,7 +69,7 @@ final class HomeDiagnostics {
                     for (File file : logs) if (file.exists()) {
                         if (file.delete()) removed[0]++; else failures.add(file.getName());
                     }
-                    File[] snapshots = home.activity.getCacheDir().listFiles((f)->f.getName().endsWith(".txt") && (f.getName().startsWith("log-export-") || f.getName().startsWith("metadata-export-")));
+                    File[] snapshots = home.activity.getCacheDir().listFiles((f)->(f.getName().startsWith("log-export-") && (f.getName().endsWith(".txt") || f.getName().endsWith(".zip"))) || (f.getName().startsWith("metadata-export-") && f.getName().endsWith(".txt")));
                     if (snapshots != null) for (File file : snapshots) if (file.delete()) removed[0]++; else failures.add(file.getName());
                 }
             });
@@ -196,9 +197,18 @@ final class HomeDiagnostics {
         });
     }
 
-    void exportLog() {
+    void chooseLogFormat() {
+        if(!canStartAction() || logFormatDialog != null && logFormatDialog.isShowing())return;
+        logFormatDialog=new android.app.AlertDialog.Builder(home.activity).setTitle("Esporta log")
+            .setItems(new String[]{"ZIP compatto · più piccolo per gli allegati", "TXT compatto · testo direttamente leggibile"},
+                (d,which)->exportConversionLog(which==0)).setNegativeButton("Annulla",null).create();
+        logFormatDialog.setOnDismissListener(d->logFormatDialog=null);logFormatDialog.show();
+    }
+
+    void exportLog() {exportConversionLog(false);}
+    private void exportConversionLog(boolean zip) {
         File conversion = ConversionService.logFile(home.activity);
-        exportLog(conversion.isFile() ? conversion : FolderPickerActivity.logFile(home.activity), "CodecProbe-log-");
+        exportLog(conversion.isFile() ? conversion : FolderPickerActivity.logFile(home.activity), "CodecProbe-log-",zip);
     }
 
     void copy(InputStream in, OutputStream out) throws IOException {
@@ -207,7 +217,18 @@ final class HomeDiagnostics {
         while ((n = in.read(b)) != -1) out.write(b, 0, n);
     }
 
-    void exportLog(File source, String prefix) {
+    void exportLog(File source, String prefix) {exportLog(source,prefix,false);}
+
+    private void writeLogSnapshot(InputStream in,OutputStream out,File source,String prefix)throws IOException {
+        if(prefix.equals("CodecProbe-log-"))CompactLog.export(in,out);else copy(in,out);
+        File access=FolderPickerActivity.logFile(home.activity);
+        if(prefix.equals("CodecProbe-log-") && access.isFile() && !access.equals(source)){
+            out.write("\n\n*** DIAGNOSTICA CARTELLE E SELETTORE ANDROID ***\n".getBytes(StandardCharsets.UTF_8));
+            try(InputStream extra=new FileInputStream(access)){copy(extra,out);}
+        }
+    }
+
+    private void exportLog(File source, String prefix,boolean zip) {
         if (!canStartAction()) return;
         if (!source.isFile()) {
             home.toast("Nessun log di conversione disponibile");
@@ -217,17 +238,15 @@ final class HomeDiagnostics {
         updateClearLogsButton();
         worker.execute(()->{
             try {
-                File snapshot = File.createTempFile("log-export-", ".txt", home.activity.getCacheDir());
+                File snapshot = File.createTempFile("log-export-", zip?".zip":".txt", home.activity.getCacheDir());
                 try (final InputStream in = new FileInputStream(source);
                     final OutputStream out = new FileOutputStream(snapshot);) {
-                    if(prefix.equals("CodecProbe-log-"))CompactLog.export(in,out);else copy(in,out);
-                    File access = FolderPickerActivity.logFile(home.activity);
-                    if (prefix.equals("CodecProbe-log-") && access.isFile() && !access.equals(source)) {
-                        out.write("\n\n*** DIAGNOSTICA CARTELLE E SELETTORE ANDROID ***\n".getBytes(StandardCharsets.UTF_8));
-                        try (final InputStream extra = new FileInputStream(access);) {
-                            copy(extra, out);
+                    if(zip){
+                        try(java.util.zip.ZipOutputStream compressed=new java.util.zip.ZipOutputStream(out)){
+                            compressed.putNextEntry(new java.util.zip.ZipEntry("CodecProbe-log.txt"));
+                            writeLogSnapshot(in,compressed,source,prefix);compressed.closeEntry();
                         }
-                    }
+                    }else writeLogSnapshot(in,out,source,prefix);
                 }
                 home.activity.runOnUiThread(()->{
                     if (home.state.destroyed) {
@@ -237,8 +256,8 @@ final class HomeDiagnostics {
                     home.state.pendingLog = snapshot.getAbsolutePath();
                     home.state.exportingDiagnostics = false;
                     updateClearLogsButton();
-                    Intent i = new Intent(Intent.ACTION_CREATE_DOCUMENT).setType("text/plain").addCategory(Intent.CATEGORY_OPENABLE);
-                    i.putExtra(Intent.EXTRA_TITLE, prefix + System.currentTimeMillis() + ".txt");
+                    Intent i = new Intent(Intent.ACTION_CREATE_DOCUMENT).setType(zip?"application/zip":"text/plain").addCategory(Intent.CATEGORY_OPENABLE);
+                    i.putExtra(Intent.EXTRA_TITLE, prefix + System.currentTimeMillis() + (zip?".zip":".txt"));
                     home.activity.startActivityForResult(i, SAVE_LOG);
                 });
             } catch (Exception e) {

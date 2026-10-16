@@ -60,4 +60,15 @@ public class CompactLogTest {
         ByteArrayOutputStream output=new ByteArrayOutputStream();CompactLog.export(input,output);
         assertTrue(output.toString("UTF-8").contains("CRF=23"));assertTrue(output.toString("UTF-8").contains("IOException: error"));
     }
+    @Test public void repeatedP010FormatsAndHdrVerificationAreCompactedToo()throws Exception{
+        ByteArrayOutputStream verbose=new ByteArrayOutputStream();
+        for(int i=0;i<10000;i++){
+            verbose.write(("["+i+" ms] FORMATO P010 · {width=1920, height=1080, color-format=54, timeUs="+i+"}\n").getBytes(StandardCharsets.UTF_8));
+            verbose.write(("["+i+" ms] OK VERIFY HDR SEI · frame="+i+" · pts_us="+i+" · payload originali identici (SHA-256)\n").getBytes(StandardCharsets.UTF_8));
+        }
+        verbose.write("*** ERRORE ***\njava.io.IOException: retained HDR error\n".getBytes(StandardCharsets.UTF_8));
+        ByteArrayOutputStream output=new ByteArrayOutputStream();CompactLog.export(new ByteArrayInputStream(verbose.toByteArray()),output);
+        String text=output.toString("UTF-8");assertTrue(output.size()<verbose.size()/20);
+        assertTrue(text.contains("FORMATO P010"));assertTrue(text.contains("frame=9999"));assertTrue(text.contains("retained HDR error"));
+    }
 }

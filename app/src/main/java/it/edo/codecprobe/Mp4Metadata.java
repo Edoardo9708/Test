@@ -83,7 +83,16 @@ final class Mp4Metadata {
     private List<Box> roots(FileChannel f)throws IOException{
         List<Box> roots=parse(f,0,f.size(),0);int movies=0;
         for(Box b:roots){if(!ROOT_ALLOWED.contains(b.type))throw new IOException("Blocco "+b.type+" non supportato per la conservazione integrale dei metadati");if(b.type.equals("moov"))movies++;}
-        if(movies!=1)throw new IOException("La copia dei metadati richiede un MP4/MOV non frammentato con un solo moov");
+        if(movies!=1){
+            StringBuilder layout=new StringBuilder();
+            for(int i=0;i<Math.min(16,roots.size());i++){
+                Box box=roots.get(i);if(i>0)layout.append(", ");
+                layout.append(box.type).append("@offset=").append(box.at).append(" byte=").append(box.size);
+            }
+            if(roots.size()>16)layout.append(" … altri ").append(roots.size()-16).append(" blocchi");
+            throw new IOException("Struttura MP4 non valida: atteso un solo blocco moov, trovati "+movies+
+                " · dimensione file="+f.size()+" byte\nBlocchi principali: "+layout);
+        }
         if(of(roots,"sefd").size()>1)throw new IOException("Più blocchi Samsung SEF non supportati");
         for(Box b:roots){
             validateTags(b);
