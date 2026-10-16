@@ -30,6 +30,9 @@ final class ConversionSessionState {
             value.message="Analisi video…";
             for(int n=0;n<value.batchTotal;n++)value.outputUris.add("");
         }
+        // The request may explicitly override encoder options while preserving the recovered totals.
+        value.requestedCrf=request.getIntExtra("crf",23);value.requestedCpu=request.getIntExtra("cpu",1);
+        value.requestedPreset=AppSettings.PRESETS[Math.max(0,Math.min(8,request.getIntExtra("preset",6)))];
         value.items=new ArrayList<>(items);value.sizeReport=CompressionSummary.render(items,true);
         value.hasSession=true;value.running=true;value.recoverable=true;
         value.startedAt=now;value.endedAt=0;

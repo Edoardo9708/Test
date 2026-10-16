@@ -277,7 +277,7 @@ public final class ConversionService extends Service {
                 controlLog=line->writeBatch(batchLog,line);
                 checkpoint(true);
                 rememberFailures(this,failedIndices.isEmpty()?null:BatchRetry.select(originalRequest,failedIndices));
-                if(restored!=null)writeBatch(batchLog,"*** RIPRESA SESSIONE SALVATA ***\nReport e risultati precedenti conservati. I video già conclusi vengono saltati; il video interrotto riparte dall’inizio.");
+                if(restored!=null)writeBatch(batchLog,"*** RIPRESA SESSIONE SALVATA ***\nReport e risultati precedenti conservati. I video già conclusi vengono saltati; il video interrotto riparte dall’inizio.\nParametri scelti: "+(intent.getStringExtra("resumeParameterChoice")==null?"salvati nella sessione":intent.getStringExtra("resumeParameterChoice"))+"\n"+ResumeParameters.describe(intent));
                 writeBatch(batchLog,"*** INIZIO CODA · v"+BuildConfig.VERSION_NAME+" ***\nVideo selezionati: "+queueInputs.size()+"\n1. Analisi del file e metadati\n2. Codifica x265 CRF e verifica completa\n3. Salvataggio in un nuovo file; poi video successivo\nParametri: CRF="+crf+" preset="+AppSettings.PRESETS[Math.max(0,Math.min(8,preset))]+" CPU="+cpu+" B-frame="+bframes+" Lookahead="+lookahead+"\nSalva solo se più piccolo="+onlySmaller+" · riprova_falliti="+intent.getBooleanExtra("retryFailures",false)+"\nLa percentuale totale assegna lo stesso peso a ogni video; non è una stima del tempo.");
                 for(int index=0;index<queueInputs.size()&&!cancel.get();index++){
                     if(SavedSession.terminal(sizeResults.get(index).status))continue;

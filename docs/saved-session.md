@@ -67,3 +67,18 @@ at most once per minute during work and after each file releases its resources. 
 measurements help distinguish encoder memory demand from resources accumulating across
 files; they do not establish why the user's phone consumed 3 GB or disconnected Bluetooth.
 Codec parameters, CRF, lookahead and CPU settings are unchanged.
+
+## Choosing parameters on recovery
+
+The recovery confirmation shows the saved options and a snapshot of the current tab 2
+controls: preset/Speed, CRF, CPU mode, B-frame and lookahead switches. Saved options are
+selected by default. Choosing current options overrides only those five request fields;
+queue identity, completed results, failures, destinations, output names, elapsed time and
+the tab 3 savings policy remain unchanged. The interrupted video restarts from its beginning.
+The choice applies to all pending files and is written into the next durable checkpoint.
+
+`ResumeParameters` owns the explicit override whitelist and readable configuration summary.
+`ConversionSessionState` updates the requested dashboard values on recovery as well as new
+queues. The worker logs the choice and actual request settings. A pending choice remains
+frozen through permission dialogs and same-process Activity recreation; declining permission
+or cancelling filename checks leaves the original durable session unchanged.

@@ -13,7 +13,7 @@ final class HomeReset {
     private boolean blocked(boolean busy) {
         return busy || home.state.destroyed || home.state.hdrTesting || home.state.metadataLoading
             || home.state.choosingOrigins || home.state.clearingLogs || home.state.exportingDiagnostics
-            || home.state.pendingLog != null || home.conversion.retry.pending != null;
+            || home.state.pendingLog != null || home.conversion.retry.pending != null || home.conversion.savedSession.pendingResume != null;
     }
 
     void update(boolean busy) {

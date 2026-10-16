@@ -24,7 +24,7 @@ final class HomeSavedState {
         Bundle clean=new Bundle(saved);
         for(String key:new String[]{"input","inputs","names","origins","sourceName","selectedVideoIndex","result",
             "individualOrigins","individualFolders","applyAllDestinations","allOrigin","allFolder",
-            "choosingOrigins","pendingOriginParent","pendingOriginSource","pendingFixedFolder","pendingAuthorizationOrigin","pendingRetry","videoDetailsExpanded"})clean.remove(key);
+            "choosingOrigins","pendingOriginParent","pendingOriginSource","pendingFixedFolder","pendingAuthorizationOrigin","pendingRetry","pendingSavedResume","videoDetailsExpanded"})clean.remove(key);
         return clean;
     }
 
@@ -34,6 +34,7 @@ final class HomeSavedState {
         if (savedFolder != null) home.state.folder = Uri.parse(savedFolder);
         if (state != null) {
             home.conversion.retry.pending=state.getParcelable("pendingRetry");
+            home.conversion.savedSession.pendingResume=state.getParcelable("pendingSavedResume");
             if (state.getString("input") != null) home.state.input = Uri.parse(state.getString("input"));
             home.state.sourceName = state.getString("sourceName", "video");
             if (state.getStringArrayList("inputs") != null) {
@@ -69,6 +70,7 @@ final class HomeSavedState {
         b.putString("homeProcess",PROCESS);
         home.screen.sections.save(b);
         if(home.conversion.retry.pending!=null)b.putParcelable("pendingRetry",home.conversion.retry.pending);
+        if(home.conversion.savedSession.pendingResume!=null)b.putParcelable("pendingSavedResume",home.conversion.savedSession.pendingResume);
         if (home.state.input != null) b.putString("input", home.state.input.toString());
         if (home.state.folder != null) b.putString("folder", home.state.folder.toString());
         b.putStringArrayList("inputs", new java.util.ArrayList<>(home.state.selectedInputs));
