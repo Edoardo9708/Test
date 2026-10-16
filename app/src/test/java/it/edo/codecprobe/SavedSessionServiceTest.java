@@ -51,10 +51,28 @@ public class SavedSessionServiceTest {
             assertNull(ConversionService.restoreSession(context));assertTrue(ConversionService.snapshot().recoverable);assertEquals(42,ConversionService.snapshot().filePercent);
             service.onStartCommand(SavedSession.load(context).resumeRequest(),0,1);assertTrue(directory.entered.await(4,TimeUnit.SECONDS));
             long session=ConversionService.snapshot().startedAt;
+            // Simulate current encoder metrics while the worker is held in the provider.
+            Field stateField=ConversionService.class.getDeclaredField("state");stateField.setAccessible(true);
+            ConversionService.State live=(ConversionService.State)stateField.get(null);
+            live.filePercent=42;live.doneFrames=100;live.totalFrames=238;live.done=3333333;live.total=7933333;
+            live.bframeCount=4;live.lookaheadCount=5;live.cuTree=0;live.aqMode=2;live.aqStrength=1;live.memoryProtection=true;
+            service.onStartCommand(new Intent(context,ConversionService.class).setAction(ConversionService.PAUSE).putExtra(MainActivity.CANCEL_SESSION,session),0,2);
+            assertEquals(42,ConversionService.snapshot().filePercent);assertEquals(100,ConversionService.snapshot().doneFrames);
+            assertEquals(4,ConversionService.snapshot().bframeCount);
+
             service.onStartCommand(new Intent(context,ConversionService.class).setAction(ConversionService.SAVE_STOP).putExtra(MainActivity.CANCEL_SESSION,session+1),0,2);assertFalse(ConversionService.snapshot().savingSession);
             service.onStartCommand(new Intent(context,ConversionService.class).setAction(ConversionService.SAVE_STOP).putExtra(MainActivity.CANCEL_SESSION,session),0,3);
+            // A last callback before cleanup must also be cleared by finalization.
+            live.filePercent=43;live.doneFrames=101;
             directory.release.countDown();drain(service);
             SavedSession stopped=SavedSession.load(context);assertTrue(stopped.state.recoverable);assertFalse(ConversionService.snapshot().running);
+            assertEquals(0,stopped.state.filePercent);assertEquals(0,stopped.state.doneFrames);assertEquals(-1,stopped.state.totalFrames);
+            assertEquals(0,stopped.state.done);assertEquals(0,stopped.state.total);assertEquals(0,stopped.state.percent);
+            assertEquals(-1,stopped.state.bframeCount);assertEquals(-1,stopped.state.lookaheadCount);assertEquals(-1,stopped.state.cuTree);
+            assertEquals(-1,stopped.state.aqMode);assertEquals(-1d,stopped.state.aqStrength,0);assertFalse(stopped.state.memoryProtection);
+            assertEquals(0,ConversionService.snapshot().filePercent);assertEquals(-1,ConversionService.snapshot().bframeCount);
+            assertTrue(stopped.state.elapsedBefore>=original.elapsedBefore);
+            assertEquals(original.sessionId,stopped.state.sessionId);
             assertEquals(1,stopped.state.succeeded);assertEquals(0,stopped.state.failed);assertEquals("content://saved/first",stopped.state.outputUris.get(0));
             assertTrue(directory.requested.stream().noneMatch(uri->uri.contains("zero")));
             controller.destroy();install(new ConversionService.State());

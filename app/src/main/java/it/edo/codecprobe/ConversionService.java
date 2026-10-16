@@ -353,7 +353,9 @@ public final class ConversionService extends Service {
                 synchronized(LOCK){state.message="Coda interrotta: "+e.getMessage();}
             }finally {
                 controlLog=null;
-                synchronized(LOCK){state.items=new ArrayList<>(sizeResults);state.sizeReport=CompressionSummary.render(sizeResults);state.endedAt=SystemClock.elapsedRealtime();}
+                synchronized(LOCK){state.items=new ArrayList<>(sizeResults);state.sizeReport=CompressionSummary.render(sizeResults);state.endedAt=SystemClock.elapsedRealtime();
+                    if(saveAndStop&&state.recoverable)ConversionSessionState.clearInterruptedFile(state);
+                }
                 try{checkpoint(true);}catch(RuntimeException error){synchronized(LOCK){state.message="ATTENZIONE · "+error.getMessage()+". Resta disponibile l’ultimo salvataggio riuscito.";}}
                 main.post(()->{
                     if(!ownsRun())return;

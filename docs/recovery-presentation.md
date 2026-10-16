@@ -27,3 +27,15 @@ and Activity destruction shuts down its existing inspection executor.
 Normal new selection retains its existing modal loading flow. Repeated dashboard
 updates do not import selections or trigger metadata reads. The selected request
 is independent of metadata display names that may be refined asynchronously.
+
+## Explicit save and stop (v0.57)
+
+Once the worker has returned from converter cleanup, a recoverable Save and stop
+uses `ConversionSessionState.clearInterruptedFile()` before its final checkpoint.
+It clears percent, frame/video-time counters, effective encoder metrics and
+memory-protection status in both live state and the saved session. Queue items,
+output links, errors, requested settings and accumulated time remain intact.
+Resetting after cleanup prevents final encoder callbacks from restoring stale
+values. Ordinary in-memory pause retains its counters and never calls this reset.
+Abrupt process death can still leave a historical checkpoint; the existing
+recovery presentation hides those per-file metrics until conversion starts.

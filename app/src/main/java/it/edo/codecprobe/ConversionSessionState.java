@@ -46,5 +46,10 @@ final class ConversionSessionState {
         value.bframeCount=-1;value.lookaheadCount=-1;value.cuTree=-1;value.aqMode=-1;value.aqStrength=-1;
         value.fileActive=false;value.skipping=false;value.memoryProtection=false;
     }
+    /** Run after encoder cleanup, before the final durable checkpoint. Ordinary pause never calls this. */
+    static void clearInterruptedFile(ConversionService.State value){
+        resetFile(value);
+        value.percent=0;
+    }
     private ConversionSessionState(){}
 }
