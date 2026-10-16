@@ -36,6 +36,7 @@ final class BatchRetry {
             retry.putExtra("individualOrigins",subset);
         }else retry.removeExtra("individualOrigins");
         retry.removeExtra("outputNames");retry.removeExtra("omitted");
+        retry.removeExtra(SavedSession.RESTORE);retry.removeExtra("finishedFiles");retry.removeExtra("replaceSavedSession");
         retry.putExtra("retryFailures",true);
         return retry;
     }
@@ -54,7 +55,7 @@ final class BatchRetry {
             return saved==null?null:decode(context,new JSONObject(saved));
         }catch(JSONException|RuntimeException error){return null;}
     }
-    private static JSONObject encode(Intent request)throws JSONException {
+    static JSONObject encode(Intent request)throws JSONException {
         JSONObject json=new JSONObject();json.put("schema",1);
         for(String key:ARRAYS){ArrayList<String> values=request.getStringArrayListExtra(key);if(values!=null)json.put(key,new JSONArray(values));}
         boolean[] origins=request.getBooleanArrayExtra("individualOrigins");
@@ -64,7 +65,7 @@ final class BatchRetry {
         json.put("crf",request.getIntExtra("crf",23));json.put("preset",request.getIntExtra("preset",6));json.put("cpu",request.getIntExtra("cpu",1));
         return json;
     }
-    private static Intent decode(Context context,JSONObject json)throws JSONException {
+    static Intent decode(Context context,JSONObject json)throws JSONException {
         if(json.getInt("schema")!=1)throw new JSONException("Unsupported retry schema");
         int size=json.getJSONArray("inputs").length();if(size<1||size>BatchProgress.MAX_FILES)throw new JSONException("Invalid retry count");
         Intent task=new Intent(context,ConversionService.class).setAction(ConversionService.START).putExtra("retryFailures",true);

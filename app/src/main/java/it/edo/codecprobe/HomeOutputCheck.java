@@ -22,6 +22,9 @@ final class HomeOutputCheck {
 
     void begin(Intent task) {
         if(checking)return;
+        if(!task.hasExtra(SavedSession.RESTORE)&&ConversionService.snapshot().recoverable&&!task.getBooleanExtra("replaceSavedSession",false)){
+            home.conversion.savedSession.confirmReplacement(task);return;
+        }
         checking=true;this.task=task;
         inputs=task.getStringArrayListExtra("names");folders=task.getStringArrayListExtra("folders");
         plan=new OutputPlan(inputs.size());naming=new AppSettings(home.activity);
@@ -43,6 +46,13 @@ final class HomeOutputCheck {
             home.conversion.launchPrepared(task);
             return;
         }
+        boolean[] finished=task.getBooleanArrayExtra("finishedFiles");
+        boolean[] omitted=task.getBooleanArrayExtra("omitted");
+        if(finished!=null&&finished.length==inputs.size()&&finished[index]){
+            ArrayList<String> approved=task.getStringArrayListExtra("requestedOutputNames");
+            plan.names.add(approved!=null&&approved.size()==inputs.size()?approved.get(index):"");next();return;
+        }
+        if(task.hasExtra(SavedSession.RESTORE)&&omitted!=null&&omitted.length==inputs.size()&&omitted[index]){plan.skip();next();return;}
         home.screen.conversion.status.setText("Controllo nomi di destinazione · "+(index+1)+" / "+inputs.size());
         worker.execute(()->{
             try {

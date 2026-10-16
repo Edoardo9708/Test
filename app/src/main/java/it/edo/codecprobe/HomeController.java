@@ -32,6 +32,8 @@ final class HomeController {
 
     HomeController(MainActivity activity, Bundle saved) {
         this.activity = activity;
+        String restoreError=ConversionService.restoreSession(activity);
+        if(restoreError!=null)android.widget.Toast.makeText(activity,restoreError,android.widget.Toast.LENGTH_LONG).show();
         AppSettings defaults = new AppSettings(activity);
         state.settingsRevision = defaults.revision;
         ui = new AppUi(activity);
@@ -64,6 +66,7 @@ final class HomeController {
         selection.inspectInput();
         if (state.resultUri != null) screen.conversion.openVideo.setVisibility(View.VISIBLE);
         restoreLogTail();
+        if(saved==null&&ConversionService.snapshot().recoverable)screen.sections.focusCard(CARD_CONVERSION);
         if (CONFIRM_CANCEL.equals(activity.getIntent().getAction())) handler.post(()->conversion.handleCancellationIntent(activity.getIntent()));
     }
 
@@ -76,6 +79,7 @@ final class HomeController {
     }
 
     void onPermissions(int request, String[] permissions, int[] results) {
+        if(request==HomeSavedSession.PERMISSION){conversion.savedSession.onPermissions(results);return;}
         if(request==HomeRetry.PERMISSION){conversion.retry.onPermissions(results);return;}
         final HomeController home = this;
         if (request == 9) {
@@ -170,6 +174,7 @@ final class HomeController {
         home.conversion.retry.close();
         home.conversion.failures.close();
         home.conversion.playback.close();
+        home.conversion.savedSession.close();
         if(home.diagnostics.logFormatDialog!=null)home.diagnostics.logFormatDialog.dismiss();
         home.screen.sections.closed = true;
         home.handler.removeCallbacksAndMessages(null);

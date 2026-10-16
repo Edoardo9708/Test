@@ -30,6 +30,7 @@ final class HomeReset {
         }
         home.conversion.failures.close();
         home.conversion.playback.close();
+        home.conversion.savedSession.close();
         home.conversion.retry.close();
         if(home.conversion.cancelConfirmation != null)home.conversion.cancelConfirmation.dismiss();
         ++home.state.metadataGeneration;

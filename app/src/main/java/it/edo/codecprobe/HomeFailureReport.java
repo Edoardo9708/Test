@@ -12,19 +12,21 @@ final class HomeFailureReport {
     private final HomeController home;
     private String rendered = "";
     private List<ConversionFailure> renderedFailures = java.util.Collections.emptyList();
+    private List<String> renderedOutputs = java.util.Collections.emptyList();
     AlertDialog dialog;
 
     HomeFailureReport(HomeController home) { this.home = home; }
 
     void render(ConversionService.State state) {
         HomeConversionSection views = home.screen.conversion;
-        boolean structured = !state.failures.isEmpty();
+        boolean structured = !state.failures.isEmpty() || !state.results.isEmpty();
         views.sizeReport.setVisibility(structured ? View.GONE : View.VISIBLE);
         views.failureReport.setVisibility(structured ? View.VISIBLE : View.GONE);
-        if (!structured) { views.failureReport.removeAllViews(); rendered = ""; renderedFailures = java.util.Collections.emptyList(); return; }
-        if (rendered.equals(state.sizeReport) && renderedFailures.equals(state.failures)) return;
+        if (!structured) { views.failureReport.removeAllViews(); rendered = ""; renderedFailures = java.util.Collections.emptyList(); renderedOutputs=java.util.Collections.emptyList(); return; }
+        if (rendered.equals(state.sizeReport) && renderedFailures.equals(state.failures) && renderedOutputs.equals(state.outputUris)) return;
         rendered = state.sizeReport;
         renderedFailures = new java.util.ArrayList<>(state.failures);
+        renderedOutputs = new java.util.ArrayList<>(state.outputUris);
         views.failureReport.removeAllViews();
         for (String paragraph : state.sizeReport.split("\n\n")) {
             ConversionFailure found = null;
@@ -36,6 +38,17 @@ final class HomeFailureReport {
             body.setTextIsSelectable(true);
             body.setLineSpacing(home.ui.dp(4), 1);
             body.setLayoutParams(new LinearLayout.LayoutParams(0, -2, 1));
+            for(int n=0;n<state.items.size()&&n<state.outputUris.size();n++){
+                CompressionSummary.Item item=state.items.get(n);
+                String title="Video "+item.number+" · "+item.name.replace('\n',' ').replace('\r',' ');
+                if(item.status==CompressionSummary.Status.COMPLETE&&!state.outputUris.get(n).isEmpty()&&paragraph.startsWith(title+"\n")){
+                    final android.net.Uri output=android.net.Uri.parse(state.outputUris.get(n));
+                    Button open=home.ui.button(row,"Apri");
+                    open.setLayoutParams(new LinearLayout.LayoutParams(home.ui.dp(88),-2));
+                    open.setContentDescription("Apri risultato: "+title);
+                    open.setOnClickListener(v->home.openResult(output));break;
+                }
+            }
             if (found != null) {
                 final ConversionFailure failure = found;
                 Button button = new Button(home.activity);

@@ -16,7 +16,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 /** Owns conversion lifetime; Activity only observes and controls it. */
 public final class ConversionService extends Service {
-    static final String START="it.edo.codecprobe.START",CANCEL="it.edo.codecprobe.CANCEL",PAUSE="it.edo.codecprobe.PAUSE",RESUME="it.edo.codecprobe.RESUME",SKIP="it.edo.codecprobe.SKIP";
+    static final String START="it.edo.codecprobe.START",CANCEL="it.edo.codecprobe.CANCEL",PAUSE="it.edo.codecprobe.PAUSE",RESUME="it.edo.codecprobe.RESUME",SKIP="it.edo.codecprobe.SKIP",SAVE_STOP="it.edo.codecprobe.SAVE_STOP";
     private static final Object LOCK=new Object();
     private static State state=new State();
     private static Runnable observer;
@@ -30,6 +30,26 @@ public final class ConversionService extends Service {
     static void rememberFailures(android.content.Context context,Intent task){
         synchronized(LOCK){lastRetry=task==null?null:new Intent(task);retryLoaded=true;}
         if(!BatchRetry.save(context,task))FolderPickerActivity.record(context,"*** AVVISO RIPROVA FALLITI ***\nSalvataggio su disco non riuscito: elenco disponibile solo finché il processo resta aperto.");
+    }
+    static String restoreSession(android.content.Context context){
+        synchronized(LOCK){
+            if(state.hasSession||state.running)return null;
+            try{SavedSession saved=SavedSession.load(context);if(saved!=null)state=saved.state;return null;}
+            catch(IOException error){return error.getMessage()+" · la sessione su disco è stata conservata.";}
+        }
+    }
+    private Intent sessionRequest;
+    private ArrayList<CompressionSummary.Item> sessionItems;
+    private long lastCheckpoint;
+    private volatile boolean saveAndStop,serviceDestroyed;
+    /** Called only on the conversion worker; UI commands never perform journal I/O. */
+    private void checkpoint(boolean force){
+        long now=SystemClock.elapsedRealtime();
+        if(sessionRequest==null||sessionItems==null||!force&&now-lastCheckpoint<10000)return;
+        State saved;
+        synchronized(LOCK){state.items=new ArrayList<>(sessionItems);saved=new State(state);}
+        try{SavedSession.save(this,sessionRequest,saved);lastCheckpoint=now;}
+        catch(IOException error){throw new java.io.UncheckedIOException("Impossibile salvare la sessione; conversione interrotta",error);}
     }
     static volatile boolean uiVisible;
     private final Handler main=new Handler(Looper.getMainLooper());
@@ -47,6 +67,7 @@ public final class ConversionService extends Service {
         publish(true);
     }
     static String displayMessage(State s){
+        if(s.savingSession)return "Salvataggio sessione e pulizia del video interrotto…";
         if(s.cancelling)return "Annullamento della coda…";
         if(s.skipping)return "Salto del video attuale e pulizia dei temporanei…";
         if(s.paused)return "Conversione in pausa · premi Riprendi per continuare";
@@ -61,7 +82,11 @@ public final class ConversionService extends Service {
     private static final String CHANNEL="conversion";
     static final class State {
         boolean hasSession,running,originMode,applyAllDestinations,allOrigin=true,onlySmaller;
-        boolean pauseRequested,paused,skipping,cancelling,fileActive;
+        boolean pauseRequested,paused,skipping,cancelling,fileActive,recoverable,savingSession;
+        String sessionId="";
+        long elapsedBefore;
+        ArrayList<CompressionSummary.Item> items=new ArrayList<>();
+        ArrayList<String> outputUris=new ArrayList<>();
         String allFolder="";
         boolean[] individualOrigins=new boolean[0];
         ArrayList<String> individualFolders=new ArrayList<>();
@@ -76,12 +101,13 @@ public final class ConversionService extends Service {
         String message="",log="",source="",sizeReport="";
         Uri result,input,folder;
         State(){}
-        State(State s){pauseRequested=s.pauseRequested;paused=s.paused;skipping=s.skipping;cancelling=s.cancelling;fileActive=s.fileActive;skipped=s.skipped;failures=new ArrayList<>(s.failures);startedAt=s.startedAt;endedAt=s.endedAt;requestedCrf=s.requestedCrf;requestedCpu=s.requestedCpu;requestedPreset=s.requestedPreset;sizeReport=s.sizeReport;applyAllDestinations=s.applyAllDestinations;allOrigin=s.allOrigin;allFolder=s.allFolder;individualOrigins=s.individualOrigins.clone();individualFolders=new ArrayList<>(s.individualFolders);originMode=s.originMode;inputs=new ArrayList<>(s.inputs);names=new ArrayList<>(s.names);folders=new ArrayList<>(s.folders);results=new ArrayList<>(s.results);filePercent=s.filePercent;batchIndex=s.batchIndex;batchTotal=s.batchTotal;succeeded=s.succeeded;failed=s.failed;ignored=s.ignored;notSaved=s.notSaved;onlySmaller=s.onlySmaller;hasSession=s.hasSession;running=s.running;bframeCount=s.bframeCount;lookaheadCount=s.lookaheadCount;cuTree=s.cuTree;aqMode=s.aqMode;aqStrength=s.aqStrength;percent=s.percent;doneFrames=s.doneFrames;totalFrames=s.totalFrames;done=s.done;total=s.total;message=s.message;log=s.log;source=s.source;result=s.result;input=s.input;folder=s.folder;}
+        State(State s){sessionId=s.sessionId;recoverable=s.recoverable;savingSession=s.savingSession;elapsedBefore=s.elapsedBefore;items=new ArrayList<>(s.items);outputUris=new ArrayList<>(s.outputUris);pauseRequested=s.pauseRequested;paused=s.paused;skipping=s.skipping;cancelling=s.cancelling;fileActive=s.fileActive;skipped=s.skipped;failures=new ArrayList<>(s.failures);startedAt=s.startedAt;endedAt=s.endedAt;requestedCrf=s.requestedCrf;requestedCpu=s.requestedCpu;requestedPreset=s.requestedPreset;sizeReport=s.sizeReport;applyAllDestinations=s.applyAllDestinations;allOrigin=s.allOrigin;allFolder=s.allFolder;individualOrigins=s.individualOrigins.clone();individualFolders=new ArrayList<>(s.individualFolders);originMode=s.originMode;inputs=new ArrayList<>(s.inputs);names=new ArrayList<>(s.names);folders=new ArrayList<>(s.folders);results=new ArrayList<>(s.results);filePercent=s.filePercent;batchIndex=s.batchIndex;batchTotal=s.batchTotal;succeeded=s.succeeded;failed=s.failed;ignored=s.ignored;notSaved=s.notSaved;onlySmaller=s.onlySmaller;hasSession=s.hasSession;running=s.running;bframeCount=s.bframeCount;lookaheadCount=s.lookaheadCount;cuTree=s.cuTree;aqMode=s.aqMode;aqStrength=s.aqStrength;percent=s.percent;doneFrames=s.doneFrames;totalFrames=s.totalFrames;done=s.done;total=s.total;message=s.message;log=s.log;source=s.source;result=s.result;input=s.input;folder=s.folder;}
     }
     static boolean clearLogsIfIdle(Runnable clear){synchronized(LOCK){if(state.running)return false;clear.run();state.log="";return true;}}
     static boolean clearSessionIfIdle(android.content.Context context){
         synchronized(LOCK){
             if(state.running)return false;
+            SavedSession.clear(context);
             BatchRetry.clear(context);
             lastRetry=null;retryLoaded=true;
             state=new State();
@@ -136,6 +162,13 @@ public final class ConversionService extends Service {
     }
     @Override public int onStartCommand(Intent intent,int flags,int startId){
         if(intent==null){stopSelf();return START_NOT_STICKY;}
+        if(SAVE_STOP.equals(intent.getAction())){
+            State current=snapshot();
+            if(!current.running||current.cancelling||intent.getLongExtra(MainActivity.CANCEL_SESSION,-1)!=current.startedAt)return START_NOT_STICKY;
+            saveAndStop=true;
+            synchronized(LOCK){state.savingSession=true;state.cancelling=true;state.pauseRequested=false;}
+            control.cancel();publish(true);return START_NOT_STICKY;
+        }
         if(PAUSE.equals(intent.getAction())||RESUME.equals(intent.getAction())||SKIP.equals(intent.getAction())){
             State current=snapshot();
             if(!current.running){stopSelf();return START_NOT_STICKY;}
@@ -168,6 +201,15 @@ public final class ConversionService extends Service {
         if(inputs==null||names==null||folders==null||inputs.isEmpty()||inputs.size()>BatchProgress.MAX_FILES||names.size()!=inputs.size()||folders.size()!=inputs.size()){
             stopSelf();return START_NOT_STICKY;
         }
+        final SavedSession restored;
+        try{
+            String expected=intent.getStringExtra(SavedSession.RESTORE);
+            restored=expected==null?null:SavedSession.load(this);
+            if(expected!=null&&(restored==null||!expected.equals(restored.state.sessionId)||!restored.state.recoverable)){stopSelf();return START_NOT_STICKY;}
+            // A new queue must be explicitly confirmed by the UI before replacing a recoverable queue.
+            SavedSession existing=expected==null?SavedSession.load(this):null;
+            if(existing!=null&&existing.state.recoverable&&!intent.getBooleanExtra("replaceSavedSession",false)){stopSelf();return START_NOT_STICKY;}
+        }catch(IOException error){synchronized(LOCK){state.message=error.getMessage();}publish(true);stopSelf();return START_NOT_STICKY;}
         final ArrayList<String> queueInputs=new ArrayList<>(inputs),queueNames=new ArrayList<>(names),queueFolders=new ArrayList<>(folders);
         final AppSettings naming=new AppSettings(this);
         final Intent originalRequest=new Intent(intent);
@@ -178,6 +220,11 @@ public final class ConversionService extends Service {
         if(outputNames!=null&&(outputNames.size()!=inputs.size()||omitted==null||omitted.length!=inputs.size())){stopSelf();return START_NOT_STICKY;}
         final ArrayList<CompressionSummary.Item> sizeResults=new ArrayList<>();
         for(int n=0;n<queueInputs.size();n++)sizeResults.add(new CompressionSummary.Item(n+1,queueNames.get(n),CompressionSummary.Status.SKIPPED,-1,-1));
+        if(restored!=null){
+            if(!queueInputs.equals(restored.state.inputs)||!queueNames.equals(restored.state.names)||!queueFolders.equals(restored.state.folders)){stopSelf();return START_NOT_STICKY;}
+            sizeResults.clear();sizeResults.addAll(restored.state.items);
+            for(int n=0;n<sizeResults.size();n++)if(sizeResults.get(n).status==CompressionSummary.Status.FAILED)failedIndices.add(n);
+        }
         final ArrayList<String> destinationNotes=intent.getStringArrayListExtra("destinationNotes");
         Uri input=Uri.parse(inputs.get(0)),folder=Uri.parse(folders.get(0));String source=names.get(0);
         int crf=intent.getIntExtra("crf",23),preset=intent.getIntExtra("preset",6),cpu=intent.getIntExtra("cpu",1);
@@ -186,6 +233,13 @@ public final class ConversionService extends Service {
             ArrayList<String> requestedChoices=intent.getStringArrayListExtra("individualFolders");state.individualFolders=requestedChoices==null?new ArrayList<>(queueFolders):new ArrayList<>(requestedChoices);
             state.applyAllDestinations=intent.getBooleanExtra("applyAllDestinations",false);state.allOrigin=intent.getBooleanExtra("allOrigin",true);state.allFolder=intent.getStringExtra("allFolder");
             state.pauseRequested=false;state.paused=false;state.skipping=false;state.cancelling=false;state.fileActive=false;state.skipped=0;state.startedAt=SystemClock.elapsedRealtime();state.endedAt=0;state.requestedCrf=crf;state.requestedCpu=cpu;state.requestedPreset=AppSettings.PRESETS[Math.max(0,Math.min(8,preset))];state.originMode=intent.getBooleanExtra("originMode",false);state.inputs=queueInputs;state.names=queueNames;state.folders=queueFolders;state.results.clear();state.failures.clear();state.sizeReport=CompressionSummary.render(sizeResults,true);state.batchIndex=0;state.batchTotal=queueInputs.size();state.succeeded=0;state.failed=0;state.ignored=0;state.notSaved=0;state.onlySmaller=onlySmaller;state.filePercent=0;state.hasSession=true;state.running=true;state.bframeCount=-1;state.lookaheadCount=-1;state.cuTree=-1;state.aqMode=-1;state.aqStrength=-1;state.percent=0;state.doneFrames=0;state.totalFrames=-1;state.done=0;state.total=0;state.result=null;state.log="";state.message="Analisi video…";state.source=source;state.input=input;state.folder=folder;}
+        synchronized(LOCK){
+            if(restored!=null){state=new State(restored.state);state.startedAt=SystemClock.elapsedRealtime();state.endedAt=0;state.running=true;}
+            else {state.sessionId=java.util.UUID.randomUUID().toString();state.elapsedBefore=0;state.outputUris=new ArrayList<>();for(int n=0;n<queueInputs.size();n++)state.outputUris.add("");}
+            state.recoverable=true;state.savingSession=false;state.items=new ArrayList<>(sizeResults);
+        }
+        sessionRequest=new Intent(intent);sessionRequest.removeExtra(SavedSession.RESTORE);sessionRequest.removeExtra("finishedFiles");
+        sessionItems=sizeResults;lastCheckpoint=0;saveAndStop=false;serviceDestroyed=false;
         cancel.set(false);
         try {
             int type=Build.VERSION.SDK_INT>=35?ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROCESSING:ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC;
@@ -199,11 +253,14 @@ public final class ConversionService extends Service {
         }
         cancel.set(false);control.pause(false);control.endFile();timedOut=false;tail.clear();publish(true);
         worker.execute(()->{
-            try(BufferedWriter batchLog=new BufferedWriter(new OutputStreamWriter(new FileOutputStream(batchLogFile(this)),java.nio.charset.StandardCharsets.UTF_8),65536)) {
+            try(BufferedWriter batchLog=new BufferedWriter(new OutputStreamWriter(new FileOutputStream(batchLogFile(this),restored!=null),java.nio.charset.StandardCharsets.UTF_8),65536)) {
                 controlLog=line->writeBatch(batchLog,line);
-                rememberFailures(this,null);
+                checkpoint(true);
+                rememberFailures(this,failedIndices.isEmpty()?null:BatchRetry.select(originalRequest,failedIndices));
+                if(restored!=null)writeBatch(batchLog,"*** RIPRESA SESSIONE SALVATA ***\nReport e risultati precedenti conservati. I video già conclusi vengono saltati; il video interrotto riparte dall’inizio.");
                 writeBatch(batchLog,"*** INIZIO CODA · v"+BuildConfig.VERSION_NAME+" ***\nVideo selezionati: "+queueInputs.size()+"\n1. Analisi del file e metadati\n2. Codifica x265 CRF e verifica completa\n3. Salvataggio in un nuovo file; poi video successivo\nParametri: CRF="+crf+" preset="+AppSettings.PRESETS[Math.max(0,Math.min(8,preset))]+" CPU="+cpu+" B-frame="+bframes+" Lookahead="+lookahead+"\nSalva solo se più piccolo="+onlySmaller+" · riprova_falliti="+intent.getBooleanExtra("retryFailures",false)+"\nLa percentuale totale assegna lo stesso peso a ogni video; non è una stima del tempo.");
                 for(int index=0;index<queueInputs.size()&&!cancel.get();index++){
+                    if(SavedSession.terminal(sizeResults.get(index).status))continue;
                     if(omitted!=null && omitted[index]){
                         if(control.checkpoint())break;
                         sizeResults.set(index,new CompressionSummary.Item(index+1,queueNames.get(index),CompressionSummary.Status.OMITTED,-1,-1));
@@ -225,9 +282,9 @@ public final class ConversionService extends Service {
                             public String runtimeState(){return "UI_visibile="+uiVisible+" wake_lock_attivo="+(wake!=null&&wake.isHeld());}
                             public String cancellationReason(){if(control.skipped())return "Salto del file attuale richiesto dall’utente";return timedOut?"Limite Android del servizio mediaProcessing raggiunto":"Annullamento dell’intera coda richiesto dall’utente o arresto del servizio";}
                             public void log(String line){writeBatch(batchLog,line);}
-                            public void progress(int percent,String text){if(timedOut||cancel.get()||control.skipped())return;synchronized(LOCK){state.filePercent=percent;state.percent=BatchProgress.percent(current,percent,queueInputs.size());state.message=text;}publish(false);}
-                            public void frames(int done,int total){synchronized(LOCK){state.doneFrames=done;state.totalFrames=total;}publish(false);}
-                            public void timeline(long done,long total){synchronized(LOCK){state.done=done;state.total=total;}publish(false);}
+                            public void progress(int percent,String text){if(timedOut||cancel.get()||control.skipped())return;synchronized(LOCK){state.filePercent=percent;state.percent=BatchProgress.percent(current,percent,queueInputs.size());state.message=text;}checkpoint(false);publish(false);}
+                            public void frames(int done,int total){synchronized(LOCK){state.doneFrames=done;state.totalFrames=total;}checkpoint(false);publish(false);}
+                            public void timeline(long done,long total){synchronized(LOCK){state.done=done;state.total=total;}checkpoint(false);publish(false);}
                         },naming);
                         converter.control=control;
                         converter.onlySmaller=onlySmaller;
@@ -237,7 +294,7 @@ public final class ConversionService extends Service {
                         originalBytes=converter.originalByteSize>0?converter.originalByteSize:originalBytes;
                         long outputBytes=readFileSize(result);
                         sizeResults.set(index,new CompressionSummary.Item(index+1,queueNames.get(index),CompressionSummary.Status.COMPLETE,originalBytes,outputBytes));
-                        synchronized(LOCK){state.result=result;state.results.add(result);state.succeeded++;state.sizeReport=CompressionSummary.render(sizeResults,true);}
+                        synchronized(LOCK){state.result=result;state.results.add(result);state.outputUris.set(index,result.toString());state.succeeded++;state.sizeReport=CompressionSummary.render(sizeResults,true);}
                         writeBatch(batchLog,"*** RISULTATO DIMENSIONI ***\n"+CompressionSummary.row(sizeResults.get(index))+"\nInput byte: "+originalBytes+"\nOutput byte: "+outputBytes);
                         writeBatch(batchLog,"*** VIDEO COMPLETATO ***\nOutput: "+result);
                     }catch(SavingsPolicy.NotSaved skipped){
@@ -246,7 +303,7 @@ public final class ConversionService extends Service {
                         synchronized(LOCK){state.notSaved++;state.filePercent=100;state.sizeReport=CompressionSummary.render(sizeResults,true);}
                         writeBatch(batchLog,"*** VIDEO ELABORATO SENZA SALVATAGGIO ***\n"+CompressionSummary.row(sizeResults.get(index))+"\nNon è un errore; escluso da Riprova i falliti.");
                     }catch(Exception e){
-                        if(cancel.get()){sizeResults.set(index,new CompressionSummary.Item(index+1,queueNames.get(index),CompressionSummary.Status.CANCELLED,-1,-1));synchronized(LOCK){state.sizeReport=CompressionSummary.render(sizeResults,true);}writeBatch(batchLog,"*** VIDEO INTERROTTO ***\n"+e);break;}
+                        if(cancel.get()){sizeResults.set(index,new CompressionSummary.Item(index+1,queueNames.get(index),(saveAndStop||timedOut||serviceDestroyed?CompressionSummary.Status.IN_PROGRESS:CompressionSummary.Status.CANCELLED),-1,-1));synchronized(LOCK){state.sizeReport=CompressionSummary.render(sizeResults,true);}writeBatch(batchLog,"*** VIDEO INTERROTTO ***\n"+e);break;}
                         if(control.skipped()&&!(e instanceof ConversionCleanup.Failed)){
                             sizeResults.set(index,new CompressionSummary.Item(index+1,queueNames.get(index),CompressionSummary.Status.USER_SKIPPED,-1,-1));
                             synchronized(LOCK){state.skipped++;state.sizeReport=CompressionSummary.render(sizeResults,true);}
@@ -265,7 +322,8 @@ public final class ConversionService extends Service {
                     }
                     synchronized(LOCK){state.percent=BatchProgress.percent(index+1,0,queueInputs.size());if(sizeResults.get(index).status==CompressionSummary.Status.COMPLETE)state.filePercent=100;}batchLog.flush();publish(true);
                 }
-                synchronized(LOCK){int remaining=state.batchTotal-state.succeeded-state.failed-state.ignored-state.notSaved-state.skipped;state.message=(cancel.get()?"Coda interrotta":"Coda terminata")+" · riusciti "+state.succeeded+" · falliti "+state.failed+" · ignorati "+state.ignored+" · saltati "+state.skipped+" · non salvati "+state.notSaved+" · non completati "+remaining;}
+                synchronized(LOCK){state.items=new ArrayList<>(sizeResults);state.recoverable=(saveAndStop||timedOut||serviceDestroyed)&&new SavedSession(originalRequest,state).hasPending();}
+                synchronized(LOCK){int remaining=state.batchTotal-state.succeeded-state.failed-state.ignored-state.notSaved-state.skipped;state.message=(saveAndStop?"Sessione salvata · pronta da riprendere":cancel.get()?"Coda interrotta":"Coda terminata")+" · riusciti "+state.succeeded+" · falliti "+state.failed+" · ignorati "+state.ignored+" · saltati "+state.skipped+" · non salvati "+state.notSaved+" · non completati "+remaining;}
                 synchronized(LOCK){state.sizeReport=CompressionSummary.render(sizeResults);}
                 writeBatch(batchLog,"\n*** RESOCONTO DIMENSIONI ***\n"+snapshot().sizeReport);
                 writeBatch(batchLog,"\n*** FINE CODA ***\n"+snapshot().message+"\nTempo trascorso: "+DashboardMetrics.elapsed(snapshot().startedAt,0,SystemClock.elapsedRealtime())+"\nI file completati restano salvati. Esporta questo TXT per tutti i dettagli.");
@@ -273,8 +331,10 @@ public final class ConversionService extends Service {
                 synchronized(LOCK){state.message="Coda interrotta: "+e.getMessage();}
             }finally {
                 controlLog=null;
+                synchronized(LOCK){state.items=new ArrayList<>(sizeResults);state.sizeReport=CompressionSummary.render(sizeResults);state.endedAt=SystemClock.elapsedRealtime();}
+                try{checkpoint(true);}catch(RuntimeException error){synchronized(LOCK){state.message="ATTENZIONE · "+error.getMessage()+". Resta disponibile l’ultimo salvataggio riuscito.";}}
                 main.post(()->{
-                    synchronized(LOCK){state.sizeReport=CompressionSummary.render(sizeResults);state.endedAt=SystemClock.elapsedRealtime();state.running=false;state.fileActive=false;state.paused=false;state.pauseRequested=false;state.skipping=false;state.cancelling=false;}
+                    synchronized(LOCK){state.sizeReport=CompressionSummary.render(sizeResults);state.endedAt=SystemClock.elapsedRealtime();state.running=false;state.fileActive=false;state.paused=false;state.pauseRequested=false;state.skipping=false;state.cancelling=false;state.savingSession=false;}
                     releaseWake();stopForeground(STOP_FOREGROUND_REMOVE);publish(true);
                     if(!timedOut)notifyState(snapshot());
                     stopSelf();
@@ -300,16 +360,17 @@ public final class ConversionService extends Service {
         try{writer.write(line);writer.newLine();long now=SystemClock.elapsedRealtime();if(line.contains("***")||now-lastLogFlush>=5000){writer.flush();lastLogFlush=now;}}
         catch(IOException e){throw new java.io.UncheckedIOException("Scrittura log della coda fallita",e);}
         synchronized(LOCK){tail.addLast(line);while(tail.size()>14)tail.removeFirst();state.log=String.join("\n",tail);}
+        checkpoint(line.contains("***"));
         publish(line.contains("***")||line.contains("SESSION END"));
     }
     @Override public void onTimeout(int startId,int type){
-        timedOut=true;control.cancel();
+        timedOut=true;saveAndStop=true;control.cancel();
         synchronized(LOCK){state.cancelling=true;state.pauseRequested=false;state.message="Conversione interrotta: raggiunto il limite Android del servizio in background.";}
         releaseWake();stopForeground(STOP_FOREGROUND_REMOVE);publish(true);stopSelf();
     }
     private synchronized void acquireWake(){if(!cancel.get()&&wake!=null&&!wake.isHeld())wake.acquire(6*60*60*1000L);}
     private synchronized void releaseWake(){if(wake!=null&&wake.isHeld())wake.release();}
-    @Override public void onDestroy(){control.cancel();releaseWake();worker.shutdown();super.onDestroy();}
+    @Override public void onDestroy(){serviceDestroyed=true;control.cancel();releaseWake();worker.shutdown();super.onDestroy();}
     @Override public IBinder onBind(Intent intent){return null;}
 }
 

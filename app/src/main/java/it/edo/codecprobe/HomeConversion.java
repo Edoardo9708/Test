@@ -20,6 +20,7 @@ final class HomeConversion {
     final HomeRetry retry;
     final HomeFailureReport failures;
     final HomePlaybackControls playback;
+    final HomeSavedSession savedSession;
 
     HomeConversion(HomeController home) {
         this.home = home;
@@ -27,12 +28,14 @@ final class HomeConversion {
         retry = new HomeRetry(home);
         failures = new HomeFailureReport(home);
         playback = new HomePlaybackControls(home);
+        savedSession = new HomeSavedSession(home);
     }
     final Runnable sessionObserver = this::renderSession;
 
     void bind() {
         retry.bind();
         playback.bind();
+        savedSession.bind();
         home.screen.conversion.onlySmaller.setOnCheckedChangeListener((v,c)->AppSettings.setOnlySmaller(home.activity,c));
         home.screen.conversion.convert.setOnClickListener((v)->startConversion());
         home.screen.conversion.stop.setOnClickListener((v)->confirmCancellation(-1));
@@ -108,6 +111,7 @@ final class HomeConversion {
         home.screen.conversion.onlySmaller.setEnabled(!value);
         retry.update(value);
         playback.render(ConversionService.snapshot());
+        savedSession.render(ConversionService.snapshot());
         home.diagnostics.updateClearLogsButton();
         home.reset.update(value);
     }
@@ -204,7 +208,7 @@ final class HomeConversion {
     void renderConversionDashboard(ConversionService.State s) {
         int pending = Math.max(0, s.batchTotal - (s.running ? Math.max(s.batchIndex, s.succeeded + s.failed + s.ignored + s.notSaved + s.skipped) : s.succeeded + s.failed + s.ignored + s.notSaved + s.skipped));
         home.screen.conversion.queueLabel.setText("Video " + s.batchIndex + " / " + s.batchTotal + "\nRiusciti: " + s.succeeded + " · Falliti: " + s.failed + " · Ignorati: " + s.ignored + "\nSaltati: " + s.skipped + " · Non salvati: " + s.notSaved + "\n" + (s.running ? "In attesa: " : "Non completati: ") + pending);
-        home.screen.conversion.elapsedLabel.setText(DashboardMetrics.elapsed(s.startedAt, s.endedAt, SystemClock.elapsedRealtime()));
+        home.screen.conversion.elapsedLabel.setText(DashboardMetrics.elapsed(1, 1+SavedSession.elapsed(s,SystemClock.elapsedRealtime()), 0));
         home.screen.conversion.currentFile.setText(s.source.isEmpty() ? "In attesa del file" : s.source);
         home.screen.conversion.currentFile.setContentDescription("File attuale: " + s.source);
         home.screen.conversion.frameLabel.setText(s.doneFrames + " / " + (s.totalFrames > 0 ? s.totalFrames : "—"));

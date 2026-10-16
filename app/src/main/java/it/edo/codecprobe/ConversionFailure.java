@@ -8,6 +8,10 @@ final class ConversionFailure {
     final int number;
     final String name, message, lastState, details;
 
+    ConversionFailure(int number, String name, String message, String lastState, String details) {
+        this.number=number;this.name=name;this.message=message;this.lastState=lastState;this.details=details;
+    }
+
     ConversionFailure(int number, String name, String lastState, Throwable error) {
         this.number = number;
         this.name = name;

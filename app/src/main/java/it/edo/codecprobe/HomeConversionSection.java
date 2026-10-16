@@ -14,6 +14,8 @@ final class HomeConversionSection {
     Button stop;
     Button pause;
     Button skip;
+    Button savedSession;
+    TextView sessionHint;
     LinearLayout playbackActions;
     Button openVideo;
     Button retryFailed;
@@ -57,6 +59,9 @@ final class HomeConversionSection {
         skip=ui.halfButton(playbackActions,"Salta video",false);
         ui.danger(skip);
         playbackActions.setVisibility(View.GONE);
+        savedSession=ui.button(work,"Salva e interrompi");
+        savedSession.setVisibility(View.GONE);
+        sessionHint=ui.text(work,"",14);sessionHint.setTextColor(ui.muted);sessionHint.setVisibility(View.GONE);
         keepScreenOn = new CheckBox(ui.activity);
         keepScreenOn.setText("Mantieni schermo acceso");
         keepScreenOn.setTextColor(ui.ink);
@@ -117,7 +122,7 @@ final class HomeConversionSection {
         LinearLayout outputActions = new LinearLayout(ui.activity);
         outputActions.setWeightSum(2);
         work.addView(outputActions, new LinearLayout.LayoutParams(-1, -2));
-        openVideo = ui.halfButton(outputActions, "Apri risultato", false);
+        openVideo = ui.halfButton(outputActions, "Elenco video riusciti", false);
         openVideo.setVisibility(View.GONE);
         retryFailed=ui.halfButton(outputActions,"Riprova i falliti",false);retryFailed.setVisibility(View.GONE);
         sizeReportPanel = new LinearLayout(ui.activity);
