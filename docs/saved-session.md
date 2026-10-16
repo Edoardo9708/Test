@@ -32,8 +32,7 @@ The original batch log is appended on recovery, preserving earlier diagnostics.
 
 `HomeFailureReport` renders an `Apri` action for each successful entry, bound to its exact
 URI and input number rather than filename matching alone. These links survive process
-restart because the journal persists their index-to-URI mapping. The aggregate button is
-explicitly labelled `Elenco video riusciti`.
+restart because the journal persists their index-to-URI mapping. The `Report lavori` heading identifies the report, with no aggregate result-opening button.
 
 Tests cover journal round trips, failure stacks, interrupted atomic writes, invalid data,
 service stop/recreation/recovery, terminal-entry skipping, append-only recovery logging,

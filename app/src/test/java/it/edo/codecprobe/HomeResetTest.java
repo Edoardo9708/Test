@@ -62,7 +62,7 @@ public class HomeResetTest {
             assertEquals("Nessun video selezionato",home.screen.files.videoLabel.getText().toString());assertEquals(View.GONE,home.screen.files.videoDetails.getVisibility());
             assertEquals(0,home.screen.conversion.progress.getProgress());assertEquals("Nessuna coda avviata",home.screen.conversion.queueLabel.getText().toString());
             assertEquals(View.GONE,home.screen.conversion.sizeReportPanel.getVisibility());assertEquals("",home.screen.conversion.sizeReport.getText().toString());assertEquals(0,home.screen.conversion.failureReport.getChildCount());
-            assertEquals(View.GONE,home.screen.conversion.openVideo.getVisibility());assertEquals(View.GONE,home.screen.conversion.retryFailed.getVisibility());assertFalse(home.screen.files.clearSelection.isEnabled());
+            assertEquals(View.GONE,home.screen.conversion.retryFailed.getVisibility());assertFalse(home.screen.files.clearSelection.isEnabled());
             assertEquals(27,home.screen.compression.crfSlider.getProgress());assertEquals(3,home.screen.compression.presetSlider.getProgress());assertEquals(settings,context.getSharedPreferences("startup-settings",0).getAll());
             assertArrayEquals(new byte[]{1,2,3},Files.readAllBytes(original.toPath()));assertArrayEquals(new byte[]{4,5},Files.readAllBytes(converted.toPath()));
             assertEquals("Detailed log kept for export",new String(Files.readAllBytes(log.toPath()),java.nio.charset.StandardCharsets.UTF_8));

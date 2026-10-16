@@ -21,12 +21,12 @@ public class IncrementalReportTest {
             ConversionService.State state=new ConversionService.State();state.running=true;state.sizeReport="Video 1 · 10 MB → 5 MB";
             activity.home.conversion.renderSizeReport(state);
             assertEquals(View.VISIBLE,((View)activity.home.screen.conversion.sizeReportPanel).getVisibility());
-            assertEquals("RESOCONTO PARZIALE",((TextView)activity.home.screen.conversion.sizeReportTitle).getText().toString());
+            assertEquals("REPORT LAVORI · IN CORSO",((TextView)activity.home.screen.conversion.sizeReportTitle).getText().toString());
             assertEquals(state.sizeReport,((TextView)activity.home.screen.conversion.sizeReport).getText().toString());
             state.sizeReport+="\nVideo 2 · 20 MB → 8 MB";activity.home.conversion.renderSizeReport(state);
             assertEquals(state.sizeReport,((TextView)activity.home.screen.conversion.sizeReport).getText().toString());
             state.running=false;activity.home.conversion.renderSizeReport(state);
-            assertEquals("RESOCONTO CONVERSIONE",((TextView)activity.home.screen.conversion.sizeReportTitle).getText().toString());
+            assertEquals("REPORT LAVORI",((TextView)activity.home.screen.conversion.sizeReportTitle).getText().toString());
             state.running=true;state.sizeReport="";activity.home.conversion.renderSizeReport(state);
             assertEquals(View.GONE,((View)activity.home.screen.conversion.sizeReportPanel).getVisibility());
         }finally{controller.pause().stop().destroy();}

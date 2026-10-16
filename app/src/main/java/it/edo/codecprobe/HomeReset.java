@@ -67,7 +67,6 @@ final class HomeReset {
         home.conversion.renderConversionDashboard(ConversionService.snapshot());
         HomeConversionSection views = home.screen.conversion;
         views.sizeReport.setText("");
-        views.openVideo.setVisibility(View.GONE);
         views.queueLabel.setText("Nessuna coda avviata");
         views.currentFile.setText("Nessun file in conversione");
         views.currentFile.setContentDescription("Nessun file in conversione");

@@ -64,7 +64,6 @@ final class HomeController {
         destinations.updateDestinationPanel();
         destinations.refreshLabels();
         selection.inspectInput();
-        if (state.resultUri != null) screen.conversion.openVideo.setVisibility(View.VISIBLE);
         restoreLogTail();
         if(saved==null&&ConversionService.snapshot().recoverable)screen.sections.focusCard(CARD_CONVERSION);
         if (CONFIRM_CANCEL.equals(activity.getIntent().getAction())) handler.post(()->conversion.handleCancellationIntent(activity.getIntent()));

@@ -17,7 +17,6 @@ final class HomeConversionSection {
     Button savedSession;
     TextView sessionHint;
     LinearLayout playbackActions;
-    Button openVideo;
     Button retryFailed;
     CheckBox onlySmaller;
     TextView activeOnlySmaller;
@@ -119,12 +118,7 @@ final class HomeConversionSection {
         ramValue = ui.metric(metrics, "RAM · PSS");
         batteryValue = ui.metric(metrics, "Batteria °C");
         ui.parameterRow(work, "Info misure", "CPU: percentuale del processo rispetto a tutti i core disponibili; 100% significa occupazione complessiva. Colori: blu sotto 30%, verde da 30%, ambra da 70%, arancio da 90%. Indicano intensità di utilizzo, non errori.\n\nRAM: PSS del processo, inclusi Java, codice nativo e quota proporzionale delle pagine condivise; non è la RAM totale del telefono. MiB = 1.048.576 byte. Aggiornamento circa ogni 3 secondi.\n\nLa temperatura è della batteria, non della CPU. Colori indicativi: verde sotto 35 °C, ambra da 35 °C, arancio da 40 °C, rosso da 45 °C. Non sono le soglie ufficiali del produttore.\n\nTempo trascorso: durata della coda, inclusi analisi, codifica, verifica e salvataggio. I secondi di video rappresentano il contenuto elaborato e rimanente, non una stima del tempo di attesa.");
-        LinearLayout outputActions = new LinearLayout(ui.activity);
-        outputActions.setWeightSum(2);
-        work.addView(outputActions, new LinearLayout.LayoutParams(-1, -2));
-        openVideo = ui.halfButton(outputActions, "Elenco video riusciti", false);
-        openVideo.setVisibility(View.GONE);
-        retryFailed=ui.halfButton(outputActions,"Riprova i falliti",false);retryFailed.setVisibility(View.GONE);
+        retryFailed=ui.button(work,"Riprova i falliti");retryFailed.setVisibility(View.GONE);
         sizeReportPanel = new LinearLayout(ui.activity);
         sizeReportPanel.setOrientation(LinearLayout.VERTICAL);
         sizeReportPanel.setPadding(ui.dp(14), ui.dp(12), ui.dp(14), ui.dp(12));
@@ -132,7 +126,7 @@ final class HomeConversionSection {
         LinearLayout.LayoutParams reportLayout = new LinearLayout.LayoutParams(-1, -2);
         reportLayout.setMargins(0, ui.dp(14), 0, 0);
         work.addView(sizeReportPanel, reportLayout);
-        sizeReportTitle = ui.text(sizeReportPanel, "RESOCONTO CONVERSIONE", 16);
+        sizeReportTitle = ui.text(sizeReportPanel, "REPORT LAVORI", 16);
         sizeReportTitle.setTypeface(null, Typeface.BOLD);
         sizeReportTitle.setTextColor(ui.accent);
         sizeReport = ui.text(sizeReportPanel, "", 16);

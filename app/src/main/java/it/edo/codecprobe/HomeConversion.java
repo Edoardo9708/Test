@@ -39,20 +39,10 @@ final class HomeConversion {
         home.screen.conversion.onlySmaller.setOnCheckedChangeListener((v,c)->AppSettings.setOnlySmaller(home.activity,c));
         home.screen.conversion.convert.setOnClickListener((v)->startConversion());
         home.screen.conversion.stop.setOnClickListener((v)->confirmCancellation(-1));
-        home.screen.conversion.openVideo.setOnClickListener((v)->showResults());
         home.screen.conversion.keepScreenOn.setOnCheckedChangeListener((v,c)->{
             AppSettings.setKeepScreenOn(home.activity, c);
             updateScreenAwake();
         });
-    }
-
-    void showResults() {
-        ConversionService.State current = ConversionService.snapshot();
-        if (current.results.size() > 1) {
-            String[] labels = new String[current.results.size()];
-            for (int n = 0; n < labels.length; n++) labels[n] = home.displayName(current.results.get(n));
-            new android.app.AlertDialog.Builder(home.activity).setTitle("Video completati").setItems(labels, (d,n)->home.openResult(current.results.get(n))).show();
-        } else if (home.state.resultUri != null) home.openResult(home.state.resultUri);
     }
 
     void handleCancellationIntent(Intent intent) {
@@ -181,7 +171,6 @@ final class HomeConversion {
         renderSizeReport(s);
         renderConversionDashboard(s);
         home.state.resultUri = s.result;
-        home.screen.conversion.openVideo.setVisibility(home.state.resultUri == null ? View.GONE : View.VISIBLE);
         if (home.state.input == null) {
             home.state.selectedInputs.addAll(s.inputs);
             home.state.selectedNames.addAll(s.names);
@@ -201,7 +190,7 @@ final class HomeConversion {
         failures.render(s);
         boolean show = !s.sizeReport.isEmpty();
         home.screen.conversion.sizeReportPanel.setVisibility(show ? View.VISIBLE : View.GONE);
-        home.screen.conversion.sizeReportTitle.setText(s.running ? "RESOCONTO PARZIALE" : "RESOCONTO CONVERSIONE");
+        home.screen.conversion.sizeReportTitle.setText(s.running ? "REPORT LAVORI · IN CORSO" : "REPORT LAVORI");
         if (show && !s.sizeReport.contentEquals(home.screen.conversion.sizeReport.getText())) home.screen.conversion.sizeReport.setText(s.sizeReport);
     }
 
