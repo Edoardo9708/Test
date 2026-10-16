@@ -8,6 +8,25 @@ import android.view.*;
 * One stable Bundle schema for screen recreation and pending Android pickers.
 */
 final class HomeSavedState {
+    private static final String PROCESS=java.util.UUID.randomUUID().toString();
+
+    /** Android may restore a Bundle after process death; it is not a live metadata cache. */
+    static Bundle inThisProcess(Bundle saved){
+        if(saved==null)return null;
+        String process=saved.getString("homeProcess");
+        if(PROCESS.equals(process))return saved;
+        if(process==null){
+            java.util.ArrayList<String> inputs=saved.getStringArrayList("inputs");
+            boolean cached=inputs!=null&&!inputs.isEmpty();
+            if(inputs!=null)for(String input:inputs)cached &= VideoMetadataCache.get(input)!=null;
+            if(cached)return saved; // Compatibility with old Bundles whose metadata are still resident.
+        }
+        Bundle clean=new Bundle(saved);
+        for(String key:new String[]{"input","inputs","names","origins","sourceName","selectedVideoIndex","result",
+            "individualOrigins","individualFolders","applyAllDestinations","allOrigin","allFolder",
+            "choosingOrigins","pendingOriginParent","pendingOriginSource","pendingFixedFolder","pendingAuthorizationOrigin","pendingRetry","videoDetailsExpanded"})clean.remove(key);
+        return clean;
+    }
 
     static void restore(HomeController home, Bundle state, AppSettings defaults) {
         home.state.loadedDefault = defaults.defaultFolder;
@@ -47,6 +66,7 @@ final class HomeSavedState {
     }
 
     static void save(HomeController home, Bundle b) {
+        b.putString("homeProcess",PROCESS);
         home.screen.sections.save(b);
         if(home.conversion.retry.pending!=null)b.putParcelable("pendingRetry",home.conversion.retry.pending);
         if (home.state.input != null) b.putString("input", home.state.input.toString());

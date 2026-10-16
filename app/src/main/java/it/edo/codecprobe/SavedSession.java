@@ -87,7 +87,7 @@ final class SavedSession {
     }
 
     static long elapsed(ConversionService.State s,long now) {
-        return s.elapsedBefore+(s.startedAt>0?Math.max(0,(s.endedAt>0?s.endedAt:now)-s.startedAt):0);
+        return SessionClock.millis(s,now);
     }
 
     private static JSONArray strings(List<String> strings) { return new JSONArray(strings==null?Collections.emptyList():strings); }

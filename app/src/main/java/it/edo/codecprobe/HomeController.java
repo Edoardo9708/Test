@@ -34,6 +34,7 @@ final class HomeController {
         this.activity = activity;
         String restoreError=ConversionService.restoreSession(activity);
         if(restoreError!=null)android.widget.Toast.makeText(activity,restoreError,android.widget.Toast.LENGTH_LONG).show();
+        saved=HomeSavedState.inThisProcess(saved);
         AppSettings defaults = new AppSettings(activity);
         state.settingsRevision = defaults.revision;
         ui = new AppUi(activity);
@@ -147,6 +148,7 @@ final class HomeController {
         if (saved.revision != home.state.settingsRevision && !ConversionService.snapshot().running) home.compression.applyDefaults(saved);
         ConversionService.uiVisible = true;
         home.system.previousWall = 0;
+        home.handler.removeCallbacks(home.system.sample);
         home.handler.post(home.system.sample);
         ConversionService.observe(home.conversion.sessionObserver);
         home.conversion.renderSession();

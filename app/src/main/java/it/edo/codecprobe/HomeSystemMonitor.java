@@ -20,7 +20,7 @@ final class HomeSystemMonitor {
     final Runnable sample = new Runnable(){
 
         public void run() {
-            if (home.state.destroyed) return;
+            if (home.state.destroyed || !home.state.conversionScreenVisible) return;
             long now = SystemClock.elapsedRealtime();
             long cpu = android.os.Process.getElapsedCpuTime();
             int cores = Runtime.getRuntime().availableProcessors();
@@ -58,7 +58,7 @@ final class HomeSystemMonitor {
             }
             if (!home.state.hdrTesting) {
                 ConversionService.State session = ConversionService.snapshot();
-                home.screen.conversion.elapsedLabel.setText(DashboardMetrics.elapsed(session.startedAt, session.endedAt, now));
+                home.conversion.renderElapsed(session,now);
             }
             home.handler.postDelayed(this, 1000);
         }

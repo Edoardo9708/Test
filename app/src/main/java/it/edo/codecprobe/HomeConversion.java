@@ -171,19 +171,6 @@ final class HomeConversion {
         renderSizeReport(s);
         renderConversionDashboard(s);
         home.state.resultUri = s.result;
-        if (home.state.input == null) {
-            home.state.selectedInputs.addAll(s.inputs);
-            home.state.selectedNames.addAll(s.names);
-            home.state.input = Uri.parse(home.state.selectedInputs.get(0));
-            home.state.folder = s.folder;
-            home.state.destinationPlan.reset(home.state.selectedInputs.size(), null);
-            home.state.destinationPlan.restore(s.individualOrigins, s.individualFolders, s.applyAllDestinations, s.allOrigin, s.allFolder);
-            home.state.sourceName = home.state.selectedNames.get(0);
-            home.state.selectedVideoIndex = 0;
-            home.destinations.updateDestinationPanel();
-            home.destinations.refreshLabels();
-            home.selection.inspectInput();
-        }
     }
 
     void renderSizeReport(ConversionService.State s) {
@@ -197,12 +184,13 @@ final class HomeConversion {
     void renderConversionDashboard(ConversionService.State s) {
         int pending = Math.max(0, s.batchTotal - (s.running ? Math.max(s.batchIndex, s.succeeded + s.failed + s.ignored + s.notSaved + s.skipped) : s.succeeded + s.failed + s.ignored + s.notSaved + s.skipped));
         home.screen.conversion.queueLabel.setText("Video " + s.batchIndex + " / " + s.batchTotal + "\nRiusciti: " + s.succeeded + " · Falliti: " + s.failed + " · Ignorati: " + s.ignored + "\nSaltati: " + s.skipped + " · Non salvati: " + s.notSaved + "\n" + (s.running ? "In attesa: " : "Non completati: ") + pending);
-        home.screen.conversion.elapsedLabel.setText(DashboardMetrics.elapsed(1, 1+SavedSession.elapsed(s,SystemClock.elapsedRealtime()), 0));
+        renderElapsed(s,SystemClock.elapsedRealtime());
         home.screen.conversion.currentFile.setText(s.source.isEmpty() ? "In attesa del file" : s.source);
         home.screen.conversion.currentFile.setContentDescription("File attuale: " + s.source);
         home.screen.conversion.frameLabel.setText(s.doneFrames + " / " + (s.totalFrames > 0 ? s.totalFrames : "—"));
         setBusy(s.running);
         playback.render(s);
+        savedSession.render(s);
         updateScreenAwake();
         home.screen.conversion.progress.setProgress(s.filePercent);
         home.screen.conversion.percentLabel.setText(s.filePercent + "%");
@@ -220,5 +208,9 @@ final class HomeConversion {
         home.screen.conversion.activeTree.setText(opened ? (s.cuTree != 0 ? "ON" : "OFF") : "in attesa");
         home.screen.conversion.activeAq.setText(opened ? Integer.toString(s.aqMode) : "in attesa");
         home.screen.conversion.activeStrength.setText(opened ? String.format(Locale.ITALY, "%.2f", s.aqStrength / 1000.0) : "in attesa");
+    }
+
+    void renderElapsed(ConversionService.State session,long now){
+        home.screen.conversion.elapsedLabel.setText(SessionClock.text(session,now));
     }
 }

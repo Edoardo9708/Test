@@ -38,3 +38,32 @@ Tests cover journal round trips, failure stacks, interrupted atomic writes, inva
 service stop/recreation/recovery, terminal-entry skipping, append-only recovery logging,
 fresh-Activity recovery controls, replacement confirmation, exact per-file opening, and
 retry isolation. Native encoding algorithms are unchanged.
+
+## Recovery lifecycle corrections
+
+`SessionClock` is the sole elapsed-time formula used by dashboard rendering, the one-second
+system monitor, the journal, and end-of-queue logging. Accumulated time survives recovery;
+the interval while the app is stopped is excluded. The monitor cancels its prior callback
+before restarting and does not reschedule after the screen becomes inactive.
+
+The home selection is independent of the saved queue/report. Reopening does not import
+the queue into the editable selection or trigger metadata scans. A process identifier in
+the Activity Bundle distinguishes same-process recreation from process death; a Bundle
+from an old process keeps UI preferences but discards selection and stale folder actions.
+Same-process recreation still preserves the current selection and metadata cache.
+
+`ConversionSessionState` defines reset boundaries. Every run gets a fresh State object;
+recovery copies totals, results, errors, and accumulated time. Per-file progress and all
+five effective encoder metrics reset before a restarted/next file. Run-control flags reset
+at queue start. `ConversionRunGate` allows only one conversion worker across service
+instances, even after onDestroy while cleanup is still running. Ownership is released only
+after the worker's converter calls and cleanup return. Service stop uses the latest start
+identifier; a stopping service instance refuses reuse rather than accepting work it may
+cancel. A queued UI refresh is coalesced and checks State identity before updating anything.
+
+`ConversionResources` samples the current PID, OS thread count, process PSS, Java heap,
+C/C++ runtime heap, system available RAM and lowMemory on the existing worker. It writes
+at most once per minute during work and after each file releases its resources. These
+measurements help distinguish encoder memory demand from resources accumulating across
+files; they do not establish why the user's phone consumed 3 GB or disconnected Bluetooth.
+Codec parameters, CRF, lookahead and CPU settings are unchanged.
