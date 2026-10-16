@@ -200,8 +200,7 @@ final class HomeConversion {
         home.screen.conversion.activeOnlySmaller.setText(s.onlySmaller?"ON":"OFF");
         home.screen.conversion.activePreset.setText(s.requestedPreset);
         home.screen.conversion.activeCrf.setText(s.requestedCrf >= 0 ? Integer.toString(s.requestedCrf) : "—");
-        String[] cpuModes = {"Limited", "Auto", "Max"};
-        home.screen.conversion.activeCpu.setText(s.requestedCpu >= 0 && s.requestedCpu < cpuModes.length ? cpuModes[s.requestedCpu] : "—");
+        home.screen.conversion.activeCpu.setText(MemoryProtection.cpuLabel(s.memoryProtection,s.requestedCpu));
         boolean opened = s.bframeCount >= 0;
         home.screen.conversion.activeBframes.setText(opened ? Integer.toString(s.bframeCount) : "in attesa");
         home.screen.conversion.activeLookahead.setText(opened ? Integer.toString(s.lookaheadCount) : "in attesa");

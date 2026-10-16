@@ -90,7 +90,7 @@ public final class ConversionService extends Service {
     private static final String CHANNEL="conversion";
     static final class State {
         boolean hasSession,running,originMode,applyAllDestinations,allOrigin=true,onlySmaller;
-        boolean pauseRequested,paused,skipping,cancelling,fileActive,recoverable,savingSession;
+        boolean pauseRequested,paused,skipping,cancelling,fileActive,recoverable,savingSession,memoryProtection;
         String sessionId="";
         long elapsedBefore;
         ArrayList<CompressionSummary.Item> items=new ArrayList<>();
@@ -109,7 +109,7 @@ public final class ConversionService extends Service {
         String message="",log="",source="",sizeReport="";
         Uri result,input,folder;
         State(){}
-        State(State s){sessionId=s.sessionId;recoverable=s.recoverable;savingSession=s.savingSession;elapsedBefore=s.elapsedBefore;items=new ArrayList<>(s.items);outputUris=new ArrayList<>(s.outputUris);pauseRequested=s.pauseRequested;paused=s.paused;skipping=s.skipping;cancelling=s.cancelling;fileActive=s.fileActive;skipped=s.skipped;failures=new ArrayList<>(s.failures);startedAt=s.startedAt;endedAt=s.endedAt;requestedCrf=s.requestedCrf;requestedCpu=s.requestedCpu;requestedPreset=s.requestedPreset;sizeReport=s.sizeReport;applyAllDestinations=s.applyAllDestinations;allOrigin=s.allOrigin;allFolder=s.allFolder;individualOrigins=s.individualOrigins.clone();individualFolders=new ArrayList<>(s.individualFolders);originMode=s.originMode;inputs=new ArrayList<>(s.inputs);names=new ArrayList<>(s.names);folders=new ArrayList<>(s.folders);results=new ArrayList<>(s.results);filePercent=s.filePercent;batchIndex=s.batchIndex;batchTotal=s.batchTotal;succeeded=s.succeeded;failed=s.failed;ignored=s.ignored;notSaved=s.notSaved;onlySmaller=s.onlySmaller;hasSession=s.hasSession;running=s.running;bframeCount=s.bframeCount;lookaheadCount=s.lookaheadCount;cuTree=s.cuTree;aqMode=s.aqMode;aqStrength=s.aqStrength;percent=s.percent;doneFrames=s.doneFrames;totalFrames=s.totalFrames;done=s.done;total=s.total;message=s.message;log=s.log;source=s.source;result=s.result;input=s.input;folder=s.folder;}
+        State(State s){memoryProtection=s.memoryProtection;sessionId=s.sessionId;recoverable=s.recoverable;savingSession=s.savingSession;elapsedBefore=s.elapsedBefore;items=new ArrayList<>(s.items);outputUris=new ArrayList<>(s.outputUris);pauseRequested=s.pauseRequested;paused=s.paused;skipping=s.skipping;cancelling=s.cancelling;fileActive=s.fileActive;skipped=s.skipped;failures=new ArrayList<>(s.failures);startedAt=s.startedAt;endedAt=s.endedAt;requestedCrf=s.requestedCrf;requestedCpu=s.requestedCpu;requestedPreset=s.requestedPreset;sizeReport=s.sizeReport;applyAllDestinations=s.applyAllDestinations;allOrigin=s.allOrigin;allFolder=s.allFolder;individualOrigins=s.individualOrigins.clone();individualFolders=new ArrayList<>(s.individualFolders);originMode=s.originMode;inputs=new ArrayList<>(s.inputs);names=new ArrayList<>(s.names);folders=new ArrayList<>(s.folders);results=new ArrayList<>(s.results);filePercent=s.filePercent;batchIndex=s.batchIndex;batchTotal=s.batchTotal;succeeded=s.succeeded;failed=s.failed;ignored=s.ignored;notSaved=s.notSaved;onlySmaller=s.onlySmaller;hasSession=s.hasSession;running=s.running;bframeCount=s.bframeCount;lookaheadCount=s.lookaheadCount;cuTree=s.cuTree;aqMode=s.aqMode;aqStrength=s.aqStrength;percent=s.percent;doneFrames=s.doneFrames;totalFrames=s.totalFrames;done=s.done;total=s.total;message=s.message;log=s.log;source=s.source;result=s.result;input=s.input;folder=s.folder;}
     }
     static boolean clearLogsIfIdle(Runnable clear){synchronized(LOCK){if(state.running)return false;clear.run();state.log="";return true;}}
     static boolean clearSessionIfIdle(android.content.Context context){
@@ -298,6 +298,7 @@ public final class ConversionService extends Service {
                         writeBatch(batchLog,"CONFRONTO DIMENSIONI · input_byte="+originalBytes+" · "+CompressionSummary.size(originalBytes));
                         requireWritableFolder(Uri.parse(queueFolders.get(index)));
                         VideoConverter converter=new VideoConverter(getApplicationContext(),cancel,new VideoConverter.Listener(){
+                            public void memoryProtection(boolean active){synchronized(LOCK){state.memoryProtection=active;}publish(true);}
                             public void encoderSettings(int b,int l,int tree,int aq,int strength){synchronized(LOCK){state.bframeCount=b;state.lookaheadCount=l;state.cuTree=tree;state.aqMode=aq;state.aqStrength=strength;}publish(true);}
                             public String runtimeState(){return "UI_visibile="+uiVisible+" wake_lock_attivo="+(wake!=null&&wake.isHeld());}
                             public String cancellationReason(){if(control.skipped())return "Salto del file attuale richiesto dall’utente";return timedOut?"Limite Android del servizio mediaProcessing raggiunto":"Annullamento dell’intera coda richiesto dall’utente o arresto del servizio";}

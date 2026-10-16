@@ -75,7 +75,7 @@ final class SavedSession {
             .put("message",s.message).put("index",s.batchIndex).put("filePercent",s.filePercent)
             .put("frames",s.doneFrames).put("totalFrames",s.totalFrames).put("done",s.done).put("total",s.total)
             .put("bframes",s.bframeCount).put("lookahead",s.lookaheadCount).put("cuTree",s.cuTree)
-            .put("aq",s.aqMode).put("aqStrength",s.aqStrength);
+            .put("aq",s.aqMode).put("aqStrength",s.aqStrength).put("memoryProtection",s.memoryProtection);
         boolean[] omitted=request.getBooleanArrayExtra("omitted");JSONArray omissions=new JSONArray();
         for(int n=0;n<s.inputs.size();n++)omissions.put(omitted!=null&&omitted[n]);json.put("omitted",omissions);
         JSONArray items=new JSONArray();
@@ -126,6 +126,7 @@ final class SavedSession {
         int current=Math.max(0,s.batchIndex-1);s.source=names.get(current);s.input=Uri.parse(inputs.get(current));s.folder=Uri.parse(s.folders.get(current));
         s.filePercent=json.getInt("filePercent");s.doneFrames=json.getInt("frames");s.totalFrames=json.getInt("totalFrames");s.done=json.getLong("done");s.total=json.getLong("total");
         s.bframeCount=json.getInt("bframes");s.lookaheadCount=json.getInt("lookahead");s.cuTree=json.getInt("cuTree");s.aqMode=json.getInt("aq");s.aqStrength=json.getInt("aqStrength");
+        s.memoryProtection=json.optBoolean("memoryProtection",false);
         s.message=json.getString("message");s.sizeReport=CompressionSummary.render(s.items);
         SavedSession saved=new SavedSession(task,s);s.recoverable=json.getBoolean("recoverable")&&saved.hasPending();
         if(s.recoverable)s.message="Sessione salvata · i video completati restano acquisiti. Il video interrotto ripartirà dall’inizio.";

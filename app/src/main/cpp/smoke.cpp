@@ -1,10 +1,21 @@
 #include "encoder.h"
 #include "stream_encoder.h"
+#include "memory_protection_check.h"
 #include <fstream>
 #include <iostream>
 #include <set>
 int main() {
     try {
+        checkMemoryProtection();
+        {
+            ProbeCallbacks cb;cb.log=[](const std::string& s){std::cout<<s<<std::endl;};
+            cb.cancelled=[](){return false;};cb.headers=[](const std::vector<uint8_t>&){};
+            cb.packet=[](const std::vector<uint8_t>&,int64_t,bool){};
+            StreamConfig c{3840,2160,30000,23,1,3,2};c.cpuMode=2;c.cores=8;c.bframes=false;c.lookahead=true;
+            StreamEncoder encoder(c,cb);auto settings=encoder.effectiveSettings();
+            if(settings[0]!=4||settings[1]!=5||settings[2]!=0)throw std::runtime_error("Effective UHD SDR protection failed");
+            std::cout<<"OK UHD SDR protection: real encoder opened, requested Max/B-off, effective B4/LA5/CU-off"<<std::endl;
+        }
         for(int preset=0;preset<9;preset++)for(bool b:{false,true})for(bool look:{false,true}){
             auto settings=StreamEncoder::presetSettings(preset,b,look);
             if(settings[3]<0||settings[3]>4||settings[4]<0||settings[4]>3000||settings[0]<0||settings[1]<0||(!b&&settings[0]!=0)||(!look&&(settings[1]!=(b?settings[0]+1:0)||settings[2]!=0)))throw std::runtime_error("Preset settings query disagrees with temporal switches");
@@ -66,5 +77,6 @@ int main() {
         }
     } catch(const std::exception& e) {std::cerr<<e.what()<<std::endl; return 1;}
 }
+
 
 

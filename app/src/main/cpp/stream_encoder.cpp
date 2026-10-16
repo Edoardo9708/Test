@@ -1,4 +1,5 @@
 #include "stream_encoder.h"
+#include "memory_protection.h"
 #include <x265.h>
 #include <stdexcept>
 #include <chrono>
@@ -64,6 +65,8 @@ StreamEncoder::StreamEncoder(const StreamConfig& c,ProbeCallbacks& cb):state(new
     if(c.cpuMode==0) {p->frameNumThreads=2; s.pool="2";p->numaPools=s.pool.c_str();}
     else if(c.cpuMode==1) {p->frameNumThreads=0;p->numaPools=nullptr;}
     else {p->frameNumThreads=std::min(6,c.cores);s.pool=std::to_string(std::min(64,c.cores));p->numaPools=s.pool.c_str();}
+    if(MemoryProtection::apply(p,c.width,c.height))
+        cb.log("PROTEZIONE MEMORIA 4K ATTIVA · CPU effettiva=Limited · frame_threads=2 · pool=2 · B-frame=4 · lookahead=5 · CU-tree=OFF");
     cb.log("CPU richiesta: modalita="+std::to_string(c.cpuMode)+" core_disponibili="+std::to_string(c.cores)+" frame_threads="+std::to_string(p->frameNumThreads)+" pool="+(p->numaPools?std::string(p->numaPools):"automatico"));
     p->bAnnexB=1; p->bRepeatHeaders=0; p->bEmitInfoSEI=0; p->logLevel=X265_LOG_WARNING;
     p->vui.bEnableVideoSignalTypePresentFlag=1;
@@ -136,5 +139,6 @@ void StreamEncoder::finish(ProbeCallbacks& cb) {
     if(!s.finished || s.produced!=s.submitted || !s.produced) throw std::runtime_error("Conteggio fotogrammi x265 incoerente");
     cb.log("OK x265 frames_in="+std::to_string(s.submitted)+" frames_out="+std::to_string(s.produced));
 }
+
 
 

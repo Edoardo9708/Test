@@ -44,7 +44,7 @@ final class ConversionSessionState {
     static void resetFile(ConversionService.State value){
         value.filePercent=0;value.doneFrames=0;value.totalFrames=-1;value.done=0;value.total=0;
         value.bframeCount=-1;value.lookaheadCount=-1;value.cuTree=-1;value.aqMode=-1;value.aqStrength=-1;
-        value.fileActive=false;value.skipping=false;
+        value.fileActive=false;value.skipping=false;value.memoryProtection=false;
     }
     private ConversionSessionState(){}
 }

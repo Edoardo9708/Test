@@ -1,8 +1,20 @@
 #include "hdr_encoder.h"
+#include "../memory_protection_check.h"
 #include <fstream>
 #include <iostream>
 #include <set>
 int main(){try{
+    checkMemoryProtection();
+    {
+        ProbeCallbacks cb;cb.log=[](const std::string& s){std::cout<<s<<std::endl;};
+        cb.cancelled=[](){return false;};cb.headers=[](const std::vector<uint8_t>&){};
+        cb.packet=[](const std::vector<uint8_t>&,int64_t,bool){};
+        StreamConfig c{2160,3840,30000,23,6,6,2};c.cpuMode=2;c.cores=8;c.bframes=false;c.lookahead=true;
+        c.colorPrimaries=9;c.colorTransfer=16;c.colorMatrix=9;c.colorFlags=46;
+        HdrEncoder encoder(c,cb);auto settings=encoder.effectiveSettings();
+        if(settings[0]!=4||settings[1]!=5||settings[2]!=0)throw std::runtime_error("Effective UHD HDR protection failed");
+        std::cout<<"OK UHD HDR protection: real portrait encoder opened, requested Max/B-off, effective B4/LA5/CU-off"<<std::endl;
+    }
     for(int transfer:{16,18}){
         std::ofstream file("hdr10-"+std::to_string(transfer)+".hevc",std::ios::binary);int packets=0;ProbeCallbacks cb;
         cb.log=[](const std::string& s){std::cout<<s<<std::endl;};cb.cancelled=[](){return false;};

@@ -16,7 +16,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 final class VideoConverter {
-    interface Listener { void log(String text); void progress(int percent, String text); void timeline(long doneUs,long totalUs); default void frames(int done,int total){} default void encoderSettings(int b,int l,int tree,int aq,int strength){} default String runtimeState(){return "stato servizio non disponibile";} default String cancellationReason(){return "Annullamento richiesto";} }
+    interface Listener { void log(String text); void progress(int percent, String text); void timeline(long doneUs,long totalUs); default void frames(int done,int total){} default void encoderSettings(int b,int l,int tree,int aq,int strength){} default void memoryProtection(boolean active){} default String runtimeState(){return "stato servizio non disponibile";} default String cancellationReason(){return "Annullamento richiesto";} }
     private native long nativeOpen(int w,int h,int fpsMilli,int crf,int standard,int transfer,int range,int preset,int cpuMode,int cores,boolean bframes,boolean lookahead,int primaries,int colorTransfer,int matrix,int colorFlags);
     private native void nativeFrame(long handle,ByteBuffer i420,long pts);
     private native void nativeFinish(long handle);
@@ -339,7 +339,8 @@ final class VideoConverter {
                     }
                     public void settings(int[] values){reportEncoderSettings(values);}
                 };
-                new HdrTranscoder(this::isCancelled,sink,sourceColor,this::activeNow).run(extractor,video,hdrMetadataFile,width,height,Math.round(fps*1000),crf,preset,cpuMode,bframes,lookahead);
+                applyMemoryProtection();
+                new HdrTranscoder(this::isCancelled,sink,sourceColor,this::activeNow).run(extractor,video,hdrMetadataFile,width,height,Math.round(fps*1000),crf,preset,this.cpuMode,this.bframes,this.lookahead);
                 listener.frames(frames,frames);listener.timeline(durationUs,durationUs);
             }else{
                 onLog("BEGIN loadLibrary x265probe · percorso SDR a 8 bit");
@@ -397,7 +398,8 @@ final class VideoConverter {
                                         if(transfer==0) transfer=3;
                                         if(range==0) range=2;
                                         onLog("YUV crop="+crop+" standard="+standard+" transfer="+transfer+" range="+range+" (default SDR per valori non dichiarati)");
-                                        handle=nativeOpen(width,height,Math.round(fps*1000),crf,standard,transfer,range,preset,cpuMode,Runtime.getRuntime().availableProcessors(),bframes,lookahead,sourceColor.primaries,sourceColor.transfer,sourceColor.matrix,sourceColor.flags());
+                                        applyMemoryProtection();
+                                        handle=nativeOpen(width,height,Math.round(fps*1000),crf,standard,transfer,range,preset,this.cpuMode,Runtime.getRuntime().availableProcessors(),this.bframes,this.lookahead,sourceColor.primaries,sourceColor.transfer,sourceColor.matrix,sourceColor.flags());
                                         int[] temporal=nativeEffectiveSettings(handle);
                                         reportEncoderSettings(temporal);
                                         onLog("PRESTAZIONI: ogni circa 5 secondi vedrai fps di codifica e CPU media normalizzata sui core; il log continua anche a schermata nascosta.\nStato termico Android: 0=regolare, 1=lieve, 2=moderato, 3=elevato, 4=critico, 5=emergenza, 6=spegnimento.\nLa temperatura riportata è della batteria, non della CPU.");
@@ -442,6 +444,15 @@ final class VideoConverter {
                 muxer.release();muxer=null;muxing=false;
             }
         }
+    }
+    private void applyMemoryProtection(){
+        boolean active=MemoryProtection.required(width,height);
+        listener.memoryProtection(active);
+        if(!active)return;
+        onLog("*** PROTEZIONE MEMORIA 4K ATTIVA ***\nDimensioni effettive: "+width+"×"+height
+            +"\nScelte richieste: CPU="+cpuMode+" · B-frame="+bframes+" · lookahead esteso="+lookahead
+            +"\n"+MemoryProtection.description());
+        cpuMode=0;bframes=true;lookahead=false;
     }
     private void reportEncoderSettings(int[] values){
         if(values==null||values.length!=5)throw new IllegalStateException("Parametri encoder non disponibili");
