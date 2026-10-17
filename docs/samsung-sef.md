@@ -1,11 +1,11 @@
-# Samsung SEF preservation and diagnostics (v0.55)
+# Samsung SEF preservation and diagnostics (v0.60)
 
 ## Responsibilities
 
 - `SamsungSef`: coordination and combined result; does not rewrite records.
 - `SamsungSefDirectory`: bounds, directory/header consistency and internal references.
 - `SamsungSefCatalog`: name/type pairs, descriptions and explicit copy policy.
-- `SamsungSefSchemas`: validation of supported descriptive payloads.
+- `SamsungSefSchemas`: validation of supported descriptive/temporal payloads.
 - `SamsungSefDiagnostics`: bounded binary/text excerpts, offsets and hashes.
 - `Mp4Metadata`: copies the original complete `sefd` box to EOF and verifies the
   copied bytes with SHA-256, including a second directory/schema validation.
@@ -47,6 +47,8 @@ also passes. Unknown versions and malformed structures remain rejected.
 | Panorama_Shot_Info | 08E0 | Exactly `PanoramaShot` |
 | Jpeg360_2D_Info | A050 | Exactly `Jpeg3602D` |
 | Video_Edited_UTC_Offset | 0E41 | ASCII `+HHMM`/`-HHMM`, valid minutes, at most 14:00 |
+| SlowMotion_Data | 0890 | ASCII `startMs:endMs:mode` segments separated by `*`; ordered, nonoverlapping, nonnegative, start < end, mode 1–31 |
+| Invalid_Data | 7FFE | Only the observed variant of exactly 13 zero bytes; no meaning inferred from the name |
 
 Text terminators, binary variants and unexpected type/name combinations are not
 implicitly normalized. Original bytes remain unchanged. UTC/MCC fields are not
@@ -88,3 +90,39 @@ timezone bounds, embedded control bytes, bounded large-payload/many-record
 diagnostics and 500 deterministic byte mutations. MP4 round trips verify that
 the newly supported multi-record SEF stays byte-identical at its relocated EOF,
 while encoded media bytes and existing dates/GPS metadata remain intact.
+
+## Standard slow-motion case from the v0.57 diagnostic (v0.60)
+
+The supplied log completely describes a 116-byte v105 SEF box: Invalid_Data
+(7FFE, 13 zero bytes) followed by SlowMotion_Data (0890, ASCII `0:1637:4`).
+The reconstructed fixture verifies record/payload offsets 8/28 and 41/64,
+directory start 72, record sizes 33/31 and the supplied payload SHA-256 values.
+The full-box copy test preserves every byte at EOF after relocation, leaving
+encoded media bytes unmoved and testing malformed variants separately.
+
+Android Media3 SefReader and SlowMotionData define milliseconds and a speed
+reduction factor of 2^(mode-1): the observed mode 4 is 1/8 speed over 0–1637 ms.
+Our independent parser rejects empty/malformed rows, negative/overflowing values,
+unordered/overlapping intervals, endpoints outside a representable microsecond
+timeline, and modes outside 1–31 (avoiding Java shift wraparound). It limits text
+to 4096 bytes and segments to 256; only the first eight segments are described
+in the log. Actual payload text is copied unchanged, never reserialized.
+
+These instructions refer to presentation times, not byte offsets. Their
+preservation relies on the existing final full-frame decode verification of
+frame counts and every original PTS (1 ms MP4 rounding tolerance), and on never
+flattening, dropping frames or applying the SEF speed instructions during encode.
+This addition does NOT claim preservation of AVC-specific SVC layers or the
+Samsung editor UI after conversion to HEVC. Samsung Gallery playback of the
+converted slow-motion file needs a device test; structural and byte equality
+alone cannot establish that behavior. Super_SlowMotion_* remains unsupported.
+
+No public schema for Invalid_Data/7FFE was found. The exact zero-filled 13-byte
+variant is an explicitly bounded observed template, not generic approval for
+unknown binary data or a claim that the original file is corrupt. A different
+length, nonzero byte, type or name remains blocked. Neither record is deleted.
+
+Primary implementation references inspected 2026-10-17:
+- https://github.com/androidx/media/blob/release/libraries/extractor/src/main/java/androidx/media3/extractor/mp4/SefReader.java
+- https://github.com/androidx/media/blob/release/libraries/extractor/src/main/java/androidx/media3/extractor/metadata/mp4/SlowMotionData.java
+- https://android.googlesource.com/platform/prebuilts/fullsdk/sources/+/refs/heads/androidx-constraintlayout-release/android-35/com/google/android/exoplayer2/extractor/mp4/SefReader.java

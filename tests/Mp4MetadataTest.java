@@ -45,7 +45,7 @@ public final class Mp4MetadataTest {
             Files.write(input,content(true));Files.write(output,content(false));failed=false;try(FileChannel src=FileChannel.open(input)){Mp4Metadata.copy(src,output.toFile(),()->true,s->{});}catch(IOException e){failed=true;}if(!failed)throw new AssertionError("Cancellation ignored");
             Files.write(input,join(content(false),box("uuid",new byte[24])));failed=false;try(FileChannel src=FileChannel.open(input)){Mp4Metadata.check(src,()->false);}catch(IOException e){failed=true;}if(!failed)throw new AssertionError("Unknown vendor UUID silently accepted");
             Files.write(input,join(content(false),box("meta",join(new byte[4],box("iloc",new byte[20])))));failed=false;try(FileChannel src=FileChannel.open(input)){Mp4Metadata.check(src,()->false);}catch(IOException e){failed=true;}if(!failed)throw new AssertionError("Old media item offsets silently accepted");
-            for(byte[] sef:new byte[][]{sef(),SamsungSefTest.screen(),SamsungSefTest.descriptive()}){
+            for(byte[] sef:new byte[][]{sef(),SamsungSefTest.screen(),SamsungSefTest.descriptive(),SamsungSefTest.slowMotion()}){
             SamsungSef.validate(sef);
             Files.write(input,join(content(true),sef));byte[] before=content(false);Files.write(output,before);
             try(FileChannel src=FileChannel.open(input)){Mp4Metadata.copy(src,output.toFile(),()->false,System.out::println);}

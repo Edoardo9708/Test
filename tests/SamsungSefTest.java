@@ -30,6 +30,8 @@ public final class SamsungSefTest {
         new Item(0x0c61,"Camera_Capture_Mode_Info","1"),new Item(0x0910,"Front_Cam_Selfie_Info","Front_Cam_Selfie_Info"),
         new Item(0x08e0,"Panorama_Shot_Info","PanoramaShot"),new Item(0x09e0,"Burst_Shot_Info","489489125"),
         new Item(0xa050,"Jpeg360_2D_Info","Jpeg3602D"));}
+    // Reconstructed exactly from v0.57's complete 116-byte diagnostic (no media data needed).
+    static byte[] slowMotion(){return fixture(105,new Item(0x7ffe,"Invalid_Data",new byte[13]),new Item(0x0890,"SlowMotion_Data","0:1637:4"));}
     private static String failure(byte[] b)throws Exception{try{SamsungSef.validate(b,123456);}catch(IOException expected){return expected.getMessage();}throw new AssertionError("Invalid SEF accepted");}
     private static void reject(byte[] b)throws Exception{try{SamsungSef.validate(b);}catch(IOException expected){return;}throw new AssertionError("Invalid SEF accepted");}
     public static void main(String[] args)throws Exception{
@@ -42,6 +44,21 @@ public final class SamsungSefTest {
         corrupt=original.clone();corrupt[16]='X';reject(corrupt);
         corrupt=original.clone();corrupt[64]=1;reject(corrupt);
         corrupt=original.clone();ByteBuffer.wrap(corrupt).order(ByteOrder.LITTLE_ENDIAN).putInt(72,45);reject(corrupt);
+        byte[] slow=slowMotion(),slowCopy=slow.clone();String slowReport=SamsungSef.validate(slow);
+        if(slow.length!=116||!Arrays.equals(slow,slowCopy)||!slowReport.contains("2 copiabili · 0 bloccati")||!slowReport.contains("velocità=1/8"))throw new AssertionError(slowReport);
+        SamsungSefDirectory parsed=SamsungSefDirectory.parse(slow);
+        String[] hashes={"dd46c3eebb1884ff3b5258c0a2fc9398e560a29e0780d4b53869b6254aa46a96","049b5e2408d9f0a63e7b51377da44897064f47fdc7188a4358b72b92c9842488"};
+        for(int i=0;i<2;i++){SamsungSefDirectory.Record r=parsed.records.get(i);byte[] payload=Arrays.copyOfRange(r.bytes,r.payload,r.end);String hash=HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256").digest(payload));if(!hash.equals(hashes[i]))throw new AssertionError("Diagnostic payload hash mismatch");}
+
+        if(parsed.start!=72||parsed.records.get(0).payload!=28||parsed.records.get(1).payload!=64)throw new AssertionError("Fixture does not match reported offsets");
+        SamsungSef.validate(fixture(105,new Item(0x0890,"SlowMotion_Data","0:100:1*100:300:2*300:1637:4")));
+        SamsungSef.validate(fixture(105,new Item(0x0890,"SlowMotion_Data","0:100:31")));
+        for(String value:new String[]{"","0:0:4","5:4:4","-1:3:4","0:10:0","0:10:32","0:10:4*9:20:4","0:10:4*","0:10:4\u0000","0:10:4:5","0:10:x","9223372036854775808:10:4","0:9223372036854775807:4"})
+            reject(fixture(105,new Item(0x0890,"SlowMotion_Data",value)));
+        for(int length:new int[]{0,12,14})reject(fixture(105,new Item(0x7ffe,"Invalid_Data",new byte[length])));
+        for(int i=0;i<13;i++){byte[] invalid=new byte[13];invalid[i]=1;reject(fixture(105,new Item(0x7ffe,"Invalid_Data",invalid)));}
+        reject(fixture(105,new Item(0x7fff,"Invalid_Data",new byte[13])));
+        reject(fixture(105,new Item(0x0891,"SlowMotion_Data","0:1637:4")));
         byte[] descriptive=descriptive(),untouched=descriptive.clone();String approved=SamsungSef.validate(descriptive);
         if(!approved.contains("8 copiabili · 0 bloccati")||!Arrays.equals(descriptive,untouched))throw new AssertionError(approved);
         for(int version:new int[]{103,105,106,107})SamsungSef.validate(fixture(version,new Item(0x0aa1,"MCC_Data","222")));
@@ -72,6 +89,6 @@ public final class SamsungSefTest {
             try{SamsungSef.validate(fuzz);}catch(IOException expected){}
         }
         if(args.length>0){byte[] real=Files.readAllBytes(Path.of(args[0]));if(!Arrays.equals(real,original))throw new AssertionError("Fixture differs from actual file");SamsungSef.validate(real);}
-        System.out.println("OK Samsung SEF: exact screen fixture, 8 additional descriptive schemas, four directory versions, full record inventory, type/name/variant diagnostics, bounded binary/JSON previews, relocation and mutation checks");
+        System.out.println("OK Samsung SEF: exact screen fixture, 8 additional descriptive schemas, standard slow-motion/zero-template schemas, four directory versions, full record inventory, type/name/variant diagnostics, bounded binary/JSON previews, relocation and mutation checks");
     }
 }

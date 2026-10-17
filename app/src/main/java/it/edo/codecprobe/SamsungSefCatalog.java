@@ -32,6 +32,7 @@ final class SamsungSefCatalog {
         add(m,0x08e0,"Panorama_Shot_Info","Indicatore panorama","panorama",null);
         add(m,0xa050,"Jpeg360_2D_Info","Indicatore immagine a 360 gradi","jpeg360",null);
         add(m,0x0e41,"Video_Edited_UTC_Offset","Fuso orario del video modificato","timezone",null);
+        add(m,0x7ffe,"Invalid_Data","Record opaco: supportata solo la variante osservata di 13 byte nulli","invalid-zero13",null);
 
         String binary="Contenuto binario/proprietario: struttura interna e rilocazione non verificate";
         String edits="Istruzioni di modifica: possibili riferimenti a originale, dimensioni o timeline da verificare";
@@ -89,7 +90,7 @@ final class SamsungSefCatalog {
         add(m,0x0da1,"Captured_App_Info","Applicazione di origine acquisizione",null,binary);
         add(m,0x0ac0,"ZoomInOut_Info","Informazioni zoom",null,binary);
         String speed="Dati rallentatore: timeline/velocità di riproduzione da verificare prima della copia";
-        add(m,0x0890,"SlowMotion_Data","Intervalli e velocità rallentatore",null,speed);
+        add(m,0x0890,"SlowMotion_Data","Intervalli temporali e fattori rallentatore standard","slow-motion",null);
         add(m,0x0b00,"Super_SlowMotion_Data","Dati super rallentatore",null,speed);
         add(m,0x0b01,"Super_SlowMotion_BGM","Audio super rallentatore",null,embedded);
         add(m,0x0b03,"Super_SlowMotion_Edit_Data","Modifiche super rallentatore",null,speed);
