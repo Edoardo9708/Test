@@ -50,7 +50,7 @@ public class AudioConversionTest {
             assertTrue(audio.screen.start.isEnabled());assertFalse(audio.screen.cancel.isEnabled());
             audio.screen.clearReport.performClick();assertEquals(List.of("a.flac"),audio.state.names);
             assertTrue(audio.screen.parameters.getText().toString().equals("—"));
-            assertTrue(audio.screen.status.getText().toString().contains("FLAC"));
+            assertTrue(audio.screen.status.getText().toString().contains("Opus"));
         }finally{controller.pause().stop().destroy();c.getSharedPreferences("audio-workspace",0).edit().clear().commit();}
     }
     @Test public void staleCancelCannotChangeAnotherAudioRun()throws Exception{
