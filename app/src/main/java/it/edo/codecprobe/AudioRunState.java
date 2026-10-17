@@ -12,7 +12,7 @@ final class AudioRunState {
     boolean running,cancelling;
     int current,total,bitrate,channels,rate,percent;
     long doneSamples,totalSamples,startedAt,endedAt;
-    String message="Pronto per una prova FLAC → Opus VBR",name="—",log="";
+    String message="Pronto per una prova audio → Opus VBR",name="—",log="";
     final ArrayList<Result> results=new ArrayList<>();
     AudioRunState(){}
     AudioRunState(AudioRunState s){

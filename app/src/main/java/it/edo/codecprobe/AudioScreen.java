@@ -19,7 +19,7 @@ final class AudioScreen {
         selected=ui.text(files,"Nessun brano selezionato",18);names=ui.text(files,"",14);
         LinearLayout lyricActions=ui.row(files);pickLyrics=ui.halfButton(lyricActions,"Seleziona testi .lrc",false);clearLyrics=ui.halfButton(lyricActions,"Svuota testi",false);
         lyrics=ui.text(files,"",14);
-        ui.text(files,"Per i testi esterni seleziona anche i file .lrc con lo stesso nome del FLAC. Vengono abbinati e copiati accanto all’Opus, senza cambiare testo, tempi o codifica.",13);
+        ui.text(files,"Per i testi esterni seleziona anche i file .lrc con lo stesso nome del brano. Vengono abbinati e copiati accanto all’Opus, senza cambiare testo, tempi o codifica.",13);
         ui.divider(files);chooseFolder=ui.button(files,"Scegli cartella audio");folder=ui.text(files,"Nessuna cartella scelta",14);
         LinearLayout compression=sections.card(page,COMPRESSION);
         ui.parameterRow(compression,"Opus · VBR","libopus 1.6.1 + libopusenc 0.3 incluse nell’app. VBR libero, complessità 10. Il bitrate indica un obiettivo medio, non una dimensione garantita. Opus è lossy: non mantiene esattamente il PCM del FLAC.");
@@ -28,7 +28,7 @@ final class AudioScreen {
         ui.text(compression,"Scegli il bitrate · 64–256 kbit/s",13);
         LinearLayout presetRow=ui.row(compression);
         for(int value:new int[]{96,128,160}){Button b=ui.halfButton(presetRow,value+" kbit/s",false);presets.add(b);b.setOnClickListener(v->bitrate.setProgress((value-64)/8));}
-        ui.parameterRow(compression,"FLAC mono / stereo → .opus","Input FLAC nativo da 8 a 192 kHz, fino a 32 bit; conversione a float, senza normalizzazione. libopusenc ricampiona quando serve. Output Ogg Opus a 48 kHz, con lo stesso numero di canali. Altri formati e audio multicanale richiederanno un passaggio successivo.");
+        ui.parameterRow(compression,"FLAC / MP3 / M4A → .opus","Input FLAC nativo da 8 a 192 kHz, fino a 32 bit; conversione a float, senza normalizzazione. libopusenc ricampiona quando serve. Output Ogg Opus a 48 kHz, con lo stesso numero di canali. MP3 e M4A (AAC, oppure ALAC se il dispositivo dispone del decoder) mono/stereo: lettura con Android. File DRM esclusi. Ricodificare MP3/AAC puo perdere qualita e non garantisce risparmio di spazio.");
         ui.text(compression,"PROVA DEL MOTORE\nTag e copertine vengono copiati e verificati. I testi .lrc esterni richiedono la selezione dedicata sopra. Conserva gli originali durante queste prove. La coda audio non è ancora ripristinabile dopo la chiusura del processo.",14);
         LinearLayout conversion=sections.card(page,CONVERSION),actions=ui.row(conversion);
         start=ui.halfButton(actions,"Converti audio",true);cancel=ui.halfButton(actions,"Annulla…",false);ui.danger(cancel);

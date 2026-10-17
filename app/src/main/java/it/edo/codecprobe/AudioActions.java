@@ -16,11 +16,11 @@ final class AudioActions {
     AudioActions(AudioController audio){this.audio=audio;}
     void start(){
         if(audio.state.readingNames||audio.state.readingLyrics){audio.toast("Attendi la lettura dei nomi di brani e testi");return;}
-        if(audio.state.inputs.isEmpty()||audio.state.folder==null){audio.toast("Seleziona almeno un FLAC e una cartella audio");return;}
+        if(audio.state.inputs.isEmpty()||audio.state.folder==null){audio.toast("Seleziona almeno un brano e una cartella audio");return;}
         if(audio.state.lyricsInputs.size()>1000){audio.toast("Seleziona al massimo 1000 testi .lrc per questa coda");return;}
         if(audio.state.inputs.size()>500){audio.toast("Per questa prova seleziona al massimo 500 brani");return;}
         if(ConversionService.snapshot().running||AudioConversionService.snapshot().running){audio.toast("Una conversione è già in corso");return;}
-        new AlertDialog.Builder(audio.activity).setTitle("Prova FLAC → Opus VBR")
+        new AlertDialog.Builder(audio.activity).setTitle("FLAC / MP3 / M4A → Opus VBR")
             .setMessage("Tag e copertine verranno copiati e verificati. Per i testi esterni vengono usati solo i .lrc selezionati e abbinati per nome. Gli originali restano disponibili.\n\nConvertire "+audio.state.inputs.size()+" brani a "+audio.state.bitrate+" kbit/s?")
             .setNegativeButton("Indietro",null).setPositiveButton("Converti",(dialog,which)->launch()).show();
     }

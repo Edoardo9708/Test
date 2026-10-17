@@ -10,5 +10,9 @@ final class AudioCodec {
     }
     static void load(){System.loadLibrary("audioopus");}
     static native long encode(int inputFd,String outputPath,int bitrate,Listener listener)throws IOException;
+    static native long openPcm(int inputFd,int kind,String outputPath,int rate,int channels,int bitrate,Listener listener)throws IOException;
+    static native void writePcm(long handle,float[] pcm,int count)throws IOException;
+    static native long finishPcm(long handle,Listener listener)throws IOException;
+    static native void closePcm(long handle);
     private AudioCodec(){}
 }

@@ -5,7 +5,7 @@ import android.net.Uri;
 import android.os.ParcelFileDescriptor;
 import java.io.*;
 
-/** One FLAC→Opus job. Owns the temporary file and all per-file resources, never the queue/UI. */
+/** One audio→Opus job. Owns the temporary file and all per-file resources, never the queue/UI. */
 final class AudioConverter {
     interface Listener {
         boolean cancelled();
@@ -20,18 +20,19 @@ final class AudioConverter {
             listener.stage("Lettura testo esterno…");
             byte[] lyrics=AudioLyrics.read(context,lyricsUri,listener::cancelled);
             if(lyrics!=null)listener.log("TESTO ORIGINALE: "+lyrics.length+" byte · SHA-256="+AudioLyrics.hash(lyrics));
-            listener.stage("Analisi FLAC e metadati…");
+            listener.stage("Analisi audio e metadati…");
             long before=MediaFileSizes.read(context,input);
             temp=File.createTempFile("audio-opus-",".tmp",context.getCacheDir());
             long duration;int[] channelCount={0};
-            try(ParcelFileDescriptor fd=context.getContentResolver().openFileDescriptor(input,"r")){
+            AudioCodec.Listener callback=new AudioCodec.Listener(){
+                public boolean progress(long samples,long total,int rate,int channels){channelCount[0]=channels;listener.progress(samples,total,rate,channels);return !listener.cancelled();}
+                public void log(String text){listener.log(text);}
+            };
+            int kind=AudioMediaDecoder.kind(name);
+            if(kind!=0)duration=AudioMediaDecoder.encode(context,input,temp,kind,bitrate*1000,callback);
+            else try(ParcelFileDescriptor fd=context.getContentResolver().openFileDescriptor(input,"r")){
                 if(fd==null)throw new IOException("File input non leggibile");
-                duration=AudioCodec.encode(fd.getFd(),temp.getAbsolutePath(),bitrate*1000,new AudioCodec.Listener(){
-                    public boolean progress(long samples,long total,int rate,int channels){
-                        channelCount[0]=channels;listener.progress(samples,total,rate,channels);return !listener.cancelled();
-                    }
-                    public void log(String text){listener.log(text);}
-                });
+                duration=AudioCodec.encode(fd.getFd(),temp.getAbsolutePath(),bitrate*1000,callback);
             }
             checkCancelled(listener);listener.stage("Verifica decodifica Opus…");
             listener.log("*** 3. VERIFICA OUTPUT ***\nDecodifica completa con il decoder Android. Controllo canali e durata PCM, tolleranza 80 ms per pre-skip/fine stream.");

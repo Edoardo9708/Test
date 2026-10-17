@@ -59,14 +59,14 @@ public final class AudioConversionService extends Service {
     private void run(ArrayList<String> inputs,ArrayList<String> names,Uri destination,int bitrate,int startId,ArrayList<String> lyrics,ArrayList<String> lyricNames){
         try(AudioLog log=new AudioLog(this)){
             try{
-            write(log,"*** INIZIO SESSIONE AUDIO · v"+BuildConfig.VERSION_NAME+" ***\n1. Decodifica FLAC con libFLAC\n2. Codifica CPU con libopus + libopusenc\n3. Verifica decodifica completa del file Opus\n4. Salvataggio nella cartella scelta\nTag e copertine copiati e verificati byte per byte. Testi esterni: solo .lrc selezionati, abbinati e verificati con SHA-256. Originali invariati. Nessun ripristino audio dopo chiusura del processo.");
+            write(log,"*** INIZIO SESSIONE AUDIO · v"+BuildConfig.VERSION_NAME+" ***\n1. Decodifica FLAC con libFLAC; MP3/M4A con decoder Android\n2. Codifica CPU con libopus + libopusenc\n3. Verifica decodifica completa del file Opus\n4. Salvataggio nella cartella scelta\nTag e copertine copiati e verificati byte per byte. Testi esterni: solo .lrc selezionati, abbinati e verificati con SHA-256. Originali invariati. Nessun ripristino audio dopo chiusura del processo.");
             // A previous process may have died with a private temporary file. No user output is removed.
             File[] stale=getCacheDir().listFiles((dir,name)->name.startsWith("audio-opus-")&&name.endsWith(".tmp"));
             if(stale!=null)for(File file:stale)if(!file.delete())write(log,"AVVISO: temporaneo precedente non eliminato: "+file.getName());
             AudioCodec.load();write(log,"OK: loadLibrary audioopus");
             for(int n=0;n<inputs.size()&&!cancelled.get();n++){
                 final int number=n+1;final String name=names.get(n);final Uri input=Uri.parse(inputs.get(n));
-                synchronized(LOCK){state.current=number;state.name=name;state.percent=0;state.doneSamples=0;state.totalSamples=0;state.channels=0;state.rate=0;state.message="Analisi FLAC "+number+" / "+inputs.size();}
+                synchronized(LOCK){state.current=number;state.name=name;state.percent=0;state.doneSamples=0;state.totalSamples=0;state.channels=0;state.rate=0;state.message="Analisi audio "+number+" / "+inputs.size();}
                 lastProgress=0;lastProgressLog=0;
                 write(log,"*** INIZIO BRANO "+number+" / "+inputs.size()+" ***\nNome: "+name+"\nInput: "+input+"\nDestinazione: "+destination);
                 AudioRunState.Result result;
@@ -77,7 +77,7 @@ public final class AudioConversionService extends Service {
                         public void progress(long samples,long total,int rate,int channels){
                             long now=SystemClock.elapsedRealtime();
                             if(now-lastProgress>=250||samples==0||samples==total){
-                                synchronized(LOCK){state.doneSamples=samples;state.totalSamples=total;state.rate=rate;state.channels=channels;state.percent=total>0?(int)Math.min(100,samples*100/total):0;state.message="Codifica FLAC → Opus VBR";}
+                                synchronized(LOCK){state.doneSamples=samples;state.totalSamples=total;state.rate=rate;state.channels=channels;state.percent=total>0?(int)Math.min(100,samples*100/total):0;state.message="Codifica audio → Opus VBR";}
                                 lastProgress=now;notifyProgress();
                             }
                             if(now-lastProgressLog>=5000){writeUnchecked(log,"AVANZAMENTO: campioni="+samples+"/"+total+" · secondi="+String.format(Locale.ROOT,"%.1f",samples/(double)rate));lastProgressLog=now;}

@@ -9,8 +9,8 @@
 class AudioMetadata {
     std::vector<std::string> entries;
     size_t bytes=0,pictures=0,technical=0;
-    void add(std::string entry);
 public:
+    void add(std::string entry);
     void read(const FLAC__StreamMetadata& block);
     void apply(OggOpusComments* comments,const std::function<void(const std::string&)>& log) const;
     void verify(const char* path,const std::function<void(const std::string&)>& log) const;
