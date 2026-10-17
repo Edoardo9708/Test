@@ -20,8 +20,9 @@ final class HomeDiagnosticsSection {
     HomeDiagnosticsSection(AppUi ui, LinearLayout logs, AppSettings defaults, Bundle state) {
         LinearLayout exports = ui.row(logs);
         saveLog = ui.halfButton(exports, "Esporta log", false);
-        saveMetadata = ui.halfButton(exports, "Metadati · TXT", false);
+        saveMetadata = ui.halfButton(exports, "Metadati selezionati", false);
         ui.text(logs,"Scegli ZIP per un allegato più piccolo oppure TXT. Anche i vecchi log vengono compattati; errori e procedure restano conservati.",13);
+        ui.text(logs,"Metadati selezionati: analizza tutti i video scelti e salva un unico TXT, senza convertirli. Per confrontarli seleziona insieme originale e convertito.",13);
         ui.sectionHeading(logs, "PROVE HDR");
         LinearLayout hdr = ui.row(logs);
         hdrTest = ui.halfButton(hdr, "Test HDR · 10 bit", false);

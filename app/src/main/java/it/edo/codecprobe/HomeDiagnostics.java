@@ -101,23 +101,26 @@ final class HomeDiagnostics {
             home.activity.requestPermissions(permissions.toArray(new String[0]), 8);
             return;
         }
-        final Uri selected = home.state.input;
-        final String name = home.state.sourceName;
+        final java.util.ArrayList<Uri> selected = new java.util.ArrayList<>();
+        for(String uri:home.state.selectedInputs)selected.add(Uri.parse(uri));
+        final java.util.ArrayList<String> names = new java.util.ArrayList<>(home.state.selectedNames);
+        if(selected.isEmpty()){selected.add(home.state.input);names.add(home.state.sourceName);}
         home.state.exportingDiagnostics = true;
         updateClearLogsButton();
-        home.toast("Leggo solo i blocchi dei metadati, senza copiare il video…");
+        home.toast("Analizzo i metadati di "+selected.size()+" video, senza convertirli…");
         worker.execute(()->{
             File snapshot = null;
             try {
-                Uri original = OriginalMedia.resolve(home.activity, selected);
                 snapshot = File.createTempFile("metadata-export-", ".txt", home.activity.getCacheDir());
-                try (final ParcelFileDescriptor fd = home.activity.getContentResolver().openFileDescriptor(original, "r");) {
-                    if (fd == null) throw new IOException("Video originale non disponibile");
-                    try (final ParcelFileDescriptor.AutoCloseInputStream in = new ParcelFileDescriptor.AutoCloseInputStream(fd);
-                        final Writer out = new OutputStreamWriter(new FileOutputStream(snapshot), StandardCharsets.UTF_8);) {
-                        out.write("Versione app: " + BuildConfig.VERSION_NAME + "\nFile: " + name + "\n\n");
-                        MetadataDump.write(in.getChannel(), out, ()->home.state.destroyed);
-                    }
+                try(Writer out=new BufferedWriter(new OutputStreamWriter(new FileOutputStream(snapshot),StandardCharsets.UTF_8))){
+                    SelectedMetadataReport.write(home.activity.getApplicationContext(),selected,names,out,()->home.state.destroyed,number->{
+                        home.activity.runOnUiThread(()->{
+                            if(!home.state.destroyed){
+                                home.screen.diagnostics.logView.setVisibility(View.VISIBLE);
+                                home.screen.diagnostics.logView.setText("Analisi metadati · file "+number+" / "+selected.size()+"\n"+names.get(number-1));
+                            }
+                        });
+                    });
                 }
                 final File result = snapshot;
                 home.activity.runOnUiThread(()->{
@@ -127,6 +130,7 @@ final class HomeDiagnostics {
                     }
                     home.state.pendingLog = result.getAbsolutePath();
                     home.state.exportingDiagnostics = false;
+                    home.screen.diagnostics.logView.setText("Rapporto metadati pronto · "+selected.size()+" file. Scegli dove salvare il TXT.");
                     updateClearLogsButton();
                     Intent i = new Intent(Intent.ACTION_CREATE_DOCUMENT).setType("text/plain").addCategory(Intent.CATEGORY_OPENABLE);
                     i.putExtra(Intent.EXTRA_TITLE, "v" + BuildConfig.VERSION_NAME + "-CodecProbe-metadati-" + System.currentTimeMillis() + ".txt");
