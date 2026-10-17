@@ -83,7 +83,7 @@ public final class AudioConversionService extends Service {
                     });
                 }catch(Exception error){
                     String details=failure(number,name,snapshot().message,error);
-                    synchronized(LOCK){state.results.add(new AudioRunState.Result(name,null,MediaFileSizes.read(this,input),0,details));}
+                    synchronized(LOCK){state.results.add(new AudioRunState.Result(name,null,-1,0,details));}
                     write(log,"*** "+(cancelled.get()?"BRANO INTERROTTO":"ERRORE BRANO · CONTINUO LA CODA")+" ***\n"+details);
                     continue;
                 }
