@@ -17,8 +17,10 @@ final class AudioConverter {
         File temp=null;
         try{
             listener.log("*** LETTURA TESTO ESTERNO ***\n"+(lyricsUri.isEmpty()?"Nessun .lrc selezionato e abbinato a questo brano. Eventuali file non autorizzati non sono ricercabili automaticamente.":"Testo abbinato: "+lyricsUri));
+            listener.stage("Lettura testo esterno…");
             byte[] lyrics=AudioLyrics.read(context,lyricsUri,listener::cancelled);
             if(lyrics!=null)listener.log("TESTO ORIGINALE: "+lyrics.length+" byte · SHA-256="+AudioLyrics.hash(lyrics));
+            listener.stage("Analisi FLAC e metadati…");
             long before=MediaFileSizes.read(context,input);
             temp=File.createTempFile("audio-opus-",".tmp",context.getCacheDir());
             long duration;int[] channelCount={0};

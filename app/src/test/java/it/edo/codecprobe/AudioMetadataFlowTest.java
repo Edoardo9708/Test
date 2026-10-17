@@ -51,7 +51,7 @@ public class AudioMetadataFlowTest {
     }
     private Context context;private Documents provider;private File audio;
     @Before public void setup()throws Exception{
-        context=RuntimeEnvironment.getApplication();provider=new Documents();provider.directory=Files.createTempDirectory("audio-docs").toFile();ShadowContentResolver.registerProviderInternal("audio.documents",provider);
+        context=RuntimeEnvironment.getApplication();provider=new Documents();provider.directory=Files.createTempDirectory("audio-docs").toFile();android.content.pm.ProviderInfo info=new android.content.pm.ProviderInfo();info.authority="audio.documents";info.exported=true;info.grantUriPermissions=true;provider.attachInfo(context,info);ShadowContentResolver.registerProviderInternal("audio.documents",provider);
         audio=new File(provider.directory,"encoded.opus");Files.write(audio.toPath(),new byte[]{1,2,3,4});
     }
     @After public void cleanup(){for(File file:provider.directory.listFiles())file.delete();provider.directory.delete();}
@@ -72,11 +72,11 @@ public class AudioMetadataFlowTest {
     }
     @Test public void sidecarFailureRollsBackNewAudioAndKeepsExistingFiles()throws Exception{
         File old=new File(provider.directory,"old");Files.write(old.toPath(),new byte[]{9});provider.files.put("old",old);provider.names.put("old","keep.opus");
-        provider.failLyrics=true;assertThrows(IOException.class,()->AudioOutput.save(context,TREE,audio,"Song.flac",()->false,new byte[]{4},s->{}));
+        provider.failLyrics=true;IOException failure=assertThrows(IOException.class,()->AudioOutput.save(context,TREE,audio,"Song.flac",()->false,new byte[]{4},s->{}));assertTrue(failure.getMessage(),failure.getMessage().contains("Creazione testo .lrc fallita"));
         assertEquals(List.of("keep.opus"),new ArrayList<>(provider.names.values()));assertArrayEquals(new byte[]{9},Files.readAllBytes(old.toPath()));
     }
     @Test public void failedReadbackRemovesBothNewFiles()throws Exception{
-        provider.corruptLyrics=true;assertThrows(IOException.class,()->AudioOutput.save(context,TREE,audio,"Song.flac",()->false,new byte[]{4},s->{}));assertTrue(provider.files.isEmpty());
+        provider.corruptLyrics=true;IOException failure=assertThrows(IOException.class,()->AudioOutput.save(context,TREE,audio,"Song.flac",()->false,new byte[]{4},s->{}));assertTrue(failure.getMessage(),failure.getMessage().contains("Verifica .lrc fallita"));assertTrue(provider.files.isEmpty());
     }
     @Test public void lyricsDraftIsIndependentAndSurvivesReopen(){
         context.getSharedPreferences("audio-workspace",0).edit().clear().commit();AudioState state=new AudioState();state.lyricsInputs.add("content://text/1");state.lyricsNames.add("Song.lrc");AudioDraftStore.save(context,state);
