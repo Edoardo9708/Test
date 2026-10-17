@@ -18,7 +18,8 @@ final class AudioController {
     AudioController(AudioActivity activity,Bundle saved){
         this.activity=activity;state=AudioDraftStore.load(activity);
         screen=new AudioScreen(new AppUi(activity),AudioDraftStore.expansion(activity,saved),state);
-        selection=new AudioSelection(this);actions=new AudioActions(this);
+        selection=new AudioSelection(this);
+        screen.pickLyrics.setOnClickListener(v->selection.pickLyrics());screen.clearLyrics.setOnClickListener(v->selection.clearLyrics());actions=new AudioActions(this);
         screen.start.setOnClickListener(v->actions.start());screen.cancel.setOnClickListener(v->actions.cancel());
         screen.exportLog.setOnClickListener(v->actions.export());screen.clearReport.setOnClickListener(v->{AudioConversionService.clear();reportCount=-1;renderRun();});
         screen.pick.setOnClickListener(v->selection.pick());screen.clear.setOnClickListener(v->selection.clear());
@@ -35,13 +36,15 @@ final class AudioController {
         if(count>10)names.append("\n… e altri ").append(count-10).append(" brani selezionati");screen.names.setText(names);screen.clear.setEnabled(count>0);
         String folder="Nessuna cartella audio scelta";
         if(state.folder!=null)try{folder=DocumentsContract.getTreeDocumentId(Uri.parse(state.folder));}catch(IllegalArgumentException error){folder=state.folder;}
+        screen.lyrics.setText(state.readingLyrics?"Lettura nomi dei testi…":state.lyricsInputs.isEmpty()?"Nessun .lrc selezionato: i testi esterni non verranno copiati":state.lyricsInputs.size()+" testi .lrc selezionati");
         screen.folder.setText(folder);renderRun();screen.bitrateLabel.setText("Bitrate audio · "+state.bitrate+" kbit/s · VBR");
     }
     void renderRun(){
         AudioRunState run=AudioConversionService.snapshot();
         boolean active=run.running;
         screen.pick.setEnabled(!active);screen.chooseFolder.setEnabled(!active);screen.clear.setEnabled(!active&&!state.inputs.isEmpty());screen.bitrate.setEnabled(!active);for(Button preset:screen.presets)preset.setEnabled(!active);
-        screen.start.setEnabled(!active&&!state.readingNames&&!ConversionService.snapshot().running&&!state.inputs.isEmpty()&&state.folder!=null);
+        screen.pickLyrics.setEnabled(!active);screen.clearLyrics.setEnabled(!active&&(!state.lyricsInputs.isEmpty()||state.readingLyrics));
+        screen.start.setEnabled(!active&&!state.readingLyrics&&!state.readingNames&&!ConversionService.snapshot().running&&!state.inputs.isEmpty()&&state.folder!=null);
         screen.cancel.setEnabled(active&&!run.cancelling);screen.clearReport.setEnabled(!active&&!run.results.isEmpty());
         screen.exportLog.setEnabled(AudioLog.file(activity).isFile());screen.status.setText(run.message);
         int success=0;for(AudioRunState.Result r:run.results)if(r.uri!=null)success++;

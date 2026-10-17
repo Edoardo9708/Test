@@ -1,4 +1,5 @@
 #include "audio_encoder.h"
+#include "audio_metadata.h"
 #include <FLAC/stream_decoder.h>
 #include <opusenc.h>
 #include <opus.h>
@@ -17,13 +18,17 @@ struct Job {
     unsigned rate=0,channels=0,bits=0;
     std::string error;
     std::vector<float> pcm;
+    AudioMetadata tags;
     ~Job(){if(encoder)ope_encoder_destroy(encoder);}
 };
 void metadata(const FLAC__StreamDecoder*,const FLAC__StreamMetadata* block,void* opaque){
     auto& j=*static_cast<Job*>(opaque);
+    try{
     if(block->type==FLAC__METADATA_TYPE_STREAMINFO){
         auto& s=block->data.stream_info;j.total=s.total_samples;j.rate=s.sample_rate;j.channels=s.channels;j.bits=s.bits_per_sample;
     }
+    if(j.error.empty())j.tags.read(*block);
+    }catch(const std::exception& e){j.error=e.what();}
 }
 void error(const FLAC__StreamDecoder*,FLAC__StreamDecoderErrorStatus status,void* opaque){
     static_cast<Job*>(opaque)->error=std::string("FLAC: ")+FLAC__StreamDecoderErrorStatusString[status];
@@ -58,16 +63,19 @@ uint64_t encodeFlacOpus(int fd,const char* destination,int bitrate,const AudioCa
     require(bool(decoder),"Memoria decoder FLAC non disponibile");
     Job j{cb};
     FLAC__stream_decoder_set_md5_checking(decoder.get(),true);
+    FLAC__stream_decoder_set_metadata_respond_all(decoder.get());
     auto init=FLAC__stream_decoder_init_FILE(decoder.get(),file,write,metadata,error,&j);
     require(init==FLAC__STREAM_DECODER_INIT_STATUS_OK,"Input non leggibile come FLAC nativo");
     // init_FILE owns fclose after successful initialization.
     guard.release();
     require(FLAC__stream_decoder_process_until_end_of_metadata(decoder.get()),"Metadati FLAC non leggibili: "+j.error);
+    require(j.error.empty(),j.error);
     require((j.channels==1||j.channels==2)&&j.rate>=8000&&j.rate<=192000&&j.bits>=4&&j.bits<=32,"Prova preliminare: solo FLAC mono/stereo, 8–192 kHz, 4–32 bit");
     require(cb.progress(0,j.total,j.rate,j.channels),"Annullato");
     cb.log("INPUT: "+std::to_string(j.rate)+" Hz · "+std::to_string(j.channels)+" canali · "+std::to_string(j.bits)+" bit · campioni per canale="+std::to_string(j.total));
     std::unique_ptr<OggOpusComments,decltype(&ope_comments_destroy)> comments(ope_comments_create(),ope_comments_destroy);
     require(bool(comments),"Memoria commenti Opus non disponibile");
+    j.tags.apply(comments.get(),cb.log);
     int rc=0;j.encoder=ope_encoder_create_file(destination,comments.get(),j.rate,j.channels,0,&rc);
     require(j.encoder!=nullptr,std::string("Apertura encoder: ")+ope_strerror(rc));
 #define CTL(call) do { rc=ope_encoder_ctl(j.encoder,call); require(rc==OPE_OK,std::string("Parametri Opus [" #call "]: ")+ope_strerror(rc)); } while(0)
@@ -89,6 +97,7 @@ uint64_t encodeFlacOpus(int fd,const char* destination,int bitrate,const AudioCa
     cb.log("PARAMETRI EFFETTIVI DOPO DRAIN: bitrate="+std::to_string(actualRate)+" bit/s · VBR="+std::to_string(vbr)+" · constrained="+std::to_string(constrained)+" · complexity="+std::to_string(complexity));
     require(actualRate==bitrate&&vbr==1&&constrained==0&&complexity==10,"Parametri effettivi dopo drain diversi dai richiesti");
     ope_encoder_destroy(j.encoder);j.encoder=nullptr;
+    j.tags.verify(destination,cb.log);
     cb.log("OK: drain e rilascio encoder · campioni="+std::to_string(j.done));
     return j.done*1000000ULL/j.rate;
 }

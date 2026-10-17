@@ -9,8 +9,10 @@ for spec in '44100:2:s32' '48000:1:s16' '96000:2:s32'; do
   IFS=: read -r rate channels sample <<< "$spec"
   stem="audio-fixtures/$rate-$channels"
   ffmpeg -y -v error -f lavfi -i "sine=frequency=997:sample_rate=$rate:duration=1.1" -ac "$channels" -sample_fmt "$sample" -c:a flac "$stem.flac"
+  python3 scripts/audio-metadata-fixture.py create "$stem.flac"
   audio-smoke/audio_smoke "$stem.flac" "$stem.opus" encode 2>&1 | tee "$stem.log"
-  ffmpeg -y -v error -xerror -i "$stem.opus" -c:a pcm_f32le -f f32le "$stem.pcm"
+  python3 scripts/audio-metadata-fixture.py verify "$stem.flac" "$stem.opus"
+  ffmpeg -y -v error -xerror -i "$stem.opus" -map 0:a:0 -c:a pcm_f32le -f f32le "$stem.pcm"
   python3 - "$stem.pcm" "$channels" <<'PY'
 import sys
 from pathlib import Path
@@ -19,6 +21,9 @@ assert size==52800*int(sys.argv[2])*4, (size, sys.argv)
 PY
   grep -q 'PARAMETRI EFFETTIVI DOPO DRAIN: bitrate=128000 bit/s · VBR=1 · constrained=0 · complexity=10' "$stem.log"
   audio-smoke/audio_smoke "$stem.flac" "$stem-cancel.opus" cancel
+  for invalid in application invalid; do
+    if audio-smoke/audio_smoke "$stem.flac.$invalid.flac" "$stem-$invalid.opus" encode; then exit 1; fi
+  done
   # Truncated FLAC must fail; it must never become a successful conversion.
   head -c 100 "$stem.flac" > "$stem-broken.flac"
   if audio-smoke/audio_smoke "$stem-broken.flac" "$stem-broken.opus" encode; then exit 1; fi

@@ -13,9 +13,12 @@ final class AudioConverter {
         void stage(String message);
         void log(String text);
     }
-    static AudioRunState.Result convert(Context context,Uri input,Uri destination,String name,int bitrate,Listener listener)throws IOException{
+    static AudioRunState.Result convert(Context context,Uri input,Uri destination,String name,int bitrate,String lyricsUri,Listener listener)throws IOException{
         File temp=null;
         try{
+            listener.log("*** LETTURA TESTO ESTERNO ***\n"+(lyricsUri.isEmpty()?"Nessun .lrc selezionato e abbinato a questo brano. Eventuali file non autorizzati non sono ricercabili automaticamente.":"Testo abbinato: "+lyricsUri));
+            byte[] lyrics=AudioLyrics.read(context,lyricsUri,listener::cancelled);
+            if(lyrics!=null)listener.log("TESTO ORIGINALE: "+lyrics.length+" byte · SHA-256="+AudioLyrics.hash(lyrics));
             long before=MediaFileSizes.read(context,input);
             temp=File.createTempFile("audio-opus-",".tmp",context.getCacheDir());
             long duration;int[] channelCount={0};
@@ -33,7 +36,7 @@ final class AudioConverter {
             AudioVerifier.verify(temp,duration,channelCount[0],listener::cancelled);
             checkCancelled(listener);listener.log("OK: file Opus decodificato · durata attesa="+duration+" µs");
             listener.stage("Salvataggio del file Opus…");listener.log("*** 4. SALVATAGGIO ***\nIn caso di omonimia creo un nome con suffisso numerico. Non sovrascrivo file esistenti.");
-            Uri result=AudioOutput.save(context,destination,temp,name,listener::cancelled);
+            Uri result=AudioOutput.save(context,destination,temp,name,listener::cancelled,lyrics,listener::log);
             // Publication is the commit point: do not recheck cancellation after saving a valid result.
             return new AudioRunState.Result(name,result.toString(),before,temp.length(),null);
         }finally{

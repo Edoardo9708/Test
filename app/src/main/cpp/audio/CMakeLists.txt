@@ -23,7 +23,7 @@ file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/ope-config/config.h" "#define OPE_BUILD\
 target_include_directories(opusenc PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/ope-config" "${AUDIO_VENDOR}/opus-1.6.1/include" PUBLIC "${OPE}/include")
 target_compile_definitions(opusenc PRIVATE HAVE_CONFIG_H OUTSIDE_SPEEX RANDOM_PREFIX=libopusenc)
 target_link_libraries(opusenc PUBLIC opus m)
-add_library(audio_core STATIC audio_encoder.cpp)
+add_library(audio_core STATIC audio_encoder.cpp audio_metadata.cpp)
 target_link_libraries(audio_core PUBLIC opusenc FLAC)
 if(ANDROID)
   add_library(audioopus SHARED audio_jni.cpp)

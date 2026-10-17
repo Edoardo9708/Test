@@ -15,12 +15,13 @@ final class AudioActions {
     private final AudioController audio;
     AudioActions(AudioController audio){this.audio=audio;}
     void start(){
-        if(audio.state.readingNames){audio.toast("Attendi la lettura dei nomi dei brani");return;}
+        if(audio.state.readingNames||audio.state.readingLyrics){audio.toast("Attendi la lettura dei nomi di brani e testi");return;}
         if(audio.state.inputs.isEmpty()||audio.state.folder==null){audio.toast("Seleziona almeno un FLAC e una cartella audio");return;}
+        if(audio.state.lyricsInputs.size()>1000){audio.toast("Seleziona al massimo 1000 testi .lrc per questa coda");return;}
         if(audio.state.inputs.size()>500){audio.toast("Per questa prova seleziona al massimo 500 brani");return;}
         if(ConversionService.snapshot().running||AudioConversionService.snapshot().running){audio.toast("Una conversione è già in corso");return;}
         new AlertDialog.Builder(audio.activity).setTitle("Prova FLAC → Opus VBR")
-            .setMessage("Questa build verifica il motore di conversione. Tag, copertine e .lrc non saranno copiati. Gli originali restano disponibili.\n\nConvertire "+audio.state.inputs.size()+" brani a "+audio.state.bitrate+" kbit/s?")
+            .setMessage("Tag e copertine verranno copiati e verificati. Per i testi esterni vengono usati solo i .lrc selezionati e abbinati per nome. Gli originali restano disponibili.\n\nConvertire "+audio.state.inputs.size()+" brani a "+audio.state.bitrate+" kbit/s?")
             .setNegativeButton("Indietro",null).setPositiveButton("Converti",(dialog,which)->launch()).show();
     }
     private void launch(){
@@ -28,6 +29,7 @@ final class AudioActions {
             audio.activity.requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS},120);
         Intent command=new Intent(audio.activity,AudioConversionService.class).setAction(AudioConversionService.START)
             .putStringArrayListExtra("inputs",new ArrayList<>(audio.state.inputs)).putStringArrayListExtra("names",new ArrayList<>(audio.state.names))
+            .putStringArrayListExtra("lyricsInputs",new ArrayList<>(audio.state.lyricsInputs)).putStringArrayListExtra("lyricsNames",new ArrayList<>(audio.state.lyricsNames))
             .putExtra("folder",audio.state.folder).putExtra("bitrate",audio.state.bitrate);
         try{audio.activity.startForegroundService(command);audio.screen.sections.focusCard(AudioScreen.CONVERSION);}
         catch(RuntimeException error){audio.toast("Avvio audio fallito: "+error.getMessage());}

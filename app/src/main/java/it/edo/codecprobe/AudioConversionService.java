@@ -40,7 +40,10 @@ public final class AudioConversionService extends Service {
         if(inputs==null||names==null||inputs.isEmpty()||inputs.size()>500||inputs.size()!=names.size()||folder==null||bitrate<64||bitrate>256){stopSelf(startId);return START_NOT_STICKY;}
         token=MediaConversionGate.INSTANCE.acquire();
         if(token==0){synchronized(LOCK){state.message="È già attiva una conversione audio o video: attendi la fine prima di avviare l’audio.";}stopSelf(startId);return START_NOT_STICKY;}
-        final ArrayList<String> queue=new ArrayList<>(inputs),labels=new ArrayList<>(names);
+        ArrayList<String> lyricInputs=request.getStringArrayListExtra("lyricsInputs"),lyricNames=request.getStringArrayListExtra("lyricsNames");
+        if(lyricInputs==null)lyricInputs=new ArrayList<>();if(lyricNames==null)lyricNames=new ArrayList<>();
+        if(lyricInputs.size()!=lyricNames.size()||lyricInputs.size()>1000){MediaConversionGate.INSTANCE.release(token);token=0;stopSelf(startId);return START_NOT_STICKY;}
+        final ArrayList<String> queue=new ArrayList<>(inputs),labels=new ArrayList<>(names),lyrics=new ArrayList<>(lyricInputs),lyricLabels=new ArrayList<>(lyricNames);
         final Uri destination=Uri.parse(folder);
         synchronized(LOCK){state=new AudioRunState();state.running=true;state.total=queue.size();state.bitrate=bitrate;state.startedAt=SystemClock.elapsedRealtime();state.message="Avvio motore audio…";}
         cancelled.set(false);destroyed=false;
@@ -51,12 +54,12 @@ public final class AudioConversionService extends Service {
             synchronized(LOCK){state.running=false;state.endedAt=SystemClock.elapsedRealtime();state.message="Avvio audio fallito: "+error.getMessage();}
             releaseWake();stopForeground(STOP_FOREGROUND_REMOVE);MediaConversionGate.INSTANCE.release(token);token=0;stopSelf(startId);return START_NOT_STICKY;
         }
-        worker.execute(()->run(queue,labels,destination,bitrate,startId));return START_NOT_STICKY;
+        worker.execute(()->run(queue,labels,destination,bitrate,startId,lyrics,lyricLabels));return START_NOT_STICKY;
     }
-    private void run(ArrayList<String> inputs,ArrayList<String> names,Uri destination,int bitrate,int startId){
+    private void run(ArrayList<String> inputs,ArrayList<String> names,Uri destination,int bitrate,int startId,ArrayList<String> lyrics,ArrayList<String> lyricNames){
         try(AudioLog log=new AudioLog(this)){
             try{
-            write(log,"*** INIZIO SESSIONE AUDIO · v"+BuildConfig.VERSION_NAME+" ***\n1. Decodifica FLAC con libFLAC\n2. Codifica CPU con libopus + libopusenc\n3. Verifica decodifica completa del file Opus\n4. Salvataggio nella cartella scelta\nBUILD PRELIMINARE: tag, copertine e LRC non vengono copiati. Originali invariati. Nessun ripristino audio dopo chiusura del processo.");
+            write(log,"*** INIZIO SESSIONE AUDIO · v"+BuildConfig.VERSION_NAME+" ***\n1. Decodifica FLAC con libFLAC\n2. Codifica CPU con libopus + libopusenc\n3. Verifica decodifica completa del file Opus\n4. Salvataggio nella cartella scelta\nTag e copertine copiati e verificati byte per byte. Testi esterni: solo .lrc selezionati, abbinati e verificati con SHA-256. Originali invariati. Nessun ripristino audio dopo chiusura del processo.");
             // A previous process may have died with a private temporary file. No user output is removed.
             File[] stale=getCacheDir().listFiles((dir,name)->name.startsWith("audio-opus-")&&name.endsWith(".tmp"));
             if(stale!=null)for(File file:stale)if(!file.delete())write(log,"AVVISO: temporaneo precedente non eliminato: "+file.getName());
@@ -68,7 +71,7 @@ public final class AudioConversionService extends Service {
                 write(log,"*** INIZIO BRANO "+number+" / "+inputs.size()+" ***\nNome: "+name+"\nInput: "+input+"\nDestinazione: "+destination);
                 AudioRunState.Result result;
                 try{
-                    result=AudioConverter.convert(this,input,destination,name,bitrate,new AudioConverter.Listener(){
+                    result=AudioConverter.convert(this,input,destination,name,bitrate,AudioLyrics.match(input.toString(),name,lyrics,lyricNames),new AudioConverter.Listener(){
                         public boolean cancelled(){return cancelled.get();}
                         public void stage(String text){message(text);}
                         public void progress(long samples,long total,int rate,int channels){
