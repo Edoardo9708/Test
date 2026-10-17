@@ -12,10 +12,11 @@ final class SamsungSefSchemas {
     }
     static String validate(SamsungSefDirectory.Record r,String schema)throws IOException{
         if(schema.equals("highlight"))return highlight(r);
-        if(schema.equals("invalid-zero13")){
-            if(r.payloadBytes()!=13)throw new IOException("Invalid_Data: ammessi solo esattamente 13 byte nulli, come nel campione osservato");
+        if(schema.equals("super-motion")||schema.equals("super-bgm")||schema.startsWith("deflicker-"))return SamsungSefMotion.validate(r,schema);
+        if(schema.equals("invalid-zero")){
+            if(r.payloadBytes()<1||r.payloadBytes()>4096)throw new IOException("Invalid_Data: attesi 1–4096 byte interamente nulli");
             for(int p=r.payload;p<r.end;p++)if(r.bytes[p]!=0)throw new IOException("Invalid_Data: variante con byte non nullo non verificata");
-            return "variante osservata esatta: 13 byte nulli; significato proprietario non documentato; contenuto mantenuto senza modificarlo";
+            return "contenuto interamente nullo verificato · "+r.payloadBytes()+" byte mantenuti senza interpretare il significato proprietario";
         }
         if(schema.equals("slow-motion"))return slowMotion(r);
         String value=text(r);boolean valid;

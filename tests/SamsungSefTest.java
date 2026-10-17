@@ -55,7 +55,7 @@ public final class SamsungSefTest {
         SamsungSef.validate(fixture(105,new Item(0x0890,"SlowMotion_Data","0:100:31")));
         for(String value:new String[]{"","0:0:4","5:4:4","-1:3:4","0:10:0","0:10:32","0:10:4*9:20:4","0:10:4*","0:10:4\u0000","0:10:4:5","0:10:x","9223372036854775808:10:4","0:9223372036854775807:4"})
             reject(fixture(105,new Item(0x0890,"SlowMotion_Data",value)));
-        for(int length:new int[]{0,12,14})reject(fixture(105,new Item(0x7ffe,"Invalid_Data",new byte[length])));
+        for(int length:new int[]{0,4097})reject(fixture(105,new Item(0x7ffe,"Invalid_Data",new byte[length])));
         for(int i=0;i<13;i++){byte[] invalid=new byte[13];invalid[i]=1;reject(fixture(105,new Item(0x7ffe,"Invalid_Data",invalid)));}
         reject(fixture(105,new Item(0x7fff,"Invalid_Data",new byte[13])));
         reject(fixture(105,new Item(0x0891,"SlowMotion_Data","0:1637:4")));
