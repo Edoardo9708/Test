@@ -40,6 +40,7 @@ final class VideoConverter {
     private DataOutputStream inputTimestamps;
     private File timestampFile,hdrMetadataFile;
     private long fallbackCreationSeconds;
+    private VideoDateAudit.Snapshot originalDates;
     private boolean hdr;
     private long durationUs;
     private MediaFormat audioFormat;
@@ -210,6 +211,7 @@ final class VideoConverter {
                 // Read the created document directly: it may not be indexed yet.
                 // ACCESS_MEDIA_LOCATION is already granted; no redacted fallback is used for the source.
                 verifyGps(sourceGps,OriginalMedia.location(context,destination),"file salvato");
+                VideoDateAudit.verify(originalDates,VideoDateAudit.saved(context,destination,this::isCancelled,this::onLog),fallbackCreationSeconds,"FILE SALVATO",this::onLog);
                 finishFile();
                 onLog("OK SALVATAGGIO nome="+name+" bytes="+temporary.length());
                 onLog("*** CONVERSIONE RIUSCITA ***");
@@ -521,9 +523,18 @@ final class VideoConverter {
         ParcelFileDescriptor fd=context.getContentResolver().openFileDescriptor(uri,"r");
         if(fd==null)throw new IOException("File originale non disponibile per conservare i metadati");
         try(ParcelFileDescriptor.AutoCloseInputStream in=new ParcelFileDescriptor.AutoCloseInputStream(fd)){
-            if(target==null){long created=Mp4Metadata.creationTime(in.getChannel(),this::isCancelled);fallbackCreationSeconds=InputCreationDate.read(context,uri,created,this::onLog);onLog("OK struttura MP4/MOV compatibile con copia dei metadati");}
-            else {onLog("*** CONTROLLO MP4 TEMPORANEO PRIMA DEI METADATI ***\nByte temporaneo="+target.length()+" · fotogrammi inviati="+frames+" · pacchetti scritti="+packets);
-                Mp4Metadata.copy(in.getChannel(),target,this::isCancelled,this::onLog,fallbackCreationSeconds);InputCreationDate.verify(target,fallbackCreationSeconds,this::onLog);}
+            if(target==null){
+                long created=Mp4Metadata.creationTime(in.getChannel(),this::isCancelled);
+                fallbackCreationSeconds=InputCreationDate.read(context,uri,created,this::onLog);
+                originalDates=VideoDateAudit.source(context,uri,created,this::onLog);
+                VideoDateAudit.describe("ORIGINALE",originalDates,this::onLog);
+                onLog("OK struttura MP4/MOV compatibile con copia dei metadati");
+            }else{
+                onLog("*** CONTROLLO MP4 TEMPORANEO PRIMA DEI METADATI ***\nByte temporaneo="+target.length()+" · fotogrammi inviati="+frames+" · pacchetti scritti="+packets);
+                Mp4Metadata.copy(in.getChannel(),target,this::isCancelled,this::onLog,fallbackCreationSeconds);
+                InputCreationDate.verify(target,fallbackCreationSeconds,this::onLog);
+                VideoDateAudit.verify(originalDates,VideoDateAudit.file(target,this::isCancelled),fallbackCreationSeconds,"MP4 TEMPORANEO",this::onLog);
+            }
         }
     }
     private void copyMetadataTrack(Uri uri,MetadataTrack track)throws Exception {
