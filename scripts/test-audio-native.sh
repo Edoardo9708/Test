@@ -9,7 +9,7 @@ for spec in '44100:2:s32' '48000:1:s16' '96000:2:s32'; do
   IFS=: read -r rate channels sample <<< "$spec"
   stem="audio-fixtures/$rate-$channels"
   ffmpeg -y -v error -f lavfi -i "sine=frequency=997:sample_rate=$rate:duration=1.1" -ac "$channels" -sample_fmt "$sample" -c:a flac "$stem.flac"
-  audio-smoke/audio_smoke "$stem.flac" "$stem.opus" encode > "$stem.log" 2>&1
+  audio-smoke/audio_smoke "$stem.flac" "$stem.opus" encode 2>&1 | tee "$stem.log"
   ffmpeg -y -v error -xerror -i "$stem.opus" -c:a pcm_f32le -f f32le "$stem.pcm"
   python3 - "$stem.pcm" "$channels" <<'PY'
 import sys

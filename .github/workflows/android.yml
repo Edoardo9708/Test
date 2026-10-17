@@ -75,9 +75,6 @@ jobs:
             ffprobe -v error -count_frames -select_streams v:0 -show_entries stream=width,height,nb_read_frames -of json "smoke-${crf}.hevc" > "smoke-${crf}.json"
           done
           python3 scripts/verify-smoke.py
-      - name: Verify native FLAC to Opus engine
-        if: needs.scope.outputs.native == 'true'
-        run: bash scripts/test-audio-native.sh
       - name: Run ARM64 assembly encode and decode smoke test
         if: needs.scope.outputs.native == 'true'
         run: |
@@ -136,3 +133,23 @@ jobs:
             hdr-smoke.log
 
 
+
+  audio-native:
+    name: Audio conversion smoke
+    needs: scope
+    if: needs.scope.outputs.native == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install decoder used for independent verification
+        run: sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends ffmpeg
+      - name: Prepare pinned audio libraries
+        run: bash scripts/prepare-audio.sh
+      - name: Encode and independently decode audio fixtures
+        run: bash scripts/test-audio-native.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Audio-smoke-log
+          path: audio-fixtures/*.log

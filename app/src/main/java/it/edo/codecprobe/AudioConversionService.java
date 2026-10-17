@@ -66,9 +66,10 @@ public final class AudioConversionService extends Service {
                 synchronized(LOCK){state.current=number;state.name=name;state.percent=0;state.doneSamples=0;state.totalSamples=0;state.channels=0;state.rate=0;state.message="Analisi FLAC "+number+" / "+inputs.size();}
                 lastProgress=0;lastProgressLog=0;
                 write(log,"*** INIZIO BRANO "+number+" / "+inputs.size()+" ***\nNome: "+name+"\nInput: "+input+"\nDestinazione: "+destination);
-                File temp=File.createTempFile("audio-opus-",".tmp",getCacheDir());
+                File temp=null;
                 long before=MediaFileSizes.read(this,input);
                 try{
+                    temp=File.createTempFile("audio-opus-",".tmp",getCacheDir());
                     long duration;
                     try(ParcelFileDescriptor fd=getContentResolver().openFileDescriptor(input,"r")){
                         if(fd==null)throw new IOException("File input non leggibile");
@@ -96,7 +97,7 @@ public final class AudioConversionService extends Service {
                     String details=failure(number,name,snapshot().message,error);
                     synchronized(LOCK){state.results.add(new AudioRunState.Result(name,null,before,0,details));}
                     write(log,"*** "+(cancelled.get()?"BRANO INTERROTTO":"ERRORE BRANO · CONTINUO LA CODA")+" ***\n"+details);
-                }finally{if(temp.exists()&&!temp.delete())write(log,"AVVISO: impossibile eliminare temporaneo "+temp.getName());}
+                }finally{if(temp!=null&&temp.exists()&&!temp.delete())write(log,"AVVISO: impossibile eliminare temporaneo "+temp.getName());}
             }
             synchronized(LOCK){state.message=cancelled.get()?"Coda audio interrotta · risultati completati conservati":"Coda audio terminata";}
             write(log,"*** FINE SESSIONE AUDIO ***\n"+snapshot().message);
