@@ -52,7 +52,7 @@ public class SelectedMetadataReportTest {
             // Change the editable selection after dispatch: the export must retain its captured list.
             home.state.selectedInputs.clear();home.state.selectedNames.clear();
             home.diagnostics.worker.submit(()->{}).get(5,TimeUnit.SECONDS);Shadows.shadowOf(Looper.getMainLooper()).idle();
-            assertNotNull(home.state.pendingLog);snapshot=new File(home.state.pendingLog);String report=Files.readString(snapshot.toPath());
+            assertNotNull(home.state.pendingLog);snapshot=new File(home.state.pendingLog);String report=new String(Files.readAllBytes(snapshot.toPath()),java.nio.charset.StandardCharsets.UTF_8);
             assertTrue(report.contains("original.mp4"));assertTrue(report.contains("converted.mp4"));assertEquals(2,provider.opened.size());
             assertEquals(before.sessionId,ConversionService.snapshot().sessionId);assertEquals(before.running,ConversionService.snapshot().running);
             assertEquals(before.sizeReport,ConversionService.snapshot().sizeReport);assertFalse(home.state.exportingDiagnostics);
