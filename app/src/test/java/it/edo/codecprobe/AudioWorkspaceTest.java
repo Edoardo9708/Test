@@ -62,7 +62,8 @@ public class AudioWorkspaceTest {
             AudioController audio=controller.get().audio;audio.screen.pick.performClick();Intent picker=Shadows.shadowOf(controller.get()).getNextStartedActivity();
             assertEquals("audio/*",picker.getType());assertTrue(picker.getBooleanExtra(Intent.EXTRA_ALLOW_MULTIPLE,false));
             ClipData clips=ClipData.newRawUri("one",Uri.parse("content://songs/one"));clips.addItem(new ClipData.Item(Uri.parse("content://songs/two")));clips.addItem(new ClipData.Item(Uri.parse("content://songs/one")));
-            audio.selection.result(AudioSelection.FILES,Activity.RESULT_OK,new Intent().setClipData(clips).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION));
+            Intent chosen=new Intent().addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);chosen.setClipData(clips);
+            audio.selection.result(AudioSelection.FILES,Activity.RESULT_OK,chosen);
             audio.selection.worker.submit(()->{}).get(5,TimeUnit.SECONDS);Shadows.shadowOf(Looper.getMainLooper()).idle();
             assertEquals(List.of("one.flac","two.flac"),audio.state.names);assertEquals(2,audio.state.inputs.size());assertTrue(audio.screen.selected.getText().toString().contains("2"));
             audio.selection.result(AudioSelection.FILES,Activity.RESULT_CANCELED,null);assertEquals(2,audio.state.inputs.size());
