@@ -54,7 +54,9 @@ final class AppUi {
         return page;
     }
 
-    void install(LinearLayout page) {
+    void install(LinearLayout page) { install(page,null); }
+
+    void install(LinearLayout page, View navigation) {
         ScrollView scroll = new ScrollView(activity);
         scroll.setFillViewport(true);
         scroll.setBackgroundColor(bg);
@@ -62,15 +64,23 @@ final class AppUi {
         frame.setBackgroundColor(bg);
         scroll.addView(frame, new ScrollView.LayoutParams(-1, -2));
         frame.addView(page, new FrameLayout.LayoutParams(-1, -2, Gravity.TOP | Gravity.CENTER_HORIZONTAL));
-        frame.setOnApplyWindowInsetsListener((view,insets)->{
+        View insetHost=frame;
+        View content=scroll;
+        if(navigation!=null){
+            LinearLayout shell=new LinearLayout(activity);shell.setOrientation(LinearLayout.VERTICAL);shell.setBackgroundColor(bg);
+            shell.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
+            shell.addView(navigation,new LinearLayout.LayoutParams(-1,-2));
+            insetHost=shell;content=shell;
+        }
+        insetHost.setOnApplyWindowInsetsListener((view,insets)->{
             if (Build.VERSION.SDK_INT >= 30) {
                 android.graphics.Insets b = insets.getInsets(WindowInsets.Type.systemBars());
                 view.setPadding(b.left, b.top, b.right, b.bottom);
             } else view.setPadding(insets.getSystemWindowInsetLeft(), insets.getSystemWindowInsetTop(), insets.getSystemWindowInsetRight(), insets.getSystemWindowInsetBottom());
             return insets;
         });
-        activity.setContentView(scroll);
-        frame.requestApplyInsets();
+        activity.setContentView(content);
+        insetHost.requestApplyInsets();
         applySystemBars();
     }
 
