@@ -68,6 +68,9 @@ public class AudioWorkspaceTest {
             assertEquals(List.of("one.flac","two.flac"),audio.state.names);assertEquals(2,audio.state.inputs.size());assertTrue(audio.screen.selected.getText().toString().contains("2"));
             audio.selection.result(AudioSelection.FILES,Activity.RESULT_CANCELED,null);assertEquals(2,audio.state.inputs.size());
             audio.screen.chooseFolder.performClick();assertEquals(Intent.ACTION_OPEN_DOCUMENT_TREE,Shadows.shadowOf(controller.get()).getNextStartedActivity().getAction());
+            audio.state.folder="content://dirs/tree/previous";
+            audio.selection.result(AudioSelection.FOLDER,Activity.RESULT_OK,new Intent().setData(Uri.parse("content://dirs/tree/readonly")).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION));
+            assertEquals("content://dirs/tree/previous",audio.state.folder);
         }finally{controller.pause().stop().destroy();}
     }
     @Test public void navigationKeepsVideoSelectionAndDoesNotTouchServiceState()throws Exception{

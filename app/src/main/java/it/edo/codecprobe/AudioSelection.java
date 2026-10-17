@@ -26,8 +26,8 @@ final class AudioSelection {
         if(request==FOLDER){
             Uri uri=data.getData();if(uri==null)return;
             int grants=data.getFlags()&(Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
-            if((grants&Intent.FLAG_GRANT_WRITE_URI_PERMISSION)==0){audio.toast("Accesso in scrittura alla cartella audio non concesso");return;}
-            try{audio.activity.getContentResolver().takePersistableUriPermission(uri,grants);}
+            if(grants!=(Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_WRITE_URI_PERMISSION)){audio.toast("Per la cartella audio servono accesso in lettura e scrittura");return;}
+            try{audio.activity.getContentResolver().takePersistableUriPermission(uri,Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_WRITE_URI_PERMISSION);}
             catch(SecurityException error){audio.toast("La cartella non concede un’autorizzazione persistente: scegline un’altra");return;}
             audio.state.folder=uri.toString();audio.save();audio.render();return;
         }
