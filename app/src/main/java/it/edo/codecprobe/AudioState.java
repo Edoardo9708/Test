@@ -8,5 +8,6 @@ final class AudioState {
     String folder;
     int bitrate=128;
     volatile boolean destroyed;
-    int selectionGeneration;
+    volatile int selectionGeneration;
+    boolean readingNames;
 }

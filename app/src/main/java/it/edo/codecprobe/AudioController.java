@@ -30,7 +30,7 @@ final class AudioController {
         render();
     }
     void render(){
-        int count=state.inputs.size();screen.selected.setText(count==0?"Nessun brano selezionato":count+" brani selezionati");
+        int count=state.inputs.size();screen.selected.setText(count==0?"Nessun brano selezionato":count+" brani selezionati"+(state.readingNames?" · lettura nomi…":""));
         StringBuilder names=new StringBuilder();for(int n=0;n<Math.min(10,count);n++){if(n>0)names.append('\n');names.append(n+1).append(". ").append(state.names.get(n));}
         if(count>10)names.append("\n… e altri ").append(count-10).append(" brani selezionati");screen.names.setText(names);screen.clear.setEnabled(count>0);
         String folder="Nessuna cartella audio scelta";
@@ -41,7 +41,7 @@ final class AudioController {
         AudioRunState run=AudioConversionService.snapshot();
         boolean active=run.running;
         screen.pick.setEnabled(!active);screen.chooseFolder.setEnabled(!active);screen.clear.setEnabled(!active&&!state.inputs.isEmpty());screen.bitrate.setEnabled(!active);for(Button preset:screen.presets)preset.setEnabled(!active);
-        screen.start.setEnabled(!active&&!ConversionService.snapshot().running&&!state.inputs.isEmpty()&&state.folder!=null);
+        screen.start.setEnabled(!active&&!state.readingNames&&!ConversionService.snapshot().running&&!state.inputs.isEmpty()&&state.folder!=null);
         screen.cancel.setEnabled(active&&!run.cancelling);screen.clearReport.setEnabled(!active&&!run.results.isEmpty());
         screen.exportLog.setEnabled(AudioLog.file(activity).isFile());screen.status.setText(run.message);
         int success=0;for(AudioRunState.Result r:run.results)if(r.uri!=null)success++;

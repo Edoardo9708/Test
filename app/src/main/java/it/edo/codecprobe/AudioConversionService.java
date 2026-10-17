@@ -30,7 +30,10 @@ public final class AudioConversionService extends Service {
     }
     @Override public int onStartCommand(Intent request,int flags,int startId){
         if(request==null){stopSelf(startId);return START_NOT_STICKY;}
-        if(CANCEL.equals(request.getAction())){cancelled.set(true);synchronized(LOCK){if(state.running){state.cancelling=true;state.message="Annullamento audio e pulizia temporanei…";}}if(token==0)stopSelf(startId);return START_NOT_STICKY;}
+        if(CANCEL.equals(request.getAction())){
+            synchronized(LOCK){if(state.running&&request.getLongExtra("startedAt",-1)==state.startedAt){cancelled.set(true);state.cancelling=true;state.message="Annullamento audio e pulizia temporanei…";}}
+            if(token==0)stopSelf(startId);return START_NOT_STICKY;
+        }
         if(!START.equals(request.getAction())||snapshot().running||token!=0)return START_NOT_STICKY;
         ArrayList<String> inputs=request.getStringArrayListExtra("inputs"),names=request.getStringArrayListExtra("names");
         String folder=request.getStringExtra("folder");int bitrate=request.getIntExtra("bitrate",128);
@@ -52,6 +55,7 @@ public final class AudioConversionService extends Service {
     }
     private void run(ArrayList<String> inputs,ArrayList<String> names,Uri destination,int bitrate,int startId){
         try(AudioLog log=new AudioLog(this)){
+            try{
             write(log,"*** INIZIO SESSIONE AUDIO · v"+BuildConfig.VERSION_NAME+" ***\n1. Decodifica FLAC con libFLAC\n2. Codifica CPU con libopus + libopusenc\n3. Verifica decodifica completa del file Opus\n4. Salvataggio nella cartella scelta\nBUILD PRELIMINARE: tag, copertine e LRC non vengono copiati. Originali invariati. Nessun ripristino audio dopo chiusura del processo.");
             // A previous process may have died with a private temporary file. No user output is removed.
             File[] stale=getCacheDir().listFiles((dir,name)->name.startsWith("audio-opus-")&&name.endsWith(".tmp"));
@@ -96,7 +100,12 @@ public final class AudioConversionService extends Service {
             }
             synchronized(LOCK){state.message=cancelled.get()?"Coda audio interrotta · risultati completati conservati":"Coda audio terminata";}
             write(log,"*** FINE SESSIONE AUDIO ***\n"+snapshot().message);
-        }catch(Exception|LinkageError error){synchronized(LOCK){state.message="Errore sessione audio: "+error.getMessage();state.log=state.log+"\n"+failure(0,"Sessione audio",state.message,error);}}
+            }catch(Exception|LinkageError error){
+                String details=failure(0,"Sessione audio",snapshot().message,error);
+                synchronized(LOCK){state.message="Errore sessione audio: "+error.getMessage();}
+                write(log,"*** ERRORE SESSIONE AUDIO ***\n"+details);
+            }
+        }catch(Exception error){synchronized(LOCK){state.message="Errore sessione audio: "+error.getMessage();state.log=state.log+"\n"+failure(0,"Sessione audio",state.message,error);}}
         finally{
             // JNI has returned and every per-file try/finally completed before releasing the shared lease.
             main.post(()->{

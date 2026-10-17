@@ -15,6 +15,7 @@ final class AudioActions {
     private final AudioController audio;
     AudioActions(AudioController audio){this.audio=audio;}
     void start(){
+        if(audio.state.readingNames){audio.toast("Attendi la lettura dei nomi dei brani");return;}
         if(audio.state.inputs.isEmpty()||audio.state.folder==null){audio.toast("Seleziona almeno un FLAC e una cartella audio");return;}
         if(audio.state.inputs.size()>500){audio.toast("Per questa prova seleziona al massimo 500 brani");return;}
         if(ConversionService.snapshot().running||AudioConversionService.snapshot().running){audio.toast("Una conversione è già in corso");return;}
@@ -31,9 +32,9 @@ final class AudioActions {
         try{audio.activity.startForegroundService(command);audio.screen.sections.focusCard(AudioScreen.CONVERSION);}
         catch(RuntimeException error){audio.toast("Avvio audio fallito: "+error.getMessage());}
     }
-    void cancel(){new AlertDialog.Builder(audio.activity).setTitle("Interrompere la coda audio?")
+    void cancel(){long expected=AudioConversionService.snapshot().startedAt;new AlertDialog.Builder(audio.activity).setTitle("Interrompere la coda audio?")
         .setMessage("Il brano in corso non viene salvato. I risultati già completati restano nella cartella scelta.")
-        .setNegativeButton("Continua",null).setPositiveButton("Interrompi",(dialog,which)->audio.activity.startService(new Intent(audio.activity,AudioConversionService.class).setAction(AudioConversionService.CANCEL))).show();}
+        .setNegativeButton("Continua",null).setPositiveButton("Interrompi",(dialog,which)->audio.activity.startService(new Intent(audio.activity,AudioConversionService.class).setAction(AudioConversionService.CANCEL).putExtra("startedAt",expected))).show();}
     void export(){
         if(!AudioLog.file(audio.activity).isFile()){audio.toast("Nessun log audio da esportare");return;}
         audio.activity.startActivityForResult(new Intent(Intent.ACTION_CREATE_DOCUMENT).setType("text/plain").addCategory(Intent.CATEGORY_OPENABLE)

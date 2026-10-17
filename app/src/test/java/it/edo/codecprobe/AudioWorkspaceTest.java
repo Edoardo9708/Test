@@ -65,7 +65,7 @@ public class AudioWorkspaceTest {
             Intent chosen=new Intent().addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);chosen.setClipData(clips);
             audio.selection.result(AudioSelection.FILES,Activity.RESULT_OK,chosen);
             audio.selection.worker.submit(()->{}).get(5,TimeUnit.SECONDS);Shadows.shadowOf(Looper.getMainLooper()).idle();
-            assertEquals(List.of("one.flac","two.flac"),audio.state.names);assertEquals(2,audio.state.inputs.size());assertTrue(audio.screen.selected.getText().toString().contains("2"));
+            assertFalse(audio.state.readingNames);assertEquals(List.of("one.flac","two.flac"),audio.state.names);assertEquals(2,audio.state.inputs.size());assertTrue(audio.screen.selected.getText().toString().contains("2"));
             audio.selection.result(AudioSelection.FILES,Activity.RESULT_CANCELED,null);assertEquals(2,audio.state.inputs.size());
             audio.screen.chooseFolder.performClick();assertEquals(Intent.ACTION_OPEN_DOCUMENT_TREE,Shadows.shadowOf(controller.get()).getNextStartedActivity().getAction());
             audio.state.folder="content://dirs/tree/previous";
@@ -91,7 +91,8 @@ public class AudioWorkspaceTest {
             AudioController audio=controller.get().audio;
             audio.selection.worker.submit(()->{try{release.await(4,TimeUnit.SECONDS);}catch(InterruptedException error){Thread.currentThread().interrupt();}});
             audio.selection.result(AudioSelection.FILES,Activity.RESULT_OK,new Intent().setData(Uri.parse("content://songs/late")));
-            audio.selection.clear();release.countDown();audio.selection.worker.submit(()->{}).get(5,TimeUnit.SECONDS);Shadows.shadowOf(Looper.getMainLooper()).idle();
+            assertTrue(audio.state.readingNames);assertFalse(audio.screen.start.isEnabled());
+            audio.selection.clear();assertFalse(audio.state.readingNames);release.countDown();audio.selection.worker.submit(()->{}).get(5,TimeUnit.SECONDS);Shadows.shadowOf(Looper.getMainLooper()).idle();
             assertTrue(audio.state.inputs.isEmpty());assertTrue(AudioDraftStore.load(context).inputs.isEmpty());
         }finally{release.countDown();controller.pause().stop().destroy();}
     }

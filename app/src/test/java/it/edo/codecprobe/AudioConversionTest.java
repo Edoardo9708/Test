@@ -53,6 +53,15 @@ public class AudioConversionTest {
             assertTrue(audio.screen.status.getText().toString().contains("FLAC"));
         }finally{controller.pause().stop().destroy();c.getSharedPreferences("audio-workspace",0).edit().clear().commit();}
     }
+    @Test public void staleCancelCannotChangeAnotherAudioRun()throws Exception{
+        java.lang.reflect.Field field=AudioConversionService.class.getDeclaredField("state");field.setAccessible(true);
+        AudioRunState previous=(AudioRunState)field.get(null);AudioRunState current=new AudioRunState();current.running=true;current.startedAt=22;field.set(null,current);
+        var service=Robolectric.buildService(AudioConversionService.class).create();
+        try{
+            service.get().onStartCommand(new Intent().setAction(AudioConversionService.CANCEL).putExtra("startedAt",21L),0,1);
+            assertFalse(AudioConversionService.snapshot().cancelling);
+        }finally{service.destroy();field.set(null,previous);}
+    }
     @Test public void busySharedLeaseRejectsAudioBeforeLoadingNativeCode(){
         var service=Robolectric.buildService(AudioConversionService.class).create();Context c=RuntimeEnvironment.getApplication();
         long lease=MediaConversionGate.INSTANCE.acquire();assertNotEquals(0,lease);

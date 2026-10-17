@@ -36,7 +36,7 @@ final class AudioSelection {
         if(data.getClipData()!=null)for(int n=0;n<data.getClipData().getItemCount();n++){Uri uri=data.getClipData().getItemAt(n).getUri();if(uri!=null)uris.add(uri.toString());}
         else if(data.getData()!=null)uris.add(data.getData().toString());
         if(uris.isEmpty())return;
-        ++audio.state.selectionGeneration;audio.state.inputs.clear();audio.state.names.clear();boolean temporary=false;
+        ++audio.state.selectionGeneration;audio.state.readingNames=true;audio.state.inputs.clear();audio.state.names.clear();boolean temporary=false;
         for(String value:uris){
             Uri uri=Uri.parse(value);audio.state.inputs.add(value);audio.state.names.add("Brano "+audio.state.inputs.size());
             try{audio.activity.getContentResolver().takePersistableUriPermission(uri,Intent.FLAG_GRANT_READ_URI_PERMISSION);}
@@ -50,7 +50,7 @@ final class AudioSelection {
         worker.execute(()->{
             ArrayList<String> names=new ArrayList<>();
             for(int n=0;n<inputs.size();n++){
-                if(audio.state.destroyed||Thread.currentThread().isInterrupted())return;
+                if(audio.state.destroyed||generation!=audio.state.selectionGeneration||Thread.currentThread().isInterrupted())return;
                 String name="Brano "+(n+1);
                 try(Cursor row=audio.activity.getContentResolver().query(Uri.parse(inputs.get(n)),new String[]{OpenableColumns.DISPLAY_NAME},null,null,null)){
                     if(row!=null&&row.moveToFirst()&&!row.isNull(0))name=row.getString(0);
@@ -59,10 +59,10 @@ final class AudioSelection {
             }
             audio.activity.runOnUiThread(()->{
                 if(audio.state.destroyed||generation!=audio.state.selectionGeneration)return;
-                audio.state.names.clear();audio.state.names.addAll(names);audio.save();audio.render();
+                audio.state.readingNames=false;audio.state.names.clear();audio.state.names.addAll(names);audio.save();audio.render();
             });
         });
     }
-    void clear(){++audio.state.selectionGeneration;audio.state.inputs.clear();audio.state.names.clear();audio.save();audio.render();}
+    void clear(){++audio.state.selectionGeneration;audio.state.readingNames=false;audio.state.inputs.clear();audio.state.names.clear();audio.save();audio.render();}
     void close(){worker.shutdownNow();}
 }
