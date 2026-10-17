@@ -45,6 +45,21 @@ for ext in mp3 m4a; do
   if [ "$ext" = m4a ]; then codec=aac; kind=2; fi
   stem="audio-fixtures/compressed-$ext"
   ffmpeg -y -v error -f lavfi -i 'sine=frequency=997:sample_rate=44100:duration=1.1' -i audio-fixtures/cover.png -map 0:a -map 1:v -c:a "$codec" -ac 2 -c:v copy -disposition:v attached_pic -metadata title='Titolo è 漢字' -metadata artist='Artista' -metadata album='Album' -metadata lyrics='Testo prima riga' -metadata track='2/12' "$stem.$ext"
+  if [ "$ext" = mp3 ]; then
+    # FFmpeg writes its lyrics option as a TXXX field on some versions.
+    # Add a real ID3v2.4 USLT frame to exercise TagLib's standard LYRICS mapping.
+    python3 - "$stem.mp3" <<'PYTAG'
+from pathlib import Path
+import sys
+p=Path(sys.argv[1]); data=p.read_bytes(); assert data[:4]==b'ID3\x04'
+def syncsafe(n):return bytes((n>>21&127,n>>14&127,n>>7&127,n&127))
+size=0
+for b in data[6:10]:size=(size<<7)|b
+payload=b'\x03eng\0'+b'Testo prima riga'
+frame=b'USLT'+syncsafe(len(payload))+b'\0\0'+payload
+p.write_bytes(data[:6]+syncsafe(size+len(frame))+frame+data[10:])
+PYTAG
+  fi
   ffmpeg -y -v error -xerror -i "$stem.$ext" -map 0:a:0 -c:a pcm_f32le -f f32le "$stem-input.pcm"
   audio-smoke/audio_pcm_smoke "$stem.$ext" "$stem.opus" "$kind" 44100 2 "$stem-input.pcm" 2>&1 | tee "$stem.log"
   ffmpeg -y -v error -xerror -i "$stem.opus" -map 0:a:0 -c:a pcm_f32le -f f32le "$stem-output.pcm"
