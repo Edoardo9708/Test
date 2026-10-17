@@ -19,7 +19,7 @@ public final class ConversionService extends Service {
     static final String START="it.edo.codecprobe.START",CANCEL="it.edo.codecprobe.CANCEL",PAUSE="it.edo.codecprobe.PAUSE",RESUME="it.edo.codecprobe.RESUME",SKIP="it.edo.codecprobe.SKIP",SAVE_STOP="it.edo.codecprobe.SAVE_STOP";
     private static final Object LOCK=new Object();
     private static State state=new State();
-    private static final ConversionRunGate RUNS=new ConversionRunGate();
+    private static final ConversionRunGate RUNS=MediaConversionGate.INSTANCE;
     private long runToken;
     private int latestStartId;
     private State ownedState;
@@ -253,7 +253,7 @@ public final class ConversionService extends Service {
         int crf=intent.getIntExtra("crf",23),preset=intent.getIntExtra("preset",6),cpu=intent.getIntExtra("cpu",1);
         boolean bframes=intent.getBooleanExtra("bframes",true),lookahead=intent.getBooleanExtra("lookahead",true);
         runToken=RUNS.acquire();
-        if(runToken==0){stopSelf(startId);return START_NOT_STICKY;}
+        if(runToken==0){android.widget.Toast.makeText(this,"È già attiva una conversione audio o video",android.widget.Toast.LENGTH_LONG).show();stopSelf(startId);return START_NOT_STICKY;}
         synchronized(LOCK){
             state=ConversionSessionState.begin(intent,restored,sizeResults,SystemClock.elapsedRealtime());
             ownedState=state;

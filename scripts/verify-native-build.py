@@ -52,3 +52,17 @@ dynamic = subprocess.check_output([str(nm), "--dynamic", "--defined-only", str(h
 assert "Java_it_edo_codecprobe_HdrProbe_nativeOpen" in dynamic, "HDR JNI missing"
 assert not any(line.split()[-1].startswith("x265_") for line in dynamic.splitlines() if line.split()), "HDR x265 API exported: may collide with SDR"
 print("OK: separate HDR ELF64 AArch64; x265 symbols hidden to isolate SDR")
+
+# Audio uses its own bundled codec DSO; never the video encoder's symbols.
+with zipfile.ZipFile(apk) as archive:
+    audio = archive.read("lib/arm64-v8a/libaudioopus.so")
+    assert audio[:4] == b"\x7fELF" and audio[4] == 2 and struct.unpack_from("<H", audio, 18)[0] == 183
+    for license_name in ("opus-COPYING.txt", "libopusenc-COPYING.txt", "flac-COPYING.txt"):
+        assert archive.read("assets/" + license_name), license_name
+audio_libraries = list(Path("app/build/intermediates/cxx").rglob("libaudioopus.so")) + list(Path("app/.cxx").rglob("libaudioopus.so"))
+assert audio_libraries, "Missing audio DSO"
+audio_dynamic = subprocess.check_output([str(nm), "--dynamic", "--defined-only", str(audio_libraries[0])], text=True)
+assert "Java_it_edo_codecprobe_AudioCodec_encode" in audio_dynamic, "Audio JNI missing"
+assert not any(line.split()[-1].startswith(("opus_", "ope_", "FLAC__")) for line in audio_dynamic.splitlines() if line.split()), "Private audio codec symbols exported"
+print("OK: independent audio ELF64 AArch64 with bundled licenses and private codec symbols")
+

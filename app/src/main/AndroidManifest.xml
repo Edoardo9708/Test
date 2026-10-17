@@ -10,6 +10,7 @@
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32"/>
     <application android:label="Converti media" android:theme="@style/AppTheme" android:allowBackup="false" android:supportsRtl="true">
         <service android:name=".ConversionService" android:exported="false" android:foregroundServiceType="mediaProcessing|dataSync"/>
+        <service android:name=".AudioConversionService" android:exported="false" android:foregroundServiceType="mediaProcessing|dataSync"/>
         <activity android:name=".FolderPickerActivity" android:exported="false" android:configChanges="orientation|screenSize"/>
         <activity android:name=".SettingsActivity" android:exported="false" android:configChanges="orientation|screenSize"/>
         <activity android:name=".AudioActivity" android:exported="false" android:configChanges="orientation|screenSize"/>

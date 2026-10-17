@@ -50,6 +50,8 @@ jobs:
         run: sdkmanager "platforms;android-35" "build-tools;35.0.0" "ndk;27.2.12479018" "cmake;3.22.1"
       - name: Prepare pinned x265 source and license
         run: bash scripts/prepare-x265.sh
+      - name: Prepare pinned audio libraries and licenses
+        run: bash scripts/prepare-audio.sh
       - name: Restore permanent APK signing key
         id: signing
         env:
@@ -73,6 +75,9 @@ jobs:
             ffprobe -v error -count_frames -select_streams v:0 -show_entries stream=width,height,nb_read_frames -of json "smoke-${crf}.hevc" > "smoke-${crf}.json"
           done
           python3 scripts/verify-smoke.py
+      - name: Verify native FLAC to Opus engine
+        if: needs.scope.outputs.native == 'true'
+        run: bash scripts/test-audio-native.sh
       - name: Run ARM64 assembly encode and decode smoke test
         if: needs.scope.outputs.native == 'true'
         run: |
@@ -116,7 +121,7 @@ jobs:
           path: ${{ steps.package.outputs.apk_path }}
           if-no-files-found: error
       - name: Package corresponding source
-        run: tar --exclude=.git --exclude=.gradle --exclude=.cxx --exclude=app/build --exclude=native-smoke --exclude=arm-smoke --exclude=yuv-test --exclude=CodecProbe-source.tar.gz -czf CodecProbe-source.tar.gz app scripts tests vendor build.gradle settings.gradle gradle.properties README.md docs .github
+        run: tar --exclude=.git --exclude=.gradle --exclude=.cxx --exclude=app/build --exclude=native-smoke --exclude=arm-smoke --exclude=audio-smoke --exclude=yuv-test --exclude=CodecProbe-source.tar.gz -czf CodecProbe-source.tar.gz app scripts tests vendor build.gradle settings.gradle gradle.properties README.md docs .github
       - uses: actions/upload-artifact@v4
         with:
           name: v${{ steps.package.outputs.version }}-CodecProbe-source

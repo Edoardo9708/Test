@@ -71,3 +71,8 @@ if(ANDROID)
     target_link_options(x265hdrprobe PRIVATE "-Wl,-z,max-page-size=16384" "-Wl,--exclude-libs,ALL" "-Wl,-Bsymbolic")
     set_target_properties(x265hdrprobe PROPERTIES CXX_VISIBILITY_PRESET hidden VISIBILITY_INLINES_HIDDEN YES)
 endif()
+
+
+if(ANDROID)
+  add_subdirectory(audio)
+endif()
