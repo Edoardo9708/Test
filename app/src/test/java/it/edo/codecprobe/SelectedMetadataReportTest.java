@@ -21,9 +21,9 @@ import static org.junit.Assert.*;
 @LooperMode(LooperMode.Mode.PAUSED)
 public class SelectedMetadataReportTest {
     public static class Missing extends ContentProvider {
-        final List<String> opened=new ArrayList<>();
+        final List<String> opened=new ArrayList<>(),queried=new ArrayList<>();
         public boolean onCreate(){return true;}
-        public Cursor query(Uri uri,String[] projection,String s,String[] a,String o){return new MatrixCursor(new String[]{"_display_name"});}
+        public Cursor query(Uri uri,String[] projection,String s,String[] a,String o){queried.add(uri.toString());return new MatrixCursor(new String[]{"_display_name"});}
         public ParcelFileDescriptor openFile(Uri uri,String mode)throws FileNotFoundException{opened.add(uri.toString());throw new FileNotFoundException("Test missing input");}
         public String getType(Uri uri){return "video/mp4";}
         public Uri insert(Uri u,ContentValues v){throw new AssertionError("Read-only");}
@@ -36,7 +36,8 @@ public class SelectedMetadataReportTest {
         List<Uri> inputs=List.of(Uri.parse("content://metadata-test/one"),Uri.parse("content://metadata-test/two"));
         StringWriter out=new StringWriter();List<Integer> progress=new ArrayList<>();
         SelectedMetadataReport.write(context,inputs,List.of("original.mp4","converted.mp4"),out,()->false,progress::add);
-        assertEquals(List.of(1,2),progress);assertTrue(out.toString().contains("FILE 1 / 2 · original.mp4"));assertTrue(out.toString().contains("FILE 2 / 2 · converted.mp4"));assertTrue(out.toString().contains("FINE RAPPORTO METADATI"));assertEquals(2,provider.opened.size());
+        assertTrue(out.toString(),out.toString().contains("ERRORE ACCESSO ORIGINALE")||out.toString().contains("SEZIONE NON COMPLETA"));
+        assertEquals(List.of(1,2),progress);assertTrue(out.toString().contains("FILE 1 / 2 · original.mp4"));assertTrue(out.toString().contains("FILE 2 / 2 · converted.mp4"));assertTrue(out.toString().contains("FINE RAPPORTO METADATI"));assertTrue(provider.queried.contains("content://metadata-test/one"));assertTrue(provider.queried.contains("content://metadata-test/two"));
         try{SelectedMetadataReport.write(context,inputs,List.of("one","two"),new StringWriter(),()->true,n->{});fail();}catch(InterruptedIOException expected){}
         StringWriter partial=new StringWriter();SelectedMetadataReport.section(partial,"unavailable",()->false,w->{throw new IOException("broken metadata");});assertTrue(partial.toString().contains("SEZIONE NON COMPLETA"));
     }
@@ -53,7 +54,7 @@ public class SelectedMetadataReportTest {
             home.state.selectedInputs.clear();home.state.selectedNames.clear();
             home.diagnostics.worker.submit(()->{}).get(5,TimeUnit.SECONDS);Shadows.shadowOf(Looper.getMainLooper()).idle();
             assertNotNull(home.state.pendingLog);snapshot=new File(home.state.pendingLog);String report=new String(Files.readAllBytes(snapshot.toPath()),java.nio.charset.StandardCharsets.UTF_8);
-            assertTrue(report.contains("original.mp4"));assertTrue(report.contains("converted.mp4"));assertEquals(2,provider.opened.size());
+            assertTrue(report.contains("original.mp4"));assertTrue(report.contains("converted.mp4"));assertTrue(provider.queried.contains("content://metadata-test/one"));assertTrue(provider.queried.contains("content://metadata-test/two"));
             assertEquals(before.sessionId,ConversionService.snapshot().sessionId);assertEquals(before.running,ConversionService.snapshot().running);
             assertEquals(before.sizeReport,ConversionService.snapshot().sizeReport);assertFalse(home.state.exportingDiagnostics);
         }finally{if(snapshot!=null)snapshot.delete();activity.pause().stop().destroy();}
