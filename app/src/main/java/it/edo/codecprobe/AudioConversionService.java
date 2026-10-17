@@ -66,38 +66,29 @@ public final class AudioConversionService extends Service {
                 synchronized(LOCK){state.current=number;state.name=name;state.percent=0;state.doneSamples=0;state.totalSamples=0;state.channels=0;state.rate=0;state.message="Analisi FLAC "+number+" / "+inputs.size();}
                 lastProgress=0;lastProgressLog=0;
                 write(log,"*** INIZIO BRANO "+number+" / "+inputs.size()+" ***\nNome: "+name+"\nInput: "+input+"\nDestinazione: "+destination);
-                File temp=null;
-                long before=MediaFileSizes.read(this,input);
+                AudioRunState.Result result;
                 try{
-                    temp=File.createTempFile("audio-opus-",".tmp",getCacheDir());
-                    long duration;
-                    try(ParcelFileDescriptor fd=getContentResolver().openFileDescriptor(input,"r")){
-                        if(fd==null)throw new IOException("File input non leggibile");
-                        duration=AudioCodec.encode(fd.getFd(),temp.getAbsolutePath(),bitrate*1000,new AudioCodec.Listener(){
-                            public boolean progress(long samples,long total,int rate,int channels){
-                                long now=SystemClock.elapsedRealtime();
-                                if(now-lastProgress>=250||samples==0||samples==total){
-                                    synchronized(LOCK){state.doneSamples=samples;state.totalSamples=total;state.rate=rate;state.channels=channels;state.percent=total>0?(int)Math.min(100,samples*100/total):0;state.message="Codifica FLAC → Opus VBR";}
-                                    lastProgress=now;notifyProgress();
-                                }
-                                if(now-lastProgressLog>=5000){writeUnchecked(log,"AVANZAMENTO: campioni="+samples+"/"+total+" · secondi="+String.format(Locale.ROOT,"%.1f",samples/(double)rate));lastProgressLog=now;}
-                                return !cancelled.get();
+                    result=AudioConverter.convert(this,input,destination,name,bitrate,new AudioConverter.Listener(){
+                        public boolean cancelled(){return cancelled.get();}
+                        public void stage(String text){message(text);}
+                        public void progress(long samples,long total,int rate,int channels){
+                            long now=SystemClock.elapsedRealtime();
+                            if(now-lastProgress>=250||samples==0||samples==total){
+                                synchronized(LOCK){state.doneSamples=samples;state.totalSamples=total;state.rate=rate;state.channels=channels;state.percent=total>0?(int)Math.min(100,samples*100/total):0;state.message="Codifica FLAC → Opus VBR";}
+                                lastProgress=now;notifyProgress();
                             }
-                            public void log(String text){writeUnchecked(log,text);}
-                        });
-                    }
-                    checkCancelled();message("Verifica decodifica Opus…");write(log,"*** 3. VERIFICA OUTPUT ***\nDecodifica completa con il decoder Android. Controllo canali e durata PCM, tolleranza 80 ms per pre-skip/fine stream.");
-                    AudioVerifier.verify(temp,duration,snapshot().channels,cancelled::get);
-                    checkCancelled();write(log,"OK: file Opus decodificato · durata attesa="+duration+" µs");
-                    message("Salvataggio del file Opus…");write(log,"*** 4. SALVATAGGIO ***\nIn caso di omonimia creo un nome con suffisso numerico. Non sovrascrivo file esistenti.");
-                    Uri result=AudioOutput.save(this,destination,temp,name,cancelled::get);
-                    synchronized(LOCK){state.results.add(new AudioRunState.Result(name,result.toString(),before,temp.length(),null));state.percent=100;}
-                    write(log,"*** BRANO RIUSCITO ***\n"+name+"\n"+AudioRunState.sizes(before,temp.length())+"\nFile salvato: "+result);
+                            if(now-lastProgressLog>=5000){writeUnchecked(log,"AVANZAMENTO: campioni="+samples+"/"+total+" · secondi="+String.format(Locale.ROOT,"%.1f",samples/(double)rate));lastProgressLog=now;}
+                        }
+                        public void log(String text){writeUnchecked(log,text);}
+                    });
                 }catch(Exception error){
                     String details=failure(number,name,snapshot().message,error);
-                    synchronized(LOCK){state.results.add(new AudioRunState.Result(name,null,before,0,details));}
+                    synchronized(LOCK){state.results.add(new AudioRunState.Result(name,null,MediaFileSizes.read(this,input),0,details));}
                     write(log,"*** "+(cancelled.get()?"BRANO INTERROTTO":"ERRORE BRANO · CONTINUO LA CODA")+" ***\n"+details);
-                }finally{if(temp!=null&&temp.exists()&&!temp.delete())write(log,"AVVISO: impossibile eliminare temporaneo "+temp.getName());}
+                    continue;
+                }
+                synchronized(LOCK){state.results.add(result);state.percent=100;}
+                write(log,"*** BRANO RIUSCITO ***\n"+name+"\n"+AudioRunState.sizes(result.inputBytes,result.outputBytes)+"\nFile salvato: "+result.uri);
             }
             synchronized(LOCK){state.message=cancelled.get()?"Coda audio interrotta · risultati completati conservati":"Coda audio terminata";}
             write(log,"*** FINE SESSIONE AUDIO ***\n"+snapshot().message);
@@ -117,7 +108,6 @@ public final class AudioConversionService extends Service {
         }
     }
     private void message(String text){synchronized(LOCK){state.message=text;}notifyProgress();}
-    private void checkCancelled()throws IOException{if(cancelled.get())throw new IOException("Annullato");}
     private void write(AudioLog log,String text)throws IOException{log.write(text);synchronized(LOCK){state.log=log.tail();}}
     private void writeUnchecked(AudioLog log,String text){try{write(log,text);}catch(IOException error){throw new UncheckedIOException(error);}}
     private static String failure(int number,String name,String step,Throwable error){

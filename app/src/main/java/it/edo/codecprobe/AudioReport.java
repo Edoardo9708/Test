@@ -19,6 +19,7 @@ final class AudioReport {
                 if(result.uri!=null){
                     try{audio.activity.startActivity(new Intent(Intent.ACTION_VIEW).setDataAndType(Uri.parse(result.uri),"audio/ogg").addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION));}
                     catch(ActivityNotFoundException error){audio.toast("Non è installato un lettore per questo file Opus");}
+                    catch(SecurityException error){audio.toast("Accesso al file non più disponibile: "+error.getMessage());}
                 }else new AlertDialog.Builder(audio.activity).setTitle("Errore audio").setMessage(result.error)
                     .setNeutralButton("Copia tutto",(dialog,which)->{audio.activity.getSystemService(ClipboardManager.class).setPrimaryClip(ClipData.newPlainText("Errore audio",result.error));audio.toast("Errore copiato");})
                     .setPositiveButton("Chiudi",null).show();
