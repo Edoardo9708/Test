@@ -48,14 +48,10 @@ for ext in mp3 m4a; do
   ffmpeg -y -v error -xerror -i "$stem.$ext" -map 0:a:0 -c:a pcm_f32le -f f32le "$stem-input.pcm"
   audio-smoke/audio_pcm_smoke "$stem.$ext" "$stem.opus" "$kind" 44100 2 "$stem-input.pcm" 2>&1 | tee "$stem.log"
   ffmpeg -y -v error -xerror -i "$stem.opus" -map 0:a:0 -c:a pcm_f32le -f f32le "$stem-output.pcm"
-  ffprobe -v error -show_entries format_tags -of json "$stem.opus" > "$stem-tags.json"
   python3 - "$stem" <<'PY'
-import json,sys,base64,struct
+import sys,base64,struct
 from pathlib import Path
-stem=sys.argv[1]; tags={k.upper():v for k,v in json.loads(Path(stem+'-tags.json').read_text())['format']['tags'].items()}
-assert tags['TITLE']=='Titolo è 漢字',tags
-assert tags['ARTIST']=='Artista' and tags['ALBUM']=='Album',tags
-assert tags['LYRICS']=='Testo prima riga',tags
+stem=sys.argv[1]
 # FFprobe may expose a cover as a stream instead of the METADATA_BLOCK_PICTURE tag.
 # Inspect OpusTags directly to compare embedded image bytes without relying on TagLib.
 p=Path(stem+'.opus').read_bytes(); at=0; packets=[]; packet=b''
@@ -69,6 +65,10 @@ read=lambda offset:struct.unpack_from('<I',p,offset)[0]
 at+=4+read(at);count=read(at);at+=4; comments=[]
 for _ in range(count):
     size=read(at);at+=4;comments.append(p[at:at+size]);at+=size
+tags={k.decode('utf-8').upper():v.decode('utf-8') for k,v in (c.split(b'=',1) for c in comments)}
+assert tags['TITLE']=='Titolo è 漢字',tags
+assert tags['ARTIST']=='Artista' and tags['ALBUM']=='Album',tags
+assert tags['LYRICS']=='Testo prima riga',tags
 pictures=[base64.b64decode(v.split(b'=',1)[1]) for v in comments if v.startswith(b'METADATA_BLOCK_PICTURE=')]
 assert len(pictures)==1
 q=pictures[0];at=4

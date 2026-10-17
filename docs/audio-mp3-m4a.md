@@ -44,3 +44,5 @@ all emitted tag bytes with the translated metadata. Existing FLAC tests remain.
 This native test does not execute Android's input decoder: its device-specific
 behavior still requires an MP3 and M4A test on the phone. On-device output
 verification decodes every generated Opus file before saving.
+
+Android implements delay/padding through SkipCutBuffer in [CCodecBufferChannel](https://android.googlesource.com/platform/frameworks/av/+/master/media/codec2/sfplugin/CCodecBufferChannel.cpp). TagLib APIs: [FileRef](https://taglib.org/api/classTagLib_1_1FileRef.html).

@@ -24,3 +24,7 @@ AudioMetadata (separate C++ module) collects every legal FLAC Vorbis comment wit
 External LRC files require a dedicated multi-select SAF picker. Drafts persist their own URIs/names. Matching uses the exact filename stem (case-insensitive), preferring a matching source parent when distinguishable; ambiguous matches fail. No unauthorized sibling search is attempted. Unselected/unmatched sidecars are explicitly reported in UI and per-file log. A matched sidecar is read up to 2 MiB without text decoding, and saved under the actual output audio stem, preserving BOM, encoding, newlines and timing. Audio and LRC names are reserved together to avoid existing documents. LRC readback is byte-equal, with SHA-256 in the log. Failure/cancellation before publication completes removes both new documents; existing documents are never deleted. A provider that changes the LRC filename is rejected.
 
 Tests: independent Python FLAC/Ogg readers compare custom and repeated tags, Unicode, embedded lyrics, 70 kB multi-page comments, and two picture blocks exactly. Native fixtures cover 44.1/48/96 kHz and reject malformed tags/private APPLICATION blocks. Android provider tests exercise pair publication, failure rollback, corrupt readback, naming conflicts, sidecar matching and independent persistence.
+
+## v0.64 · MP3 and M4A inputs
+
+See [audio-mp3-m4a.md](audio-mp3-m4a.md) for the separate Android decoder pump, streaming native encoder and TagLib metadata transfer. FLAC keeps the original integrity-checked route. Output remains Opus.

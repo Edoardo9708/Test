@@ -34,6 +34,7 @@ AudioMetadata readCompressedMetadata(int fd,int kind){
         for(const auto& picture:ref.complexProperties(key)){
             auto data=picture.value("data").toByteVector();
             std::string mime=picture.value("mimeType").toString().to8Bit(true),description=picture.value("description").toString().to8Bit(true);
+            if(mime.find('\0')!=std::string::npos||description.find('\0')!=std::string::npos)throw std::runtime_error("Copertina con NUL nei campi testuali: copia integrale impossibile");
             if(data.isEmpty()||data.size()>16*1024*1024||mime.size()+description.size()>65536)throw std::runtime_error("Copertina non valida o oltre 16 MiB");
             FLAC__StreamMetadata block{};block.type=FLAC__METADATA_TYPE_PICTURE;auto& p=block.data.picture;
             // MP4 covr has no picture type: use front cover. ID3 preserves its original type.
