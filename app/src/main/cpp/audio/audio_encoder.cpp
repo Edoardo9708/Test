@@ -70,19 +70,24 @@ uint64_t encodeFlacOpus(int fd,const char* destination,int bitrate,const AudioCa
     require(bool(comments),"Memoria commenti Opus non disponibile");
     int rc=0;j.encoder=ope_encoder_create_file(destination,comments.get(),j.rate,j.channels,0,&rc);
     require(j.encoder!=nullptr,std::string("Apertura encoder: ")+ope_strerror(rc));
-#define CTL(call) require((rc=ope_encoder_ctl(j.encoder,call))==OPE_OK,std::string("Parametri Opus: ")+ope_strerror(rc))
+#define CTL(call) do { rc=ope_encoder_ctl(j.encoder,call); require(rc==OPE_OK,std::string("Parametri Opus [" #call "]: ")+ope_strerror(rc)); } while(0)
     CTL(OPUS_SET_APPLICATION(OPUS_APPLICATION_AUDIO));
     CTL(OPUS_SET_BITRATE(bitrate));CTL(OPUS_SET_VBR(1));CTL(OPUS_SET_VBR_CONSTRAINT(0));CTL(OPUS_SET_COMPLEXITY(10));
     int actualRate=0,vbr=0,constrained=0,complexity=0;
-    CTL(OPUS_GET_BITRATE(&actualRate));CTL(OPUS_GET_VBR(&vbr));CTL(OPUS_GET_VBR_CONSTRAINT(&constrained));CTL(OPUS_GET_COMPLEXITY(&complexity));
-    require(actualRate==bitrate&&vbr==1&&constrained==0&&complexity==10,"Parametri effettivi Opus diversi dai richiesti");
-    cb.log("*** 2. CODIFICA OPUS VBR ***\nParametri riletti dall’encoder: bitrate="+std::to_string(actualRate)+" bit/s · VBR="+std::to_string(vbr)+" · constrained="+std::to_string(constrained)+" · complexity="+std::to_string(complexity)+"\nOgg Opus standard a 48 kHz; libopusenc ricampiona quando necessario.\nDa qui: campioni elaborati/totali (per canale), secondi e percentuale. Aggiornamenti log limitati a uno ogni 5 secondi.");
+    CTL(OPUS_GET_VBR(&vbr));CTL(OPUS_GET_VBR_CONSTRAINT(&constrained));CTL(OPUS_GET_COMPLEXITY(&complexity));
+    cb.log("*** 2. CODIFICA OPUS VBR ***\nBitrate richiesto="+std::to_string(bitrate)+" bit/s (verifica dopo drain). Parametri riletti: VBR="+std::to_string(vbr)+" · constrained="+std::to_string(constrained)+" · complexity="+std::to_string(complexity)+"\nOgg Opus standard a 48 kHz; libopusenc ricampiona quando necessario.\nDa qui: campioni elaborati/totali (per canale), secondi e percentuale. Aggiornamenti log limitati a uno ogni 5 secondi.");
+    require(vbr==1&&constrained==0&&complexity==10,"Parametri effettivi Opus diversi dai richiesti");
     bool processed=FLAC__stream_decoder_process_until_end_of_stream(decoder.get());
     require(processed&&j.error.empty(),j.error.empty()?"Decodifica FLAC incompleta":j.error);
     require(j.done>0&&(j.total==0||j.done==j.total),"Numero campioni FLAC incompleto");
     require(FLAC__stream_decoder_finish(decoder.get()),"Controllo MD5 del PCM FLAC fallito");
     require(cb.progress(j.done,j.total,j.rate,j.channels),"Annullato");
     rc=ope_encoder_drain(j.encoder);require(rc==OPE_OK,std::string("Chiusura stream Opus: ")+ope_strerror(rc));
+    // Multistream SET_BITRATE stores the target; GET_BITRATE reads child encoders.
+    // The per-stream budget is distributed only when packets are actually encoded.
+    CTL(OPUS_GET_BITRATE(&actualRate));CTL(OPUS_GET_VBR(&vbr));CTL(OPUS_GET_VBR_CONSTRAINT(&constrained));CTL(OPUS_GET_COMPLEXITY(&complexity));
+    cb.log("PARAMETRI EFFETTIVI DOPO DRAIN: bitrate="+std::to_string(actualRate)+" bit/s · VBR="+std::to_string(vbr)+" · constrained="+std::to_string(constrained)+" · complexity="+std::to_string(complexity));
+    require(actualRate==bitrate&&vbr==1&&constrained==0&&complexity==10,"Parametri effettivi dopo drain diversi dai richiesti");
     ope_encoder_destroy(j.encoder);j.encoder=nullptr;
     cb.log("OK: drain e rilascio encoder · campioni="+std::to_string(j.done));
     return j.done*1000000ULL/j.rate;

@@ -17,7 +17,7 @@ from pathlib import Path
 size=Path(sys.argv[1]).stat().st_size
 assert size==52800*int(sys.argv[2])*4, (size, sys.argv)
 PY
-  grep -q 'VBR=1 · constrained=0 · complexity=10' "$stem.log"
+  grep -q 'PARAMETRI EFFETTIVI DOPO DRAIN: bitrate=128000 bit/s · VBR=1 · constrained=0 · complexity=10' "$stem.log"
   audio-smoke/audio_smoke "$stem.flac" "$stem-cancel.opus" cancel
   # Truncated FLAC must fail; it must never become a successful conversion.
   head -c 100 "$stem.flac" > "$stem-broken.flac"
