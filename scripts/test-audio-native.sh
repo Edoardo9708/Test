@@ -21,7 +21,9 @@ assert size==52800*int(sys.argv[2])*4, (size, sys.argv)
 PY
   grep -q 'PARAMETRI EFFETTIVI DOPO DRAIN: bitrate=128000 bit/s · VBR=1 · constrained=0 · complexity=10' "$stem.log"
   audio-smoke/audio_smoke "$stem.flac" "$stem-cancel.opus" cancel
-  for invalid in application invalid; do
+  audio-smoke/audio_smoke "$stem.flac.application.flac" "$stem-application.opus" encode
+  python3 scripts/audio-metadata-fixture.py verify "$stem.flac.application.flac" "$stem-application.opus"
+  for invalid in reserved shortapplication invalid; do
     if audio-smoke/audio_smoke "$stem.flac.$invalid.flac" "$stem-$invalid.opus" encode; then exit 1; fi
   done
   # Truncated FLAC must fail; it must never become a successful conversion.

@@ -8,7 +8,9 @@
 // Container-independent user metadata. Original tag bytes, repeats and picture fields stay intact.
 class AudioMetadata {
     std::vector<std::string> entries;
-    size_t bytes=0,pictures=0,technical=0;
+    size_t bytes=0,pictures=0,technical=0,applications=0,applicationBytes=0;
+    std::vector<std::string> applicationDetails;
+    void readApplication(const FLAC__StreamMetadata& block);
 public:
     void add(std::string entry);
     void read(const FLAC__StreamMetadata& block);

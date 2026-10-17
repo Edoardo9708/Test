@@ -50,8 +50,25 @@ void AudioMetadata::add(std::string entry){
     check(FLAC__format_vorbiscomment_entry_is_legal(reinterpret_cast<const FLAC__byte*>(entry.data()),static_cast<uint32_t>(entry.size())),"Tag FLAC non conforme (chiave o UTF-8): nessun dato scartato");
     bytes+=entry.size()+4;entries.push_back(std::move(entry));
 }
+// APPLICATION blocks belong to the source format. Archive them as inert binary
+// data encoded in a custom comment, never as active RIFF/AIFF/Opus structures.
+void AudioMetadata::readApplication(const FLAC__StreamMetadata& block){
+    check(block.length>=4&&block.length<=0xFFFFFF,"Blocco FLAC APPLICATION con lunghezza non valida");
+    const auto& a=block.data.application;size_t payload=block.length-4;
+    check(payload==0||a.data!=nullptr,"Blocco FLAC APPLICATION senza payload");
+    std::string raw(reinterpret_cast<const char*>(a.id),4);
+    if(payload)raw.append(reinterpret_cast<const char*>(a.data),payload);
+    add("CODECPROBE_FLAC_APPLICATION="+base64(raw));
+    applications++;applicationBytes+=raw.size();
+    if(applicationDetails.size()<80){
+        static const char hex[]="0123456789ABCDEF";std::string id,encoded;
+        for(unsigned char c:a.id){id+=c>=32&&c<=126?static_cast<char>(c):'.';encoded+=hex[c>>4];encoded+=hex[c&15];}
+        applicationDetails.push_back("APPLICATION #"+std::to_string(applications)+" · ID="+id+" · HEX="+encoded+" · payload="+std::to_string(payload)+" byte · ID+payload archiviati="+std::to_string(raw.size())+" byte");
+    }
+}
 void AudioMetadata::read(const FLAC__StreamMetadata& block){
-    if(block.type==FLAC__METADATA_TYPE_VORBIS_COMMENT){
+    if(block.type==FLAC__METADATA_TYPE_APPLICATION){readApplication(block);}
+    else if(block.type==FLAC__METADATA_TYPE_VORBIS_COMMENT){
         const auto& comments=block.data.vorbis_comment;
         for(uint32_t n=0;n<comments.num_comments;n++){const auto& e=comments.comments[n];add(std::string(reinterpret_cast<const char*>(e.entry),e.length));}
     }else if(block.type==FLAC__METADATA_TYPE_PICTURE){
@@ -65,11 +82,16 @@ void AudioMetadata::read(const FLAC__StreamMetadata& block){
         add("METADATA_BLOCK_PICTURE="+base64(picture));pictures++;
     }else if(block.type==FLAC__METADATA_TYPE_PADDING||block.type==FLAC__METADATA_TYPE_SEEKTABLE){technical++;}
     else if(block.type!=FLAC__METADATA_TYPE_STREAMINFO){
-        throw std::runtime_error("Blocco FLAC tipo "+std::to_string(block.type)+" (APPLICATION/CUESHEET/proprietario) non trasferibile automaticamente in Opus; nessun metadato scartato");
+        throw std::runtime_error("Blocco FLAC tipo "+std::to_string(block.type)+" (CUESHEET/proprietario) non trasferibile automaticamente in Opus; nessun metadato scartato");
     }
 }
 void AudioMetadata::apply(OggOpusComments* comments,const std::function<void(const std::string&)>& log) const{
     log("*** COPIA METADATI AUDIO ***\nTag e immagini: "+std::to_string(entries.size())+" voci · copertine PICTURE="+std::to_string(pictures)+" · byte nei commenti="+std::to_string(bytes)+"\nValori originali, campi personalizzati e ripetizioni conservati. Copertine trasferite in METADATA_BLOCK_PICTURE senza ricomprimere.\nBlocchi tecnici FLAC (padding/seektable) non trasferiti: "+std::to_string(technical)+". Il vendor del contenitore identifica le librerie del nuovo encoder.");
+    if(applications){
+        log("*** ARCHIVIO DATI APPLICATION DEL FLAC ***\nBlocchi="+std::to_string(applications)+" · ID+payload originali="+std::to_string(applicationBytes)+" byte.\nOgni blocco e conservato in un commento CODECPROBE_FLAC_APPLICATION: Base64 di ID (4 byte) + payload, nello stesso ordine della sorgente.\nSono dati di archivio: i lettori Opus non li applicano all’audio. Intestazioni WAV/RIFF originali non vengono usate per descrivere la nuova codifica.\nLa verifica finale confronta tutti i commenti, compresi questi dati, byte per byte.");
+        for(const auto& detail:applicationDetails)log(detail);
+        if(applications>80)log("Elenco APPLICATION abbreviato a 80 righe; tutti i blocchi sono archiviati e verificati.");
+    }
     size_t n=0;for(const auto& entry:entries){
         int rc=ope_comments_add_string(comments,entry.c_str());if(rc!=OPE_OK)throw std::runtime_error(std::string("Copia tag: ")+ope_strerror(rc));
         if(n++<80){std::string key=entry.substr(0,std::min(entry.find('='),size_t(100)));log("COPIATO: "+key+" · "+std::to_string(entry.size())+" byte");}

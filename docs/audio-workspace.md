@@ -28,3 +28,7 @@ Tests: independent Python FLAC/Ogg readers compare custom and repeated tags, Uni
 ## v0.64 · MP3 and M4A inputs
 
 See [audio-mp3-m4a.md](audio-mp3-m4a.md) for the separate Android decoder pump, streaming native encoder and TagLib metadata transfer. FLAC keeps the original integrity-checked route. Output remains Opus.
+
+## v0.65 · opaque APPLICATION archive
+
+See [audio-application-archive.md](audio-application-archive.md). All FLAC APPLICATION blocks are now preserved as inert, reversible Base64 comments, including foreign RIFF/WAVE headers. Audio integrity checks and explicit rejection of unknown FLAC block types remain.
