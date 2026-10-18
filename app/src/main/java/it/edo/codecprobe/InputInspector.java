@@ -76,7 +76,7 @@ final class InputInspector {
                     int transfer=integer(f,MediaFormat.KEY_COLOR_TRANSFER,-1);line(info,"Gamma dinamica",transfer==6?"HDR · PQ":transfer==7?"HDR · HLG":transfer==3||transfer==1?"SDR":"non determinabile dai metadati");
                     int profile=integer(f,MediaFormat.KEY_PROFILE,-1);String depth="non dichiarata";if("video/hevc".equals(mime)){if(profile==1)depth="8 bit · Main";else if(profile==2||profile==4096||profile==8192)depth="10 bit";}line(info,"Profondità colore",depth);
                     int bitrate=integer(f,MediaFormat.KEY_BIT_RATE,-1);if(bitrate>0)line(info,"Bitrate dichiarato",String.format(Locale.ITALY,"%.2f Mbit/s",bitrate/1000000.0));
-                    if(transfer==6||transfer==7)line(info,"Compatibilità","HEVC Main10 PQ/HLG: percorso HDR a 10 bit su Android 13+ con decoder P010. HDR10+ copiato per timestamp e verificato. Altri profili/SEI non supportati interrompono la conversione.");
+                    if(transfer==6||transfer==7)line(info,"Compatibilità","HEVC Main10 PQ/HLG: conversione HDR a 10 bit con decoder software incluso nell’app. HDR10+ copiato per timestamp e verificato. Altri profili/SEI non supportati interrompono la conversione.");
                 }else if(mime!=null&&mime.startsWith("audio/")){
                     title="AUDIO "+(++audios);int channels=integer(f,MediaFormat.KEY_CHANNEL_COUNT,-1),hz=integer(f,MediaFormat.KEY_SAMPLE_RATE,-1);if(channels>0)line(info,"Canali",Integer.toString(channels));if(hz>0)line(info,"Campionamento",hz+" Hz");
                     int bitrate=integer(f,MediaFormat.KEY_BIT_RATE,-1);if(bitrate>0)line(info,"Bitrate dichiarato",String.format(Locale.ITALY,"%.1f kbit/s",bitrate/1000.0));

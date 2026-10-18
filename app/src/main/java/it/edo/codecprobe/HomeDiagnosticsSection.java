@@ -25,9 +25,9 @@ final class HomeDiagnosticsSection {
         ui.text(logs,"Metadati selezionati: analizza tutti i video scelti e salva un unico TXT, senza convertirli. Per confrontarli seleziona insieme originale e convertito.",13);
         ui.sectionHeading(logs, "PROVE HDR");
         LinearLayout hdr = ui.row(logs);
-        hdrTest = ui.halfButton(hdr, "Test HDR · 10 bit", false);
+        hdrTest = ui.halfButton(hdr, "Test HDR · Android", false);
         saveHdr = ui.halfButton(hdr, "Log HDR · TXT", false);
-        ui.text(logs, "La prova HDR analizza sei fotogrammi del video visualizzato.", 13);
+        ui.text(logs, "La prova verifica il decoder Android su sei fotogrammi. La conversione HDR usa invece il decoder incluso nell’app.", 13);
         ui.divider(logs);
         clearLogs = ui.button(logs, "Cancella tutti i log");
         ui.danger(clearLogs);
