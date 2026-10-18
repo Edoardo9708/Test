@@ -21,7 +21,7 @@ final class SelectedMetadataReport {
     static void write(Context context,List<Uri> inputs,List<String> names,Writer out,BooleanSupplier cancel,java.util.function.IntConsumer progress)throws Exception{
         if(inputs.size()!=names.size())throw new IllegalArgumentException("Elenco metadati incoerente");
         out.write("*** RAPPORTO METADATI · v"+BuildConfig.VERSION_NAME+" ***\nFile selezionati="+inputs.size()+"\nFuso dispositivo="+ZoneId.systemDefault()+"\n");
-        out.write("Lettura nuova dei file, senza conversione. Proprietà Android e tracce esposte dalle API; inventario dei blocchi MP4/MOV con date, identificatori, dimensioni, hash e anteprime. I dati proprietari non documentati restano binari, non vengono interpretati per supposizione. Campioni audio/video e SEI dentro tutti i fotogrammi non sono analizzati. I limiti o le sezioni non leggibili sono indicati esplicitamente.\n");
+        out.write("Lettura nuova dei file, senza conversione. Proprietà Android e tracce esposte dalle API; inventario dei blocchi MP4/MOV con date, identificatori, dimensioni, hash e anteprime; i blocchi Samsung SEF sono esportati integralmente in BASE64 entro il limite esplicito di 4 MiB per file. I dati proprietari non documentati restano binari, non vengono interpretati per supposizione. Campioni audio/video e SEI dentro tutti i fotogrammi non sono analizzati. I limiti o le sezioni non leggibili sono indicati esplicitamente.\n");
         for(int n=0;n<inputs.size();n++){
             check(cancel);progress.accept(n+1);
             out.write("\n============================================================\n*** FILE "+(n+1)+" / "+inputs.size()+" · "+safe(names.get(n))+" ***\nURI selezionato="+inputs.get(n)+"\n");

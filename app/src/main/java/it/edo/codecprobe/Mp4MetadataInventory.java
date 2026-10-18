@@ -15,7 +15,7 @@ final class Mp4MetadataInventory {
     private static final Set<String> DESCRIPTIVE=new HashSet<>(Arrays.asList("udta","meta","ilst","meco"));
     private static final long HASH_BUDGET=32L*1024*1024;
     private final FileChannel file;private final Writer out;private final BooleanSupplier cancel;
-    private int count;private long hashed;
+    private int count;private long hashed,sefExported;
     private Mp4MetadataInventory(FileChannel file,Writer out,BooleanSupplier cancel){this.file=file;this.out=out;this.cancel=cancel;}
     static void write(FileChannel file,Writer out,BooleanSupplier cancel)throws Exception{
         out.write("*** INVENTARIO MP4/MOV · BLOCCHI E CAMPI ORIGINALI ***\nDimensione file="+file.size()+" byte\nOffset e dimensioni sono strutturali: possono cambiare dopo la conversione. Gli SHA-256 riguardano i payload, escluso l’header del blocco.\n");
@@ -85,15 +85,27 @@ final class Mp4MetadataInventory {
         }
     }
     private void sef(long at,long size)throws Exception{
-        if(size>SamsungSef.MAX_BYTES){out.write("SEF · oltre 4 MiB: struttura non interpretata; vedere hash/anteprima\n");return;}
-        try{
-            SamsungSefDirectory directory=SamsungSefDirectory.parse(read(at,(int)size));
-            out.write("SAMSUNG SEF · versione="+directory.version+" · record="+directory.records.size()+" · sola lettura, non autorizza la copia\n");
-            for(SamsungSefDirectory.Record record:directory.records){
-                check();out.write("SEF RECORD "+record.number+" · nome="+escape(record.name)+" · tipo="+SamsungSefDiagnostics.type(record.type)+" · payload byte="+record.payloadBytes()+"\n");
-                out.write("SEF SHA256="+digest(ByteBuffer.wrap(record.bytes,record.payload,record.payloadBytes()))+"\nSEF TESTO="+text(Arrays.copyOfRange(record.bytes,record.payload,Math.min(record.end,record.payload+256)))+"\n");
-            }
-        }catch(InterruptedIOException error){throw error;}catch(IOException error){out.write("SEF NON INTERPRETABILE · "+escape(error.getMessage())+"\n");}
+        if(size>SamsungSef.MAX_BYTES){out.write("SEF · oltre 4 MiB: blocco completo non esportato; vedere hash/anteprima\n");return;}
+        if(size>SamsungSef.MAX_BYTES-sefExported){out.write("SEF · budget esportazione completa 4 MiB per file raggiunto; blocco non esportato\n");return;}
+        byte[] bytes=read(at,(int)size);sefExported+=size;
+        out.write("*** SEF BLOCCO COMPLETO · offset="+at+" · byte="+size+" · SHA256="+digest(ByteBuffer.wrap(bytes))+" ***\n");
+        out.write("BASE64: concatenare i valori delle righe SEF BASE64 nell’ordine indicato. L’indice è l’offset in byte nel blocco originale, header sefd incluso.\n");
+        Base64.Encoder encoder=Base64.getEncoder();
+        for(int offset=0;offset<bytes.length;offset+=768){
+            check();out.write("SEF BASE64 "+offset+"="+encoder.encodeToString(Arrays.copyOfRange(bytes,offset,Math.min(bytes.length,offset+768)))+"\n");
+        }
+        out.write("*** FINE SEF BLOCCO COMPLETO ***\n");
+        SamsungSefDirectory directory;
+        try{directory=SamsungSefDirectory.parse(bytes);}
+        catch(IOException error){out.write("SEF NON INTERPRETABILE · "+escape(error.getMessage())+" · bytes completi disponibili sopra\n");return;}
+        out.write("SAMSUNG SEF · versione="+directory.version+" · record="+directory.records.size()+" · sola lettura, non autorizza la copia\n");
+        for(SamsungSefDirectory.Record record:directory.records){
+            check();out.write("SEF RECORD "+record.number+" · nome="+escape(record.name)+" · tipo="+SamsungSefDiagnostics.type(record.type)+" · payload byte="+record.payloadBytes()+"\n");
+            out.write("SEF PAYLOAD OFFSET="+record.payload+" · fine="+record.end+" · relativi al blocco completo\n");
+            out.write("SEF SHA256="+digest(ByteBuffer.wrap(record.bytes,record.payload,record.payloadBytes()))+"\n");
+            int shown=Math.min(record.payloadBytes(),65536);
+            out.write("SEF TESTO "+(shown==record.payloadBytes()?"COMPLETO":"ANTEPRIMA · primi "+shown+" byte · dati completi nel BASE64")+"="+text(Arrays.copyOfRange(record.bytes,record.payload,record.payload+shown))+"\n");
+        }
     }
     private void hash(long at,long size)throws Exception{
         if(size>HASH_BUDGET-hashed){out.write("SHA256 NON CALCOLATO · budget lettura payload 32 MiB raggiunto/blocco troppo grande\n");return;}

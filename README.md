@@ -1,3 +1,7 @@
+# v0.68 · esportazione completa metadati Samsung
+
+“Metadati selezionati” include i byte completi dei blocchi SEF, con offset, dimensioni, SHA-256 e righe BASE64 ricostruibili senza perdita. Il testo di ogni record fino a 64 KiB viene riportato integralmente; per record più grandi il BASE64 resta completo. Anche i blocchi SEF con struttura non interpretabile sono esportati. Budget esplicito: 4 MiB di SEF per file; superamenti segnalati senza dichiarare un export completo. I campioni nei blocchi mdat/idat vengono saltati. La modifica serve alla diagnosi dei metadati dell’editor Samsung: non abilita ancora la loro conversione né risolve i conflitti colore.
+
 # v0.67 · decoder HDR incluso nell’APK
 
 La conversione completa HEVC HDR PQ/HLG e la verifica finale usano il decoder software HEVC di FFmpeg 8.1.3, compilato e incluso nell’APK ARM64. Non richiedono MediaCodec, uscita P010 o Android 13: resta Android 10+ come minimo dell’app. I fotogrammi sono I420 a 10 bit, senza riduzione a 8 bit; dimensioni, colore e timestamp vengono controllati. x265 Main10 e la conservazione/verifica dei payload HDR originali restano attivi.

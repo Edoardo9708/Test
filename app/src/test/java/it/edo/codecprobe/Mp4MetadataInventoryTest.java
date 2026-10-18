@@ -45,4 +45,45 @@ public class Mp4MetadataInventoryTest {
         }finally{Files.deleteIfExists(path);}
         try{report(ByteBuffer.allocate(8).putInt(1000).put("udta".getBytes()).array());fail();}catch(IOException expected){assertTrue(expected.getMessage().contains("Dimensione blocco non valida"));}
     }
+
+    static byte[] exportedSef(String report)throws Exception{
+        ByteArrayOutputStream bytes=new ByteArrayOutputStream();
+        java.util.regex.Matcher chunks=java.util.regex.Pattern.compile("(?m)^SEF BASE64 ([0-9]+)=([A-Za-z0-9+/=]+)$").matcher(report);
+        while(chunks.find()){
+            assertEquals(bytes.size(),Integer.parseInt(chunks.group(1)));
+            bytes.write(Base64.getDecoder().decode(chunks.group(2)));
+        }
+        return bytes.toByteArray();
+    }
+    @Test public void unknownEditorRecordsExportEveryByteAndCompleteJson()throws Exception{
+        String json="{\"NDE_VERSION\":\"2.0\",\"data\":\""+"é\\\"".repeat(400)+"END_OF_COMPLETE_JSON\"}";
+        byte[] binary=new byte[2501];new Random(8241).nextBytes(binary);
+        byte[] sef=SamsungSefMotionFixtures.fixture(107,
+            new SamsungSefMotionFixtures.Item(0x0ba1,"VideoEditor_Re_Edit_Data",json.getBytes(StandardCharsets.UTF_8)),
+            new SamsungSefMotionFixtures.Item(0x0ba1,"Unknown_Binary_Metadata",binary));
+        String report=report(join(box("mdat","DO_NOT_EXPORT_VIDEO".getBytes(StandardCharsets.UTF_8)),sef));
+        assertArrayEquals(sef,exportedSef(report));
+        assertTrue(report.contains("SHA256="+Mp4MetadataInventory.digest(ByteBuffer.wrap(sef))));
+        assertTrue(report.contains("SEF TESTO COMPLETO="+Mp4MetadataInventory.escape(json)));
+        assertTrue(report.contains("END_OF_COMPLETE_JSON"));assertFalse(report.contains("DO_NOT_EXPORT_VIDEO"));
+        assertTrue(report.contains("*** FINE SEF BLOCCO COMPLETO ***"));
+    }
+    @Test public void malformedSefStillExportsExactBytesAndLargeBlocksHaveExplicitLimit()throws Exception{
+        byte[] malformed=box("sefd",new byte[800]);String report=report(malformed);
+        assertArrayEquals(malformed,exportedSef(report));assertTrue(report.contains("SEF NON INTERPRETABILE"));
+        byte[] large=box("sefd",new byte[SamsungSef.MAX_BYTES]);String limited=report(large);
+        assertEquals(0,exportedSef(limited).length);assertTrue(limited.contains("blocco completo non esportato"));
+        assertFalse(limited.contains("*** SEF BLOCCO COMPLETO"));
+    }
+    @Test public void completeSefExportRemainsCancellableBetweenChunks()throws Exception{
+        Path path=Files.createTempFile("sef-export-cancel-",".mp4");StringWriter out=new StringWriter();
+        try{
+            Files.write(path,box("sefd",new byte[3000]));
+            try(FileChannel file=FileChannel.open(path)){
+                try{Mp4MetadataInventory.write(file,out,()->out.toString().contains("SEF BASE64 0="));fail();}
+                catch(InterruptedIOException expected){}
+            }
+            assertTrue(out.toString().contains("SEF BASE64 0="));assertFalse(out.toString().contains("*** FINE SEF BLOCCO COMPLETO ***"));
+        }finally{Files.deleteIfExists(path);}
+    }
 }
