@@ -1,10 +1,18 @@
+# v0.67 · decoder HDR incluso nell’APK
+
+La conversione completa HEVC HDR PQ/HLG e la verifica finale usano il decoder software HEVC di FFmpeg 8.1.3, compilato e incluso nell’APK ARM64. Non richiedono MediaCodec, uscita P010 o Android 13: resta Android 10+ come minimo dell’app. I fotogrammi sono I420 a 10 bit, senza riduzione a 8 bit; dimensioni, colore e timestamp vengono controllati. x265 Main10 e la conservazione/verifica dei payload HDR originali restano attivi.
+
+Questa integrazione riguarda la conversione HDR completa. Il test breve diagnostico P010 resta una prova separata del decoder Android. SDR, MP3/M4A, estrazione/rimux MP4 e lettura metadati continuano a usare le API Android dove già previsto. Non è ancora una pipeline completamente indipendente dal dispositivo.
+
+Build: eseguire anche `bash scripts/prepare-video.sh`. Il sorgente FFmpeg è fissato con SHA-256; si compilano soltanto avcodec/avutil e il decoder HEVC software, senza rete, programmi esterni o codec hardware. La CI confronta tutti i campioni decodificati con FFmpeg indipendente su PQ/HLG, B-frame e timestamp variabili. La prova sul tablet con il video originale resta necessaria.
+
 Interfaccia modulare: pagina principale separata in sezioni e gestori delle azioni, tema e controlli condivisi con Impostazioni. Pulsanti uniformi, selezione qualità evidenziata, metriche a riquadri, larghezza massima sugli schermi grandi e stato ripristinato dopo ricreazione. Architettura e regole di manutenzione: [docs/ui-architecture.md](docs/ui-architecture.md).
 
 Samsung screen recordings: supporto del record SEF `Samsung_Capture_Info` con etichetta `Screen recording` e directory versione 107. Il blocco resta identico e viene verificato con SHA-256 dopo la copia; versioni o payload non verificati restano bloccati. Test di regressione con gli 84 byte originali del campione, riferimenti corrotti e copia insieme ai precedenti record HighlightVideo_Data.
 
 # Conversione HDR e struttura del codice
 
-La coda riconosce HEVC Main10 PQ/HLG BT.2020 e usa il percorso separato a 10 bit su Android 13+ con decoder P010 accessibile. CRF, preset, CPU, B-frame e lookahead sono quelli selezionati; il log riporta i valori effettivi. Il percorso HDR è sperimentale: la libreria 10 bit non usa ancora assembly ARM. SDR continua a usare la propria libreria ottimizzata.
+La coda riconosce HEVC Main10 PQ/HLG BT.2020 e usa il percorso separato a 10 bit con decoder software incluso. CRF, preset, CPU, B-frame e lookahead sono quelli selezionati; il log riporta i valori effettivi. Il percorso HDR è sperimentale: la libreria 10 bit non usa ancora assembly ARM. SDR continua a usare la propria libreria ottimizzata.
 
 - `HdrTranscoder`: decodifica P010 e codifica CPU Main10 dell'intero video.
 - `HdrCodec`: scelta decoder, controlli colore e accesso alle immagini Android.

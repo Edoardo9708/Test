@@ -68,3 +68,16 @@ for method in ("openPcm", "writePcm", "finishPcm", "closePcm"):
 assert not any(line.split()[-1].startswith(("opus_", "ope_", "FLAC__")) for line in audio_dynamic.splitlines() if line.split()), "Private audio codec symbols exported"
 print("OK: independent audio ELF64 AArch64 with bundled licenses and private codec symbols")
 
+
+# The decoder must actually be packaged, with only its JNI API exported.
+with zipfile.ZipFile(apk) as archive:
+    video = archive.read("lib/arm64-v8a/libsoftwarehevc.so")
+    assert video[:4] == b"\x7fELF" and video[4] == 2 and struct.unpack_from("<H", video, 18)[0] == 183
+    assert archive.read("assets/ffmpeg-LGPLv2.1.txt")
+video_libraries = list(Path("app/build/intermediates/cxx").rglob("libsoftwarehevc.so")) + list(Path("app/.cxx").rglob("libsoftwarehevc.so"))
+assert video_libraries, "Missing bundled HEVC decoder"
+video_dynamic = subprocess.check_output([str(nm), "--dynamic", "--defined-only", str(video_libraries[0])], text=True)
+for method in ("open", "send", "receive", "close"):
+    assert "Java_it_edo_codecprobe_SoftwareHevcDecoder_" + method in video_dynamic, method
+assert not any(line.split()[-1].startswith(("avcodec_", "av_")) for line in video_dynamic.splitlines() if line.split())
+print("OK: independent bundled HEVC software decoder ELF64 AArch64 and license")

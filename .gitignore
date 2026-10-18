@@ -12,3 +12,11 @@ smoke-*.hevc
 yuv-test/
 stream-*.hevc
 arm-smoke/
+
+video-host-build/
+video-host-install/
+video-fixtures/
+video-host-build.log
+app/src/main/assets/ffmpeg-LGPLv2.1.txt
+
+__pycache__/

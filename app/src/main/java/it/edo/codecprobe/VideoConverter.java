@@ -296,7 +296,6 @@ final class VideoConverter {
             onLog("COLORE DA CONSERVARE (SPS/VUI + colr): "+sourceColor+" · valori originali risolti, senza traduzione dell’enum SDR Android");
             hdr=sourceColor.transfer==16||sourceColor.transfer==18;
             if(hdr){
-                if(android.os.Build.VERSION.SDK_INT<33)throw new IOException("HDR richiede Android 13/API 33 e decoder P010");
                 if(!"video/hevc".equals(inputMime))throw new IOException("Percorso HDR: richiesto HEVC Main10");
                 onLog("OK "+HdrHevcInfo.requireMain10(csds.toArray(new byte[0][])));
             }else{
@@ -342,7 +341,7 @@ final class VideoConverter {
                     public void settings(int[] values){reportEncoderSettings(values);}
                 };
                 applyMemoryProtection();
-                new HdrTranscoder(this::isCancelled,sink,sourceColor,this::activeNow).run(extractor,video,hdrMetadataFile,width,height,Math.round(fps*1000),crf,preset,this.cpuMode,this.bframes,this.lookahead);
+                new HdrTranscoder(this::isCancelled,sink,sourceColor).run(extractor,video,hdrMetadataFile,width,height,Math.round(fps*1000),crf,preset,this.cpuMode,this.bframes,this.lookahead);
                 listener.frames(frames,frames);listener.timeline(durationUs,durationUs);
             }else{
                 onLog("BEGIN loadLibrary x265probe · percorso SDR a 8 bit");
@@ -569,7 +568,17 @@ final class VideoConverter {
             if(integer(format,MediaFormat.KEY_WIDTH,0)!=width||integer(format,MediaFormat.KEY_HEIGHT,0)!=height) throw new IOException("Risoluzione MP4 errata");
             if(e.getTrackCount()!=(audioFormat==null?1:2)+metadataTracks.size()) throw new IOException("Conteggio tracce errato");
             e.selectTrack(track);
-            if(hdr){HdrHevcInfo.requireMain10(HdrCodec.csds(format).toArray(new byte[0][]));d=HdrCodec.open(format,this::isCancelled,this::onLog);}
+            if(hdr){
+                final int[] verified={0};
+                SoftwareHevcDecoder.decode(e,format,width,height,sourceColor,this::isCancelled,this::onLog,null,(pixels,pts,precise)->{
+                    checkCancel();long originalPts=expected.readLong();
+                    if(Math.abs(pts-originalPts)>1000)throw new IOException("Timestamp MP4 diverso dall’originale: atteso="+originalPts+" ottenuto="+pts);
+                    onLog("VERIFY HDR SOFTWARE frame="+(++verified[0])+" pts_us="+pts);
+                });
+                if(verified[0]!=frames||expected.read()!=-1)throw new IOException("Verifica HDR software fallita: "+verified[0]+"/"+frames);
+                onLog("OK VERIFY HDR SOFTWARE decoded="+verified[0]+"/"+frames+" · 10 bit · timestamp originali verificati (tolleranza 1 ms)");
+                return;
+            }
             else {d=MediaCodec.createDecoderByType("video/hevc");d.configure(format,null,null,0);d.start();}
             running=true;
             MediaCodec.BufferInfo info=new MediaCodec.BufferInfo();boolean inEnd=false,outEnd=false;int count=0;
@@ -590,12 +599,6 @@ final class VideoConverter {
                 int i=d.dequeueOutputBuffer(info,1000);
                 if(i>=0) {
                     if(info.size>0&&(info.flags&MediaCodec.BUFFER_FLAG_CODEC_CONFIG)==0) {
-                        if(hdr){
-                            HdrCodec.check(d.getOutputFormat(i),sourceColor);
-                            try(Image image=d.getOutputImage(i)){
-                                if(image==null||image.getFormat()!=54||image.getCropRect().width()!=width||image.getCropRect().height()!=height)throw new IOException("Verifica HDR: attesi P010 e dimensioni originali");
-                            }
-                        }
                         if(info.presentationTimeUs<=lastPts)throw new IOException("Timestamp verifica non crescente");
                         long originalPts=expected.readLong();
                         if(Math.abs(info.presentationTimeUs-originalPts)>1000)throw new IOException("Timestamp MP4 diverso dall’originale: atteso="+originalPts+" ottenuto="+info.presentationTimeUs);

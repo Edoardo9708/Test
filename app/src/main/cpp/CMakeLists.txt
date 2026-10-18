@@ -76,3 +76,7 @@ endif()
 if(ANDROID)
   add_subdirectory(audio)
 endif()
+
+if(ANDROID)
+  add_subdirectory(video)
+endif()
