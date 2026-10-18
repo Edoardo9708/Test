@@ -4,7 +4,11 @@ set(FFMPEG_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/ffmpeg-install")
 file(MAKE_DIRECTORY "${FFMPEG_PREFIX}/include")
 # NDK clang from the parent project retains its Android target via the driver name.
 get_filename_component(LLVM_BIN "${CMAKE_C_COMPILER}" DIRECTORY)
-set(FFMPEG_CC "${LLVM_BIN}/aarch64-linux-android${CMAKE_SYSTEM_VERSION}-clang")
+string(REGEX REPLACE "^android-" "" FFMPEG_API "${ANDROID_PLATFORM}")
+if(NOT FFMPEG_API MATCHES "^[0-9]+$")
+    message(FATAL_ERROR "Invalid Android platform for software decoder: ${ANDROID_PLATFORM}")
+endif()
+set(FFMPEG_CC "${LLVM_BIN}/aarch64-linux-android${FFMPEG_API}-clang")
 ExternalProject_Add(softwarehevc_build
     SOURCE_DIR "${FFMPEG_SOURCE}"
     BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}/ffmpeg-build"
