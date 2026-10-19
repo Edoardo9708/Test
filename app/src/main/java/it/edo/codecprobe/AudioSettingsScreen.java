@@ -52,7 +52,7 @@ final class AudioSettingsScreen {
         try{
             int flags=data.getFlags()&(Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
             if(flags!=(Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_WRITE_URI_PERMISSION))throw new SecurityException("Servono lettura e scrittura");
-            activity.getContentResolver().takePersistableUriPermission(data.getData(),flags);folder=data.getData().toString();showFolder();
+            activity.getContentResolver().takePersistableUriPermission(data.getData(),Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_WRITE_URI_PERMISSION);folder=data.getData().toString();showFolder();
         }catch(SecurityException error){Toast.makeText(activity,"Cartella non salvata: "+error.getMessage(),Toast.LENGTH_LONG).show();}
     }
 }
