@@ -3,7 +3,6 @@ package it.edo.codecprobe;
 import android.content.Intent;
 import android.content.res.ColorStateList;
 import android.graphics.Typeface;
-import android.graphics.drawable.RippleDrawable;
 import android.net.Uri;
 import android.os.*;
 import android.view.*;
@@ -223,53 +222,21 @@ final class HomeSelection {
     }
 
     void rebuildVideoCarousel() {
-        home.screen.files.videoNavigator.removeAllViews();
-        home.screen.files.videoChips.clear();
-        for (int index = 0; index < home.state.selectedInputs.size(); index++) {
-            final int position = index;
-            String name = home.state.selectedNames.get(index);
-            VideoMetadataCache.Entry entry = VideoMetadataCache.get(home.state.selectedInputs.get(index));
-            if (entry != null) {
-                name = entry.name;
-                home.state.selectedNames.set(index, name);
-            }
-            int count = name.codePointCount(0, name.length());
-            String shortName = count > 10 ? name.substring(0, name.offsetByCodePoints(0, 10)) + "…" : name;
-            Button chip = new Button(home.activity);
-            home.ui.styleButton(chip, false);
-            chip.setSingleLine(true);
-            chip.setTextSize(14);
-            chip.setPadding(home.ui.dp(12), home.ui.dp(10), home.ui.dp(12), home.ui.dp(10));
-            chip.setText((index + 1) + " · " + shortName + (entry != null && entry.report.readError ? " !" : ""));
-            chip.setContentDescription("Video " + (index + 1) + " di " + home.state.selectedInputs.size() + ": " + name + (entry != null && entry.report.readError ? ", lettura incompleta" : ""));
-            chip.setOnClickListener((v)->selectVideo(position));
-            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-2, -2);
-            lp.setMargins(0, home.ui.dp(6), home.ui.dp(8), home.ui.dp(6));
-            home.screen.files.videoNavigator.addView(chip, lp);
-            home.screen.files.videoChips.add(chip);
+        java.util.ArrayList<String> names = new java.util.ArrayList<>();
+        java.util.ArrayList<Boolean> errors = new java.util.ArrayList<>();
+        for (int n = 0; n < home.state.selectedInputs.size(); n++) {
+            VideoMetadataCache.Entry entry = VideoMetadataCache.get(home.state.selectedInputs.get(n));
+            String name = entry == null ? home.state.selectedNames.get(n) : entry.name;
+            home.state.selectedNames.set(n, name);
+            names.add(name); errors.add(entry != null && entry.report.readError);
         }
-        updateVideoSelection(false);
+        home.screen.files.selectedItem.render(names, errors, home.state.selectedVideoIndex,
+            !home.state.metadataLoading || metadataBackground, this::selectVideo);
     }
 
     void updateVideoSelection(boolean reveal) {
-        home.screen.files.videoNumber.setVisibility(home.state.selectedInputs.isEmpty() ? View.GONE : View.VISIBLE);
-        home.screen.files.navHint.setVisibility(home.state.selectedInputs.size() > 1 ? View.VISIBLE : View.GONE);
-        home.screen.files.videoCarousel.setVisibility(home.state.selectedInputs.isEmpty() ? View.GONE : View.VISIBLE);
-        home.screen.files.videoNumber.setText(home.state.selectedInputs.isEmpty() ? "Nessun video selezionato" : "Video " + (home.state.selectedVideoIndex + 1) + " di " + home.state.selectedInputs.size());
-        for (int n = 0; n < home.screen.files.videoChips.size(); n++) {
-            Button chip = home.screen.files.videoChips.get(n);
-            boolean active = n == home.state.selectedVideoIndex;
-            chip.setSelected(active);
-            chip.setTextColor(active ? home.ui.bg : home.ui.accent);
-            chip.setBackground(new RippleDrawable(ColorStateList.valueOf(home.ui.border), home.ui.shape(active ? home.ui.accent : home.ui.surface, 14), null));
-        }
-        if (reveal && home.state.selectedVideoIndex < home.screen.files.videoChips.size()) home.screen.files.videoCarousel.post(()->{
-            if (home.state.destroyed || home.state.selectedVideoIndex >= home.screen.files.videoChips.size()) return;
-            View chip = home.screen.files.videoChips.get(home.state.selectedVideoIndex);
-            int left = home.screen.files.videoCarousel.getScrollX();
-            int right = left + home.screen.files.videoCarousel.getWidth();
-            if (chip.getLeft() < left) home.screen.files.videoCarousel.smoothScrollTo(chip.getLeft(), 0); else if (chip.getRight() > right) home.screen.files.videoCarousel.smoothScrollTo(chip.getRight() - home.screen.files.videoCarousel.getWidth(), 0);
-        });
+        home.screen.files.selectedItem.update(home.state.selectedVideoIndex,
+            !home.state.metadataLoading || metadataBackground, reveal);
     }
 
     void selectVideo(int index) {

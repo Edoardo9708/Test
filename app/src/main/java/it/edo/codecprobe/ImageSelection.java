@@ -33,7 +33,7 @@ final class ImageSelection {
         if(values.size()>100){images.toast("Seleziona al massimo 100 foto.");return;}
         boolean temporary=false;
         for(String value:values)try{images.activity.getContentResolver().takePersistableUriPermission(Uri.parse(value),Intent.FLAG_GRANT_READ_URI_PERMISSION);}catch(SecurityException e){temporary=true;}
-        images.state.inputs.clear();images.state.inputs.addAll(values);images.state.selected=0;images.open();
+        images.screen.selectedItem.cancelTransition();ImageMetadataCache.memory.clear();images.state.names.clear();images.state.inputs.clear();images.state.inputs.addAll(values);images.state.selected=0;images.open();images.readNames();
         if(temporary)images.toast("Alcune foto concedono solo accesso temporaneo: potrebbe servire riselezionarle dopo la chiusura.");
     }
 }

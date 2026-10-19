@@ -13,7 +13,7 @@ final class AudioSelection {
     static final int FILES=101,FOLDER=102,LYRICS=104;
     private final AudioController audio;
     private String previewKey="";
-    private final java.util.Map<String,AudioInputInfo.Info> previews=new java.util.HashMap<>();
+    private static final MetadataMemoryCache<AudioInputInfo.Info> previews=new MetadataMemoryCache<>(500,4L*1024*1024);
     final ExecutorService worker=Executors.newSingleThreadExecutor();
     AudioSelection(AudioController audio){this.audio=audio;}
     void restore(){if(audio.state.readingNames)readNames();if(audio.state.readingLyrics)readLyricNames();}
@@ -44,7 +44,7 @@ final class AudioSelection {
         else if(data.getData()!=null)uris.add(data.getData().toString());
         if(uris.isEmpty())return;
         if(uris.size()>500){audio.toast("Seleziona al massimo 500 brani per coda");return;}
-        ++audio.state.selectionGeneration;audio.state.selectedIndex=0;audio.state.notice="";audio.state.readingNames=true;audio.state.inputs.clear();audio.state.names.clear();boolean temporary=false;
+        audio.screen.selectedItem.cancelTransition();previews.clear();++audio.state.selectionGeneration;audio.state.selectedIndex=0;audio.state.notice="";audio.state.readingNames=true;audio.state.inputs.clear();audio.state.names.clear();boolean temporary=false;
         for(String value:uris){
             Uri uri=Uri.parse(value);audio.state.inputs.add(value);audio.state.names.add("Brano "+audio.state.inputs.size());
             try{audio.activity.getContentResolver().takePersistableUriPermission(uri,Intent.FLAG_GRANT_READ_URI_PERMISSION);}
@@ -105,31 +105,37 @@ final class AudioSelection {
             });
         });
     }
-    void clear(){++audio.state.selectionGeneration;audio.state.selectedIndex=0;audio.state.notice="";audio.state.readingNames=false;audio.state.inputs.clear();audio.state.names.clear();audio.save();audio.render();}
+    void clear(){audio.screen.selectedItem.cancelTransition();previews.clear();++audio.state.selectionGeneration;audio.state.selectedIndex=0;audio.state.notice="";audio.state.readingNames=false;audio.state.inputs.clear();audio.state.names.clear();audio.save();audio.render();}
     void remove(){
         if(audio.busy()||audio.state.inputs.isEmpty())return;
-        ++audio.state.selectionGeneration;audio.state.inputs.remove(audio.state.selectedIndex);audio.state.names.remove(audio.state.selectedIndex);
+        audio.screen.selectedItem.cancelTransition();++audio.state.selectionGeneration;audio.state.inputs.remove(audio.state.selectedIndex);audio.state.names.remove(audio.state.selectedIndex);
         audio.state.selectedIndex=Math.max(0,Math.min(audio.state.selectedIndex,audio.state.inputs.size()-1));audio.save();audio.render();
+    }
+    void reload(){
+        if(audio.busy()||audio.state.inputs.isEmpty())return;
+        int index=audio.state.selectedIndex;
+        previews.remove(audio.state.inputs.get(index)+"\n"+audio.state.names.get(index));previewKey="";audio.render();
     }
     void renderFiles(){
         AudioState state=audio.state;AudioScreen screen=audio.screen;int count=state.inputs.size();
         state.selectedIndex=Math.max(0,Math.min(state.selectedIndex,count-1));
-        String key=state.inputs.toString()+state.names.toString()+state.selectedIndex;
-        if(!key.equals(screen.navigator.getTag())){
-            screen.navigator.setTag(key);screen.navigator.removeAllViews();
-            for(int n=0;n<count;n++){final int index=n;android.widget.Button chip=new android.widget.Button(audio.activity);screen.ui.styleButton(chip,false);chip.setText(Integer.toString(n+1));chip.setContentDescription("Brano "+(n+1)+": "+state.names.get(n));chip.setSelected(n==state.selectedIndex);chip.setEnabled(!audio.busy());screen.navigator.addView(chip,new android.widget.LinearLayout.LayoutParams(screen.ui.dp(58),-2));chip.setOnClickListener(v->{state.selectedIndex=index;screen.inputDetails.setVisibility(android.view.View.GONE);audio.save();audio.render();});}
-        }
-        screen.carousel.setVisibility(count>1?android.view.View.VISIBLE:android.view.View.GONE);
+        screen.selectedItem.render(state.names,java.util.Collections.emptyList(),state.selectedIndex,!audio.busy(),index->{
+            if(audio.busy())return;
+            if(index==state.selectedIndex){screen.selectedItem.cancelTransition();return;}
+            String selectedUri=state.inputs.get(index);
+            screen.selectedItem.transition(()->{if(audio.busy()||index>=state.inputs.size()||!selectedUri.equals(state.inputs.get(index)))return;state.selectedIndex=index;screen.selectedItem.setExpanded(false);audio.save();audio.render();screen.selectedItem.update(index,true,true);});
+        });
         screen.names.setText(count==0?"Nessun brano selezionato":state.names.get(state.selectedIndex));
         screen.details.setVisibility(count==0?android.view.View.GONE:android.view.View.VISIBLE);screen.remove.setVisibility(count==0?android.view.View.GONE:android.view.View.VISIBLE);
-        if(count==0){previewKey="";screen.inputInfo.setText("Seleziona uno o più brani");screen.inputDetails.setVisibility(android.view.View.GONE);return;}
+        if(count==0){previewKey="";screen.inputInfo.setText("Seleziona uno o più brani");screen.selectedItem.setExpanded(false);return;}
         String uri=state.inputs.get(state.selectedIndex),name=state.names.get(state.selectedIndex);String selectedKey=uri+"\n"+name;AudioInputInfo.Info cached=previews.get(selectedKey);
-        if(cached!=null){screen.inputInfo.setText(cached.summary);screen.inputDetails.setText(cached.details);return;}
+        if(cached!=null){previewKey=selectedKey;screen.inputInfo.setText(cached.summary);screen.inputDetails.setText(cached.details);return;}
         if(selectedKey.equals(previewKey))return;previewKey=selectedKey;screen.inputInfo.setText(state.readingNames?"Lettura nomi…":"Lettura informazioni audio…");screen.inputDetails.setText("Lettura informazioni audio…");
         if(state.readingNames){previewKey="";return;}
+        final long cacheEpoch=previews.epoch();
         worker.execute(()->{AudioInputInfo.Info info=AudioInputInfo.read(audio.activity,uri,name);audio.activity.runOnUiThread(()->{
-            if(state.destroyed)return;previews.put(selectedKey,info);if(selectedKey.equals(previewKey)){screen.inputInfo.setText(info.summary);screen.inputDetails.setText(info.details);}
+            if(state.destroyed)return;previews.put(selectedKey,info,4096L+2L*(info.summary.length()+info.details.length()),cacheEpoch);if(cacheEpoch==previews.epoch()&&selectedKey.equals(previewKey)){screen.inputInfo.setText(info.summary);screen.inputDetails.setText(info.details);}
         });});
     }
-    void close(){worker.shutdownNow();}
+    void close(){audio.screen.selectedItem.close();worker.shutdownNow();}
 }

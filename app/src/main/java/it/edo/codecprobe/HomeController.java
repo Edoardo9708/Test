@@ -192,6 +192,7 @@ final class HomeController {
             home.conversion.cancelConfirmation.dismiss();
             home.conversion.cancelConfirmation = null;
         }
+        home.screen.files.selectedItem.close();
         home.selection.worker.shutdownNow();
         home.system.worker.shutdownNow();
         home.diagnostics.worker.shutdown();

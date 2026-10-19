@@ -21,9 +21,10 @@ final class AudioController {
         this.activity=activity;state=AudioDraftStore.load(activity,!AudioConversionService.snapshot().running);
         screen=new AudioScreen(new AppUi(activity),AudioDraftStore.expansion(activity,saved),state);
         selection=new AudioSelection(this);actions=new AudioActions(this);
+        screen.reload.setOnClickListener(v->selection.reload());
         screen.pickLyrics.setOnClickListener(v->selection.pickLyrics());screen.clearLyrics.setOnClickListener(v->selection.clearLyrics());
         screen.lyricsToggle.setOnClickListener(v->{state.lyricsExpanded=!state.lyricsExpanded;save();render();});
-        screen.details.setOnClickListener(v->screen.inputDetails.setVisibility(screen.inputDetails.getVisibility()==View.VISIBLE?View.GONE:View.VISIBLE));screen.remove.setOnClickListener(v->selection.remove());
+        screen.remove.setOnClickListener(v->selection.remove());
         screen.start.setOnClickListener(v->actions.start());screen.cancel.setOnClickListener(v->actions.cancel());screen.retry.setOnClickListener(v->actions.retry());
         screen.exportLog.setOnClickListener(v->actions.export());screen.clearLog.setOnClickListener(v->actions.clearLog());
         screen.toggleLog.setOnClickListener(v->{boolean show=screen.log.getVisibility()!=View.VISIBLE;screen.log.setVisibility(show?View.VISIBLE:View.GONE);screen.toggleLog.setText(show?"Nascondi ultimi messaggi":"Mostra ultimi messaggi");});
@@ -53,6 +54,7 @@ final class AudioController {
     }
     void renderRun(){
         AudioRunState run=AudioConversionService.snapshot();if(!run.running&&!state.preparing&&!state.exporting&&refreshDefaults())return;if(run.running)state.preparing=false;boolean active=run.running,blocked=active||state.preparing||state.exporting;
+        screen.reload.setVisibility(state.inputs.isEmpty()?View.GONE:View.VISIBLE);screen.reload.setEnabled(!blocked&&!state.readingNames);
         screen.pick.setEnabled(!blocked);screen.chooseFolder.setEnabled(!blocked);screen.clear.setEnabled(!blocked&&(!state.inputs.isEmpty()||!state.lyricsInputs.isEmpty()||run.total>0||state.readingLyrics||state.readingNames));screen.bitrate.setEnabled(!blocked);for(Button preset:screen.presets)preset.setEnabled(!blocked);
         screen.onlySmaller.setEnabled(!blocked);screen.settings.setEnabled(!state.preparing&&!state.exporting);screen.remove.setEnabled(!blocked&&!state.readingNames);
         for(int n=0;n<screen.navigator.getChildCount();n++)screen.navigator.getChildAt(n).setEnabled(!blocked);

@@ -40,7 +40,7 @@ public class AudioFlowTest {
     @Test public void everySelectedTrackCanBeInspectedAndRemoved(){
         var controller=Robolectric.buildActivity(AudioActivity.class).setup();try{
             AudioController audio=controller.get().audio;for(int n=0;n<13;n++){audio.state.inputs.add("content://songs/"+n+".flac");audio.state.names.add(n+".flac");}audio.render();
-            assertEquals(13,audio.screen.navigator.getChildCount());audio.screen.navigator.getChildAt(12).performClick();assertEquals("12.flac",audio.screen.names.getText().toString());
+            assertEquals(13,audio.screen.navigator.getChildCount());audio.screen.navigator.getChildAt(12).performClick();Shadows.shadowOf(Looper.getMainLooper()).idleFor(java.time.Duration.ofSeconds(1));assertEquals("12.flac",audio.screen.names.getText().toString());
             audio.screen.remove.performClick();assertEquals(12,audio.state.inputs.size());assertEquals("11.flac",audio.screen.names.getText().toString());
             assertEquals(11,AudioDraftStore.load(context).selectedIndex);assertFalse(audio.state.names.contains("12.flac"));
             assertEquals(View.GONE,audio.screen.log.getVisibility());assertTrue(audio.screen.sections.bodies.containsKey(AudioScreen.DIAGNOSTICS));
