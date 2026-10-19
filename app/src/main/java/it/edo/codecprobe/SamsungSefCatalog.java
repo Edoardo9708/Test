@@ -37,7 +37,8 @@ final class SamsungSefCatalog {
         String binary="Contenuto binario/proprietario: struttura interna e rilocazione non verificate";
         String edits="Istruzioni di modifica: possibili riferimenti a originale, dimensioni o timeline da verificare";
         String embedded="Contenuto multimediale aggiuntivo: collegamenti e semantica dopo ricodifica non verificati";
-        add(m,0x0ba1,"Original_Path_Hash_Key","Riferimento/chiave del file originale",null,"Formato della chiave o del percorso originale non ancora verificato; il tipo 0x0ba1 è condiviso da più nomi");
+        add(m,0x0ba1,"Original_Path_Hash_Key","Riferimento/chiave del file originale","original-key",null);
+        add(m,0x0ba1,"VideoEditor_Re_Edit_Data","Progetto editor video Samsung NDE 1.0/2.0","video-editor",null);
         add(m,0x0ba1,"PhotoEditor_Re_Edit_Data","Dati di rimodifica dell'editor Samsung",null,edits+"; ExifTool descrive JSON con originalPath, clipInfoValue, rotazione e altri campi");
         for(String name:new String[]{"deco_doodle_bitmap","deco_sticker_bitmap","deco_text_bitmap"})add(m,0x0ba1,name,"Livello grafico dell'editor Samsung",null,embedded);
         add(m,0x0ba2,"Copy_Available_Edit_Info","Disponibilità delle modifiche copiabili",null,edits);

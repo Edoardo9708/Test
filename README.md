@@ -1,3 +1,7 @@
+# v0.70 · progetti editor video Samsung
+
+Aggiunti schemi verificati per `Original_Path_Hash_Key` e `VideoEditor_Re_Edit_Data` NDE 1.0/2.0. Il progetto viene conservato come dato storico, senza applicare nuovamente tagli, zoom, audio o trasformazioni. I riferimenti all’originale esterno rimangono identici; non vengono ricalcolati sul nuovo HEVC. JSON e varianti vengono controllati con un lettore Java incluso, limitato e rigoroso: campi sconosciuti, versioni diverse, chiavi duplicate, numeri/strutture/riferimenti non validi restano bloccati. La copia SEF resta verificata per SHA-256 e i timestamp video vengono verificati come prima. La riapertura del progetto nell’editor Samsung dipende dalla disponibilità dell’originale e richiede una prova sul dispositivo. I due conflitti colore non vengono modificati da questa versione.
+
 # v0.69 · esportazione SEF indipendente dai metadati annidati
 
 L’export cerca ed esporta prima i blocchi SEF principali, saltando i dati audio/video senza attraversare i metadati annidati. Un blocco meta QuickTime non impedisce più di ottenere i dati completi dell’editor Samsung. L’inventario distingue inoltre meta ISO con versione/flag da meta QuickTime senza prefisso. La conversione dei record dell’editor e la gestione dei conflitti colore restano da completare dopo la lettura dei dati.

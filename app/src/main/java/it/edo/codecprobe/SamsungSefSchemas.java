@@ -12,6 +12,7 @@ final class SamsungSefSchemas {
     }
     static String validate(SamsungSefDirectory.Record r,String schema)throws IOException{
         if(schema.equals("highlight"))return highlight(r);
+        if(schema.equals("original-key")||schema.equals("video-editor"))return SamsungSefEditor.validate(r,schema);
         if(schema.equals("super-motion")||schema.equals("super-bgm")||schema.startsWith("deflicker-"))return SamsungSefMotion.validate(r,schema);
         if(schema.equals("invalid-zero")){
             if(r.payloadBytes()<1||r.payloadBytes()>4096)throw new IOException("Invalid_Data: attesi 1–4096 byte interamente nulli");
