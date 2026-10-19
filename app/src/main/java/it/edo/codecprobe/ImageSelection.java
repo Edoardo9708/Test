@@ -1,0 +1,34 @@
+package it.edo.codecprobe;
+
+import android.app.Activity;
+import android.content.Intent;
+import android.net.Uri;
+import android.os.Bundle;
+import java.util.LinkedHashSet;
+
+/** SAF selection and export-picker state; no pixel decoding or encoder calls. */
+final class ImageSelection {
+    static final int FILES=201,REPORT=202;
+    private final ImageController images;private String pendingInput;
+    ImageSelection(ImageController images,Bundle saved){this.images=images;pendingInput=saved==null?null:saved.getString("imageReportSource");}
+    void save(Bundle out){out.putString("imageReportSource",pendingInput);}
+    void pick(){if(images.state.exporting)return;images.activity.startActivityForResult(new Intent(Intent.ACTION_OPEN_DOCUMENT).setType("image/jpeg").addCategory(Intent.CATEGORY_OPENABLE).putExtra(Intent.EXTRA_ALLOW_MULTIPLE,true).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION),FILES);}
+    void export(){
+        if(images.state.info==null||images.state.reading||images.state.exporting||pendingInput!=null)return;
+        pendingInput=images.state.inputs.get(images.state.selected);
+        images.activity.startActivityForResult(new Intent(Intent.ACTION_CREATE_DOCUMENT).setType("application/json").addCategory(Intent.CATEGORY_OPENABLE).putExtra(Intent.EXTRA_TITLE,"v"+BuildConfig.VERSION_NAME+"-foto-inventario-"+System.currentTimeMillis()+".json"),REPORT);
+    }
+    void result(int request,int code,Intent data){
+        if(request==REPORT){String input=pendingInput;pendingInput=null;if(code==Activity.RESULT_OK&&data!=null&&data.getData()!=null&&input!=null)images.export(Uri.parse(input),data.getData());return;}
+        if(request!=FILES||code!=Activity.RESULT_OK||data==null||images.state.exporting)return;
+        LinkedHashSet<String> values=new LinkedHashSet<>();
+        if(data.getClipData()!=null)for(int i=0;i<data.getClipData().getItemCount();i++){Uri uri=data.getClipData().getItemAt(i).getUri();if(uri!=null)values.add(uri.toString());}
+        else if(data.getData()!=null)values.add(data.getData().toString());
+        if(values.isEmpty())return;
+        if(values.size()>100){images.toast("Seleziona al massimo 100 foto.");return;}
+        boolean temporary=false;
+        for(String value:values)try{images.activity.getContentResolver().takePersistableUriPermission(Uri.parse(value),Intent.FLAG_GRANT_READ_URI_PERMISSION);}catch(SecurityException e){temporary=true;}
+        images.state.inputs.clear();images.state.inputs.addAll(values);images.state.selected=0;images.open();
+        if(temporary)images.toast("Alcune foto concedono solo accesso temporaneo: potrebbe servire riselezionarle dopo la chiusura.");
+    }
+}

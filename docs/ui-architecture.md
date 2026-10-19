@@ -47,3 +47,7 @@ Il controllo iniziale risolve tutti i conflitti della coda prima di avviare il s
 ## Navigazione tra sezioni
 
 `AppNavigation` costruisce le schede Video/Audio in cima al contenuto di `AppUi`, all’interno dello ScrollView. Le schede scorrono via con la pagina, condividono larghezza e stile e possono ospitare una futura terza sezione. Il cambio usa risorse alpha senza traslazione. Video resta la radice del task; il ritorno da Audio chiude la sola Activity, mentre la coda appartiene al servizio.
+
+## Immagini
+
+`ImageActivity` delega soltanto il ciclo di vita. `ImageScreen` compone le View; `ImageController` gestisce worker, generazioni, render ed esportazione; `ImageSelection` gestisce SAF e lo snapshot della sorgente del report, salvato nel Bundle anche durante il selettore. `ImageState` e `ImageDraftStore` conservano la selezione indipendente. `JpegInventory` è Java senza Android: legge in streaming e non decodifica pixel. `ImageReport` scrive JSON con payload APP/COM originali in base64. Nessun motore foto o parametro di codifica viene presentato come funzionante. Il prossimo confine è un modulo HEIC separato: libheif/contenitore, pixel/colore, mapping metadati e verifica prima della pubblicazione; le classi video non devono diventare il convertitore foto.

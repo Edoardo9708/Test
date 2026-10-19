@@ -9,19 +9,23 @@ import android.widget.*;
 
 /** Scrollable page-top workspace tabs. Switching never changes either conversion session. */
 final class AppNavigation extends LinearLayout {
-    final Button video,audio;
+    enum Workspace { VIDEO,AUDIO,IMAGES }
+    final Button video,audio,images;
     AppNavigation(AppUi ui,boolean audioSelected){
+        this(ui,audioSelected?Workspace.AUDIO:Workspace.VIDEO);
+    }
+    AppNavigation(AppUi ui,Workspace selected){
         super(ui.activity);setOrientation(HORIZONTAL);setBackgroundColor(ui.bg);
-        video=tab(ui,"Video",!audioSelected,()->{
-            if(!audioSelected)return;
-            ui.activity.startActivity(new Intent(ui.activity,MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT|Intent.FLAG_ACTIVITY_SINGLE_TOP));
-            // Keep Video as the task root: repeated switching must not build a Back-stack loop.
-            ui.activity.finish();fade(ui.activity);
-        });
-        audio=tab(ui,"Audio",audioSelected,()->{
-            if(audioSelected)return;
-            ui.activity.startActivity(new Intent(ui.activity,AudioActivity.class).addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT|Intent.FLAG_ACTIVITY_SINGLE_TOP));fade(ui.activity);
-        });
+        video=tab(ui,"Video",selected==Workspace.VIDEO,()->open(ui,selected,Workspace.VIDEO,MainActivity.class));
+        audio=tab(ui,"Audio",selected==Workspace.AUDIO,()->open(ui,selected,Workspace.AUDIO,AudioActivity.class));
+        images=tab(ui,"Immagini",selected==Workspace.IMAGES,()->open(ui,selected,Workspace.IMAGES,ImageActivity.class));
+    }
+    private static void open(AppUi ui,Workspace selected,Workspace target,Class<? extends Activity> screen){
+        if(selected==target)return;
+        ui.activity.startActivity(new Intent(ui.activity,screen).addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT|Intent.FLAG_ACTIVITY_SINGLE_TOP));
+        // Video is the task root. Secondary pages persist their draft, then leave the stack.
+        if(selected!=Workspace.VIDEO)ui.activity.finish();
+        fade(ui.activity);
     }
     /** Equal-width tabs allow another workspace to be added without changing the host layout. */
     private Button tab(AppUi ui,String label,boolean selected,Runnable action){
