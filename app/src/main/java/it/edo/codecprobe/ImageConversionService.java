@@ -65,8 +65,9 @@ public final class ImageConversionService extends Service {
         Intent cancel=new Intent(this,ImageConversionService.class).setAction(CANCEL).putExtra("startedAt",run.startedAt);PendingIntent stop=PendingIntent.getService(this,NOTICE,cancel,PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
         return new Notification.Builder(this,CHANNEL).setSmallIcon(android.R.drawable.stat_sys_upload).setContentTitle("Immagini · "+run.current+" / "+run.total).setContentText(run.message).setContentIntent(page).setOngoing(true).setOnlyAlertOnce(true).addAction(new Notification.Action.Builder(null,"Interrompi",stop).build()).build();}
     private void notifyProgress(){if(!destroyed)getSystemService(NotificationManager.class).notify(NOTICE,notification());}
-    private synchronized void release(){if(wake!=null&&wake.isHeld())wake.release();wake=null;if(token!=0){MediaConversionGate.INSTANCE.release(token);token=0;}}
-    @Override public void onTimeout(int startId,int type){cancelled.set(true);stage("Tempo massimo Android raggiunto: annullamento dopo la codifica in corso…");if(wake!=null&&wake.isHeld())wake.release();stopForeground(STOP_FOREGROUND_REMOVE);stopSelf(startId);}
+    private synchronized void releaseWake(){if(wake!=null&&wake.isHeld())wake.release();wake=null;}
+    private synchronized void release(){releaseWake();if(token!=0){MediaConversionGate.INSTANCE.release(token);token=0;}}
+    @Override public void onTimeout(int startId,int type){cancelled.set(true);stage("Tempo massimo Android raggiunto: annullamento dopo la codifica in corso…");releaseWake();stopForeground(STOP_FOREGROUND_REMOVE);stopSelf(startId);}
     @Override public void onDestroy(){destroyed=true;cancelled.set(true);worker.shutdown();super.onDestroy();}
     @Override public IBinder onBind(Intent intent){return null;}
 }
