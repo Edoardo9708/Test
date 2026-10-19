@@ -1,3 +1,9 @@
+# v0.75 · schede audio/video in alto
+
+La navigazione Audio/Video è composta da schede piatte in cima alla pagina, dentro lo stesso contenuto scorrevole: scendendo scompare insieme all’intestazione. Il passaggio tra sezioni e il ritorno da Audio usano una dissolvenza breve, senza movimento laterale. Le schede hanno larghezza uniforme e il componente consente di aggiungere una futura sezione Immagini; questa versione non aggiunge ancora la conversione immagini. Selezione corrente, sessioni e coda conservano il comportamento precedente.
+
+Test Android su posizione delle schede, scorrimento fuori dalla vista, selezione, navigazione e animazioni. Il motore audio non cambia: gli input restano FLAC/MP3/M4A; i testi incorporati trasferibili come LYRICS sono conservati e verificati negli Opus prodotti. Gli Opus già scaricati non sono input supportati. Nessuna promessa di conversione universale di formati di testo sincronizzato proprietari.
+
 # v0.74 · pagina Impostazioni audio dedicata
 
 Il pulsante Impostazioni della schermata audio apre ora una pagina dedicata, ospitata da SettingsActivity in modalità audio. Contiene cartella predefinita, bitrate con scelte rapide, “Salva solo se più piccolo” e “Mantieni schermo acceso”. Le modifiche richiedono “Salva impostazioni”; Indietro le scarta. Il pulsante “Usa la configurazione della schermata conversione” importa le scelte correnti nel modulo senza salvarle automaticamente. Il selettore cartella usa lo stesso flusso isolato dei video e conserva la scelta precedente in caso di annullamento o permessi insufficienti.
