@@ -10,7 +10,7 @@ final class AudioScreen {
     static final String FILES="01  FILE AUDIO E DESTINAZIONE",COMPRESSION="02  COMPRESSIONE AUDIO",CONVERSION="03  CONVERSIONE AUDIO",DIAGNOSTICS="DIAGNOSTICA";
     final AppUi ui;final AppSections sections;final AppNavigation navigation;final LinearLayout page;
     final Button settings,pick,clear,chooseFolder,start,cancel,exportLog,clearLog,pickLyrics,clearLyrics,remove,details,lyricsToggle,retry,toggleLog;
-    final TextView selected,names,folder,bitrateLabel,status,summary,current,percent,samples,seconds,elapsed,parameters,log,lyrics,inputInfo,inputDetails,totalProgress,savings;
+    final TextView selected,names,folder,bitrateLabel,status,summary,current,percent,seconds,elapsed,parameters,log,lyrics,inputInfo,inputDetails,totalProgress,savings;
     final java.util.ArrayList<Button> presets=new java.util.ArrayList<>();
     final SeekBar bitrate;final ProgressBar progress;final LinearLayout report,navigator,lyricsPanel;
     final HorizontalScrollView carousel;final CheckBox onlySmaller,keepScreenOn;
@@ -44,7 +44,7 @@ final class AudioScreen {
         ui.sectionHeading(conversion,"SOMMARIO");summary=ui.text(conversion,"Nessuna coda avviata",16);totalProgress=ui.dashboardRow(conversion,"Avanzamento coda","—");elapsed=ui.dashboardRow(conversion,"Tempo trascorso","00:00:00");
         ui.sectionHeading(conversion,"PROGRESSO · FILE ATTUALE");current=ui.text(conversion,"Nessun file in conversione",16);current.setTypeface(null,Typeface.BOLD);percent=ui.text(conversion,"0%",28);
         progress=new ProgressBar(ui.activity,null,android.R.attr.progressBarStyleHorizontal);progress.setMax(100);progress.setProgressTintList(android.content.res.ColorStateList.valueOf(ui.accent));progress.setProgressBackgroundTintList(android.content.res.ColorStateList.valueOf(ui.border));conversion.addView(progress,new LinearLayout.LayoutParams(-1,ui.dp(12)));
-        seconds=ui.dashboardRow(conversion,"Secondi di audio","—");samples=ui.dashboardRow(conversion,"Campioni / canale","—");samples.setVisibility(View.GONE);
+        seconds=ui.dashboardRow(conversion,"Secondi di audio","—");
         status=ui.text(conversion,"Scegli audio, cartella e qualità.",14);ui.sectionHeading(conversion,"PARAMETRI IN USO");parameters=ui.text(conversion,"—",14);
         retry=ui.button(conversion,"Riprova i falliti");retry.setVisibility(View.GONE);
         ui.sectionHeading(conversion,"REPORT LAVORI");savings=ui.text(conversion,"",16);report=new LinearLayout(ui.activity);report.setOrientation(LinearLayout.VERTICAL);conversion.addView(report,new LinearLayout.LayoutParams(-1,-2));

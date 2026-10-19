@@ -3,7 +3,6 @@ package it.edo.codecprobe;
 import android.graphics.*;
 import android.view.View;
 import java.io.*;
-import java.util.Base64;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.robolectric.*;
@@ -30,7 +29,6 @@ public class AudioRenderTest {
             float density=activity.get().getResources().getDisplayMetrics().density;Bitmap bitmap=Bitmap.createBitmap(360,(int)Math.ceil(page.getMeasuredHeight()/density),Bitmap.Config.ARGB_8888);Canvas canvas=new Canvas(bitmap);canvas.drawColor(audio.screen.ui.bg);canvas.scale(1/density,1/density);page.draw(canvas);
             ByteArrayOutputStream bytes=new ByteArrayOutputStream();assertTrue(bitmap.compress(Bitmap.CompressFormat.PNG,100,bytes));bitmap.recycle();assertTrue(bytes.size()>10000);assertTrue(bytes.size()<250000);
             File dir=new File("build/reports/ui");assertTrue(dir.isDirectory()||dir.mkdirs());try(FileOutputStream out=new FileOutputStream(new File(dir,name))){out.write(bytes.toByteArray());}
-            System.out.println("AUDIO_UI_PREVIEW_START "+name);System.out.println(Base64.getEncoder().encodeToString(bytes.toByteArray()));System.out.println("AUDIO_UI_PREVIEW_END "+name);
         }finally{activity.pause().stop().destroy();field.set(null,previous);context.getSharedPreferences("audio-workspace",0).edit().clear().commit();}
     }
     @Test public void files()throws Exception{render(AudioScreen.FILES,"audio-files.png");}

@@ -61,7 +61,6 @@ final class AudioController {
         screen.cancel.setEnabled(active&&!run.cancelling);screen.clearLog.setEnabled(!blocked&&AudioLog.file(activity).isFile());screen.exportLog.setEnabled(!blocked&&AudioLog.file(activity).isFile());
         screen.status.setText(state.preparing?"Verifica di cartella e testi prima dell’avvio…":!active&&!state.notice.isEmpty()?state.notice:run.message);
         screen.summary.setText(run.summary());screen.totalProgress.setText(run.total>0?run.queuePercent()+"%":"—");screen.current.setText(run.name);screen.percent.setText(run.total>0?run.percent+"%":"0%");screen.progress.setProgress(run.percent);
-        screen.samples.setText(run.rate>0?run.doneSamples+" / "+(run.totalSamples>0?Long.toString(run.totalSamples):"non dichiarati"):"—");
         screen.seconds.setText(run.rate>0?String.format(Locale.ROOT,"%.1f / %s s",run.doneSamples/(double)run.rate,run.totalSamples>0?String.format(Locale.ROOT,"%.1f",run.totalSamples/(double)run.rate):"—"):"—");
         long now=active?SystemClock.elapsedRealtime():run.endedAt;screen.elapsed.setText(time(run.startedAt>0?Math.max(0,now-run.startedAt):0));
         screen.parameters.setText(run.total>0?"Opus · VBR · "+run.bitrate+" kbit/s · output 48 kHz\nSalva solo se più piccolo: "+(run.onlySmaller?"sì":"no"):"—");

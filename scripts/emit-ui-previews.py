@@ -2,8 +2,12 @@
 from pathlib import Path
 import base64
 
-files = sorted(Path('app/build/reports/ui').glob('home-*.png'))
-assert len(files) == 10, files
+directory = Path('app/build/reports/ui')
+home = sorted(directory.glob('home-*.png'))
+audio = sorted(directory.glob('audio-*.png'))
+assert len(home) == 10, home
+assert len(audio) == 3, audio
+files = home + audio
 for path in files:
     data = path.read_bytes()
     assert data.startswith(b'\x89PNG\r\n\x1a\n') and len(data) < 500_000, path
