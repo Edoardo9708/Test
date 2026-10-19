@@ -1,3 +1,9 @@
+# v0.74 · pagina Impostazioni audio dedicata
+
+Il pulsante Impostazioni della schermata audio apre ora una pagina dedicata, ospitata da SettingsActivity in modalità audio. Contiene cartella predefinita, bitrate con scelte rapide, “Salva solo se più piccolo” e “Mantieni schermo acceso”. Le modifiche richiedono “Salva impostazioni”; Indietro le scarta. Il pulsante “Usa la configurazione della schermata conversione” importa le scelte correnti nel modulo senza salvarle automaticamente. Il selettore cartella usa lo stesso flusso isolato dei video e conserva la scelta precedente in caso di annullamento o permessi insufficienti.
+
+I predefiniti audio sono separati sia dalle impostazioni video sia dalla bozza della coda. Fino al primo salvataggio si mantengono le scelte audio esistenti. Il salvataggio aggiorna la schermata audio inattiva; durante una conversione l’applicazione dei nuovi predefiniti viene rimandata alla fine, senza modificare lo snapshot del servizio. Selezioni di brani/testi e resoconti restano conservati. Il modulo non salvato viene ripristinato dopo ricreazione della Activity. Test su navigazione, salvataggio/annullamento, migrazione, separazione dalla bozza/video, cartelle, conversione in corso e render Android della nuova pagina.
+
 # v0.73 · revisione del flusso audio
 
 La schermata audio segue ora il flusso file/destinazione, compressione, conversione e diagnostica. Tutti i brani sono navigabili e rimovibili singolarmente; il brano selezionato ha anteprima di durata, dimensione e formato e dettagli su titolo/artista/album, frequenza e canali quando disponibili nelle API Android. “Qualità audio” apre la sezione corretta senza fingere una pagina di impostazioni separata. Le scelte rapide mostrano il bitrate selezionato. Log e dettagli delle librerie sono in Diagnostica; i testi esterni sono opzionali, con conteggio di abbinamenti, ambiguità e testi inutilizzati.

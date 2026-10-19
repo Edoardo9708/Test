@@ -18,7 +18,7 @@ final class AudioController {
     private boolean visible;private int reportCount=-1;private long reportSession=-1;
     private final Runnable tick=new Runnable(){public void run(){if(!visible||state.destroyed)return;renderRun();handler.postDelayed(this,500);}};
     AudioController(AudioActivity activity,Bundle saved){
-        this.activity=activity;state=AudioDraftStore.load(activity);
+        this.activity=activity;state=AudioDraftStore.load(activity,!AudioConversionService.snapshot().running);
         screen=new AudioScreen(new AppUi(activity),AudioDraftStore.expansion(activity,saved),state);
         selection=new AudioSelection(this);actions=new AudioActions(this);
         screen.pickLyrics.setOnClickListener(v->selection.pickLyrics());screen.clearLyrics.setOnClickListener(v->selection.clearLyrics());
@@ -28,7 +28,7 @@ final class AudioController {
         screen.exportLog.setOnClickListener(v->actions.export());screen.clearLog.setOnClickListener(v->actions.clearLog());
         screen.toggleLog.setOnClickListener(v->{boolean show=screen.log.getVisibility()!=View.VISIBLE;screen.log.setVisibility(show?View.VISIBLE:View.GONE);screen.toggleLog.setText(show?"Nascondi ultimi messaggi":"Mostra ultimi messaggi");});
         screen.pick.setOnClickListener(v->selection.pick());screen.clear.setOnClickListener(v->reset());
-        screen.chooseFolder.setOnClickListener(v->selection.folder());screen.settings.setOnClickListener(v->screen.sections.focusCard(AudioScreen.COMPRESSION));
+        screen.chooseFolder.setOnClickListener(v->selection.folder());screen.settings.setOnClickListener(v->openSettings());
         screen.onlySmaller.setOnCheckedChangeListener((b,value)->{state.onlySmaller=value;save();});
         screen.keepScreenOn.setOnCheckedChangeListener((b,value)->{state.keepScreenOn=value;save();renderRun();});
         screen.bitrate.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener(){
@@ -52,9 +52,9 @@ final class AudioController {
         int[] values={96,128,160};for(int n=0;n<values.length;n++)screen.presets.get(n).setSelected(state.bitrate==values[n]);renderRun();
     }
     void renderRun(){
-        AudioRunState run=AudioConversionService.snapshot();if(run.running)state.preparing=false;boolean active=run.running,blocked=active||state.preparing||state.exporting;
+        AudioRunState run=AudioConversionService.snapshot();if(!run.running&&!state.preparing&&!state.exporting&&refreshDefaults())return;if(run.running)state.preparing=false;boolean active=run.running,blocked=active||state.preparing||state.exporting;
         screen.pick.setEnabled(!blocked);screen.chooseFolder.setEnabled(!blocked);screen.clear.setEnabled(!blocked&&(!state.inputs.isEmpty()||!state.lyricsInputs.isEmpty()||run.total>0||state.readingLyrics||state.readingNames));screen.bitrate.setEnabled(!blocked);for(Button preset:screen.presets)preset.setEnabled(!blocked);
-        screen.onlySmaller.setEnabled(!blocked);screen.settings.setEnabled(!blocked);screen.remove.setEnabled(!blocked&&!state.readingNames);
+        screen.onlySmaller.setEnabled(!blocked);screen.settings.setEnabled(!state.preparing&&!state.exporting);screen.remove.setEnabled(!blocked&&!state.readingNames);
         for(int n=0;n<screen.navigator.getChildCount();n++)screen.navigator.getChildAt(n).setEnabled(!blocked);
         screen.pickLyrics.setEnabled(!blocked);screen.clearLyrics.setEnabled(!blocked&&(!state.lyricsInputs.isEmpty()||state.readingLyrics));
         screen.start.setEnabled(!blocked&&!state.readingLyrics&&!state.readingNames&&!ConversionService.snapshot().running&&!state.inputs.isEmpty()&&state.folder!=null);
@@ -68,6 +68,14 @@ final class AudioController {
         screen.retry.setVisibility(!active&&run.count(AudioRunState.Outcome.FAILED)>0?View.VISIBLE:View.GONE);screen.retry.setEnabled(!blocked&&!ConversionService.snapshot().running&&!state.readingLyrics&&!state.readingNames);
         if(reportSession!=run.sessionId||reportCount!=run.results.size()){AudioReport.render(this,run);reportCount=run.results.size();reportSession=run.sessionId;}
         keepAwake(active);
+    }
+    void openSettings(){
+        activity.startActivity(new android.content.Intent(activity,SettingsActivity.class).putExtra(AudioSettingsScreen.AUDIO,true)
+            .putExtra("audioBitrate",state.bitrate).putExtra("audioFolder",state.folder).putExtra("audioSmaller",state.onlySmaller).putExtra("audioScreen",state.keepScreenOn));
+    }
+    private boolean refreshDefaults(){
+        AudioSettings defaults=new AudioSettings(activity);if(defaults.revision==state.settingsRevision)return false;
+        defaults.apply(state);screen.bitrate.setProgress((state.bitrate-64)/8);screen.onlySmaller.setChecked(state.onlySmaller);screen.keepScreenOn.setChecked(state.keepScreenOn);save();render();return true;
     }
     void reset(){if(busy()){toast("Completa prima l’operazione in corso");return;}AudioConversionService.clear();selection.clearLyrics();selection.clear();screen.sections.focusCard(AudioScreen.FILES);toast("Selezione e resoconto svuotati · file e log conservati");}
     static String time(long millis){long seconds=millis/1000;return String.format(Locale.ROOT,"%02d:%02d:%02d",seconds/3600,(seconds/60)%60,seconds%60);}

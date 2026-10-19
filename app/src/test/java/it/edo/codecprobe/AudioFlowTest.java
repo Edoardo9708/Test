@@ -44,7 +44,7 @@ public class AudioFlowTest {
             audio.screen.remove.performClick();assertEquals(12,audio.state.inputs.size());assertEquals("11.flac",audio.screen.names.getText().toString());
             assertEquals(11,AudioDraftStore.load(context).selectedIndex);assertFalse(audio.state.names.contains("12.flac"));
             assertEquals(View.GONE,audio.screen.log.getVisibility());assertTrue(audio.screen.sections.bodies.containsKey(AudioScreen.DIAGNOSTICS));
-            audio.screen.settings.performClick();assertEquals(View.VISIBLE,audio.screen.sections.bodies.get(AudioScreen.COMPRESSION).getVisibility());assertEquals("Qualità audio",audio.screen.settings.getText().toString());
+            audio.screen.settings.performClick();Intent settings=Shadows.shadowOf(controller.get()).getNextStartedActivity();assertEquals(SettingsActivity.class.getName(),settings.getComponent().getClassName());assertTrue(settings.getBooleanExtra(AudioSettingsScreen.AUDIO,false));assertEquals("Impostazioni",audio.screen.settings.getText().toString());
         }finally{controller.pause().stop().destroy();}
     }
     @Test public void invalidNewLyricsSelectionCannotLeaveOldLyricsSilentlySelected()throws Exception{

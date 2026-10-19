@@ -34,4 +34,13 @@ public class AudioRenderTest {
     @Test public void files()throws Exception{render(AudioScreen.FILES,"audio-files.png");}
     @Test @Config(qualifiers="w360dp-h800dp-night-xhdpi") public void qualityDark()throws Exception{render(AudioScreen.COMPRESSION,"audio-quality-dark.png");}
     @Test public void verifying()throws Exception{render(AudioScreen.CONVERSION,"audio-conversion.png");}
+    @Test public void settingsPage()throws Exception{
+        var context=RuntimeEnvironment.getApplication();context.getSharedPreferences("audio-startup-settings",0).edit().clear().commit();
+        var activity=Robolectric.buildActivity(SettingsActivity.class,new android.content.Intent(context,SettingsActivity.class).putExtra(AudioSettingsScreen.AUDIO,true)).setup();
+        try{
+            AudioSettingsScreen screen=activity.get().audioScreen;View page=screen.page;int width=screen.ui.dp(360);page.measure(View.MeasureSpec.makeMeasureSpec(width,View.MeasureSpec.EXACTLY),View.MeasureSpec.makeMeasureSpec(0,View.MeasureSpec.UNSPECIFIED));page.layout(0,0,page.getMeasuredWidth(),page.getMeasuredHeight());
+            float density=activity.get().getResources().getDisplayMetrics().density;Bitmap bitmap=Bitmap.createBitmap(360,(int)Math.ceil(page.getMeasuredHeight()/density),Bitmap.Config.ARGB_8888);Canvas canvas=new Canvas(bitmap);canvas.drawColor(screen.ui.bg);canvas.scale(1/density,1/density);page.draw(canvas);
+            File dir=new File("build/reports/ui");assertTrue(dir.isDirectory()||dir.mkdirs());try(FileOutputStream out=new FileOutputStream(new File(dir,"audio-settings.png"))){assertTrue(bitmap.compress(Bitmap.CompressFormat.PNG,100,out));}finally{bitmap.recycle();}
+        }finally{activity.pause().stop().destroy();context.getSharedPreferences("audio-startup-settings",0).edit().clear().commit();}
+    }
 }

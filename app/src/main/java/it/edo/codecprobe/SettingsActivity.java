@@ -13,6 +13,7 @@ import android.widget.*;
 * Explicitly saved defaults; edits never change a running conversion.
 */
 public final class SettingsActivity extends Activity {
+    AudioSettingsScreen audioScreen;
     private LinearLayout page;
     private AppUi ui;
     private String defaultFolder;
@@ -38,6 +39,7 @@ public final class SettingsActivity extends Activity {
     @Override
     public void onCreate(Bundle state) {
         super.onCreate(state);
+        if(getIntent().getBooleanExtra(AudioSettingsScreen.AUDIO,false)){audioScreen=new AudioSettingsScreen(this,state);return;}
         ui = new AppUi(this);
         bg = ui.bg;
         ink = ui.ink;
@@ -152,12 +154,14 @@ public final class SettingsActivity extends Activity {
     @Override
     protected void onSaveInstanceState(Bundle b) {
         super.onSaveInstanceState(b);
+        if(audioScreen!=null){audioScreen.saveState(b);return;}
         b.putString("defaultFolder", defaultFolder);
     }
 
     @Override
     protected void onActivityResult(int request, int code, android.content.Intent data) {
         super.onActivityResult(request, code, data);
+        if(audioScreen!=null){audioScreen.result(request,code,data);return;}
         if (request != 10) return;
         if (code != RESULT_OK || data == null || data.getData() == null) {
             String error = data == null ? null : data.getStringExtra(FolderPickerActivity.ERROR);

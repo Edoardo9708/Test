@@ -8,7 +8,8 @@ import org.json.*;
 /** Separate audio preference file; this draft is not an encoder checkpoint. */
 final class AudioDraftStore {
     private static SharedPreferences preferences(Context context){return context.getSharedPreferences("audio-workspace",Context.MODE_PRIVATE);}
-    static AudioState load(Context context){
+    static AudioState load(Context context){return load(context,true);}
+    static AudioState load(Context context,boolean applyDefaults){
         AudioState state=new AudioState();SharedPreferences prefs=preferences(context);
         state.bitrate=64+(Math.max(64,Math.min(256,prefs.getInt("bitrate",128)))-64)/8*8;state.folder=prefs.getString("folder",null);
         try{
@@ -22,6 +23,8 @@ final class AudioDraftStore {
         state.selectedIndex=Math.max(0,Math.min(state.inputs.size()-1,prefs.getInt("selectedIndex",0)));
         state.onlySmaller=prefs.getBoolean("onlySmaller",true);state.keepScreenOn=prefs.getBoolean("keepScreenOn",false);state.lyricsExpanded=prefs.getBoolean("lyricsExpanded",false);
         state.readingNames=prefs.getBoolean("readingNames",false)&&!state.inputs.isEmpty();state.readingLyrics=prefs.getBoolean("readingLyrics",false)&&!state.lyricsInputs.isEmpty();
+        state.settingsRevision=prefs.getLong("settingsRevision",0);
+        AudioSettings defaults=new AudioSettings(context);if(applyDefaults&&defaults.revision!=state.settingsRevision)defaults.apply(state);
         return state;
     }
     static void save(Context context,AudioState state){
@@ -30,7 +33,7 @@ final class AudioDraftStore {
         catch(JSONException error){throw new IllegalStateException("Bozza audio non serializzabile",error);}
         try{for(int n=0;n<state.lyricsInputs.size();n++)lyrics.put(new JSONObject().put("uri",state.lyricsInputs.get(n)).put("name",state.lyricsNames.get(n)));}
         catch(JSONException error){throw new IllegalStateException("Testi audio non serializzabili",error);}
-        preferences(context).edit().putInt("selectedIndex",state.selectedIndex).putBoolean("onlySmaller",state.onlySmaller).putBoolean("keepScreenOn",state.keepScreenOn).putBoolean("lyricsExpanded",state.lyricsExpanded).putBoolean("readingNames",state.readingNames).putBoolean("readingLyrics",state.readingLyrics).putString("lyrics",lyrics.toString()).putInt("bitrate",state.bitrate).putString("folder",state.folder).putString("selection",rows.toString()).apply();
+        preferences(context).edit().putLong("settingsRevision",state.settingsRevision).putInt("selectedIndex",state.selectedIndex).putBoolean("onlySmaller",state.onlySmaller).putBoolean("keepScreenOn",state.keepScreenOn).putBoolean("lyricsExpanded",state.lyricsExpanded).putBoolean("readingNames",state.readingNames).putBoolean("readingLyrics",state.readingLyrics).putString("lyrics",lyrics.toString()).putInt("bitrate",state.bitrate).putString("folder",state.folder).putString("selection",rows.toString()).apply();
     }
     static Bundle expansion(Context context,Bundle saved){
         if(saved!=null)return saved;

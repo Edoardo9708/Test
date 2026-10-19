@@ -6,7 +6,7 @@ directory = Path('app/build/reports/ui')
 home = sorted(directory.glob('home-*.png'))
 audio = sorted(directory.glob('audio-*.png'))
 assert len(home) == 10, home
-assert len(audio) == 3, audio
+assert len(audio) == 4, audio
 files = home + audio
 for path in files:
     data = path.read_bytes()

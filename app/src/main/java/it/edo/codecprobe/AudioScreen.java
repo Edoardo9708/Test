@@ -15,7 +15,7 @@ final class AudioScreen {
     final SeekBar bitrate;final ProgressBar progress;final LinearLayout report,navigator,lyricsPanel;
     final HorizontalScrollView carousel;final CheckBox onlySmaller,keepScreenOn;
     AudioScreen(AppUi ui,Bundle saved,AudioState state){
-        this.ui=ui;page=ui.newPage();settings=AppHeader.add(ui,page,"Converti audio","Opus · VBR · v"+BuildConfig.VERSION_NAME);settings.setText("Qualità audio");
+        this.ui=ui;page=ui.newPage();settings=AppHeader.add(ui,page,"Converti audio","Opus · VBR · v"+BuildConfig.VERSION_NAME);
         sections=new AppSections(ui,saved,null,title->title.equals(FILES)?"Brani, testi opzionali e destinazione":title.equals(COMPRESSION)?"Qualità e bitrate":title.equals(CONVERSION)?"Avanzamento e risultati":"Esportazione log e informazioni sul motore audio");
         LinearLayout files=sections.card(page,FILES),buttons=ui.row(files);
         pick=ui.halfButton(buttons,"Seleziona audio",true);clear=ui.halfButton(buttons,"Svuota tutto",false);clear.setContentDescription("Svuota selezione e resoconto senza eliminare audio o log");
