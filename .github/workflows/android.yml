@@ -54,6 +54,8 @@ jobs:
         run: bash scripts/prepare-audio.sh
       - name: Prepare pinned software video decoder and license
         run: bash scripts/prepare-video.sh
+      - name: Prepare pinned HEIC container and license
+        run: bash scripts/prepare-images.sh
       - name: Restore permanent APK signing key
         id: signing
         env:
@@ -155,6 +157,29 @@ jobs:
         with:
           name: Audio-smoke-log
           path: audio-fixtures/*.log
+
+  images-native:
+    name: JPEG to HEIC conversion smoke
+    needs: scope
+    if: needs.scope.outputs.native == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install fixture and comparison tools
+        run: sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends ffmpeg python3-pil
+      - name: Prepare pinned image libraries
+        run: |
+          bash scripts/prepare-x265.sh
+          bash scripts/prepare-video.sh
+          bash scripts/prepare-images.sh
+      - name: Encode, decode and verify HEIC fixtures
+        run: bash scripts/test-images-native.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Images-smoke-log
+          path: image-fixtures/*.log
 
   video-decoder:
     name: Software HEVC decoder smoke

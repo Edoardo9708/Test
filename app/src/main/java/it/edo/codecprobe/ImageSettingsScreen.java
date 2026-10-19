@@ -1,0 +1,33 @@
+package it.edo.codecprobe;
+
+import android.app.Activity;
+import android.content.Intent;
+import android.net.Uri;
+import android.os.Bundle;
+import android.widget.*;
+
+/** Build and explicitly save image defaults. Does not mutate a queued conversion snapshot. */
+final class ImageSettingsScreen {
+    final Activity activity;final AppUi ui;final LinearLayout page;final ImageQualityControls quality;final CheckBox smaller,screenOn;final TextView folderValue;final Button save,back,chooseFolder,removeFolder,copy;
+    String folder;
+    ImageSettingsScreen(Activity activity,Bundle saved){
+        this.activity=activity;ui=new AppUi(activity);page=ui.newPage();ImageOptions initial=ImageOptions.load(activity);
+        if(saved!=null)initial=new ImageOptions(saved.getInt("quality",65),saved.getString("preset","slow"),saved.getString("tune","standard"),saved.getString("folder"),saved.getBoolean("smaller",true),saved.getBoolean("screenOn",false),0);
+        ui.text(page,"Impostazioni immagini",28);ui.text(page,"HEIC · H.265 · v"+BuildConfig.VERSION_NAME,13);back=ui.button(page,"← Torna alla conversione");back.setOnClickListener(v->activity.finish());
+        LinearLayout dest=ui.panel(page);ui.sectionHeading(dest,"CARTELLA PREDEFINITA");folder=initial.folder;folderValue=ui.text(dest,"",16);showFolder();chooseFolder=ui.button(dest,"Scegli cartella predefinita");chooseFolder.setOnClickListener(v->activity.startActivityForResult(new Intent(activity,FolderPickerActivity.class),10));removeFolder=ui.button(dest,"Rimuovi cartella predefinita");removeFolder.setOnClickListener(v->{folder=null;showFolder();});
+        LinearLayout compression=ui.panel(page);ui.sectionHeading(compression,"QUALITÀ PREDEFINITA");quality=new ImageQualityControls(ui,compression,()->{});quality.set(initial);
+        LinearLayout options=ui.panel(page);smaller=check(ui,options,"Salva solo se più piccolo",initial.onlySmaller);screenOn=check(ui,options,"Mantieni schermo acceso",initial.keepScreenOn);
+        ui.text(options,"Il confronto delle dimensioni include tutti i metadati conservati. Le modifiche salvate valgono dalla prossima coda.",13);
+        copy=ui.button(page,"Usa la configurazione della schermata conversione");copy.setOnClickListener(v->{try{ImageOptions current=ImageOptions.from(activity.getIntent());quality.set(current);folder=current.folder;smaller.setChecked(current.onlySmaller);screenOn.setChecked(current.keepScreenOn);showFolder();}catch(IllegalArgumentException ignored){}});
+        save=ui.button(page,"Salva impostazioni");ui.styleButton(save,true);save.setOnClickListener(v->{value().save(activity);Toast.makeText(activity,"Impostazioni immagini salvate",Toast.LENGTH_SHORT).show();activity.finish();});ui.install(page);
+    }
+    static CheckBox check(AppUi ui,LinearLayout parent,String text,boolean selected){CheckBox b=new CheckBox(ui.activity);b.setText(text);b.setTextColor(ui.ink);b.setTextSize(17);b.setMinHeight(ui.dp(48));b.setButtonTintList(android.content.res.ColorStateList.valueOf(ui.accent));b.setChecked(selected);parent.addView(b);return b;}
+    ImageOptions value(){return new ImageOptions(quality.value(),quality.preset(),quality.tune(),folder,smaller.isChecked(),screenOn.isChecked(),0);}
+    private void showFolder(){String text="Nessuna cartella predefinita";if(folder!=null)try{text=android.provider.DocumentsContract.getTreeDocumentId(Uri.parse(folder));}catch(IllegalArgumentException e){text=folder;}folderValue.setText(text);}
+    void saveState(Bundle out){ImageOptions value=value();out.putInt("quality",value.quality);out.putString("preset",value.preset);out.putString("tune",value.tune);out.putString("folder",folder);out.putBoolean("smaller",value.onlySmaller);out.putBoolean("screenOn",value.keepScreenOn);}
+    void result(int request,int code,Intent data){
+        if(request!=10||code!=Activity.RESULT_OK||data==null||data.getData()==null)return;
+        try{int flags=data.getFlags()&(Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_WRITE_URI_PERMISSION);if(flags!=(Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_WRITE_URI_PERMISSION))throw new SecurityException("Servono lettura e scrittura");activity.getContentResolver().takePersistableUriPermission(data.getData(),Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_WRITE_URI_PERMISSION);folder=data.getData().toString();showFolder();}
+        catch(SecurityException e){Toast.makeText(activity,"Cartella non salvata: "+e.getMessage(),Toast.LENGTH_LONG).show();}
+    }
+}

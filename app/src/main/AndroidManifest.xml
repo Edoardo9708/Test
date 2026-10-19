@@ -11,10 +11,12 @@
     <application android:label="Converti media" android:theme="@style/AppTheme" android:allowBackup="false" android:supportsRtl="true">
         <service android:name=".ConversionService" android:exported="false" android:foregroundServiceType="mediaProcessing|dataSync"/>
         <service android:name=".AudioConversionService" android:exported="false" android:foregroundServiceType="mediaProcessing|dataSync"/>
+        <service android:name=".ImageConversionService" android:exported="false" android:foregroundServiceType="mediaProcessing|dataSync"/>
         <activity android:name=".FolderPickerActivity" android:exported="false" android:configChanges="orientation|screenSize"/>
         <activity android:name=".SettingsActivity" android:exported="false" android:configChanges="orientation|screenSize"/>
         <activity android:name=".AudioActivity" android:exported="false" android:configChanges="orientation|screenSize"/>
         <activity android:name=".ImageActivity" android:exported="false" android:configChanges="orientation|screenSize"/>
+        <activity android:name=".ImageSettingsActivity" android:exported="false" android:configChanges="orientation|screenSize"/>
         <activity android:name=".MainActivity" android:exported="true" android:configChanges="orientation|screenSize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>

@@ -253,7 +253,7 @@ public final class ConversionService extends Service {
         int crf=intent.getIntExtra("crf",23),preset=intent.getIntExtra("preset",6),cpu=intent.getIntExtra("cpu",1);
         boolean bframes=intent.getBooleanExtra("bframes",true),lookahead=intent.getBooleanExtra("lookahead",true);
         runToken=RUNS.acquire();
-        if(runToken==0){android.widget.Toast.makeText(this,"È già attiva una conversione audio o video",android.widget.Toast.LENGTH_LONG).show();stopSelf(startId);return START_NOT_STICKY;}
+        if(runToken==0){android.widget.Toast.makeText(this,"È già attiva una conversione",android.widget.Toast.LENGTH_LONG).show();stopSelf(startId);return START_NOT_STICKY;}
         synchronized(LOCK){
             state=ConversionSessionState.begin(intent,restored,sizeResults,SystemClock.elapsedRealtime());
             ownedState=state;

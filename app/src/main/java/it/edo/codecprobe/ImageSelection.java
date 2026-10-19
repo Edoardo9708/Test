@@ -8,19 +8,24 @@ import java.util.LinkedHashSet;
 
 /** SAF selection and export-picker state; no pixel decoding or encoder calls. */
 final class ImageSelection {
-    static final int FILES=201,REPORT=202;
+    static final int FILES=201,REPORT=202,LOG=203,FOLDER=204;
     private final ImageController images;private String pendingInput;
     ImageSelection(ImageController images,Bundle saved){this.images=images;pendingInput=saved==null?null:saved.getString("imageReportSource");}
     void save(Bundle out){out.putString("imageReportSource",pendingInput);}
-    void pick(){if(images.state.exporting)return;images.activity.startActivityForResult(new Intent(Intent.ACTION_OPEN_DOCUMENT).setType("image/jpeg").addCategory(Intent.CATEGORY_OPENABLE).putExtra(Intent.EXTRA_ALLOW_MULTIPLE,true).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION),FILES);}
+    void pick(){if(images.busy())return;images.activity.startActivityForResult(new Intent(Intent.ACTION_OPEN_DOCUMENT).setType("image/jpeg").addCategory(Intent.CATEGORY_OPENABLE).putExtra(Intent.EXTRA_ALLOW_MULTIPLE,true).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION),FILES);}
+    void folder(){if(!images.busy())images.activity.startActivityForResult(new Intent(images.activity,FolderPickerActivity.class),FOLDER);}
+    void log(){if(!images.busy())images.activity.startActivityForResult(new Intent(Intent.ACTION_CREATE_DOCUMENT).setType("text/plain").addCategory(Intent.CATEGORY_OPENABLE).putExtra(Intent.EXTRA_TITLE,"v"+BuildConfig.VERSION_NAME+"-immagini-log-"+System.currentTimeMillis()+".txt"),LOG);}
     void export(){
-        if(images.state.info==null||images.state.reading||images.state.exporting||pendingInput!=null)return;
+        if(images.state.info==null||images.state.reading||images.busy()||pendingInput!=null)return;
         pendingInput=images.state.inputs.get(images.state.selected);
         images.activity.startActivityForResult(new Intent(Intent.ACTION_CREATE_DOCUMENT).setType("application/json").addCategory(Intent.CATEGORY_OPENABLE).putExtra(Intent.EXTRA_TITLE,"v"+BuildConfig.VERSION_NAME+"-foto-inventario-"+System.currentTimeMillis()+".json"),REPORT);
     }
     void result(int request,int code,Intent data){
         if(request==REPORT){String input=pendingInput;pendingInput=null;if(code==Activity.RESULT_OK&&data!=null&&data.getData()!=null&&input!=null)images.export(Uri.parse(input),data.getData());return;}
-        if(request!=FILES||code!=Activity.RESULT_OK||data==null||images.state.exporting)return;
+        if(request==LOG){if(code==Activity.RESULT_OK&&data!=null&&data.getData()!=null)images.exportLog(data.getData());return;}
+        if(code!=Activity.RESULT_OK||data==null||images.busy())return;
+        if(request==FOLDER){if(data.getData()==null)return;try{int flags=data.getFlags()&(Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_WRITE_URI_PERMISSION);if(flags!=(Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_WRITE_URI_PERMISSION))throw new SecurityException("Servono lettura e scrittura");images.activity.getContentResolver().takePersistableUriPermission(data.getData(),Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_WRITE_URI_PERMISSION);images.setFolder(data.getData().toString());}catch(SecurityException e){images.toast("Cartella non salvata: "+e.getMessage());}return;}
+        if(request!=FILES)return;
         LinkedHashSet<String> values=new LinkedHashSet<>();
         if(data.getClipData()!=null)for(int i=0;i<data.getClipData().getItemCount();i++){Uri uri=data.getClipData().getItemAt(i).getUri();if(uri!=null)values.add(uri.toString());}
         else if(data.getData()!=null)values.add(data.getData().toString());

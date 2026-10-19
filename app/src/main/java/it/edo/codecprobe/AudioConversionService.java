@@ -40,7 +40,7 @@ public final class AudioConversionService extends Service {
         String folder=request.getStringExtra("folder");int bitrate=request.getIntExtra("bitrate",128);
         if(inputs==null||names==null||inputs.isEmpty()||inputs.size()>500||inputs.size()!=names.size()||folder==null||bitrate<64||bitrate>256){stopSelf(startId);return START_NOT_STICKY;}
         token=MediaConversionGate.INSTANCE.acquire();
-        if(token==0){synchronized(LOCK){state.message="È già attiva una conversione audio o video: attendi la fine prima di avviare l’audio.";}stopSelf(startId);return START_NOT_STICKY;}
+        if(token==0){synchronized(LOCK){state.message="È già attiva una conversione: attendi la fine prima di avviare l’audio.";}stopSelf(startId);return START_NOT_STICKY;}
         ArrayList<String> lyricInputs=request.getStringArrayListExtra("lyricsInputs"),lyricNames=request.getStringArrayListExtra("lyricsNames");
         if(lyricInputs==null)lyricInputs=new ArrayList<>();if(lyricNames==null)lyricNames=new ArrayList<>();
         if(lyricInputs.size()!=lyricNames.size()||lyricInputs.size()>1000){MediaConversionGate.INSTANCE.release(token);token=0;stopSelf(startId);return START_NOT_STICKY;}

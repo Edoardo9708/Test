@@ -79,4 +79,5 @@ endif()
 
 if(ANDROID)
   add_subdirectory(video)
+  add_subdirectory(images)
 endif()

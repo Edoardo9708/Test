@@ -8,7 +8,7 @@ audio = sorted(directory.glob('audio-*.png'))
 images = sorted(directory.glob('image-*.png'))
 assert len(home) == 10, home
 assert len(audio) == 4, audio
-assert len(images) == 2, images
+assert len(images) == 5, images
 files = home + audio + images
 for path in files:
     data = path.read_bytes()

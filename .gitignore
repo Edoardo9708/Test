@@ -20,3 +20,8 @@ video-host-build.log
 app/src/main/assets/ffmpeg-LGPLv2.1.txt
 
 __pycache__/
+image-host-build/
+image-fixtures/
+app/src/main/assets/libheif-LGPL.txt
+app/src/main/assets/x265-COPYING.txt
+app/src/main/assets/x265-revision.txt
