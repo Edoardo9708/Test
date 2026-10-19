@@ -19,11 +19,12 @@ final class AudioOutput {
     }
     static String unique(String wanted,Set<String> existing){return unique(wanted,existing,false);}
     static String unique(String wanted,Set<String> existing,boolean lyrics){
-        if(!existing.contains(wanted)&&(!lyrics||!existing.contains(AudioLyrics.stem(wanted)+".lrc")))return wanted;
+        if(!contains(existing,wanted)&&(!lyrics||!contains(existing,AudioLyrics.stem(wanted)+".lrc")))return wanted;
         String base=wanted.substring(0,wanted.length()-5);
-        for(int n=2;n<100000;n++){String choice=base+" ("+n+").opus";if(!existing.contains(choice)&&(!lyrics||!existing.contains(AudioLyrics.stem(choice)+".lrc")))return choice;}
+        for(int n=2;n<100000;n++){String choice=base+" ("+n+").opus";if(!contains(existing,choice)&&(!lyrics||!contains(existing,AudioLyrics.stem(choice)+".lrc")))return choice;}
         throw new IllegalStateException("Troppi file omonimi nella destinazione");
     }
+    private static boolean contains(Set<String> names,String name){for(String existing:names)if(existing.equalsIgnoreCase(name))return true;return false;}
     static Uri save(Context c,Uri tree,File source,String original,BooleanSupplier cancelled)throws IOException{
         return save(c,tree,source,original,cancelled,null,text->{});
     }
@@ -53,7 +54,7 @@ final class AudioOutput {
             long size=MediaFileSizes.read(c,document);if(size>=0&&size!=written)throw new IOException("Dimensione del documento salvato diversa dall’output");
             if(lyrics!=null){
                 String actual=displayName(c,document);String lyricName=AudioLyrics.stem(actual)+".lrc";
-                if(names.contains(lyricName))throw new IOException("Esiste già un testo con il nome finale "+lyricName+": nessun file sovrascritto");
+                if(contains(names,lyricName))throw new IOException("Esiste già un testo con il nome finale "+lyricName+": nessun file sovrascritto");
                 lyricDocument=DocumentsContract.createDocument(c.getContentResolver(),DocumentsContract.buildDocumentUriUsingTree(tree,id),"application/octet-stream",lyricName);
                 if(lyricDocument==null)throw new IOException("Creazione testo .lrc fallita");
                 if(!lyricName.equals(displayName(c,lyricDocument)))throw new IOException("Il provider ha cambiato il nome del testo .lrc: impossibile garantire l’abbinamento");

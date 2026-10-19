@@ -14,6 +14,9 @@ final class AudioConverter {
         void log(String text);
     }
     static AudioRunState.Result convert(Context context,Uri input,Uri destination,String name,int bitrate,String lyricsUri,Listener listener)throws IOException{
+        return convert(context,input,destination,name,bitrate,lyricsUri,false,listener);
+    }
+    static AudioRunState.Result convert(Context context,Uri input,Uri destination,String name,int bitrate,String lyricsUri,boolean onlySmaller,Listener listener)throws IOException{
         File temp=null;
         try{
             listener.log("*** LETTURA TESTO ESTERNO ***\n"+(lyricsUri.isEmpty()?"Nessun .lrc selezionato e abbinato a questo brano. Eventuali file non autorizzati non sono ricercabili automaticamente.":"Testo abbinato: "+lyricsUri));
@@ -38,10 +41,13 @@ final class AudioConverter {
             listener.log("*** 3. VERIFICA OUTPUT ***\nDecodifica completa con il decoder Android. Controllo canali e durata PCM, tolleranza 80 ms per pre-skip/fine stream.");
             AudioVerifier.verify(temp,duration,channelCount[0],listener::cancelled);
             checkCancelled(listener);listener.log("OK: file Opus decodificato · durata attesa="+duration+" µs");
+            SavingsPolicy.Decision saving=SavingsPolicy.decide(onlySmaller,before,temp.length());
+            listener.log("CONTROLLO RISPARMIO AUDIO: originale="+before+" · convertito="+temp.length()+" · solo più piccolo="+onlySmaller+" · "+saving);
+            if(saving!=SavingsPolicy.Decision.SAVE)return new AudioRunState.Result(name,input.toString(),null,before,temp.length(),saving==SavingsPolicy.Decision.NO_SAVING?"Nessun risparmio · risultato non salvato":"Dimensione originale non disponibile · risultato non salvato",AudioRunState.Outcome.NOT_SAVED);
             listener.stage("Salvataggio del file Opus…");listener.log("*** 4. SALVATAGGIO ***\nIn caso di omonimia creo un nome con suffisso numerico. Non sovrascrivo file esistenti.");
             Uri result=AudioOutput.save(context,destination,temp,name,listener::cancelled,lyrics,listener::log);
             // Publication is the commit point: do not recheck cancellation after saving a valid result.
-            return new AudioRunState.Result(name,result.toString(),before,temp.length(),null);
+            return new AudioRunState.Result(name,input.toString(),result.toString(),before,temp.length(),null,AudioRunState.Outcome.SAVED);
         }finally{
             if(temp!=null&&temp.exists()&&!temp.delete()){
                 // A diagnostic write must never turn an already published file into a false failure.

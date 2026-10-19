@@ -25,6 +25,7 @@ public final class AudioConversionService extends Service {
     private volatile boolean destroyed;
     static AudioRunState snapshot(){synchronized(LOCK){return new AudioRunState(state);}}
     static void clear(){synchronized(LOCK){if(!state.running)state=new AudioRunState();}}
+    static void clearLog(){synchronized(LOCK){if(!state.running)state.log="";}}
     @Override public void onCreate(){
         super.onCreate();getSystemService(NotificationManager.class).createNotificationChannel(new NotificationChannel(CHANNEL,"Conversione audio",NotificationManager.IMPORTANCE_LOW));
     }
@@ -45,7 +46,7 @@ public final class AudioConversionService extends Service {
         if(lyricInputs.size()!=lyricNames.size()||lyricInputs.size()>1000){MediaConversionGate.INSTANCE.release(token);token=0;stopSelf(startId);return START_NOT_STICKY;}
         final ArrayList<String> queue=new ArrayList<>(inputs),labels=new ArrayList<>(names),lyrics=new ArrayList<>(lyricInputs),lyricLabels=new ArrayList<>(lyricNames);
         final Uri destination=Uri.parse(folder);
-        synchronized(LOCK){state=new AudioRunState();state.running=true;state.total=queue.size();state.bitrate=bitrate;state.startedAt=SystemClock.elapsedRealtime();state.message="Avvio motore audio…";}
+        synchronized(LOCK){state=new AudioRunState();state.running=true;state.total=queue.size();state.bitrate=bitrate;state.onlySmaller=request.getBooleanExtra("onlySmaller",false);state.startedAt=SystemClock.elapsedRealtime();state.message="Avvio motore audio…";}
         cancelled.set(false);destroyed=false;
         try{
             startForeground(NOTICE,notification(),Build.VERSION.SDK_INT>=35?ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROCESSING:ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC);
@@ -71,13 +72,13 @@ public final class AudioConversionService extends Service {
                 write(log,"*** INIZIO BRANO "+number+" / "+inputs.size()+" ***\nNome: "+name+"\nInput: "+input+"\nDestinazione: "+destination);
                 AudioRunState.Result result;
                 try{
-                    result=AudioConverter.convert(this,input,destination,name,bitrate,AudioLyrics.match(input.toString(),name,lyrics,lyricNames),new AudioConverter.Listener(){
+                    result=AudioConverter.convert(this,input,destination,name,bitrate,AudioLyrics.match(input.toString(),name,lyrics,lyricNames),snapshot().onlySmaller,new AudioConverter.Listener(){
                         public boolean cancelled(){return cancelled.get();}
-                        public void stage(String text){message(text);}
+                        public void stage(String text){synchronized(LOCK){if(text.startsWith("Verifica"))state.percent=90;else if(text.startsWith("Salvataggio"))state.percent=96;}message(text);}
                         public void progress(long samples,long total,int rate,int channels){
                             long now=SystemClock.elapsedRealtime();
                             if(now-lastProgress>=250||samples==0||samples==total){
-                                synchronized(LOCK){state.doneSamples=samples;state.totalSamples=total;state.rate=rate;state.channels=channels;state.percent=total>0?(int)Math.min(100,samples*100/total):0;state.message="Codifica audio → Opus VBR";}
+                                synchronized(LOCK){state.doneSamples=samples;state.totalSamples=total;state.rate=rate;state.channels=channels;state.percent=total>0?(int)Math.min(89,samples*89/total):0;state.message="Codifica audio → Opus VBR";}
                                 lastProgress=now;notifyProgress();
                             }
                             if(now-lastProgressLog>=5000){writeUnchecked(log,"AVANZAMENTO: campioni="+samples+"/"+total+" · secondi="+String.format(Locale.ROOT,"%.1f",samples/(double)rate));lastProgressLog=now;}
@@ -86,15 +87,16 @@ public final class AudioConversionService extends Service {
                     });
                 }catch(Exception error){
                     String details=failure(number,name,snapshot().message,error);
-                    synchronized(LOCK){state.results.add(new AudioRunState.Result(name,null,-1,0,details));}
+                    synchronized(LOCK){state.results.add(new AudioRunState.Result(name,input.toString(),null,-1,0,details,cancelled.get()?AudioRunState.Outcome.CANCELLED:AudioRunState.Outcome.FAILED));}
                     write(log,"*** "+(cancelled.get()?"BRANO INTERROTTO":"ERRORE BRANO · CONTINUO LA CODA")+" ***\n"+details);
                     continue;
                 }
                 synchronized(LOCK){state.results.add(result);state.percent=100;}
-                write(log,"*** BRANO RIUSCITO ***\n"+name+"\n"+AudioRunState.sizes(result.inputBytes,result.outputBytes)+"\nFile salvato: "+result.uri);
+                write(log,result.outcome==AudioRunState.Outcome.SAVED?"*** BRANO RIUSCITO ***\n"+name+"\n"+AudioRunState.sizes(result.inputBytes,result.outputBytes)+"\nFile salvato: "+result.uri:"*** BRANO NON SALVATO ***\n"+name+"\n"+result.error);
             }
             synchronized(LOCK){state.message=cancelled.get()?"Coda audio interrotta · risultati completati conservati":"Coda audio terminata";}
-            write(log,"*** FINE SESSIONE AUDIO ***\n"+snapshot().message);
+            AudioRunState complete=snapshot();complete.running=false;
+            write(log,"*** FINE SESSIONE AUDIO ***\n"+complete.message+"\n"+complete.summary()+"\n"+complete.savings());
             }catch(Exception|LinkageError error){
                 String details=failure(0,"Sessione audio",snapshot().message,error);
                 synchronized(LOCK){state.message="Errore sessione audio: "+error.getMessage();}

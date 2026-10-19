@@ -42,13 +42,13 @@ public class AudioConversionTest {
         assertTrue(new String(Files.readAllBytes(AudioLog.file(c).toPath()),StandardCharsets.UTF_8).contains("LIMITE LOG RAGGIUNTO"));
         assertTrue(AudioLog.file(c).delete());
     }
-    @Test public void exportOnlyUsesAudioLogAndSelectionSurvivesReportClear(){
+    @Test public void resetClearsAudioDraftWithoutChangingVideoOrSettings(){
         Context c=RuntimeEnvironment.getApplication();c.getSharedPreferences("audio-workspace",0).edit().clear().commit();AudioConversionService.clear();
         var controller=Robolectric.buildActivity(AudioActivity.class).setup();
         try{
             AudioController audio=controller.get().audio;audio.state.inputs.add("content://songs/a");audio.state.names.add("a.flac");audio.state.folder="content://music/tree/chosen";audio.render();
             assertTrue(audio.screen.start.isEnabled());assertFalse(audio.screen.cancel.isEnabled());
-            audio.screen.clearReport.performClick();assertEquals(List.of("a.flac"),audio.state.names);
+            audio.screen.clear.performClick();assertTrue(audio.state.names.isEmpty());assertEquals("content://music/tree/chosen",audio.state.folder);
             assertTrue(audio.screen.parameters.getText().toString().equals("—"));
             assertTrue(audio.screen.status.getText().toString().contains("Opus"));
         }finally{controller.pause().stop().destroy();c.getSharedPreferences("audio-workspace",0).edit().clear().commit();}

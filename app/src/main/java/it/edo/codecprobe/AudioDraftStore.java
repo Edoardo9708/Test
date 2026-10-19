@@ -19,6 +19,9 @@ final class AudioDraftStore {
             JSONArray rows=new JSONArray(prefs.getString("lyrics","[]"));
             for(int n=0;n<rows.length();n++){JSONObject row=rows.getJSONObject(n);state.lyricsInputs.add(row.getString("uri"));state.lyricsNames.add(row.getString("name"));}
         }catch(JSONException error){state.lyricsInputs.clear();state.lyricsNames.clear();}
+        state.selectedIndex=Math.max(0,Math.min(state.inputs.size()-1,prefs.getInt("selectedIndex",0)));
+        state.onlySmaller=prefs.getBoolean("onlySmaller",true);state.keepScreenOn=prefs.getBoolean("keepScreenOn",false);state.lyricsExpanded=prefs.getBoolean("lyricsExpanded",false);
+        state.readingNames=prefs.getBoolean("readingNames",false)&&!state.inputs.isEmpty();state.readingLyrics=prefs.getBoolean("readingLyrics",false)&&!state.lyricsInputs.isEmpty();
         return state;
     }
     static void save(Context context,AudioState state){
@@ -27,12 +30,12 @@ final class AudioDraftStore {
         catch(JSONException error){throw new IllegalStateException("Bozza audio non serializzabile",error);}
         try{for(int n=0;n<state.lyricsInputs.size();n++)lyrics.put(new JSONObject().put("uri",state.lyricsInputs.get(n)).put("name",state.lyricsNames.get(n)));}
         catch(JSONException error){throw new IllegalStateException("Testi audio non serializzabili",error);}
-        preferences(context).edit().putString("lyrics",lyrics.toString()).putInt("bitrate",state.bitrate).putString("folder",state.folder).putString("selection",rows.toString()).apply();
+        preferences(context).edit().putInt("selectedIndex",state.selectedIndex).putBoolean("onlySmaller",state.onlySmaller).putBoolean("keepScreenOn",state.keepScreenOn).putBoolean("lyricsExpanded",state.lyricsExpanded).putBoolean("readingNames",state.readingNames).putBoolean("readingLyrics",state.readingLyrics).putString("lyrics",lyrics.toString()).putInt("bitrate",state.bitrate).putString("folder",state.folder).putString("selection",rows.toString()).apply();
     }
     static Bundle expansion(Context context,Bundle saved){
         if(saved!=null)return saved;
         Bundle result=new Bundle(),cards=new Bundle();SharedPreferences prefs=preferences(context);
-        for(String title:new String[]{AudioScreen.FILES,AudioScreen.COMPRESSION,AudioScreen.CONVERSION})if(prefs.contains(title))cards.putBoolean(title,prefs.getBoolean(title,false));
+        for(String title:new String[]{AudioScreen.FILES,AudioScreen.COMPRESSION,AudioScreen.CONVERSION,AudioScreen.DIAGNOSTICS})if(prefs.contains(title))cards.putBoolean(title,prefs.getBoolean(title,false));
         result.putBundle("cardExpansion",cards);return result;
     }
     static void saveExpansion(Context context,AppSections sections){

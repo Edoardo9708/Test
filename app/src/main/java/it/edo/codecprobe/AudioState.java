@@ -7,7 +7,9 @@ final class AudioState {
     final ArrayList<String> inputs=new ArrayList<>(),names=new ArrayList<>();
     final ArrayList<String> lyricsInputs=new ArrayList<>(),lyricsNames=new ArrayList<>();
     String folder;
-    int bitrate=128;
+    int bitrate=128,selectedIndex;
+    boolean onlySmaller=true,keepScreenOn,lyricsExpanded,preparing,exporting;
+    String notice="";
     volatile boolean destroyed;
     volatile int selectionGeneration;
     boolean readingNames,readingLyrics;
