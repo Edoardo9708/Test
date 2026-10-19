@@ -37,7 +37,7 @@ public class ImageWorkspaceTest {
             assertNotNull(images.state.info);assertEquals(48,images.state.info.width);assertTrue(images.screen.export.isEnabled());assertTrue(images.screen.details.getText().toString().contains("3 byte dopo"));
             images.screen.export.performClick();Intent create=Shadows.shadowOf(controller.get()).getNextStartedActivity();assertEquals(Intent.ACTION_CREATE_DOCUMENT,create.getAction());assertEquals("application/json",create.getType());
             images.selection.result(ImageSelection.REPORT,Activity.RESULT_OK,new Intent().setData(Uri.fromFile(report)));settle(images);
-            JSONObject json=new JSONObject(Files.readString(report.toPath()));assertFalse(json.getBoolean("heicConversionApproved"));assertFalse(json.getBoolean("pixelsDecoded"));assertEquals(2,json.getJSONArray("metadataPayloads").length());
+            JSONObject json=new JSONObject(new String(Files.readAllBytes(report.toPath()),StandardCharsets.UTF_8));assertFalse(json.getBoolean("heicConversionApproved"));assertFalse(json.getBoolean("pixelsDecoded"));assertEquals(2,json.getJSONArray("metadataPayloads").length());
             JSONObject block=json.getJSONArray("metadataPayloads").getJSONObject(0);byte[] payload=Base64.getDecoder().decode(block.getString("base64"));assertArrayEquals(Arrays.copyOfRange(original,block.getInt("payloadOffset"),block.getInt("payloadOffset")+block.getInt("bytes")),payload);
             assertArrayEquals(original,Files.readAllBytes(source.toPath()));assertEquals(1,ImageDraftStore.load(controller.get()).inputs.size());
             assertEquals("audio-sentinel",audioPrefs.getString("selection",""));
@@ -45,7 +45,7 @@ public class ImageWorkspaceTest {
         }finally{controller.pause().stop().destroy();source.delete();report.delete();audioPrefs.edit().putString("selection",previous).commit();}
     }
     @Test public void cancelledSelectionKeepsDraftAndUnsupportedFileCannotExport()throws Exception{
-        var controller=Robolectric.buildActivity(ImageActivity.class).setup();File source=File.createTempFile("unsupported-",".heic");Files.writeString(source.toPath(),"HEIC not JPEG");
+        var controller=Robolectric.buildActivity(ImageActivity.class).setup();File source=File.createTempFile("unsupported-",".heic");Files.write(source.toPath(),"HEIC not JPEG".getBytes(StandardCharsets.UTF_8));
         try{ImageController images=controller.get().images;images.selection.result(ImageSelection.FILES,Activity.RESULT_OK,new Intent().setData(Uri.fromFile(source)));settle(images);assertNull(images.state.info);assertFalse(images.screen.export.isEnabled());assertTrue(images.state.notice.contains("Non è un JPEG"));images.selection.result(ImageSelection.FILES,Activity.RESULT_CANCELED,null);assertEquals(1,images.state.inputs.size());}
         finally{controller.pause().stop().destroy();source.delete();}
     }
@@ -60,7 +60,7 @@ public class ImageWorkspaceTest {
         try{
             ImageController images=controller.get().images;images.selection.result(ImageSelection.FILES,Activity.RESULT_OK,new Intent().setData(Uri.fromFile(source)));settle(images);
             images.screen.export.performClick();controller.recreate();images=controller.get().images;settle(images);
-            images.selection.result(ImageSelection.REPORT,Activity.RESULT_OK,new Intent().setData(Uri.fromFile(report)));settle(images);assertEquals("JPEG",new JSONObject(Files.readString(report.toPath())).getString("format"));
+            images.selection.result(ImageSelection.REPORT,Activity.RESULT_OK,new Intent().setData(Uri.fromFile(report)));settle(images);assertEquals("JPEG",new JSONObject(new String(Files.readAllBytes(report.toPath()),StandardCharsets.UTF_8)).getString("format"));
             images.export(Uri.fromFile(source),Uri.fromFile(source));settle(images);assertTrue(images.state.notice.contains("coincide"));assertArrayEquals(original,Files.readAllBytes(source.toPath()));
         }finally{controller.pause().stop().destroy();source.delete();report.delete();}
     }
