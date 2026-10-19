@@ -32,11 +32,8 @@ final class HomeFailureReport {
             ConversionFailure found = null;
             for (ConversionFailure failure : state.failures)
                 if (paragraph.startsWith(failure.title() + "\nConversione fallita")) { found = failure; break; }
-            LinearLayout row = home.ui.row(views.failureReport);
-            row.setPadding(0, home.ui.dp(4), 0, home.ui.dp(8));
-            TextView body = home.ui.text(row, paragraph, 16);
-            body.setTextIsSelectable(true);
-            body.setLineSpacing(home.ui.dp(4), 1);
+            LinearLayout row = WorkReportView.row(home.ui, views.failureReport);
+            TextView body = WorkReportView.body(home.ui, row, paragraph);
             body.setLayoutParams(new LinearLayout.LayoutParams(0, -2, 1));
             for(int n=0;n<state.items.size()&&n<state.outputUris.size();n++){
                 CompressionSummary.Item item=state.items.get(n);

@@ -47,7 +47,7 @@ final class AudioScreen {
         seconds=ui.dashboardRow(conversion,"Secondi di audio","—");
         status=ui.text(conversion,"Scegli audio, cartella e qualità.",14);ui.sectionHeading(conversion,"PARAMETRI IN USO");parameters=ui.text(conversion,"—",14);
         retry=ui.button(conversion,"Riprova i falliti");retry.setVisibility(View.GONE);
-        ui.sectionHeading(conversion,"REPORT LAVORI");savings=ui.text(conversion,"",16);report=new LinearLayout(ui.activity);report.setOrientation(LinearLayout.VERTICAL);conversion.addView(report,new LinearLayout.LayoutParams(-1,-2));
+        WorkReportView workReport=new WorkReportView(ui,conversion);savings=workReport.summary;report=workReport.rows;
         LinearLayout diagnostics=sections.card(page,DIAGNOSTICS),tools=ui.row(diagnostics);
         exportLog=ui.halfButton(tools,"Esporta log TXT",false);clearLog=ui.halfButton(tools,"Cancella log audio",false);ui.danger(clearLog);
         toggleLog=ui.button(diagnostics,"Mostra ultimi messaggi");log=ui.text(diagnostics,"Nessun log audio",13);log.setTextIsSelectable(true);log.setMaxLines(16);log.setVisibility(View.GONE);

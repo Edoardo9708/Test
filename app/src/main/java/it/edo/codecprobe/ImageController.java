@@ -9,13 +9,13 @@ import java.util.concurrent.*;
 
 /** Coordinates the image workspace; slow provider/metadata reads never run on the UI thread. */
 final class ImageController {
-    final ImageActivity activity;final ImageState state;final ImageScreen screen;final ImageSelection selection;final ImageActions actions;
+    final ImageActivity activity;final ImageState state;final ImageScreen screen;final ImageSelection selection;final ImageActions actions;final ImageWorkReport report;
     private final ExecutorService worker=Executors.newSingleThreadExecutor();
     private Future<?> analysis,exportTask;private int generation;private boolean destroyed,visible,applying;
     private final android.os.Handler main=new android.os.Handler(android.os.Looper.getMainLooper());
     private final Runnable tick=new Runnable(){public void run(){if(!visible||destroyed)return;refresh();main.postDelayed(this,500);}};
     ImageController(ImageActivity activity,Bundle saved){
-        this.activity=activity;state=ImageDraftStore.load(activity);screen=new ImageScreen(new AppUi(activity),saved);selection=new ImageSelection(this,saved);actions=new ImageActions(this);showOptions();
+        this.activity=activity;state=ImageDraftStore.load(activity);screen=new ImageScreen(new AppUi(activity),saved);report=new ImageWorkReport(this);selection=new ImageSelection(this,saved);actions=new ImageActions(this);showOptions();
         screen.select.setOnClickListener(v->selection.pick());screen.clear.setOnClickListener(v->{if(busy())return;state.inputs.clear();state.selected=0;ImageConversionService.clear();open();});
         screen.previous.setOnClickListener(v->move(-1));screen.next.setOnClickListener(v->move(1));
         screen.remove.setOnClickListener(v->{if(busy()||state.inputs.isEmpty())return;state.inputs.remove(state.selected);state.clamp();open();});
@@ -92,6 +92,6 @@ final class ImageController {
         detail.append("\n\nSHA-256 originale\n").append(info.sha256);screen.details.setText(detail);
     }
     void toast(String value){Toast.makeText(activity,value,Toast.LENGTH_LONG).show();}
-    void destroy(){pause();destroyed=true;++generation;if(analysis!=null)analysis.cancel(true);if(exportTask!=null)exportTask.cancel(true);worker.shutdownNow();actions.close();screen.sections.closed=true;}
+    void destroy(){pause();destroyed=true;++generation;if(analysis!=null)analysis.cancel(true);if(exportTask!=null)exportTask.cancel(true);worker.shutdownNow();report.close();actions.close();screen.sections.closed=true;}
     private static String message(Exception e){return e.getMessage()==null?e.getClass().getSimpleName():e.getMessage();}
 }

@@ -11,8 +11,8 @@ final class AudioReport {
         AppUi ui=audio.screen.ui;LinearLayout report=audio.screen.report;report.removeAllViews();
         if(state.results.isEmpty()){ui.text(report,"Nessun brano completato",14);return;}
         for(int n=0;n<state.results.size();n++){
-            AudioRunState.Result result=state.results.get(n);LinearLayout row=ui.row(report);
-            TextView text=ui.text(row,(n+1)+". "+result.name+"\n"+(result.uri!=null?AudioRunState.sizes(result.inputBytes,result.outputBytes):result.outcome==AudioRunState.Outcome.CANCELLED?"Interrotto":result.outcome==AudioRunState.Outcome.NOT_SAVED?result.error:"Conversione fallita"),14);
+            AudioRunState.Result result=state.results.get(n);LinearLayout row=WorkReportView.row(ui,report);
+            TextView text=WorkReportView.body(ui,row,(n+1)+". "+result.name+"\n"+(result.uri!=null?AudioRunState.sizes(result.inputBytes,result.outputBytes):result.outcome==AudioRunState.Outcome.CANCELLED?"Interrotto":result.outcome==AudioRunState.Outcome.NOT_SAVED?result.error:"Conversione fallita"));
             text.setLayoutParams(new LinearLayout.LayoutParams(0,-2,1));
             Button action=new Button(audio.activity);ui.styleButton(action,false);action.setText(result.uri!=null?"Apri":result.outcome==AudioRunState.Outcome.FAILED?"Errore":"Dettagli");row.addView(action,new LinearLayout.LayoutParams(ui.dp(92),-2));
             action.setOnClickListener(v->{
