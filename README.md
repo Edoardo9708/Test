@@ -1,3 +1,7 @@
+# v0.69 · esportazione SEF indipendente dai metadati annidati
+
+L’export cerca ed esporta prima i blocchi SEF principali, saltando i dati audio/video senza attraversare i metadati annidati. Un blocco meta QuickTime non impedisce più di ottenere i dati completi dell’editor Samsung. L’inventario distingue inoltre meta ISO con versione/flag da meta QuickTime senza prefisso. La conversione dei record dell’editor e la gestione dei conflitti colore restano da completare dopo la lettura dei dati.
+
 # v0.68 · esportazione completa metadati Samsung
 
 “Metadati selezionati” include i byte completi dei blocchi SEF, con offset, dimensioni, SHA-256 e righe BASE64 ricostruibili senza perdita. Il testo di ogni record fino a 64 KiB viene riportato integralmente; per record più grandi il BASE64 resta completo. Anche i blocchi SEF con struttura non interpretabile sono esportati. Budget esplicito: 4 MiB di SEF per file; superamenti segnalati senza dichiarare un export completo. I campioni nei blocchi mdat/idat vengono saltati. La modifica serve alla diagnosi dei metadati dell’editor Samsung: non abilita ancora la loro conversione né risolve i conflitti colore.

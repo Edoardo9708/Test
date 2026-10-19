@@ -86,4 +86,26 @@ public class Mp4MetadataInventoryTest {
             assertTrue(out.toString().contains("SEF BASE64 0="));assertFalse(out.toString().contains("*** FINE SEF BLOCCO COMPLETO ***"));
         }finally{Files.deleteIfExists(path);}
     }
+
+    @Test public void quickTimeMetaWithoutFullBoxFlagsCannotHideFollowingSef()throws Exception{
+        byte[] editor=SamsungSefMotionFixtures.fixture(107,new SamsungSefMotionFixtures.Item(0x0ba1,"VideoEditor_Re_Edit_Data","{\"NDE_VERSION\":\"2.0\",\"payload\":\""+"A".repeat(1400)+"\"}"));
+        byte[] meta=box("meta",join(box("hdlr",new byte[24]),box("keys",new byte[8])));
+        String report=report(join(box("ftyp",new byte[8]),box("mdat",new byte[64]),box("moov",meta),editor));
+        assertArrayEquals(editor,exportedSef(report));assertTrue(report.contains("META QUICKTIME"));
+        assertTrue(report.contains("root/moov[1]/meta[1]/hdlr[1]"));
+        assertFalse(report.contains("NON INTERPRETABILE"));
+    }
+    @Test public void malformedNestedMetadataStillLeavesCompleteRootSefAvailable()throws Exception{
+        byte[] editor=SamsungSefMotionFixtures.fixture(107,new SamsungSefMotionFixtures.Item(0x0ba1,"VideoEditor_Re_Edit_Data","{\"unknown\":true}"));
+        byte[] malformedMeta=box("meta",join(new byte[4],ByteBuffer.allocate(8).putInt(1000).put("hdlr".getBytes(StandardCharsets.US_ASCII)).array()));
+        Path path=Files.createTempFile("sef-before-malformed-meta-",".mp4");StringWriter out=new StringWriter();
+        try{
+            Files.write(path,join(box("moov",malformedMeta),editor));
+            try(FileChannel file=FileChannel.open(path)){
+                try{Mp4MetadataInventory.write(file,out,()->false);fail();}catch(IOException expected){assertTrue(expected.getMessage().contains("Dimensione blocco non valida"));}
+            }
+            assertArrayEquals(editor,exportedSef(out.toString()));
+            assertTrue(out.toString().contains("*** FINE SEF BLOCCO COMPLETO ***"));
+        }finally{Files.deleteIfExists(path);}
+    }
 }

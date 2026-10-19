@@ -19,7 +19,10 @@ final class Mp4MetadataInventory {
     private Mp4MetadataInventory(FileChannel file,Writer out,BooleanSupplier cancel){this.file=file;this.out=out;this.cancel=cancel;}
     static void write(FileChannel file,Writer out,BooleanSupplier cancel)throws Exception{
         out.write("*** INVENTARIO MP4/MOV · BLOCCHI E CAMPI ORIGINALI ***\nDimensione file="+file.size()+" byte\nOffset e dimensioni sono strutturali: possono cambiare dopo la conversione. Gli SHA-256 riguardano i payload, escluso l’header del blocco.\n");
-        new Mp4MetadataInventory(file,out,cancel).scan(0,file.size(),"root",0);
+        Mp4MetadataInventory inventory=new Mp4MetadataInventory(file,out,cancel);
+        // Export root SEF first: nested metadata parsing cannot hide the diagnostic bytes.
+        inventory.exportRootSef();
+        inventory.scan(0,file.size(),"root",0);
     }
     private void check()throws IOException{if(cancel.getAsBoolean())throw new InterruptedIOException("Analisi metadati annullata");}
     private byte[] read(long at,int size)throws IOException{
@@ -43,7 +46,7 @@ final class Mp4MetadataInventory {
             boolean item=parent.endsWith("/ilst[1]")||parent.matches(".*/ilst\\[[0-9]+\\]$");
             if(CONTAINERS.contains(type)||item){
                 if(DESCRIPTIVE.contains(type))hash(start,payload);
-                long skip=type.equals("meta")?4:0;
+                long skip=type.equals("meta")?metaSkip(start,payload):0;
                 if(payload<skip)throw new IOException("Contenitore meta incompleto");
                 scan(start+skip,at+size,path,depth+1);
             }else{
@@ -58,10 +61,32 @@ final class Mp4MetadataInventory {
                     if(format==2)out.write("VALORE UTF-16BE="+escape(new String(preview,8,preview.length-8,StandardCharsets.UTF_16BE))+"\n");
                 }
                 if(type.equals("keys"))keys(start,payload);
-                if(type.equals("sefd"))sef(at,size);
+                if(type.equals("sefd"))out.write("SEF completo: vedere la sezione iniziale esportata prima dell’inventario annidato.\n");
             }
             at+=size;
         }
+    }
+    private void exportRootSef()throws Exception{
+        long end=file.size();int roots=0;
+        for(long at=0;at<end;){
+            check();if(end-at<8||++roots>20000)throw new IOException("Struttura principale non valida durante ricerca SEF a "+at);
+            ByteBuffer h=ByteBuffer.wrap(read(at,8));long size=Integer.toUnsignedLong(h.getInt());byte[] type=new byte[4];h.get(type);int header=8;
+            if(size==1){if(end-at<16)throw new IOException("Header principale esteso incompleto");size=ByteBuffer.wrap(read(at+8,8)).getLong();header=16;}else if(size==0)size=end-at;
+            if(size<header||size>end-at)throw new IOException("Dimensione blocco non valida durante ricerca SEF a "+at);
+            if(Arrays.equals(type,new byte[]{'s','e','f','d'}))sef(at,size);
+            at+=size;
+        }
+    }
+    private long metaSkip(long start,long payload)throws IOException{
+        if(payload<4)throw new IOException("Contenitore meta incompleto");
+        if(payload>=8){
+            ByteBuffer first=ByteBuffer.wrap(read(start,8));long size=Integer.toUnsignedLong(first.getInt());byte[] code=new byte[4];first.get(code);
+            boolean type=true;for(byte value:code)if(value<32||value>126)type=false;
+            if(type&&((size>=8&&size<=payload)||size==1&&payload>=16)){
+                out.write("META QUICKTIME · figli senza prefisso versione/flag\n");return 0;
+            }
+        }
+        out.write("META ISO · prefisso versione/flag di 4 byte\n");return 4;
     }
     private void dates(byte[] bytes)throws IOException{
         if(bytes.length<12)throw new IOException("Header date incompleto");
