@@ -19,16 +19,16 @@ final class AudioActions {
     void start(){
         if(audio.busy()||ConversionService.snapshot().running){audio.toast("Una conversione o un’operazione è già in corso");return;}
         if(audio.state.readingNames||audio.state.readingLyrics){audio.toast("Attendi la lettura dei nomi di brani e testi");return;}
-        if(audio.state.inputs.isEmpty()||audio.state.folder==null){audio.toast("Seleziona almeno un brano e una cartella audio");return;}
+        if(audio.state.inputs.isEmpty()||!audio.destinations.ready()){audio.toast("Seleziona i brani e autorizza tutte le cartelle di destinazione");return;}
         if(audio.state.inputs.size()>500||audio.state.lyricsInputs.size()>1000){audio.toast("Seleziona al massimo 500 brani e 1000 testi per coda");return;}
         handler.removeCallbacksAndMessages(null);
         final ArrayList<String> inputs=new ArrayList<>(audio.state.inputs),names=new ArrayList<>(audio.state.names),lyrics=new ArrayList<>(audio.state.lyricsInputs),lyricNames=new ArrayList<>(audio.state.lyricsNames);
-        final String folder=audio.state.folder;final int bitrate=audio.state.bitrate;final boolean onlySmaller=audio.state.onlySmaller;
+        final ArrayList<String> folders=audio.destinations.snapshot();final int bitrate=audio.state.bitrate;final boolean onlySmaller=audio.state.onlySmaller;
         audio.state.preparing=true;audio.state.notice="";audio.renderRun();
         audio.selection.worker.execute(()->{
             String error=null;int matched=0;HashSet<String> used=new HashSet<>();
             try{
-                OutputDocuments.names(audio.activity,Uri.parse(folder));
+                for(String folder:new HashSet<>(folders))OutputDocuments.names(audio.activity,Uri.parse(folder));
                 for(int n=0;n<inputs.size();n++){
                     if(audio.state.destroyed||Thread.currentThread().isInterrupted())return;
                     AudioMediaDecoder.kind(names.get(n));
@@ -39,7 +39,7 @@ final class AudioActions {
             audio.activity.runOnUiThread(()->{
                 if(audio.state.destroyed)return;
                 if(failure!=null){audio.state.preparing=false;audio.state.notice="Avvio non riuscito: "+failure;audio.renderRun();audio.toast(audio.state.notice);return;}
-                Runnable launch=()->launch(inputs,names,lyrics,lyricNames,folder,bitrate,onlySmaller);
+                Runnable launch=()->launch(inputs,names,lyrics,lyricNames,folders,bitrate,onlySmaller);
                 if(!lyrics.isEmpty()&&(matches<inputs.size()||unused>0)){
                     confirmation=new AlertDialog.Builder(audio.activity).setTitle("Controlla i testi esterni")
                         .setMessage(matches+" / "+inputs.size()+" brani hanno un .lrc abbinato.\n"+(inputs.size()-matches)+" brani verranno convertiti senza testo esterno.\n"+unused+" testi selezionati non sono usati.\n\nContinuare?")
@@ -49,14 +49,14 @@ final class AudioActions {
         });
     }
     private void ready(){audio.state.preparing=false;if(!audio.state.destroyed)audio.renderRun();}
-    private void launch(ArrayList<String> inputs,ArrayList<String> names,ArrayList<String> lyrics,ArrayList<String> lyricNames,String folder,int bitrate,boolean onlySmaller){
+    private void launch(ArrayList<String> inputs,ArrayList<String> names,ArrayList<String> lyrics,ArrayList<String> lyricNames,ArrayList<String> folders,int bitrate,boolean onlySmaller){
         if(audio.state.destroyed)return;
         if(ConversionService.snapshot().running||AudioConversionService.snapshot().running){ready();audio.toast("Una conversione è già in corso");return;}
         if(Build.VERSION.SDK_INT>=33&&audio.activity.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)!=PackageManager.PERMISSION_GRANTED)
             audio.activity.requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS},120);
         Intent command=new Intent(audio.activity,AudioConversionService.class).setAction(AudioConversionService.START)
             .putStringArrayListExtra("inputs",inputs).putStringArrayListExtra("names",names).putStringArrayListExtra("lyricsInputs",lyrics).putStringArrayListExtra("lyricsNames",lyricNames)
-            .putExtra("folder",folder).putExtra("bitrate",bitrate).putExtra("onlySmaller",onlySmaller);
+            .putStringArrayListExtra("folders",folders).putExtra("folder",folders.get(0)).putExtra("bitrate",bitrate).putExtra("onlySmaller",onlySmaller);
         try{audio.activity.startForegroundService(command);audio.screen.sections.focusCard(AudioScreen.CONVERSION);
             handler.postDelayed(()->{if(!audio.state.destroyed&&audio.state.preparing&&!AudioConversionService.snapshot().running){audio.state.notice="Avvio audio non confermato: "+AudioConversionService.snapshot().message;ready();}},5000);
         }
@@ -67,12 +67,12 @@ final class AudioActions {
         ArrayList<String> inputs=new ArrayList<>(),names=new ArrayList<>();
         for(AudioRunState.Result result:AudioConversionService.snapshot().results)if(result.outcome==AudioRunState.Outcome.FAILED&&result.input!=null){inputs.add(result.input);names.add(result.name);}
         if(inputs.isEmpty()){audio.toast("Nessun brano fallito da riprovare");return;}
-        ++audio.state.selectionGeneration;audio.state.inputs.clear();audio.state.inputs.addAll(inputs);audio.state.names.clear();audio.state.names.addAll(names);audio.state.selectedIndex=0;audio.save();audio.render();start();
+        ++audio.state.selectionGeneration;audio.state.inputs.clear();audio.state.inputs.addAll(inputs);audio.state.names.clear();audio.state.names.addAll(names);audio.state.selectedIndex=0;audio.save();audio.render();audio.destinations.whenReady(this::start);
     }
     void cancel(){AudioRunState run=AudioConversionService.snapshot();if(!run.running||run.cancelling)return;long expected=run.startedAt;
-        confirmation=new AlertDialog.Builder(audio.activity).setTitle("Interrompere la coda audio?")
+        confirmation=new AlertDialog.Builder(audio.activity).setTitle("Annullare la conversione?")
             .setMessage("Il brano in corso non viene salvato. I risultati già completati restano nella cartella scelta.")
-            .setNegativeButton("Continua",null).setPositiveButton("Interrompi",(dialog,which)->audio.activity.startService(new Intent(audio.activity,AudioConversionService.class).setAction(AudioConversionService.CANCEL).putExtra("startedAt",expected))).create();confirmation.show();
+            .setNegativeButton("Continua",null).setPositiveButton("Sì, annulla",(dialog,which)->audio.activity.startService(new Intent(audio.activity,AudioConversionService.class).setAction(AudioConversionService.CANCEL).putExtra("startedAt",expected))).create();confirmation.show();
     }
     void clearLog(){
         if(audio.busy())return;

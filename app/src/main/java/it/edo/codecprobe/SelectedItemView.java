@@ -12,8 +12,9 @@ import java.util.function.IntConsumer;
 final class SelectedItemView {
     final TextView number, hint, name, summary;
     final HorizontalScrollView carousel;
-    final LinearLayout navigator, preview, detailsBody;
-    final Button details;
+    final LinearLayout navigator, preview, detailsBody, metadataSummary, metadataDetails;
+    private Map<String,String> lastSummary=Collections.emptyMap(),lastDetails=Collections.emptyMap();
+    final Button details,remove;
     private final String detailsLabel;
     final ArrayList<Button> chips = new ArrayList<>();
     private final AppUi ui;
@@ -47,6 +48,9 @@ final class SelectedItemView {
         detailsBody = new LinearLayout(ui.activity);
         detailsBody.setOrientation(LinearLayout.VERTICAL);
         preview.addView(detailsBody, new LinearLayout.LayoutParams(-1, -2));
+        metadataSummary=new LinearLayout(ui.activity);metadataSummary.setOrientation(LinearLayout.VERTICAL);detailsBody.addView(metadataSummary);
+        metadataDetails=new LinearLayout(ui.activity);metadataDetails.setOrientation(LinearLayout.VERTICAL);detailsBody.addView(metadataDetails);
+        remove=ui.button(preview,"Rimuovi "+item.toLowerCase(java.util.Locale.ITALY));
         setExpanded(false);
         details.setOnClickListener(v -> setExpanded(detailsBody.getVisibility() != View.VISIBLE));
     }
@@ -81,7 +85,7 @@ final class SelectedItemView {
         number.setText(names.isEmpty() ? empty : item + " " + (current + 1) + " di " + names.size());
         number.setVisibility(names.isEmpty() ? View.GONE : View.VISIBLE);
         carousel.setVisibility(names.isEmpty() ? View.GONE : View.VISIBLE);
-        details.setVisibility(names.isEmpty() ? View.GONE : View.VISIBLE);
+        details.setVisibility(names.isEmpty() ? View.GONE : View.VISIBLE);remove.setVisibility(names.isEmpty()?View.GONE:View.VISIBLE);remove.setEnabled(enabled);
         hint.setVisibility(names.size() > 1 ? View.VISIBLE : View.GONE);
         for (int n = 0; n < chips.size(); n++) {
             Button chip = chips.get(n); boolean active = n == current;
@@ -96,6 +100,13 @@ final class SelectedItemView {
             if (chip.getLeft() < left) carousel.smoothScrollTo(chip.getLeft(), 0);
             else if (chip.getRight() > right) carousel.smoothScrollTo(chip.getRight() - carousel.getWidth(), 0);
         });
+    }
+
+    void showMetadata(Map<String,String> summary,Map<String,String> details) {
+        if(lastSummary.equals(summary)&&lastDetails.equals(details))return;
+        lastSummary=new LinkedHashMap<>(summary);lastDetails=new LinkedHashMap<>(details);
+        metadataSummary.removeAllViews();metadataDetails.removeAllViews();
+        ui.renderInfoSections(metadataSummary,summary);ui.renderInfoSections(metadataDetails,details);
     }
 
     void setExpanded(boolean expanded) {

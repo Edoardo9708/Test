@@ -27,6 +27,7 @@ final class HomeSelection {
     }
 
     void bind() {
+        home.screen.files.remove.setOnClickListener(v->removeVideo());
         home.screen.files.pickVideo.setOnClickListener((v)->pickVideos());
         home.screen.files.reloadMetadata.setOnClickListener((v)->{
             VideoMetadataCache.clear();
@@ -38,6 +39,15 @@ final class HomeSelection {
             home.screen.files.details.setText(show ? "▾ Dettagli video" : "▸ Dettagli video");
             if (show) loadInputDetails();
         });
+    }
+
+    void removeVideo(){
+        if(home.state.busy||home.state.metadataLoading||home.state.choosingOrigins||home.state.exportingDiagnostics||home.state.clearingLogs||home.state.selectedInputs.isEmpty())return;
+        ++home.state.transitionGeneration;home.screen.files.selectedItem.cancelTransition();
+        int index=home.state.selectedVideoIndex;VideoMetadataCache.remove(home.state.selectedInputs.remove(index));home.state.selectedNames.remove(index);home.state.destinationPlan.files.remove(index);
+        home.state.selectedVideoIndex=Math.max(0,Math.min(index,home.state.selectedInputs.size()-1));
+        home.state.input=home.state.selectedInputs.isEmpty()?null:Uri.parse(home.state.selectedInputs.get(home.state.selectedVideoIndex));home.state.sourceName=home.state.input==null?"video":home.state.selectedNames.get(home.state.selectedVideoIndex);
+        home.state.selectionSession=java.util.UUID.randomUUID().toString();rebuildVideoCarousel();showCachedInput();home.destinations.refreshLabels();home.destinations.updateDestinationPanel();home.conversion.setBusy(false);
     }
 
     void pickVideos() {

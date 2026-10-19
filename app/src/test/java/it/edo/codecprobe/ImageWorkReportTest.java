@@ -34,7 +34,7 @@ public class ImageWorkReportTest {
             assertEquals("image/heic", opened.getType());
             assertEquals("content://saved/photo", opened.getDataString());
             assertNotEquals(0, opened.getFlags() & Intent.FLAG_GRANT_READ_URI_PERMISSION);
-            find(report.rows, "Mostra dettagli: Foto 2").performClick();
+            find(report.rows, "Mostra errore: Foto 2").performClick();
             AlertDialog dialog = org.robolectric.shadows.ShadowAlertDialog.getLatestAlertDialog();
             dialog.getButton(AlertDialog.BUTTON_POSITIVE).performClick();
             String copied = controller.get().getSystemService(ClipboardManager.class).getPrimaryClip().getItemAt(0).getText().toString();

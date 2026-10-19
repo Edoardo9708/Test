@@ -183,8 +183,10 @@ final class HomeConversion {
     }
 
     void renderConversionDashboard(ConversionService.State s) {
+        if(!s.running&&!outputCheck.checking){AppSettings defaults=new AppSettings(home.activity);if(defaults.revision!=home.state.settingsRevision){home.compression.applyDefaults(defaults);home.screen.conversion.onlySmaller.setChecked(defaults.onlySmaller);home.screen.conversion.keepScreenOn.setChecked(defaults.keepScreenOn);}}
         boolean waiting = s.hasSession && s.recoverable && !s.running;
         int pending = Math.max(0, s.batchTotal - (s.running ? Math.max(s.batchIndex, s.succeeded + s.failed + s.ignored + s.notSaved + s.skipped) : s.succeeded + s.failed + s.ignored + s.notSaved + s.skipped));
+        home.screen.conversion.dashboard.totalProgress.setText(s.batchTotal>0?BatchProgress.percent(s.succeeded+s.failed+s.ignored+s.notSaved+s.skipped,s.running&&s.batchIndex>s.succeeded+s.failed+s.ignored+s.notSaved+s.skipped?s.filePercent:0,s.batchTotal)+"%":"—");
         home.screen.conversion.queueLabel.setText("Video " + s.batchIndex + " / " + s.batchTotal + "\nRiusciti: " + s.succeeded + " · Falliti: " + s.failed + " · Ignorati: " + s.ignored + "\nSaltati: " + s.skipped + " · Non salvati: " + s.notSaved + "\n" + (s.running ? "In attesa: " : "Non completati: ") + pending);
         renderElapsed(s,SystemClock.elapsedRealtime());
         home.screen.conversion.currentFile.setText(waiting ? "Nessun file in conversione" : s.source.isEmpty() ? "In attesa del file" : s.source);

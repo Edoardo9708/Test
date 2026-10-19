@@ -14,6 +14,7 @@ final class VideoMetadataCache {
     static Entry get(String uri){return entries.get(uri);}
     static long epoch(){return entries.epoch();}
     static boolean put(String uri,Entry entry,long expected){return entries.put(uri,entry,1,expected);}
+    static void remove(String uri){entries.remove(uri);}
     static void clear(){entries.clear();}
     static int size(){return entries.size();}
     private VideoMetadataCache(){}

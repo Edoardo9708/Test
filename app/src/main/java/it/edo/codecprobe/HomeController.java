@@ -71,7 +71,7 @@ final class HomeController {
     }
 
     void openSettings() {
-        activity.startActivity(new Intent(activity, SettingsActivity.class).putExtra("preset", screen.compression.presetSlider.getProgress()).putExtra("crf", compression.selectedCrf()).putExtra("cpu", screen.compression.cpuMode.getSelectedItemPosition()).putExtra("bframes", screen.compression.bframeSwitch.isChecked()).putExtra("lookahead", screen.compression.lookaheadSwitch.isChecked()).putExtra("sourceName", state.sourceName));
+        activity.startActivity(new Intent(activity, SettingsActivity.class).putExtra("preset", screen.compression.presetSlider.getProgress()).putExtra("crf", compression.selectedCrf()).putExtra("cpu", screen.compression.cpuMode.getSelectedItemPosition()).putExtra("bframes", screen.compression.bframeSwitch.isChecked()).putExtra("lookahead", screen.compression.lookaheadSwitch.isChecked()).putExtra("sourceName", state.sourceName).putExtra("keepScreenOn",screen.conversion.keepScreenOn.isChecked()).putExtra("onlySmaller",screen.conversion.onlySmaller.isChecked()).putExtra("folder",state.selectedInputs.isEmpty()?new AppSettings(activity).defaultFolder:state.destinationPlan.effective(state.selectedVideoIndex).origin?null:state.destinationPlan.effective(state.selectedVideoIndex).folder));
     }
 
     void onActivityResult(int request, int code, Intent data) {
@@ -137,7 +137,7 @@ final class HomeController {
         final HomeController home = this;
         home.state.conversionScreenVisible = true;
         AppSettings saved = new AppSettings(home.activity);
-        home.screen.conversion.keepScreenOn.setChecked(saved.keepScreenOn);
+        if(!ConversionService.snapshot().running){home.screen.conversion.keepScreenOn.setChecked(saved.keepScreenOn);home.screen.conversion.onlySmaller.setChecked(saved.onlySmaller);}
         if (!java.util.Objects.equals(home.state.loadedDefault, saved.defaultFolder) && !ConversionService.snapshot().running) {
             home.state.loadedDefault = saved.defaultFolder;
             if (home.state.loadedDefault != null) {
@@ -194,7 +194,7 @@ final class HomeController {
         }
         home.screen.files.selectedItem.close();
         home.selection.worker.shutdownNow();
-        home.system.worker.shutdownNow();
+        home.system.close();
         home.diagnostics.worker.shutdown();
     }
 

@@ -23,6 +23,7 @@ final class OriginDirectoryPanel {
         String requestedFolder;
         final ArrayList<Integer> files=new ArrayList<>();
     }
+    private final MediaKind kind;
     private final Activity activity;
     private final AppUi ui;
     private final LinearLayout rows;
@@ -37,7 +38,10 @@ final class OriginDirectoryPanel {
     private volatile boolean closed;
     private boolean busy;
     OriginDirectoryPanel(Activity a,LinearLayout rows,Listener listener,AppUi ui){
-        this.ui=ui;int ink=ui.ink;
+        this(a,rows,listener,ui,MediaKind.VIDEO);
+    }
+    OriginDirectoryPanel(Activity a,LinearLayout rows,Listener listener,AppUi ui,MediaKind kind){
+        this.kind=kind;this.ui=ui;int ink=ui.ink;
         activity=a;this.rows=rows;this.listener=listener;this.ink=ink;
         associations=a.getSharedPreferences("origin-associations",Activity.MODE_PRIVATE);
     }
@@ -55,7 +59,7 @@ final class OriginDirectoryPanel {
         if(closed)return;
         final int revision=++generation;final ArrayList<String> sources=new ArrayList<>(inputs),labels=new ArrayList<>(names),folders=new ArrayList<>(fixedFolders);final ArrayList<Boolean> useOrigins=new ArrayList<>(origins);
         rows.removeAllViews();buttons.clear();
-        label(rows,sources.isEmpty()?"Le destinazioni utilizzate appariranno qui dopo la selezione dei video.":"Controllo delle cartelle e dei permessi…",ink);
+        label(rows,sources.isEmpty()?"Le destinazioni utilizzate appariranno qui dopo la selezione dei file.":"Controllo delle cartelle e dei permessi…",ink);
         listener.changed(false,new ArrayList<>(),new ArrayList<>());
         if(sources.isEmpty())return;
         worker.execute(()->{
@@ -85,7 +89,7 @@ final class OriginDirectoryPanel {
                 Group group=groups.get(key);
                 if(group==null){group=new Group();group.parent=parent;group.destination=destination;group.manual=manual;group.origin=origin;group.requestedFolder=requested;group.label=displayParent!=null?displayParent:destination!=null?Uri.decode(destination.getLastPathSegment()):!origin?(requested==null||requested.isEmpty()?"Cartella da scegliere":Uri.decode(Uri.parse(requested).getLastPathSegment())):"Origine non rilevata · "+labels.get(i);groups.put(key,group);}
                 group.manual|=manual;group.files.add(i);destinations.set(i,destination==null?null:destination.toString());
-                notes.set(i,"Video "+(i+1)+" · "+labels.get(i)+" · regola="+(origin?"origine":"cartella scelta")+" · destinazione="+group.label+" · "+(destination==null?"ACCESSO MANCANTE":manual?"accesso verificato; origine associata manualmente":origin?"origine rilevata e accesso verificato":"cartella scelta e accesso verificato"));
+                notes.set(i,kind.title+" "+(i+1)+" · "+labels.get(i)+" · regola="+(origin?"origine":"cartella scelta")+" · destinazione="+group.label+" · "+(destination==null?"ACCESSO MANCANTE":manual?"accesso verificato; origine associata manualmente":origin?"origine rilevata e accesso verificato":"cartella scelta e accesso verificato"));
             }
             activity.runOnUiThread(()->{
                 if(closed||revision!=generation)return;
@@ -94,7 +98,7 @@ final class OriginDirectoryPanel {
                 for(Group group:groups.values()){
                     boolean allowed=group.destination!=null;if(allowed)authorized++;
                     String numbers="";for(int file:group.files)numbers+=(numbers.isEmpty()?"":", ")+(file+1);
-                    Button action=HomeDirectoryRow.add(ui,rows,group.label,numbers,allowed,group.manual,()->listener.authorize(group.parent,sources.get(group.files.get(0)),group.origin,group.requestedFolder));
+                    Button action=HomeDirectoryRow.add(ui,rows,group.label,numbers,allowed,group.manual,()->listener.authorize(group.parent,sources.get(group.files.get(0)),group.origin,group.requestedFolder),kind);
                     if(!group.origin&&(group.requestedFolder==null||group.requestedFolder.isEmpty()))action.setText("Scegli");
                     buttons.add(action);action.setEnabled(!busy);
                 }

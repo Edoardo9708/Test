@@ -38,14 +38,15 @@ public final class AudioConversionService extends Service {
         if(!START.equals(request.getAction())||snapshot().running||token!=0)return START_NOT_STICKY;
         ArrayList<String> inputs=request.getStringArrayListExtra("inputs"),names=request.getStringArrayListExtra("names");
         String folder=request.getStringExtra("folder");int bitrate=request.getIntExtra("bitrate",128);
-        if(inputs==null||names==null||inputs.isEmpty()||inputs.size()>500||inputs.size()!=names.size()||folder==null||bitrate<64||bitrate>256){stopSelf(startId);return START_NOT_STICKY;}
+        if(inputs==null||names==null||inputs.isEmpty()||inputs.size()>500||inputs.size()!=names.size()||bitrate<64||bitrate>256){stopSelf(startId);return START_NOT_STICKY;}
+        final ArrayList<String> destinations;
+        try{destinations=QueueDestinations.read(request,inputs.size(),folder);}catch(IllegalArgumentException error){stopSelf(startId);return START_NOT_STICKY;}
         token=MediaConversionGate.INSTANCE.acquire();
         if(token==0){synchronized(LOCK){state.message="È già attiva una conversione: attendi la fine prima di avviare l’audio.";}stopSelf(startId);return START_NOT_STICKY;}
         ArrayList<String> lyricInputs=request.getStringArrayListExtra("lyricsInputs"),lyricNames=request.getStringArrayListExtra("lyricsNames");
         if(lyricInputs==null)lyricInputs=new ArrayList<>();if(lyricNames==null)lyricNames=new ArrayList<>();
         if(lyricInputs.size()!=lyricNames.size()||lyricInputs.size()>1000){MediaConversionGate.INSTANCE.release(token);token=0;stopSelf(startId);return START_NOT_STICKY;}
         final ArrayList<String> queue=new ArrayList<>(inputs),labels=new ArrayList<>(names),lyrics=new ArrayList<>(lyricInputs),lyricLabels=new ArrayList<>(lyricNames);
-        final Uri destination=Uri.parse(folder);
         synchronized(LOCK){state=new AudioRunState();state.running=true;state.total=queue.size();state.bitrate=bitrate;state.onlySmaller=request.getBooleanExtra("onlySmaller",false);state.startedAt=SystemClock.elapsedRealtime();state.message="Avvio motore audio…";}
         cancelled.set(false);destroyed=false;
         try{
@@ -55,9 +56,9 @@ public final class AudioConversionService extends Service {
             synchronized(LOCK){state.running=false;state.endedAt=SystemClock.elapsedRealtime();state.message="Avvio audio fallito: "+error.getMessage();}
             releaseWake();stopForeground(STOP_FOREGROUND_REMOVE);MediaConversionGate.INSTANCE.release(token);token=0;stopSelf(startId);return START_NOT_STICKY;
         }
-        worker.execute(()->run(queue,labels,destination,bitrate,startId,lyrics,lyricLabels));return START_NOT_STICKY;
+        worker.execute(()->run(queue,labels,destinations,bitrate,startId,lyrics,lyricLabels));return START_NOT_STICKY;
     }
-    private void run(ArrayList<String> inputs,ArrayList<String> names,Uri destination,int bitrate,int startId,ArrayList<String> lyrics,ArrayList<String> lyricNames){
+    private void run(ArrayList<String> inputs,ArrayList<String> names,ArrayList<String> destinations,int bitrate,int startId,ArrayList<String> lyrics,ArrayList<String> lyricNames){
         try(AudioLog log=new AudioLog(this)){
             try{
             write(log,"*** INIZIO SESSIONE AUDIO · v"+BuildConfig.VERSION_NAME+" ***\n1. Decodifica FLAC con libFLAC; MP3/M4A con decoder Android\n2. Codifica CPU con libopus + libopusenc\n3. Verifica decodifica completa del file Opus\n4. Salvataggio nella cartella scelta\nTag e copertine copiati e verificati byte per byte. Testi esterni: solo .lrc selezionati, abbinati e verificati con SHA-256. Originali invariati. Nessun ripristino audio dopo chiusura del processo.");
@@ -66,7 +67,7 @@ public final class AudioConversionService extends Service {
             if(stale!=null)for(File file:stale)if(!file.delete())write(log,"AVVISO: temporaneo precedente non eliminato: "+file.getName());
             AudioCodec.load();write(log,"OK: loadLibrary audioopus");
             for(int n=0;n<inputs.size()&&!cancelled.get();n++){
-                final int number=n+1;final String name=names.get(n);final Uri input=Uri.parse(inputs.get(n));
+                final int number=n+1;final String name=names.get(n);final Uri input=Uri.parse(inputs.get(n));final Uri destination=Uri.parse(destinations.get(n));
                 synchronized(LOCK){state.current=number;state.name=name;state.percent=0;state.doneSamples=0;state.totalSamples=0;state.channels=0;state.rate=0;state.message="Analisi audio "+number+" / "+inputs.size();}
                 lastProgress=0;lastProgressLog=0;
                 write(log,"*** INIZIO BRANO "+number+" / "+inputs.size()+" ***\nNome: "+name+"\nInput: "+input+"\nDestinazione: "+destination);
@@ -87,7 +88,7 @@ public final class AudioConversionService extends Service {
                     });
                 }catch(Exception error){
                     String details=failure(number,name,snapshot().message,error);
-                    synchronized(LOCK){state.results.add(new AudioRunState.Result(name,input.toString(),null,-1,0,details,cancelled.get()?AudioRunState.Outcome.CANCELLED:AudioRunState.Outcome.FAILED));}
+                    synchronized(LOCK){state.results.add(new AudioRunState.Result(name,input.toString(),null,-1,0,details,cancelled.get()?AudioRunState.Outcome.CANCELLED:AudioRunState.Outcome.FAILED,error.getMessage(),state.message,android.util.Log.getStackTraceString(error)));}
                     write(log,"*** "+(cancelled.get()?"BRANO INTERROTTO":"ERRORE BRANO · CONTINUO LA CODA")+" ***\n"+details);
                     continue;
                 }

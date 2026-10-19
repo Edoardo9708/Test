@@ -24,6 +24,7 @@ final class AudioDraftStore {
         state.onlySmaller=prefs.getBoolean("onlySmaller",true);state.keepScreenOn=prefs.getBoolean("keepScreenOn",false);state.lyricsExpanded=prefs.getBoolean("lyricsExpanded",false);
         state.readingNames=prefs.getBoolean("readingNames",false)&&!state.inputs.isEmpty();state.readingLyrics=prefs.getBoolean("readingLyrics",false)&&!state.lyricsInputs.isEmpty();
         state.settingsRevision=prefs.getLong("settingsRevision",0);
+        state.destinations.load(prefs,state.inputs,state.folder);
         AudioSettings defaults=new AudioSettings(context);if(applyDefaults&&defaults.revision!=state.settingsRevision)defaults.apply(state);
         return state;
     }
@@ -33,7 +34,8 @@ final class AudioDraftStore {
         catch(JSONException error){throw new IllegalStateException("Bozza audio non serializzabile",error);}
         try{for(int n=0;n<state.lyricsInputs.size();n++)lyrics.put(new JSONObject().put("uri",state.lyricsInputs.get(n)).put("name",state.lyricsNames.get(n)));}
         catch(JSONException error){throw new IllegalStateException("Testi audio non serializzabili",error);}
-        preferences(context).edit().putLong("settingsRevision",state.settingsRevision).putInt("selectedIndex",state.selectedIndex).putBoolean("onlySmaller",state.onlySmaller).putBoolean("keepScreenOn",state.keepScreenOn).putBoolean("lyricsExpanded",state.lyricsExpanded).putBoolean("readingNames",state.readingNames).putBoolean("readingLyrics",state.readingLyrics).putString("lyrics",lyrics.toString()).putInt("bitrate",state.bitrate).putString("folder",state.folder).putString("selection",rows.toString()).apply();
+        SharedPreferences.Editor edit=preferences(context).edit().putLong("settingsRevision",state.settingsRevision).putInt("selectedIndex",state.selectedIndex).putBoolean("onlySmaller",state.onlySmaller).putBoolean("keepScreenOn",state.keepScreenOn).putBoolean("lyricsExpanded",state.lyricsExpanded).putBoolean("readingNames",state.readingNames).putBoolean("readingLyrics",state.readingLyrics).putString("lyrics",lyrics.toString()).putInt("bitrate",state.bitrate).putString("folder",state.folder).putString("selection",rows.toString());
+        state.destinations.save(edit,state.inputs,state.folder);edit.apply();
     }
     static Bundle expansion(Context context,Bundle saved){
         if(saved!=null)return saved;

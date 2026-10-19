@@ -35,7 +35,7 @@ final class AudioSelection {
             if(grants!=(Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_WRITE_URI_PERMISSION)){audio.toast("Per la cartella audio servono accesso in lettura e scrittura");return;}
             try{audio.activity.getContentResolver().takePersistableUriPermission(uri,Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_WRITE_URI_PERMISSION);}
             catch(SecurityException error){audio.toast("La cartella non concede un’autorizzazione persistente: scegline un’altra");return;}
-            audio.state.folder=uri.toString();audio.save();audio.render();return;
+            audio.state.folder=uri.toString();audio.state.destinations.defaults(audio.state.inputs,audio.state.folder);audio.save();audio.render();return;
         }
         if(request==LYRICS){readLyrics(data);return;}
         if(request!=FILES)return;
@@ -50,7 +50,7 @@ final class AudioSelection {
             try{audio.activity.getContentResolver().takePersistableUriPermission(uri,Intent.FLAG_GRANT_READ_URI_PERMISSION);}
             catch(SecurityException error){temporary=true;}
         }
-        audio.save();audio.render();if(temporary)audio.toast("Alcuni file concedono solo accesso temporaneo: potrebbe servire riselezionarli dopo la chiusura");
+        audio.state.destinations.reset(audio.state.inputs,audio.state.folder);audio.save();audio.render();if(temporary)audio.toast("Alcuni file concedono solo accesso temporaneo: potrebbe servire riselezionarli dopo la chiusura");
         readNames();
     }
     private void readLyrics(Intent data){
@@ -114,7 +114,7 @@ final class AudioSelection {
     void reload(){
         if(audio.busy()||audio.state.inputs.isEmpty())return;
         int index=audio.state.selectedIndex;
-        previews.remove(audio.state.inputs.get(index)+"\n"+audio.state.names.get(index));previewKey="";audio.render();
+        previews.clear();previewKey="";audio.render();
     }
     void renderFiles(){
         AudioState state=audio.state;AudioScreen screen=audio.screen;int count=state.inputs.size();
@@ -127,15 +127,19 @@ final class AudioSelection {
         });
         screen.names.setText(count==0?"Nessun brano selezionato":state.names.get(state.selectedIndex));
         screen.details.setVisibility(count==0?android.view.View.GONE:android.view.View.VISIBLE);screen.remove.setVisibility(count==0?android.view.View.GONE:android.view.View.VISIBLE);
-        if(count==0){previewKey="";screen.inputInfo.setText("Seleziona uno o più brani");screen.selectedItem.setExpanded(false);return;}
+        if(count==0){previewKey="";screen.inputInfo.setText("Seleziona uno o più brani");screen.selectedItem.setExpanded(false);screen.selectedItem.showMetadata(java.util.Collections.emptyMap(),java.util.Collections.emptyMap());return;}
         String uri=state.inputs.get(state.selectedIndex),name=state.names.get(state.selectedIndex);String selectedKey=uri+"\n"+name;AudioInputInfo.Info cached=previews.get(selectedKey);
-        if(cached!=null){previewKey=selectedKey;screen.inputInfo.setText(cached.summary);screen.inputDetails.setText(cached.details);return;}
-        if(selectedKey.equals(previewKey))return;previewKey=selectedKey;screen.inputInfo.setText(state.readingNames?"Lettura nomi…":"Lettura informazioni audio…");screen.inputDetails.setText("Lettura informazioni audio…");
+        if(cached!=null){previewKey=selectedKey;showPreview(cached);return;}
+        if(selectedKey.equals(previewKey))return;previewKey=selectedKey;screen.inputInfo.setText(state.readingNames?"Lettura nomi…":"Lettura informazioni audio…");screen.inputDetails.setText("Lettura informazioni audio…");screen.selectedItem.showMetadata(java.util.Collections.emptyMap(),java.util.Collections.singletonMap("STATO","Lettura informazioni audio…"));
         if(state.readingNames){previewKey="";return;}
         final long cacheEpoch=previews.epoch();
         worker.execute(()->{AudioInputInfo.Info info=AudioInputInfo.read(audio.activity,uri,name);audio.activity.runOnUiThread(()->{
-            if(state.destroyed)return;previews.put(selectedKey,info,4096L+2L*(info.summary.length()+info.details.length()),cacheEpoch);if(cacheEpoch==previews.epoch()&&selectedKey.equals(previewKey)){screen.inputInfo.setText(info.summary);screen.inputDetails.setText(info.details);}
+            if(state.destroyed)return;previews.put(selectedKey,info,4096L+2L*(info.summary.length()+info.details.length()),cacheEpoch);if(cacheEpoch==previews.epoch()&&selectedKey.equals(previewKey)){showPreview(info);}
         });});
+    }
+    private void showPreview(AudioInputInfo.Info info){
+        audio.screen.inputInfo.setText(info.summary);audio.screen.inputDetails.setText(info.details);
+        audio.screen.selectedItem.showMetadata(java.util.Collections.singletonMap("FILE",info.summary),java.util.Collections.singletonMap("TAG E FORMATO",info.details));
     }
     void close(){audio.screen.selectedItem.close();worker.shutdownNow();}
 }

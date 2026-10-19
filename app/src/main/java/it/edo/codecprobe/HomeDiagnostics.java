@@ -32,11 +32,7 @@ final class HomeDiagnostics {
         home.screen.diagnostics.hdrTest.setOnClickListener((v)->startHdrTest());
         home.screen.diagnostics.saveHdr.setOnClickListener((v)->exportLog(HdrProbe.logFile(home.activity), "CodecProbe-HDR-log-"));
         home.screen.diagnostics.clearLogs.setOnClickListener((v)->clearAllLogs());
-        home.screen.diagnostics.toggle.setOnClickListener((v)->{
-            boolean show = home.screen.diagnostics.logView.getVisibility() != View.VISIBLE;
-            home.screen.diagnostics.logView.setVisibility(show ? View.VISIBLE : View.GONE);
-            home.screen.diagnostics.toggle.setText(show ? "Nascondi ultimi messaggi" : "Mostra ultimi messaggi");
-        });
+
     }
 
     void updateClearLogsButton() {

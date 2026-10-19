@@ -12,7 +12,7 @@ final class HomeFilesSection {
     Button pickVideo;
     Button clearSelection;
     Button reloadMetadata;
-    Button details;
+    Button details,remove;
     TextView videoNumber;
     TextView videoLabel;
     TextView inputInfo;
@@ -40,21 +40,17 @@ final class HomeFilesSection {
         videoPreview = selectedItem.preview;
         videoLabel = selectedItem.name;
         inputInfo = selectedItem.summary;
-        details = selectedItem.details;
+        details = selectedItem.details;remove=selectedItem.remove;
         videoDetails = selectedItem.detailsBody;
-        inputSummary = new LinearLayout(ui.activity);
-        inputSummary.setOrientation(LinearLayout.VERTICAL);
-        videoDetails.addView(inputSummary);
-        inputDetails = new LinearLayout(ui.activity);
-        inputDetails.setOrientation(LinearLayout.VERTICAL);
-        videoDetails.addView(inputDetails);
+        inputSummary = selectedItem.metadataSummary;
+        inputDetails = selectedItem.metadataDetails;
         reloadMetadata = ui.button(files, "Rileggi metadati");
     }
 
     void setBusy(boolean busy, boolean choosing, boolean loading, boolean hasInputs) {
         details.setVisibility(hasInputs ? View.VISIBLE : View.GONE);
         reloadMetadata.setVisibility(hasInputs ? View.VISIBLE : View.GONE);
-        pickVideo.setEnabled(!busy && !choosing);
+        pickVideo.setEnabled(!busy && !choosing);remove.setEnabled(hasInputs&&!busy&&!choosing&&!loading);
         reloadMetadata.setEnabled(!busy && !choosing && !loading);
     }
 }

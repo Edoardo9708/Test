@@ -9,10 +9,11 @@ final class AudioRunState {
     enum Outcome { SAVED, FAILED, CANCELLED, NOT_SAVED }
     private static final AtomicLong NEXT=new AtomicLong();
     static final class Result {
-        final String name,input,uri,error;final Outcome outcome;
+        final String name,input,uri,error,message,lastState,details;final Outcome outcome;
         final long inputBytes,outputBytes;
         Result(String name,String uri,long inputBytes,long outputBytes,String error){this(name,null,uri,inputBytes,outputBytes,error,uri!=null?Outcome.SAVED:Outcome.FAILED);}
-        Result(String name,String input,String uri,long before,long after,String error,Outcome outcome){this.name=name;this.input=input;this.uri=uri;inputBytes=before;outputBytes=after;this.error=error;this.outcome=outcome;}
+        Result(String name,String input,String uri,long before,long after,String error,Outcome outcome){this(name,input,uri,before,after,error,outcome,error,"","");}
+        Result(String name,String input,String uri,long before,long after,String error,Outcome outcome,String message,String lastState,String details){this.name=name;this.input=input;this.uri=uri;inputBytes=before;outputBytes=after;this.error=error;this.outcome=outcome;this.message=message;this.lastState=lastState;this.details=details;}
     }
     boolean running,cancelling,onlySmaller;
     int current,total,bitrate,channels,rate,percent;

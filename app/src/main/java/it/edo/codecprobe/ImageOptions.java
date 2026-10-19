@@ -18,5 +18,6 @@ final class ImageOptions {
     void save(Context c){prefs(c).edit().putInt("quality",quality).putString("preset",preset).putString("tune",tune).putString("folder",folder).putBoolean("onlySmaller",onlySmaller).putBoolean("keepScreenOn",keepScreenOn).putLong("revision",Math.max(System.currentTimeMillis(),load(c).revision+1)).apply();}
     void put(Intent intent){intent.putExtra("quality",quality).putExtra("preset",preset).putExtra("tune",tune).putExtra("folder",folder).putExtra("onlySmaller",onlySmaller).putExtra("keepScreenOn",keepScreenOn);}
     static ImageOptions from(Intent intent){return new ImageOptions(intent.getIntExtra("quality",65),intent.getStringExtra("preset"),intent.getStringExtra("tune"),intent.getStringExtra("folder"),intent.getBooleanExtra("onlySmaller",true),intent.getBooleanExtra("keepScreenOn",false),0);}
+    ImageOptions withFolder(String folder){return new ImageOptions(quality,preset,tune,folder,onlySmaller,keepScreenOn,revision);}
     String description(){return "HEIC · qualità "+quality+"/100 · CRF "+((100-quality)/2.0)+" · preset "+preset+" · tune "+tune+"\nYCbCr 4:2:0 · 8 bit · range completo · dimensioni originali";}
 }

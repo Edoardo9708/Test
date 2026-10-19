@@ -16,7 +16,6 @@ final class HomeState {
     String loadedDefault;
     String pendingLog;
     boolean originsReady;
-    boolean updatingDestinationUi;
     boolean pendingAuthorizationOrigin;
     boolean choosingOrigins;
     boolean clearingLogs;

@@ -1,6 +1,5 @@
 package it.edo.codecprobe;
 
-import android.graphics.Typeface;
 import android.os.*;
 import android.view.*;
 import android.widget.*;
@@ -28,16 +27,7 @@ final class HomeDiagnosticsSection {
         hdrTest = ui.halfButton(hdr, "Test HDR · Android", false);
         saveHdr = ui.halfButton(hdr, "Log HDR · TXT", false);
         ui.text(logs, "La prova verifica il decoder Android su sei fotogrammi. La conversione HDR usa invece il decoder incluso nell’app.", 13);
-        ui.divider(logs);
-        clearLogs = ui.button(logs, "Cancella tutti i log");
-        ui.danger(clearLogs);
-        ui.text(logs, "Cancella i log nell’app. I TXT già esportati restano salvati.", 13);
-        toggle = ui.button(logs, "Mostra ultimi messaggi");
-        logView = ui.text(logs, "", 12);
-        logView.setTypeface(Typeface.MONOSPACE);
-        logView.setTextIsSelectable(true);
-        logView.setMaxLines(16);
-        logView.setVisibility(View.GONE);
+        LogPanelView logPanel=new LogPanelView(ui,logs,"Cancella tutti i log","Cancella i log nell’app. I TXT già esportati restano salvati.");clearLogs=logPanel.clear;toggle=logPanel.toggle;logView=logPanel.log;
     }
 
     void setBusy(boolean busy, boolean clearing, boolean exporting) {

@@ -44,4 +44,13 @@ public class ImageSettingsTest {
             ImageRunState run=new ImageRunState();run.running=true;run.startedAt=22;field.set(null,run);service.get().onStartCommand(new Intent().setAction(ImageConversionService.CANCEL).putExtra("startedAt",21L),0,2);assertFalse(ImageConversionService.snapshot().cancelling);
         }finally{service.destroy();MediaConversionGate.INSTANCE.release(token);}
     }
+    @Test public void screenAwakeOptionRemainsLiveDuringPhotoConversionAndClearsOnPause()throws Exception{
+        ImageRunState run=new ImageRunState();run.running=true;run.options=new ImageOptions(65,"slow","standard",null,true,false,0);field.set(null,run);
+        var controller=Robolectric.buildActivity(ImageActivity.class).setup();try{
+            ImageController images=controller.get().images;assertTrue(images.screen.screenOn.isEnabled());images.screen.screenOn.setChecked(true);
+            assertTrue((controller.get().getWindow().getAttributes().flags&android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)!=0);assertFalse(ImageConversionService.snapshot().options.keepScreenOn);
+            images.pause();assertEquals(0,controller.get().getWindow().getAttributes().flags&android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        }finally{controller.pause().stop().destroy();}
+    }
+
 }

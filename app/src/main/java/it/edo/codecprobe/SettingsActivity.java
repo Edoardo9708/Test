@@ -30,7 +30,7 @@ public final class SettingsActivity extends Activity {
     private CpuModeButtons cpu;
     private Switch bframes;
     private Switch lookahead;
-    private CheckBox keepScreenOn;
+    private CheckBox keepScreenOn,onlySmaller;
     private EditText addition;
     private TextView presetValue;
     private TextView crfValue;
@@ -46,13 +46,9 @@ public final class SettingsActivity extends Activity {
         accent = ui.accent;
         surface = ui.surface;
         border = ui.border;
-        LinearLayout root = ui.newPage();
-        page = root;
-        label("Impostazioni", 28);
-        label("v" + BuildConfig.VERSION_NAME, 13);
-        button("← Torna alla conversione", this::finish);
-        page = ui.panel(root);
-        label("CARTELLA PREDEFINITA", 16);
+        SettingsPage frame=new SettingsPage(ui,"Impostazioni video","HEVC · x265 · v"+BuildConfig.VERSION_NAME);
+        LinearLayout root=frame.page;
+        page=frame.section("CARTELLA PREDEFINITA");
         defaultFolder = state != null ? state.getString("defaultFolder") : new AppSettings(this).defaultFolder;
         folderValue = label("", 16);
         updateFolder();
@@ -62,8 +58,7 @@ public final class SettingsActivity extends Activity {
             updateFolder();
         });
         label("Usata all’apertura dell’app. Nella home puoi scegliere una destinazione diversa per la coda corrente.", 13);
-        page = ui.panel(root);
-        label("NOME FILE", 16);
+        page = frame.section("NOME FILE");
         addition = new EditText(this);
         addition.setSingleLine();
         addition.setTextColor(ink);
@@ -76,8 +71,7 @@ public final class SettingsActivity extends Activity {
         position = radios("All’inizio", "Alla fine");
         preview = label("", 16);
         label("Il nome originale viene mantenuto; l’output è MP4. Se esiste già, aggiungo un numero e creo un nuovo file.", 13);
-        page = ui.panel(root);
-        label("VALORI ALL’AVVIO", 16);
+        page = frame.section("QUALITÀ PREDEFINITA");
         presetValue = label("Preset", 20);
         preset = slider(8, ()->presetValue.setText("Preset · " + AppSettings.PRESETS[preset.getProgress()]));
         crfValue = label("CRF", 20);
@@ -95,24 +89,22 @@ public final class SettingsActivity extends Activity {
         bframes = toggle("B-frame");
         lookahead = toggle("Lookahead");
         label("AQ mode, AQ strength e CU-tree seguono il preset e i selettori.", 13);
-        keepScreenOn = new CheckBox(this);
-        keepScreenOn.setText("Mantieni schermo acceso");
-        keepScreenOn.setTextColor(ink);
-        keepScreenOn.setTextSize(17);
-        keepScreenOn.setMinHeight(dp(48));
-        keepScreenOn.setButtonTintList(android.content.res.ColorStateList.valueOf(accent));
-        page.addView(keepScreenOn);
+        page=frame.section("OPZIONI PREDEFINITE");
+        onlySmaller=SettingsPage.check(ui,page,"Salva solo se più piccolo",false);
+        keepScreenOn=SettingsPage.check(ui,page,"Mantieni schermo acceso",false);
+        ui.text(page,"Le modifiche salvate valgono dalla prossima coda; non cambiano una conversione già avviata.",13);
         AppSettings saved = new AppSettings(this);
-        keepScreenOn.setChecked(saved.keepScreenOn);
-        preset.setProgress(saved.preset);
-        crf.setProgress(saved.crf);
-        cpu.setSelection(saved.cpu);
-        bframes.setChecked(saved.bframes);
-        lookahead.setChecked(saved.lookahead);
-        addition.setText(saved.addition);
-        position.check(position.getChildAt(saved.prefix ? 0 : 1).getId());
-        presetValue.setText("Preset · " + AppSettings.PRESETS[saved.preset]);
-        crfValue.setText("CRF · " + saved.crf);
+        keepScreenOn.setChecked(state==null?saved.keepScreenOn:state.getBoolean("settingScreen",saved.keepScreenOn));
+        onlySmaller.setChecked(state==null?saved.onlySmaller:state.getBoolean("settingSmaller",saved.onlySmaller));
+        preset.setProgress(state==null?saved.preset:state.getInt("settingPreset",saved.preset));
+        crf.setProgress(state==null?saved.crf:state.getInt("settingCrf",saved.crf));
+        cpu.setSelection(state==null?saved.cpu:state.getInt("settingCpu",saved.cpu));
+        bframes.setChecked(state==null?saved.bframes:state.getBoolean("settingBframes",saved.bframes));
+        lookahead.setChecked(state==null?saved.lookahead:state.getBoolean("settingLookahead",saved.lookahead));
+        addition.setText(state==null?saved.addition:state.getString("settingAddition",saved.addition));
+        position.check(position.getChildAt((state==null?saved.prefix:state.getBoolean("settingPrefix",saved.prefix)) ? 0 : 1).getId());
+        presetValue.setText("Preset · " + AppSettings.PRESETS[preset.getProgress()]);
+        crfValue.setText("CRF · " + crf.getProgress());
         addition.addTextChangedListener(new TextWatcher(){
 
             public void beforeTextChanged(CharSequence s, int a, int c, int f) {
@@ -128,18 +120,22 @@ public final class SettingsActivity extends Activity {
         position.setOnCheckedChangeListener((g,id)->updatePreview());
         updatePreview();
         page = root;
-        ui.divider(root);
-        button("Usa la configurazione della schermata conversione", ()->{
+        SettingsPage.Actions actions=frame.actions();
+        actions.copy.setOnClickListener(v->{
             preset.setProgress(getIntent().getIntExtra("preset", saved.preset));
             crf.setProgress(getIntent().getIntExtra("crf", saved.crf));
             int choice = Math.max(0, Math.min(2, getIntent().getIntExtra("cpu", saved.cpu)));
             cpu.setSelection(choice);
             bframes.setChecked(getIntent().getBooleanExtra("bframes", saved.bframes));
             lookahead.setChecked(getIntent().getBooleanExtra("lookahead", saved.lookahead));
+            if(getIntent().hasExtra("folder")){defaultFolder=getIntent().getStringExtra("folder");updateFolder();}
+            keepScreenOn.setChecked(getIntent().getBooleanExtra("keepScreenOn",saved.keepScreenOn));
+            onlySmaller.setChecked(getIntent().getBooleanExtra("onlySmaller",saved.onlySmaller));
         });
-        button("Salva impostazioni", ()->{
+        actions.save.setOnClickListener(v->{
             AppSettings.setDefaultFolder(this, defaultFolder);
             AppSettings.setKeepScreenOn(this, keepScreenOn.isChecked());
+            AppSettings.setOnlySmaller(this,onlySmaller.isChecked());
             AppSettings.save(this, crf.getProgress(), preset.getProgress(), cpu.getSelectedItemPosition(), bframes.isChecked(), lookahead.isChecked(), addition.getText().toString(), selected(position) == 0);
             Toast.makeText(this, "Valori predefiniti salvati", Toast.LENGTH_SHORT).show();
             finish();
@@ -156,6 +152,7 @@ public final class SettingsActivity extends Activity {
         super.onSaveInstanceState(b);
         if(audioScreen!=null){audioScreen.saveState(b);return;}
         b.putString("defaultFolder", defaultFolder);
+        b.putInt("settingPreset",preset.getProgress());b.putInt("settingCrf",crf.getProgress());b.putInt("settingCpu",cpu.getSelectedItemPosition());b.putBoolean("settingBframes",bframes.isChecked());b.putBoolean("settingLookahead",lookahead.isChecked());b.putBoolean("settingScreen",keepScreenOn.isChecked());b.putBoolean("settingSmaller",onlySmaller.isChecked());b.putString("settingAddition",addition.getText().toString());b.putBoolean("settingPrefix",selected(position)==0);
     }
 
     @Override
@@ -193,14 +190,7 @@ public final class SettingsActivity extends Activity {
     }
 
     private TextView label(String s, int size) {
-        TextView t = new TextView(this);
-        t.setText(s);
-        t.setTextSize(size);
-        t.setTextColor(ink);
-        t.setPadding(0, dp(10), 0, dp(6));
-        if (size >= 20) t.setTypeface(null, Typeface.BOLD);
-        page.addView(t);
-        return t;
+        TextView t=ui.text(page,s,size);if(size>=20)t.setTypeface(null,Typeface.BOLD);return t;
     }
 
     private void button(String text, Runnable action) {
@@ -239,9 +229,7 @@ public final class SettingsActivity extends Activity {
     private SeekBar slider(int max, Runnable update) {
         SeekBar s = new SeekBar(this);
         s.setMax(max);
-        s.setProgressTintList(android.content.res.ColorStateList.valueOf(accent));
-        s.setThumbTintList(android.content.res.ColorStateList.valueOf(accent));
-        s.setMinHeight(dp(48));
+        ui.styleSlider(s);
         page.addView(s, new LinearLayout.LayoutParams(-1, -2));
         s.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener(){
 

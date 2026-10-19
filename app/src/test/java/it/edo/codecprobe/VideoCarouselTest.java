@@ -42,5 +42,18 @@ public class VideoCarouselTest {
             assertFalse((Boolean)activity.home.state.metadataLoading);assertNull(activity.home.selection.metadataDialog);
         }finally{controller.pause().stop().destroy();VideoMetadataCache.clear();}
     }
+    @Test public void removingSelectedVideoKeepsTheRemainingFileAndItsDestination()throws Exception{
+        VideoMetadataCache.permissions("false:false");VideoMetadataCache.clear();long epoch=VideoMetadataCache.epoch();
+        ArrayList<String> inputs=new ArrayList<>(Arrays.asList("content://test/video/one","content://test/video/two"));ArrayList<String> names=new ArrayList<>(Arrays.asList("one.mp4","two.mp4"));
+        for(int n=0;n<2;n++)VideoMetadataCache.put(inputs.get(n),new VideoMetadataCache.Entry(names.get(n),"Sintesi",new InputInspector.Report("info","dettagli")),epoch);
+        Bundle saved=new Bundle();saved.putStringArrayList("inputs",inputs);saved.putStringArrayList("names",names);saved.putString("input",inputs.get(0));
+        var controller=Robolectric.buildActivity(MainActivity.class).create(saved).start().resume().visible();try{
+            HomeController home=controller.get().home;home.state.destinationPlan.setFolder(0,"content://dirs/tree/first");home.state.destinationPlan.setFolder(1,"content://dirs/tree/second");
+            home.screen.files.videoChips.get(1).performClick();shadowOf(Looper.getMainLooper()).idleFor(Duration.ofSeconds(1));home.screen.files.remove.performClick();
+            assertEquals(Arrays.asList(inputs.get(0)),home.state.selectedInputs);assertEquals("content://dirs/tree/first",home.state.destinationPlan.effective(0).folder);assertEquals(inputs.get(0),home.state.input.toString());assertEquals(1,home.screen.files.videoChips.size());
+            home.state.busy=true;home.selection.removeVideo();assertEquals(1,home.state.selectedInputs.size());
+        }finally{controller.pause().stop().destroy();VideoMetadataCache.clear();}
+    }
+
 }
 

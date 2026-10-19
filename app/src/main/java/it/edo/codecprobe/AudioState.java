@@ -6,6 +6,7 @@ import java.util.ArrayList;
 final class AudioState {
     final ArrayList<String> inputs=new ArrayList<>(),names=new ArrayList<>();
     final ArrayList<String> lyricsInputs=new ArrayList<>(),lyricsNames=new ArrayList<>();
+    final DestinationDraft destinations=new DestinationDraft();
     String folder;
     long settingsRevision;
     int bitrate=128,selectedIndex;

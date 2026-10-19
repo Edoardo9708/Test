@@ -20,40 +20,43 @@ public final class ImageConversionService extends Service {
     private long token;private PowerManager.WakeLock wake;private volatile boolean destroyed;
     static ImageRunState snapshot(){synchronized(LOCK){return new ImageRunState(state);}}
     static void clear(){synchronized(LOCK){if(!state.running){String log=state.log;state=new ImageRunState();state.log=log;}}}
+    static void clearLog(){synchronized(LOCK){if(!state.running)state.log="";}}
     @Override public void onCreate(){super.onCreate();getSystemService(NotificationManager.class).createNotificationChannel(new NotificationChannel(CHANNEL,"Conversione immagini",NotificationManager.IMPORTANCE_LOW));}
     @Override public int onStartCommand(Intent request,int flags,int startId){
         if(request==null){stopSelf(startId);return START_NOT_STICKY;}
         if(CANCEL.equals(request.getAction())){synchronized(LOCK){if(state.running&&request.getLongExtra("startedAt",-1)==state.startedAt){cancelled.set(true);state.cancelling=true;state.message="Annullamento dopo la fase di codifica in corso…";}}if(token==0)stopSelf(startId);return START_NOT_STICKY;}
         if(!START.equals(request.getAction())||token!=0||snapshot().running)return START_NOT_STICKY;
         ArrayList<String> values=request.getStringArrayListExtra("inputs");ImageOptions options;
-        try{options=ImageOptions.from(request);if(options.folder==null||values==null||values.isEmpty()||values.size()>100)throw new IllegalArgumentException();}
+        try{options=ImageOptions.from(request);if(values==null||values.isEmpty()||values.size()>100)throw new IllegalArgumentException();}
         catch(RuntimeException e){stopSelf(startId);return START_NOT_STICKY;}
+        final ArrayList<String> folders;
+        try{folders=QueueDestinations.read(request,values.size(),options.folder);}catch(IllegalArgumentException error){stopSelf(startId);return START_NOT_STICKY;}
         token=MediaConversionGate.INSTANCE.acquire();if(token==0){synchronized(LOCK){state.message="È già attiva una conversione: attendi il completamento.";}stopSelf(startId);return START_NOT_STICKY;}
         ArrayList<String> queue=new ArrayList<>(values);cancelled.set(false);
         synchronized(LOCK){state=new ImageRunState();state.running=true;state.total=queue.size();state.startedAt=SystemClock.elapsedRealtime();state.options=options;state.message="Avvio conversione immagini…";}
         try{
             startForeground(NOTICE,notification(),Build.VERSION.SDK_INT>=35?ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROCESSING:ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC);
             wake=getSystemService(PowerManager.class).newWakeLock(PowerManager.PARTIAL_WAKE_LOCK,"CodecProbe:images");wake.acquire(6*60*60*1000L);
-            worker.execute(()->run(queue,options,startId));
-        }catch(RuntimeException error){synchronized(LOCK){state.running=false;state.message="Avvio immagini fallito: "+error.getMessage();}release();stopForeground(STOP_FOREGROUND_REMOVE);stopSelf(startId);}
+            worker.execute(()->run(queue,folders,options,startId));
+        }catch(RuntimeException error){synchronized(LOCK){state.running=false;state.endedAt=SystemClock.elapsedRealtime();state.message="Avvio immagini fallito: "+error.getMessage();}release();stopForeground(STOP_FOREGROUND_REMOVE);stopSelf(startId);}
         return START_NOT_STICKY;
     }
-    private void run(ArrayList<String> queue,ImageOptions options,int startId){
+    private void run(ArrayList<String> queue,ArrayList<String> folders,ImageOptions options,int startId){
         try{
             write("INIZIO IMMAGINI · v"+BuildConfig.VERSION_NAME+"\n"+options.description()+"\nEXIF/XMP/ICC standard; APP/COM e SEF foto supportato conservati anche nell’archivio interno originale. Funzioni proprietarie Samsung non garantite. Originali invariati.");
-            OutputDocuments.names(this,Uri.parse(options.folder));
+            for(String folder:new HashSet<>(folders))OutputDocuments.names(this,Uri.parse(folder));
             File[] stale=getCacheDir().listFiles((d,n)->(n.startsWith("image-source-")||n.startsWith("image-heic-"))&&n.endsWith(".tmp"));if(stale!=null)for(File f:stale)f.delete();
             for(int i=0;i<queue.size();i++){
                 if(cancelled.get())break;Uri uri=Uri.parse(queue.get(i));String name=ImageFiles.name(this,uri);
                 synchronized(LOCK){state.current=i+1;state.name=name;state.message="Preparazione JPEG";}notifyProgress();
                 ImageRunState.Result result;
-                try{result=ImageConverter.convert(this,uri,name,options,cancelled::get,this::stage);}
+                try{result=ImageConverter.convert(this,uri,name,options.withFolder(folders.get(i)),cancelled::get,this::stage);}
                 catch(Exception e){result=new ImageRunState.Result(name,0,0,null,e.getMessage()==null?e.getClass().getSimpleName():e.getMessage(),cancelled.get()?ImageRunState.Outcome.CANCELLED:ImageRunState.Outcome.FAILED,android.util.Log.getStackTraceString(e));}
                 synchronized(LOCK){state.results.add(result);}write(name+" · "+result.outcome+" · "+result.message+"\n"+result.details);notifyProgress();
             }
             synchronized(LOCK){state.message=cancelled.get()?"Coda immagini interrotta. I file già salvati restano disponibili.":"Coda immagini terminata.";}
         }catch(Exception error){synchronized(LOCK){state.message="Conversione immagini interrotta: "+error.getMessage();}try{write(android.util.Log.getStackTraceString(error));}catch(IOException ignored){}}
-        finally{synchronized(LOCK){state.running=false;state.cancelling=false;}release();stopForeground(STOP_FOREGROUND_REMOVE);stopSelf(startId);}
+        finally{synchronized(LOCK){state.running=false;state.cancelling=false;state.endedAt=SystemClock.elapsedRealtime();}release();stopForeground(STOP_FOREGROUND_REMOVE);stopSelf(startId);}
     }
     private void stage(String text){synchronized(LOCK){if(!state.cancelling)state.message=text;}notifyProgress();}
     private void write(String text)throws IOException{

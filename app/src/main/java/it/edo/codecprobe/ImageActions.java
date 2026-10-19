@@ -8,22 +8,27 @@ import java.util.concurrent.*;
 
 /** Snapshot and preflight before starting the foreground image queue. */
 final class ImageActions {
-    private final ImageController images;private final ExecutorService worker=Executors.newSingleThreadExecutor();private boolean closed;
+    private final ImageController images;private final ExecutorService worker=Executors.newSingleThreadExecutor();private boolean closed;private AlertDialog logConfirmation,cancelConfirmation;
     ImageActions(ImageController images){this.images=images;}
     void start(){
         if(images.busy()||images.state.inputs.isEmpty())return;ImageOptions options=images.state.options;
-        if(options.folder==null){images.toast("Scegli una cartella di destinazione");images.screen.sections.focusCard(ImageScreen.FILES);return;}
-        ArrayList<String> inputs=new ArrayList<>(images.state.inputs);images.state.starting=true;images.state.startingAt=0;images.state.previousRun=ImageConversionService.snapshot().startedAt;images.render();
+        if(!images.destinations.ready()){images.toast("Autorizza tutte le cartelle di destinazione");images.screen.sections.focusCard(ImageScreen.FILES);return;}
+        ArrayList<String> inputs=new ArrayList<>(images.state.inputs),folders=images.destinations.snapshot();images.state.starting=true;images.state.startingAt=0;images.state.previousRun=ImageConversionService.snapshot().startedAt;images.render();
         worker.execute(()->{
-            String failure=null;try{OutputDocuments.names(images.activity,Uri.parse(options.folder));}catch(Exception e){failure=e.getMessage();}
+            String failure=null;try{for(String folder:new HashSet<>(folders))OutputDocuments.names(images.activity,Uri.parse(folder));}catch(Exception e){failure=e.getMessage();}
             String error=failure;images.activity.runOnUiThread(()->{
                 if(closed)return;if(error!=null){images.state.starting=false;images.state.notice="Cartella non accessibile: "+error;images.render();images.toast(images.state.notice);return;}
-                Intent request=new Intent(images.activity,ImageConversionService.class).setAction(ImageConversionService.START).putStringArrayListExtra("inputs",inputs);options.put(request);
+                Intent request=new Intent(images.activity,ImageConversionService.class).setAction(ImageConversionService.START).putStringArrayListExtra("inputs",inputs).putStringArrayListExtra("folders",folders);options.put(request);
                 try{images.state.startingAt=android.os.SystemClock.elapsedRealtime();images.activity.startForegroundService(request);images.screen.sections.focusCard(ImageScreen.HEIC);images.render();}
                 catch(RuntimeException e){images.state.starting=false;images.state.notice="Avvio immagini non riuscito: "+e.getMessage();images.render();images.toast(images.state.notice);}
             });
         });
     }
-    void cancel(){ImageRunState run=ImageConversionService.snapshot();if(!run.running||run.cancelling)return;new AlertDialog.Builder(images.activity).setTitle("Interrompere la coda immagini?").setMessage("La fase di codifica in corso deve terminare prima dell’annullamento. I file già salvati restano disponibili.").setPositiveButton("Interrompi",(d,w)->images.activity.startService(new Intent(images.activity,ImageConversionService.class).setAction(ImageConversionService.CANCEL).putExtra("startedAt",run.startedAt))).setNegativeButton("Continua",null).show();}
-    void close(){closed=true;worker.shutdownNow();}
+    void cancel(){ImageRunState run=ImageConversionService.snapshot();if(!run.running||run.cancelling)return;cancelConfirmation=new AlertDialog.Builder(images.activity).setTitle("Annullare la conversione?").setMessage("La fase di codifica in corso deve terminare prima dell’annullamento. I file già salvati restano disponibili.").setPositiveButton("Sì, annulla",(d,w)->images.activity.startService(new Intent(images.activity,ImageConversionService.class).setAction(ImageConversionService.CANCEL).putExtra("startedAt",run.startedAt))).setNegativeButton("Continua",null).create();cancelConfirmation.show();}
+    void clearLog(){
+        if(images.busy())return;
+        logConfirmation=new AlertDialog.Builder(images.activity).setTitle("Cancellare il log immagini?").setMessage("Le foto e il resoconto restano conservati.")
+            .setNegativeButton("Indietro",null).setPositiveButton("Cancella",(d,w)->{java.io.File file=new java.io.File(images.activity.getFilesDir(),ImageConversionService.LOG);if(file.exists()&&!file.delete()){images.toast("Impossibile cancellare il log immagini");return;}ImageConversionService.clearLog();images.render();}).create();logConfirmation.show();
+    }
+    void close(){closed=true;if(cancelConfirmation!=null)cancelConfirmation.dismiss();if(logConfirmation!=null)logConfirmation.dismiss();worker.shutdownNow();}
 }

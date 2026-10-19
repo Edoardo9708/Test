@@ -47,19 +47,19 @@ final class HomeDestinations {
         });
         home.screen.destinations.pickAllFolder.setOnClickListener((v)->launchFolderPicker(PICK_ALL_FOLDER, null));
         home.screen.destinations.videoOrigin.setOnCheckedChangeListener((v,checked)->{
-            if (!home.state.updatingDestinationUi && !home.state.selectedInputs.isEmpty()) {
+            if (!home.screen.destinations.updating && !home.state.selectedInputs.isEmpty()) {
                 home.state.destinationPlan.files.get(home.state.selectedVideoIndex).origin = checked;
                 destinationsChanged();
             }
         });
         home.screen.destinations.applyAllDestinations.setOnCheckedChangeListener((v,checked)->{
-            if (!home.state.updatingDestinationUi) {
+            if (!home.screen.destinations.updating) {
                 home.state.destinationPlan.applyAll = checked;
                 destinationsChanged();
             }
         });
         home.screen.destinations.allOrigin.setOnCheckedChangeListener((v,checked)->{
-            if (!home.state.updatingDestinationUi) {
+            if (!home.screen.destinations.updating) {
                 home.state.destinationPlan.all.origin = checked;
                 destinationsChanged();
             }
@@ -124,19 +124,9 @@ final class HomeDestinations {
     }
 
     void refreshLabels() {
-        home.screen.destinations.body.setVisibility(home.state.selectedInputs.isEmpty() ? View.GONE : View.VISIBLE);
         home.screen.files.videoLabel.setText(home.state.input == null ? "Nessun video selezionato" : home.state.sourceName);
         home.selection.updateVideoSelection(false);
-        home.state.updatingDestinationUi = true;
-        home.screen.destinations.applyAllDestinations.setChecked(home.state.destinationPlan.applyAll);
-        home.screen.destinations.allOrigin.setChecked(home.state.destinationPlan.all.origin);
-        home.screen.destinations.allFolderLabel.setText(home.state.destinationPlan.all.origin ? "Ogni video nella propria directory di origine" : folderPath(home.state.destinationPlan.all.folder));
-        boolean selected = !home.state.selectedInputs.isEmpty() && home.state.selectedVideoIndex < home.state.destinationPlan.files.size();
-        home.screen.destinations.videoDestinationTitle.setText(selected ? "DESTINAZIONE · VIDEO " + (home.state.selectedVideoIndex + 1) + " DI " + home.state.selectedInputs.size() : "DESTINAZIONE DEL VIDEO");
-        home.screen.destinations.videoDestinationHelp.setText(home.state.destinationPlan.applyAll ? "È attiva la regola della coda. La scelta individuale qui sotto viene conservata." : "Questa scelta riguarda solo il video visualizzato.");
-        home.screen.destinations.videoOrigin.setChecked(selected && home.state.destinationPlan.files.get(home.state.selectedVideoIndex).origin);
-        home.screen.destinations.folderLabel.setText(selected ? (home.state.destinationPlan.files.get(home.state.selectedVideoIndex).origin ? "Directory di origine del video selezionato" : folderPath(home.state.destinationPlan.files.get(home.state.selectedVideoIndex).folder)) : "Seleziona prima un video");
-        home.state.updatingDestinationUi = false;
+        home.screen.destinations.render(home.state.destinationPlan,home.state.selectedInputs.size(),home.state.selectedVideoIndex,home.state.busy,home.state.choosingOrigins);
     }
 
     void onFolderResult(int request, int code, Intent data) {

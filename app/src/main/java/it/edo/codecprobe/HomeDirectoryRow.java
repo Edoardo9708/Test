@@ -11,6 +11,9 @@ import android.widget.*;
 final class HomeDirectoryRow {
     
     static Button add(AppUi ui, LinearLayout parent, String directory, String videos, boolean allowed, boolean manual, Runnable authorize) {
+        return add(ui,parent,directory,videos,allowed,manual,authorize,MediaKind.VIDEO);
+    }
+    static Button add(AppUi ui, LinearLayout parent, String directory, String numbers, boolean allowed, boolean manual, Runnable authorize, MediaKind kind) {
         int color = android.graphics.Color.parseColor(allowed ? (ui.dark ? "#83D9A2" : "#176D37") : (ui.dark ? "#FF9B98" : "#AF2424"));
         LinearLayout tile = ui.panel(parent);
         GradientDrawable background = ui.shape(ui.bg, 14);
@@ -27,7 +30,7 @@ final class HomeDirectoryRow {
         TextView path = ui.text(description, directory, 14);
         path.setTextColor(ui.ink);
         path.setTextIsSelectable(true);
-        ui.text(description, "Video: " + videos + (manual ? " \u00b7 origine associata manualmente" : ""), 12);
+        ui.text(description, kind.title+": " + numbers + (manual ? " \u00b7 origine associata manualmente" : ""), 12);
         Button action = new Button(ui.activity);
         action.setText(allowed ? "Gestisci" : "Autorizza");
         ui.styleButton(action, false);

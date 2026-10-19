@@ -21,6 +21,7 @@ final class ImageSelection {
         images.activity.startActivityForResult(new Intent(Intent.ACTION_CREATE_DOCUMENT).setType("application/json").addCategory(Intent.CATEGORY_OPENABLE).putExtra(Intent.EXTRA_TITLE,"v"+BuildConfig.VERSION_NAME+"-foto-inventario-"+System.currentTimeMillis()+".json"),REPORT);
     }
     void result(int request,int code,Intent data){
+        if(images.destinations.result(request,code,data))return;
         if(request==REPORT){String input=pendingInput;pendingInput=null;if(code==Activity.RESULT_OK&&data!=null&&data.getData()!=null&&input!=null)images.export(Uri.parse(input),data.getData());return;}
         if(request==LOG){if(code==Activity.RESULT_OK&&data!=null&&data.getData()!=null)images.exportLog(data.getData());return;}
         if(code!=Activity.RESULT_OK||data==null||images.busy())return;
@@ -33,7 +34,7 @@ final class ImageSelection {
         if(values.size()>100){images.toast("Seleziona al massimo 100 foto.");return;}
         boolean temporary=false;
         for(String value:values)try{images.activity.getContentResolver().takePersistableUriPermission(Uri.parse(value),Intent.FLAG_GRANT_READ_URI_PERMISSION);}catch(SecurityException e){temporary=true;}
-        images.screen.selectedItem.cancelTransition();ImageMetadataCache.memory.clear();images.state.names.clear();images.state.inputs.clear();images.state.inputs.addAll(values);images.state.selected=0;images.open();images.readNames();
+        images.screen.selectedItem.cancelTransition();ImageMetadataCache.memory.clear();images.state.names.clear();images.state.inputs.clear();images.state.inputs.addAll(values);images.state.selected=0;images.state.destinations.reset(images.state.inputs,images.state.options.folder);images.open();images.readNames();
         if(temporary)images.toast("Alcune foto concedono solo accesso temporaneo: potrebbe servire riselezionarle dopo la chiusura.");
     }
 }

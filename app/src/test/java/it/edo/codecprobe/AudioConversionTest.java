@@ -47,7 +47,7 @@ public class AudioConversionTest {
         var controller=Robolectric.buildActivity(AudioActivity.class).setup();
         try{
             AudioController audio=controller.get().audio;audio.state.inputs.add("content://songs/a");audio.state.names.add("a.flac");audio.state.folder="content://music/tree/chosen";audio.render();
-            assertTrue(audio.screen.start.isEnabled());assertFalse(audio.screen.cancel.isEnabled());
+            assertFalse(audio.screen.start.isEnabled());assertFalse(audio.screen.cancel.isEnabled());
             audio.screen.clear.performClick();assertTrue(audio.state.names.isEmpty());assertEquals("content://music/tree/chosen",audio.state.folder);
             assertTrue(audio.screen.parameters.getText().toString().equals("—"));
             assertTrue(audio.screen.status.getText().toString().contains("Opus"));

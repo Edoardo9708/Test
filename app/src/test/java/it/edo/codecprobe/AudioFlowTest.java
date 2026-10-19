@@ -31,12 +31,13 @@ public class AudioFlowTest {
     @After public void after()throws Exception{audioState.set(null,oldAudio);videoState.set(null,oldVideo);context.getSharedPreferences("audio-workspace",0).edit().clear().commit();}
     public static class Names extends ContentProvider {
         public boolean onCreate(){return true;}
-        public Cursor query(Uri uri,String[] columns,String s,String[] a,String sort){MatrixCursor cursor=new MatrixCursor(columns);if(!"children".equals(uri.getLastPathSegment())){Object[] row=new Object[columns.length];for(int n=0;n<columns.length;n++)row[n]="_size".equals(columns[n])?12345L:uri.getLastPathSegment();cursor.addRow(row);}return cursor;}
+        public Cursor query(Uri uri,String[] columns,String s,String[] a,String sort){MatrixCursor cursor=new MatrixCursor(columns);if(!"children".equals(uri.getLastPathSegment())){Object[] row=new Object[columns.length];for(int n=0;n<columns.length;n++)row[n]="_size".equals(columns[n])?12345L:android.provider.DocumentsContract.Document.COLUMN_MIME_TYPE.equals(columns[n])?android.provider.DocumentsContract.Document.MIME_TYPE_DIR:android.provider.DocumentsContract.Document.COLUMN_FLAGS.equals(columns[n])?android.provider.DocumentsContract.Document.FLAG_DIR_SUPPORTS_CREATE:uri.getLastPathSegment();cursor.addRow(row);}return cursor;}
         public String getType(Uri uri){return "audio/flac";}
         public Uri insert(Uri u,ContentValues v){throw new AssertionError();}public int delete(Uri u,String s,String[] a){throw new AssertionError();}public int update(Uri u,ContentValues v,String s,String[] a){throw new AssertionError();}
     }
-    private void chosen(AudioController audio,String... names){for(String name:names){audio.state.inputs.add("content://songs/"+name);audio.state.names.add(name);}audio.state.folder="content://dirs/tree/music";audio.render();}
-    private void await(AudioController audio)throws Exception{audio.selection.worker.submit(()->{}).get(5,TimeUnit.SECONDS);Shadows.shadowOf(Looper.getMainLooper()).idle();}
+    private void chosen(AudioController audio,String... names)throws Exception{for(String name:names){audio.state.inputs.add("content://songs/"+name);audio.state.names.add(name);}audio.state.folder="content://dirs/tree/music";MediaDestinationsTest.grant(audio.activity,audio.state.folder);audio.render();ready(audio);}
+    private void ready(AudioController audio)throws Exception{long end=System.currentTimeMillis()+5000;while(!audio.destinations.ready()&&System.currentTimeMillis()<end){Shadows.shadowOf(Looper.getMainLooper()).idle();Thread.sleep(5);}assertTrue(audio.destinations.ready());}
+    private void await(AudioController audio)throws Exception{audio.selection.worker.submit(()->{}).get(5,TimeUnit.SECONDS);Shadows.shadowOf(Looper.getMainLooper()).idle();if(!audio.state.inputs.isEmpty()&&audio.state.folder!=null)ready(audio);audio.selection.worker.submit(()->{}).get(5,TimeUnit.SECONDS);Shadows.shadowOf(Looper.getMainLooper()).idle();}
     @Test public void everySelectedTrackCanBeInspectedAndRemoved(){
         var controller=Robolectric.buildActivity(AudioActivity.class).setup();try{
             AudioController audio=controller.get().audio;for(int n=0;n<13;n++){audio.state.inputs.add("content://songs/"+n+".flac");audio.state.names.add(n+".flac");}audio.render();
@@ -90,7 +91,7 @@ public class AudioFlowTest {
             run.results.add(new AudioRunState.Result("cancel.flac","content://songs/cancel.flac",null,-1,0,"Annullato",AudioRunState.Outcome.CANCELLED));
             run.results.add(new AudioRunState.Result("large.flac","content://songs/large.flac",null,100,120,"Nessun risparmio",AudioRunState.Outcome.NOT_SAVED));
             run.results.add(new AudioRunState.Result("fail.flac","content://songs/fail.flac",null,-1,0,"Errore",AudioRunState.Outcome.FAILED));audioState.set(null,run);
-            AudioController audio=controller.get().audio;audio.state.folder="content://dirs/tree/music";audio.renderRun();assertTrue(audio.screen.summary.getText().toString().contains("falliti 1"));assertEquals("100%",audio.screen.totalProgress.getText().toString());
+            AudioController audio=controller.get().audio;audio.state.folder="content://dirs/tree/music";MediaDestinationsTest.grant(audio.activity,audio.state.folder);audio.renderRun();assertTrue(audio.screen.summary.getText().toString().contains("falliti 1"));assertEquals("100%",audio.screen.totalProgress.getText().toString());
             audio.actions.retry();await(audio);Intent launch=Shadows.shadowOf(controller.get()).getNextStartedService();assertNotNull(launch);assertEquals(List.of("content://songs/fail.flac"),launch.getStringArrayListExtra("inputs"));
         }finally{controller.pause().stop().destroy();}
     }
