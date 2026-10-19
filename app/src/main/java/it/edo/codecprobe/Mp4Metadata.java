@@ -13,7 +13,10 @@ import java.util.function.Consumer;
 final class Mp4Metadata {
     private static final Set<String> CONTAINERS=new HashSet<>(Arrays.asList("moov","trak","mdia","minf","stbl"));
     private static final Set<String> TAGS=new HashSet<>(Arrays.asList("udta","meta","uuid","meco"));
-    private static final Set<String> ROOT_ALLOWED=new HashSet<>(Arrays.asList("ftyp","mdat","moov","free","skip","wide","udta","meta","uuid","meco","sefd"));
+    private static final Set<String> ROOT_TAGS=new HashSet<>(Arrays.asList("udta","meta","uuid","meco","beam"));
+    // Exact 16-byte marker observed in all eleven failing files; no guessed flag semantics.
+    private static final byte[] BEAM_MARKER={1,0,0,0,1,0,0,0,0,0,0,0,2,0,0,0};
+    private static final Set<String> ROOT_ALLOWED=new HashSet<>(Arrays.asList("ftyp","mdat","moov","free","skip","wide","udta","meta","uuid","meco","sefd","beam"));
     private static final class Box {
         FileChannel file;long at,size;int header;String type;List<Box> children;byte[] patched,prefix;
         long payload(){if(patched!=null)return patched.length;if(children==null)return size-header;long n=prefix==null?0:prefix.length;for(Box b:children)n=Math.addExact(n,b.outputSize());return n;}
@@ -60,7 +63,13 @@ final class Mp4Metadata {
             result.add(box);at+=size;
         }return result;
     }
+    private void validateBeam(Box b)throws IOException{
+        if(b.size-b.header!=BEAM_MARKER.length||!Arrays.equals(read(b.file,b.at+b.header,BEAM_MARKER.length),BEAM_MARKER))
+            throw new IOException("Variante beam non riconosciuta: atteso il marcatore verificato di 16 byte");
+        log.accept("OK BLOCCO beam · marcatore riconosciuto, conservato come metadato originale senza interpretare i campi");
+    }
     private void validateTags(Box b)throws IOException{
+        if(b.type.equals("beam"))throw new IOException("Blocco beam annidato non supportato");
         if(b.type.equals("uuid")){
             byte[] known={(byte)0xbe,0x7a,(byte)0xcf,(byte)0xcb,(byte)0x97,(byte)0xa9,0x42,(byte)0xe8,(byte)0x9c,0x71,(byte)0x99,(byte)0x94,(byte)0x91,(byte)0xe3,(byte)0xaf,(byte)0xac};
             if(b.size-b.header<16||!Arrays.equals(read(b.file,b.at+b.header,16),known))throw new IOException("UUID proprietario non riconosciuto: impossibile garantire che non contenga riferimenti ai vecchi dati video");
@@ -73,6 +82,7 @@ final class Mp4Metadata {
             }
             List<Box> children=parse(b.file,begin,b.at+b.size,0);
             for(Box c:children){
+                if(c.type.equals("beam"))throw new IOException("Blocco beam annidato non supportato");
                 if(c.type.equals("sefd"))throw new IOException("SEF annidato non supportato");
                 if(c.type.equals("iloc")||c.type.equals("idat")||c.type.equals("iref")||c.type.equals("pitm"))throw new IOException("Metadati a oggetti con riferimenti ai dati originali non ancora supportati ("+c.type+")");
                 if(TAGS.contains(c.type))validateTags(c);
@@ -94,8 +104,9 @@ final class Mp4Metadata {
                 " · dimensione file="+f.size()+" byte\nBlocchi principali: "+layout);
         }
         if(of(roots,"sefd").size()>1)throw new IOException("Più blocchi Samsung SEF non supportati");
+        if(of(roots,"beam").size()>1)throw new IOException("Più blocchi beam non supportati");
         for(Box b:roots){
-            validateTags(b);
+            if(b.type.equals("beam"))validateBeam(b);else validateTags(b);
             if(b.type.equals("sefd")){
                 if(b.at+b.size!=f.size()||b.header!=8||b.size>SamsungSef.MAX_BYTES)throw new IOException("SEF deve essere un blocco finale autonomo entro 4 MiB");
                 String info=SamsungSef.validate(read(f,b.at,(int)b.size),b.at);
@@ -202,17 +213,22 @@ final class Mp4Metadata {
         List<Box> input=roots(source);
         try(RandomAccessFile destination=new RandomAccessFile(target,"rw")){
             FileChannel file=destination.getChannel();List<Box> output=roots(file);Box old=first(output,"moov"),original=first(input,"moov");
-            merge(original,old,"moov");long start=file.size();file.position(start);write(old,file);
+            merge(original,old,"moov");long start=file.size();file.position(start);
+            // Keep the marker before the active moov while leaving every media offset fixed.
+            Box beam=first(input,"beam");
+            if(beam!=null){write(beam,file);copied+=beam.size;log.accept("COPIA BLOCCO root/beam · marcatore originale prima del nuovo moov");}
+            write(old,file);
             for(Box b:input)if(TAGS.contains(b.type)){write(b,file);matches.add(new Match(b,b,"root/"+b.type));copied+=b.size;log.accept("COPIA BLOCCO root/"+b.type+" · "+b.size+" byte");}
             // SEFT must stay at EOF; no bytes may be appended after this block.
             Box sef=first(input,"sefd");
             if(sef!=null){file.position(file.size());write(sef,file);copied+=sef.size;log.accept("*** COPIA METADATI SAMSUNG SEF ***\nRecord originale mantenuto in fondo al file · "+sef.size+" byte\nDirectory con riferimenti relativi conservata; tutti i record SEF riconosciuti restano invariati.");}
             // Old movie atom becomes padding: all mdat/stco/co64 media offsets stay fixed.
-            free(old,file);for(Box b:output)if(TAGS.contains(b.type)||b.type.equals("sefd"))free(b,file);
+            free(old,file);for(Box b:output)if(ROOT_TAGS.contains(b.type)||b.type.equals("sefd"))free(b,file);
             file.force(true);
             List<Box> result=roots(file);Box movie=first(result,"moov");verifyTree(original,movie,"moov");
-            for(String type:TAGS){List<Box> src=of(input,type),dst=of(result,type);verifyOpaque(src,dst,"root/"+type);}
+            for(String type:ROOT_TAGS){List<Box> src=of(input,type),dst=of(result,type);verifyOpaque(src,dst,"root/"+type);}
             verifyOpaque(of(input,"sefd"),of(result,"sefd"),"root/sefd");
+            if(beam!=null)log.accept("OK beam · payload originale identico (SHA-256), un solo blocco nel risultato");
             if(sef!=null)log.accept("OK SAMSUNG SEF · contenuto originale identico (SHA-256), directory riletta e valida nel nuovo file");
             log.accept("OK METADATI verificati byte per byte: "+copied+" byte descrittivi; date originali valide e lingue conservate"+(fallbackCreationSeconds>0?"; date di creazione mancanti recuperate da Android e verificate":"")+". Indici e codec rigenerati.");
         }

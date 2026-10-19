@@ -42,6 +42,33 @@ public final class Mp4MetadataTest {
             try(FileChannel f=FileChannel.open(output)){Mp4Metadata.check(f,()->false);}
         }
     }
+    static void beam(Path input,Path output)throws Exception{
+        byte[] marker={1,0,0,0,1,0,0,0,0,0,0,0,2,0,0,0};
+        byte[] beam=box("beam",marker);
+        String expected="a45c72ee5c46d6b8872ca4a5f594dca64b919e36a87a5d659b0f7217afdf2531";
+        if(!HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256").digest(marker)).equals(expected))throw new AssertionError("Observed beam fixture changed");
+        for(boolean hasMarker:new boolean[]{false,true})for(boolean targetMarker:new boolean[]{false,true})for(boolean hasSef:new boolean[]{false,true}){
+            byte[] original=join(box("ftyp",new byte[16]),hasMarker?beam:new byte[0],movie(1234,true),box("mdat",new byte[]{11,22,33,44,55}),hasSef?sef():new byte[0]);
+            byte[] before=join(content(false),targetMarker?beam:new byte[0]);
+            Files.write(input,original);Files.write(output,before);List<String> log=new ArrayList<>();
+            try(FileChannel src=FileChannel.open(input)){Mp4Metadata.copy(src,output.toFile(),()->false,log::add);}
+            byte[] after=Files.readAllBytes(output);
+            for(int i=0;i<37;i++)if(before[i]!=after[i])throw new AssertionError("beam copy moved media");
+            int count=0,markerAt=-1,movieAt=-1;
+            for(int at=0;at<after.length;){ByteBuffer b=ByteBuffer.wrap(after);int size=b.getInt(at);if(size<8||size>after.length-at)throw new AssertionError("Invalid relocated root box");String type=new String(after,at+4,4,java.nio.charset.StandardCharsets.US_ASCII);
+                if(type.equals("beam")){count++;markerAt=at;if(!Arrays.equals(beam,Arrays.copyOfRange(after,at,at+size)))throw new AssertionError("beam bytes changed");}
+                if(type.equals("moov"))movieAt=at;at+=size;
+            }
+            if(count!=(hasMarker?1:0))throw new AssertionError("beam duplicated, missing or retained from muxer");
+            if(hasMarker&&(markerAt>=movieAt||!String.join("\n",log).contains("payload originale identico")))throw new AssertionError("beam order or verification missing");
+            if(hasSef&&!Arrays.equals(sef(),Arrays.copyOfRange(after,after.length-sef().length,after.length)))throw new AssertionError("SEF not final after beam copy");
+        }
+        for(int i=0;i<marker.length;i++){byte[] changed=marker.clone();changed[i]^=1;rejected(input,join(content(false),box("beam",changed)),"Unknown beam flags accepted");}
+        for(int size:new int[]{0,15,17})rejected(input,join(content(false),box("beam",Arrays.copyOf(marker,size))),"Unknown beam size accepted");
+        rejected(input,join(content(false),beam,beam),"Duplicate beam accepted");
+        rejected(input,join(content(false),box("udta",beam)),"Nested beam accepted");
+        rejected(input,join(box("ftyp",new byte[16]),box("mdat",new byte[5]),box("moov",join(dates("mvhd",1234,1235,0),beam))),"beam inside moov accepted");
+    }
     static byte[] sef()throws Exception{
         byte[] name="HighlightVideo_Data".getBytes(java.nio.charset.StandardCharsets.US_ASCII);
         byte[] data="   AutoSum 10\n TMDI\n 1\n 21\n 1234567890\n SMDI\n 2\n 81\n 0 525 3525 3000 0 0 66 0\n 1 4000 7000 3000 0 0 533 0\n".getBytes(java.nio.charset.StandardCharsets.US_ASCII);
@@ -58,6 +85,7 @@ public final class Mp4MetadataTest {
         Path input=Files.createTempFile("meta-source-",".mp4"),output=Files.createTempFile("meta-target-",".mp4");
         try{
             colors(input,output);
+            beam(input,output);
             for(boolean tags:new boolean[]{false,true}){
                 Files.write(input,content(tags));byte[] before=content(false);Files.write(output,before);
                 try(FileChannel src=FileChannel.open(input)){Mp4Metadata.copy(src,output.toFile(),()->false,s->{});}
