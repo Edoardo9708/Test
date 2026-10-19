@@ -12,8 +12,20 @@ public final class ColorVuiTest {
     String diagnostic=String.join("\n",logs);
     if(!diagnostic.contains("HEX payload colr:")||!diagnostic.contains("Tipo dichiarazione: nclx"))throw new AssertionError("Original colr diagnostic missing");
     if(transfer==6&&!diagnostic.contains("Trasferimento: MP4=6 · SPS=1"))throw new AssertionError("Mismatch values missing before rejection");
-    if(failed!=(transfer==6))throw new AssertionError("Conflicting container transfer not detected");
+    if(failed)throw new AssertionError("Single colr override must be preserved separately");
    }
+   // Exact SPS and colr from both failing 2017 recordings.
+   ColorVui contradictory=ColorVui.read("video/avc",hex("000000016742801fda014016e958303030368509a8"));
+   if(contradictory.primaries!=6||contradictory.transfer!=6||contradictory.matrix!=6||!contradictory.fullRange)throw new AssertionError("2017 fixture differs");
+   byte[] override=hex("00000013636f6c726e636c7800010001000100");
+   java.nio.file.Files.write(path,override);
+   try(java.nio.channels.FileChannel f=java.nio.channels.FileChannel.open(path)){
+    if(!ContainerColor.check(f,contradictory).same(contradictory))throw new AssertionError("Conflicting colr overwrote original SPS");
+   }
+   java.nio.file.Files.write(path,java.nio.ByteBuffer.allocate(override.length*2).put(override).put(override).array());
+   try(java.nio.channels.FileChannel f=java.nio.channels.FileChannel.open(path)){
+    ContainerColor.check(f,contradictory);throw new AssertionError("Duplicate colr accepted");
+   }catch(java.io.IOException expected){}
    ColorVui original=ColorVui.read("video/avc",hex("0000000167640028acb403c0113f2a"));
    if(original.descriptionPresent||original.signalPresent||original.primaries!=2)throw new AssertionError("Actual Samsung AVC fixture must have no color declaration");
    for(boolean full:new boolean[]{false,true}){

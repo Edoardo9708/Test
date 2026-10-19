@@ -15,8 +15,8 @@ final class Mp4Metadata {
     private static final Set<String> TAGS=new HashSet<>(Arrays.asList("udta","meta","uuid","meco"));
     private static final Set<String> ROOT_ALLOWED=new HashSet<>(Arrays.asList("ftyp","mdat","moov","free","skip","wide","udta","meta","uuid","meco","sefd"));
     private static final class Box {
-        FileChannel file;long at,size;int header;String type;List<Box> children;byte[] patched;
-        long payload(){if(patched!=null)return patched.length;if(children==null)return size-header;long n=0;for(Box b:children)n=Math.addExact(n,b.outputSize());return n;}
+        FileChannel file;long at,size;int header;String type;List<Box> children;byte[] patched,prefix;
+        long payload(){if(patched!=null)return patched.length;if(children==null)return size-header;long n=prefix==null?0:prefix.length;for(Box b:children)n=Math.addExact(n,b.outputSize());return n;}
         int outputHeader(){return payload()>0xffffffffL-8?16:8;}
         long outputSize(){return payload()+outputHeader();}
     }
@@ -111,6 +111,7 @@ final class Mp4Metadata {
         return new String(read(h.file,h.at+h.header+8,4),StandardCharsets.ISO_8859_1);
     }
     private void merge(Box source,Box target,String path)throws IOException{
+        if(source.type.equals("stsd")){copyColors(source,target,path);return;}
         if(source.children==null){if(source.type.equals("mvhd")||source.type.equals("tkhd")||source.type.equals("mdhd")||source.type.equals("hdlr"))patchHeader(source,target,path);return;}
         List<Box> tags=new ArrayList<>();for(Box b:source.children)if(TAGS.contains(b.type))tags.add(b);
         target.children.removeIf(b->TAGS.contains(b.type));
@@ -126,9 +127,46 @@ final class Mp4Metadata {
                 for(Box t:target.children)if(t.type.equals("trak")&&handler(t).equals(kind)){if(seen++==n){paired=t;break;}}
                 if(paired==null)throw new IOException("Metadati della traccia "+kind+" non conservabili: manca la traccia nel risultato");
             }else paired=first(target.children,b.type);
-            if(paired!=null&&(CONTAINERS.contains(b.type)||b.type.equals("mvhd")||b.type.equals("tkhd")||b.type.equals("mdhd")||b.type.equals("hdlr")))merge(b,paired,path+"/"+b.type);
+            if(paired!=null&&(CONTAINERS.contains(b.type)||b.type.equals("mvhd")||b.type.equals("tkhd")||b.type.equals("mdhd")||b.type.equals("hdlr")||b.type.equals("stsd")))merge(b,paired,path+"/"+b.type);
             else if(CONTAINERS.contains(b.type)&&hasTags(b))throw new IOException("Metadati in "+path+"/"+b.type+" non conservabili");
         }
+    }
+    private static boolean visual(String type){return Arrays.asList("avc1","avc3","hvc1","hev1").contains(type);}
+    /** Parse sample descriptions only here: codec configuration atoms remain opaque. */
+    private Box visualEntry(Box stsd)throws IOException{
+        if(stsd.children==null){
+            if(stsd.size-stsd.header<8)throw new IOException("stsd colore incompleto");
+            stsd.prefix=read(stsd.file,stsd.at+stsd.header,8);
+            stsd.children=parse(stsd.file,stsd.at+stsd.header+8,stsd.at+stsd.size,0);
+            if(ByteBuffer.wrap(stsd.prefix).getInt(4)!=stsd.children.size())throw new IOException("Conteggio descrizioni stsd non valido");
+        }
+        Box video=null;
+        for(Box entry:stsd.children)if(visual(entry.type)){
+            if(stsd.children.size()!=1)throw new IOException("Descrizioni video multiple: conservazione colr non supportata");
+            if(entry.children==null){
+                if(entry.size-entry.header<78)throw new IOException("Descrizione video colore incompleta");
+                entry.prefix=read(entry.file,entry.at+entry.header,78);
+                entry.children=parse(entry.file,entry.at+entry.header+78,entry.at+entry.size,0);
+            }
+            video=entry;
+        }
+        return video;
+    }
+    private void copyColors(Box source,Box target,String path)throws IOException{
+        Box input=visualEntry(source);if(input==null)return;
+        List<Box> colors=of(input.children,"colr");if(colors.isEmpty())return;
+        if(colors.size()!=1)throw new IOException("Più dichiarazioni colr nella descrizione video");
+        Box output=visualEntry(target);if(output==null)throw new IOException("Descrizione video di uscita mancante per colr");
+        output.children.removeIf(b->b.type.equals("colr"));
+        output.children.addAll(colors);
+        copied+=colors.get(0).size;
+        log.accept("COPIA COLORE CONTENITORE "+path+" · colr originale separato dal VUI del flusso, senza conversione colore");
+    }
+    private void verifyColors(Box source,Box target,String path)throws Exception{
+        Box input=visualEntry(source);if(input==null||of(input.children,"colr").isEmpty())return;
+        Box output=visualEntry(target);if(output==null)throw new IOException("Verifica colr: descrizione video mancante");
+        verifyOpaque(of(input.children,"colr"),of(output.children,"colr"),path+"/colr");
+        log.accept("OK COLORE CONTENITORE · colr originale identico (SHA-256), indipendente dal VUI HEVC");
     }
     private boolean hasTags(Box b){if(b.children==null)return false;for(Box c:b.children)if(TAGS.contains(c.type)||hasTags(c))return true;return false;}
     private void patchHeader(Box a,Box b,String path)throws IOException{
@@ -186,6 +224,8 @@ final class Mp4Metadata {
             if(TAGS.contains(x.type))continue;Box y=null;
             if(x.type.equals("trak")){String kind=handler(x);int n=used.getOrDefault(kind,0);used.put(kind,n+1);int seen=0;for(Box t:b.children)if(t.type.equals("trak")&&handler(t).equals(kind)&&seen++==n){y=t;break;}}
             else y=first(b.children,x.type);
+            if(x.type.equals("stsd")&&y==null)throw new IOException("Descrizione video mancante nella verifica colore");
+            if(y!=null&&x.type.equals("stsd"))verifyColors(x,y,path+"/stsd");
             if(y!=null&&CONTAINERS.contains(x.type))verifyTree(x,y,path+"/"+x.type);
             if(y!=null&&(x.type.equals("mvhd")||x.type.equals("tkhd")||x.type.equals("mdhd")||x.type.equals("hdlr"))){byte[] expected=read(y.file,y.at+y.header,(int)(y.size-y.header));Box tmp=new Box();tmp.file=y.file;tmp.at=y.at;tmp.size=y.size;tmp.header=y.header;tmp.type=y.type;patchHeader(x,tmp,path);if(!Arrays.equals(expected,tmp.patched))throw new IOException("Verifica date/lingua fallita");}
         }
@@ -199,7 +239,7 @@ final class Mp4Metadata {
     private void free(Box b,FileChannel out)throws IOException{ByteBuffer h=ByteBuffer.allocate(b.header);if(b.header==16)h.putInt(1);else h.putInt((int)b.size);h.put("free".getBytes(StandardCharsets.ISO_8859_1));if(b.header==16)h.putLong(b.size);h.flip();out.position(b.at);put(out,h);}
     private void write(Box b,FileChannel out)throws IOException{
         cancelled();int head=b.outputHeader();long size=b.outputSize();ByteBuffer h=ByteBuffer.allocate(head);h.putInt(head==16?1:(int)size);h.put(b.type.getBytes(StandardCharsets.ISO_8859_1));if(head==16)h.putLong(size);h.flip();put(out,h);
-        if(b.children!=null){for(Box c:b.children)write(c,out);}
+        if(b.children!=null){if(b.prefix!=null)put(out,ByteBuffer.wrap(b.prefix));for(Box c:b.children)write(c,out);}
         else if(b.patched!=null)put(out,ByteBuffer.wrap(b.patched));
         else{ByteBuffer buffer=ByteBuffer.allocate(65536);long at=b.at+b.header,left=b.size-b.header;while(left>0){cancelled();buffer.clear();buffer.limit((int)Math.min(buffer.capacity(),left));b.file.position(at);int n=b.file.read(buffer);if(n<=0)throw new EOFException();buffer.flip();if(b.file==out)out.position(out.size());put(out,buffer);at+=n;left-=n;}}
     }

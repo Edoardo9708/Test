@@ -293,7 +293,7 @@ final class VideoConverter {
                 try(ParcelFileDescriptor.AutoCloseInputStream in=new ParcelFileDescriptor.AutoCloseInputStream(fd)){sourceColor=ContainerColor.check(in.getChannel(),sourceColor,this::onLog);}
             }
             onLog("*** CONSERVAZIONE DICHIARAZIONE COLORE ***");
-            onLog("COLORE DA CONSERVARE (SPS/VUI + colr): "+sourceColor+" · valori originali risolti, senza traduzione dell’enum SDR Android");
+            onLog("COLORE FLUSSO DA CONSERVARE (SPS/VUI): "+sourceColor+" · colr conservato separatamente nel contenitore; nessuna traduzione dell’enum SDR Android");
             hdr=sourceColor.transfer==16||sourceColor.transfer==18;
             if(hdr){
                 if(!"video/hevc".equals(inputMime))throw new IOException("Percorso HDR: richiesto HEVC Main10");
@@ -567,6 +567,11 @@ final class VideoConverter {
             MediaFormat format=e.getTrackFormat(track);
             if(integer(format,MediaFormat.KEY_WIDTH,0)!=width||integer(format,MediaFormat.KEY_HEIGHT,0)!=height) throw new IOException("Risoluzione MP4 errata");
             if(e.getTrackCount()!=(audioFormat==null?1:2)+metadataTracks.size()) throw new IOException("Conteggio tracce errato");
+            ByteBuffer outputCsd=format.getByteBuffer("csd-0");
+            if(outputCsd==null)throw new IOException("SPS HEVC mancante nella verifica finale");
+            byte[] outputHeaders=new byte[outputCsd.remaining()];outputCsd.duplicate().get(outputHeaders);
+            if(!sourceColor.same(ColorVui.read("video/hevc",outputHeaders)))throw new IOException("VUI del file finale diverso dal colore originale");
+            onLog("OK COLORE FILE FINALE · SPS/VUI verificato dopo la copia del colr originale");
             e.selectTrack(track);
             if(hdr){
                 final int[] verified={0};
