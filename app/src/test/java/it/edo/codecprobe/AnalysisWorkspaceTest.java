@@ -36,8 +36,23 @@ public class AnalysisWorkspaceTest {
         try{
             AnalysisScreen s=controller.get().analysis.screen;((Button)s.files.getChildAt(2)).performClick();await(s,"Sola lettura");assertEquals(2,s.blocks.getChildCount());assertTrue(((Button)s.blocks.getChildAt(0)).getText().toString().startsWith("Formato e compatibilità"));
             assertEquals(View.GONE,s.hexPanel.getVisibility());((Button)s.blocks.getChildAt(1)).performClick();await(s,"Sola lettura");assertEquals(1,s.blocks.getChildCount());assertTrue(s.frameTitle.getText().toString().contains("moov"));assertTrue(s.frameTitle.getText().toString().contains("Organizzazione del filmato"));assertNotSame(s.fileFrame,s.currentFrame.getParent());
-            ((Button)s.blocks.getChildAt(0)).performClick();s.hex.performClick();await(s,"Sola lettura");assertEquals(View.VISIBLE,s.hexPanel.getVisibility());assertTrue(s.next.isEnabled());s.next.performClick();await(s,"Sola lettura");assertTrue(s.pageLabel.getText().toString().contains("256"));
+            ((Button)s.blocks.getChildAt(0)).performClick();await(s,"Sola lettura");assertNotNull(s.popup);assertTrue(s.popup.isShowing());assertNotSame(s.map,s.details.getParent());assertTrue(s.anatomy.getChildCount()>0);s.hex.performClick();await(s,"Sola lettura");assertEquals(View.VISIBLE,s.hexPanel.getVisibility());assertTrue(s.next.isEnabled());s.next.performClick();await(s,"Sola lettura");assertTrue(s.pageLabel.getText().toString().contains("256"));
+            s.popup.dismiss();Shadows.shadowOf(Looper.getMainLooper()).idle();assertNull(s.popup);assertEquals(View.GONE,s.details.getVisibility());
+            ((Button)s.blocks.getChildAt(0)).performClick();await(s,"Sola lettura");assertNotNull(s.popup);assertEquals(View.GONE,s.hexPanel.getVisibility());
             controller.recreate();s=controller.get().analysis.screen;await(s,"Sola lettura");assertTrue(s.frameTitle.getText().toString().contains("Video.mp4"));assertEquals(2,s.blocks.getChildCount());s.back.performClick();assertEquals(View.VISIBLE,s.files.getVisibility());assertArrayEquals(data,Files.readAllBytes(file));
+        }finally{controller.pause().stop().destroy();Files.delete(file);}
+    }
+    @Test public void exifValueOpensItsExplanationAtTheTopOfAPopup()throws Exception{
+        byte[] tiff=AnalysisDetailReaderTest.orientation(true,6);ByteArrayOutputStream data=new ByteArrayOutputStream();DataOutputStream out=new DataOutputStream(data);
+        out.writeShort(0xffd8);out.writeShort(0xffe1);out.writeShort(tiff.length+8);out.write(new byte[]{'E','x','i','f',0,0});out.write(tiff);out.writeShort(0xffd9);
+        Path file=Files.createTempFile("popup-real-",".jpg");Files.write(file,data.toByteArray());AnalysisSources.video(Arrays.asList(Uri.fromFile(file.toFile()).toString()),Arrays.asList("Foto.jpg"));
+        var controller=Robolectric.buildActivity(AnalysisActivity.class).setup();try{
+            AnalysisScreen s=controller.get().analysis.screen;((Button)s.files.getChildAt(2)).performClick();await(s,"Sola lettura");
+            ((Button)s.blocks.getChildAt(1)).performClick();await(s,"Sola lettura");assertEquals(4,s.blocks.getChildCount());
+            ((Button)s.blocks.getChildAt(2)).performClick();await(s,"Sola lettura");assertNotNull(s.popup);assertTrue(s.popup.isShowing());
+            assertTrue(s.description.getText().toString().startsWith("NEL TUO FILE\n6 → rotazione di 90° in senso orario"));assertEquals(-1,s.map.indexOfChild(s.details));
+            assertTrue(s.anatomy.getChildCount()>=7);s.popup.dismiss();Shadows.shadowOf(Looper.getMainLooper()).idle();assertNull(s.popup);
+            assertEquals(4,s.blocks.getChildCount());s.explain.performClick();await(s,"Sola lettura");assertNotNull(s.popup);
         }finally{controller.pause().stop().destroy();Files.delete(file);}
     }
     @Test public void missingSourceIsReadableErrorAndAllowsReturn()throws Exception{

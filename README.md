@@ -1,3 +1,13 @@
+# v0.85 · spiegazione dei campi in popup
+
+Il tocco su un elemento non espandibile apre un popup scorrevole; il pulsante «Spiegazione di questo blocco» apre lo stesso dettaglio per il contenitore corrente. Il pannello descrittivo non è più collocato in fondo alla pagina. Il valore trovato compare subito in cima; seguono identificazione, schema dei byte, regole di lunghezza e significato.
+
+Le voci EXIF conservano coordinate e schema TIFF (tag, tipo, quantità, ordine byte, origine degli offset) senza buffer dei file. Il popup rilegge la voce e verifica lo schema prima di spiegare ID a 2 byte, tipo a 2 byte, quantità a 4 byte e spazio valore/offset a 4 byte. Distingue dati inline, byte non usati e dati esterni raggiunti tramite offset relativo al TIFF. Decodifica anteprime limitate di numeri, testo ASCII e frazioni; i byte UNDEFINED restano opachi. L’orientamento include i valori 1–8, quello presente nel file e la distinzione tra trasformazione e forma verticale/orizzontale.
+
+Le intestazioni ISO BMFF mostrano dimensione, ID ASCII, eventuale dimensione estesa e UUID; ftyp e ispe hanno campi specifici. I segmenti JPEG mostrano marcatore, lunghezza e firma (EXIF/XMP/ICC), distinguendo le regole di conteggio dai box. Sono descritti anche intestazione TIFF, blocchi FLAC e intestazione ID3. Payload e valori grandi sono mostrati solo in anteprima; HEX resta a pagine da 256 byte. Nessuna lettura dell’intero video. Chiusura e ricreazione annullano le letture pendenti.
+
+Verifiche aggiunte su byte order, otto orientamenti e valori sconosciuti, ASCII esterno, cambio tag, dimensioni box, lunghezze JPEG, tipi TIFF sconosciuti, troncamenti; prove Android del popup, chiusura/riapertura, HEX e ricreazione, con anteprime chiare/scure.
+
 # v0.84 · gerarchia e spiegazioni nella mappa Analisi
 
 La mappa mantiene visibile il confine del file e disegna il contenitore aperto al suo interno, con i livelli intermedi e i comandi per risalire. Nei percorsi profondi abbrevia soltanto il disegno: il percorso completo resta scritto sopra. I riquadri hanno un nome in italiano, il nome tecnico originale, il ruolo (contenitore, dati o indice/collegamento), la dimensione e una breve spiegazione. La selezione evidenzia il blocco corrispondente.

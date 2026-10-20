@@ -1,6 +1,7 @@
 package it.edo.codecprobe;
 
 import android.graphics.Typeface;
+import android.app.AlertDialog;
 import android.view.View;
 import android.view.ViewGroup;
 import android.text.SpannableStringBuilder;
@@ -14,12 +15,15 @@ import java.util.function.Consumer;
 /** Views only: readable block sizes, physical byte ranges, drill-down and optional HEX. */
 final class AnalysisScreen {
     final AppUi ui;
-    final LinearLayout files,map,trail,blocks,details,hexPanel;
+    final LinearLayout files,map,trail,blocks,details,hexPanel,anatomy;
     final LinearLayout fileFrame,currentFrame;
     final TextView contains,detailHeading;
     private final Map<AnalysisNode,Button> blockButtons=new IdentityHashMap<>();
     final TextView status,description,hexText,frameTitle,pageLabel;
-    final Button back,reload,hex,previous,next,more;
+    final Button back,reload,hex,previous,next,more,explain;
+    AlertDialog popup;
+    Runnable onDetailClosed;
+    private AnalysisNode popupNode;
     AnalysisScreen(AppUi ui){
         this.ui=ui;LinearLayout page=ui.newPage();
         ui.text(page,"Analisi",27);ui.text(page,"Struttura dei file · v"+BuildConfig.VERSION_NAME,14);
@@ -27,12 +31,13 @@ final class AnalysisScreen {
         LinearLayout actions=ui.row(map);back=ui.halfButton(actions,"Elenco file",false);reload=ui.halfButton(actions,"Rileggi file",false);
         trail=new LinearLayout(ui.activity);trail.setOrientation(LinearLayout.VERTICAL);map.addView(trail);
         fileFrame=ui.panel(map);fileFrame.setBackground(ui.shape(ui.surface,14));currentFrame=new LinearLayout(ui.activity);currentFrame.setOrientation(LinearLayout.VERTICAL);fileFrame.addView(currentFrame);
-        frameTitle=ui.text(currentFrame,"",18);frameTitle.setTypeface(null,Typeface.BOLD);contains=ui.text(currentFrame,"",14);
+        frameTitle=ui.text(currentFrame,"",18);frameTitle.setTypeface(null,Typeface.BOLD);explain=ui.button(currentFrame,"Spiegazione di questo blocco");contains=ui.text(currentFrame,"",14);
         blocks=new LinearLayout(ui.activity);blocks.setOrientation(LinearLayout.VERTICAL);currentFrame.addView(blocks);more=ui.button(currentFrame,"Mostra altri elementi");
-        details=ui.panel(map);detailHeading=ui.text(details,"ELEMENTO SELEZIONATO",12);detailHeading.setTextColor(ui.accent);description=ui.text(details,"",15);description.setTextIsSelectable(true);hex=ui.button(details,"Mostra byte HEX");
+        details=ui.panel(map);detailHeading=ui.text(details,"ELEMENTO SELEZIONATO",12);detailHeading.setTextColor(ui.accent);description=ui.text(details,"",15);description.setTextIsSelectable(true);anatomy=new LinearLayout(ui.activity);anatomy.setOrientation(LinearLayout.VERTICAL);details.addView(anatomy);hex=ui.button(details,"Mostra byte HEX");
         hexPanel=ui.panel(details);hexPanel.setVisibility(View.GONE);ui.text(hexPanel,"Offset assoluti nel file · HEX e ASCII",13);
         HorizontalScrollView scroll=new HorizontalScrollView(ui.activity);hexText=new TextView(ui.activity);hexText.setTypeface(Typeface.MONOSPACE);hexText.setTextSize(12);hexText.setTextColor(ui.ink);hexText.setTextIsSelectable(true);scroll.addView(hexText);hexPanel.addView(scroll);
         pageLabel=ui.text(hexPanel,"",13);LinearLayout paging=ui.row(hexPanel);previous=ui.halfButton(paging,"← 256 byte",false);next=ui.halfButton(paging,"256 byte →",false);
+        map.removeView(details);details.setVisibility(View.GONE);
         ui.install(page,new AppNavigation(ui,AppNavigation.Workspace.ANALYSIS));
     }
     void sources(List<AnalysisSources.Entry> entries,Consumer<AnalysisSources.Entry> select){
@@ -87,6 +92,38 @@ final class AnalysisScreen {
         detailHeading.setText("ELEMENTO SELEZIONATO · "+label.kind.toUpperCase(Locale.ITALY));
         description.setText(label.name+(label.name.equals(node.title)?"":"\nNome tecnico: "+node.title)+(label.meaning.isEmpty()?"":"\n\nCOSA SIGNIFICA\n"+label.meaning)+"\n\nDATI LETTI DAL FILE\n"+AnalysisLabels.facts(node)+"\n\nDOVE SI TROVA\nInizia al byte "+node.offset+" del file (0x"+Long.toHexString(node.offset).toUpperCase(Locale.ROOT)+").\nOccupa "+bytes(node.size)+".\nIl primo byte dopo questo elemento è "+node.end()+".");
         hexPanel.setVisibility(View.GONE);hex.setText("Mostra byte HEX");hex.setEnabled(node.size>0);
+    }
+    void openPopup(AnalysisNode node){
+        closePopup();popupNode=node;showDetails(node);anatomy.removeAllViews();description.setText("Leggo l’intestazione e i valori del campo…");hex.setEnabled(false);details.setVisibility(View.VISIBLE);
+        ScrollView scroll=new ScrollView(ui.activity);scroll.addView(details,new ScrollView.LayoutParams(-1,-2));
+        AlertDialog dialog=new AlertDialog.Builder(ui.activity).setTitle(AnalysisLabels.of(node).name).setView(scroll).setPositiveButton("Chiudi",null).create();
+        popup=dialog;dialog.setOnDismissListener(d->{
+            if(details.getParent()==scroll)scroll.removeView(details);
+            if(popup==dialog){popup=null;popupNode=null;details.setVisibility(View.GONE);if(onDetailClosed!=null)onDetailClosed.run();}
+        });
+        dialog.show();android.util.DisplayMetrics metrics=ui.activity.getResources().getDisplayMetrics();
+        dialog.getWindow().setLayout(Math.max(1,metrics.widthPixels-ui.dp(24)),Math.max(1,(int)(metrics.heightPixels*0.85f)));
+    }
+    void showDetail(AnalysisDetail detail){
+        if(popup==null)return;description.setTextColor(ui.ink);description.setText((detail.preview().isEmpty()?"":"NEL TUO FILE\n"+detail.preview()+"\n\n")+detail.introduction);anatomy.removeAllViews();
+        TextView heading=ui.text(anatomy,"COME SONO FATTI I BYTE",13);heading.setTypeface(null,Typeface.BOLD);heading.setTextColor(ui.accent);
+        for(AnalysisDetail.Part part:detail.parts){
+            LinearLayout panel=ui.panel(anatomy);TextView name=ui.text(panel,part.name,16);name.setTypeface(null,Typeface.BOLD);
+            ui.text(panel,part.size+" byte · inizio al byte "+part.offset+" del file",13);
+            TextView bytes=ui.text(panel,part.hex,14);bytes.setTypeface(Typeface.MONOSPACE);bytes.setTextIsSelectable(true);
+            TextView meaning=ui.text(panel,part.meaning,15);meaning.setTextColor(ui.ink);meaning.setTextIsSelectable(true);
+        }
+        TextView result=ui.text(anatomy,detail.result,16);result.setTextIsSelectable(true);
+        if(!detail.alternatives.isEmpty()){LinearLayout choices=ui.panel(anatomy);TextView values=ui.text(choices,detail.alternatives,16);values.setTextIsSelectable(true);}
+        hex.setEnabled(popupNode!=null&&popupNode.size>0);
+    }
+    void detailError(String message){
+        if(popup==null)return;hexText.setText("");pageLabel.setText(message);hexPanel.setVisibility(View.VISIBLE);previous.setEnabled(false);next.setEnabled(false);
+    }
+    void closePopup(){
+        AlertDialog previous=popup;popup=null;popupNode=null;
+        if(details.getParent()!=null)((ViewGroup)details.getParent()).removeView(details);
+        details.setVisibility(View.GONE);if(previous!=null)previous.dismiss();
     }
     static String bytes(long size){return String.format(Locale.ITALY,"%,d byte",size);}
 }
