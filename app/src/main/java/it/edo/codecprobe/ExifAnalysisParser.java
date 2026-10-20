@@ -23,17 +23,20 @@ final class ExifAnalysisParser {
                 if(unit>0){if(bytes>4)value=base+r.uint(e+8,4,le);r.within(value,bytes,end);detail+="\nValore a offset "+value+" · "+bytes+" byte";
                     if(type==2){byte[] text=r.bytes(value,(int)Math.min(bytes,128));detail+="\n"+new String(text,StandardCharsets.UTF_8).replace('\0',' ').replaceAll("[\\p{Cntrl}]"," ").trim()+(bytes>128?"…":"");}
                     else if(amount==1&&(type==3||type==4))detail+="\nValore: "+r.uint(value,unit,le);
-                    if(type==4&&amount==1){if(tag==0x201)thumbnailOffset=r.uint(value,4,le);if(tag==0x202)thumbnailSize=r.uint(value,4,le);}
-                    if((tag==0x8769||tag==0x8825||tag==0xa005)&&type==4&&amount==1){queue.add(r.uint(value,4,le));labels.add(tag==0x8825?"GPS":tag==0x8769?"EXIF":"Interop");}
+                    if(!label.equals("GPS")&&!label.equals("Interop")&&type==4&&amount==1){if(tag==0x201)thumbnailOffset=r.uint(value,4,le);if(tag==0x202)thumbnailSize=r.uint(value,4,le);}
+                    if(!label.equals("GPS")&&!label.equals("Interop")&&(tag==0x8769||tag==0x8825||tag==0xa005)&&type==4&&amount==1){queue.add(r.uint(value,4,le));labels.add(tag==0x8825?"GPS":tag==0x8769?"EXIF":"Interop");}
                 }else detail+="\nTipo non interpretato";
-                AnalysisField field=new AnalysisField(e,base,end,tag,type,amount,unit,value,bytes,le,label.equals("GPS"));
-                out.add(new AnalysisNode(label+" · "+name(tag)+String.format(Locale.ROOT," [0x%04X]",tag),detail,e,12,"",e,field));
-                if(unit>0&&bytes>4){AnalysisParser.limit(out);out.add(new AnalysisNode("Valore · "+label+" · "+name(tag)+String.format(Locale.ROOT," [0x%04X]",tag),"Dati del tag esterni alla voce della directory · "+bytes+" byte",value,bytes,"",value,field));}
+                AnalysisField field=new AnalysisField(e,base,end,tag,type,amount,unit,value,bytes,le,label);
+                out.add(new AnalysisNode(label+" · "+name(tag,label)+String.format(Locale.ROOT," [0x%04X]",tag),detail,e,12,"",e,field));
+                if(unit>0&&bytes>4){AnalysisParser.limit(out);out.add(new AnalysisNode("Valore · "+label+" · "+name(tag,label)+String.format(Locale.ROOT," [0x%04X]",tag),"Dati del tag esterni alla voce della directory · "+bytes+" byte",value,bytes,"",value,field));}
             }
             if(thumbnailOffset!=0&&thumbnailSize!=0){long absolute=base+thumbnailOffset;r.within(absolute,thumbnailSize,end);AnalysisParser.limit(out);out.add(AnalysisParser.leaf("Miniatura JPEG negli EXIF","Immagine incorporata · dati indicati da JPEGInterchangeFormat e JPEGInterchangeFormatLength",absolute,thumbnailSize));}
             long nextPos=p+2+count*12L;AnalysisParser.limit(out);long next=r.uint(nextPos,4,le);out.add(AnalysisParser.leaf(label+" · IFD successivo","Offset relativo: "+next,nextPos,4));if(next!=0){queue.add(next);labels.add("IFD successivo / miniatura");}
         }return out;
     }
-    private static String name(int tag){switch(tag){case 0x10f:return "Marca";case 0x110:return "Modello";case 0x112:return "Orientamento";case 0x132:return "Data modifica";case 0x9003:return "Data scatto";case 0x927c:return "MakerNote";case 0x8769:return "Puntatore EXIF";case 0x8825:return "Puntatore GPS";case 0x201:return "Offset miniatura JPEG";case 0x202:return "Dimensione miniatura JPEG";default:return "Tag";}}
+    private static String name(int tag,String directory){
+        ExifTagDictionary.Entry entry=ExifTagDictionary.find(tag,directory);
+        return entry==null?"Tag":entry.technical;
+    }
     private ExifAnalysisParser(){}
 }

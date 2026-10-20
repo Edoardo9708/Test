@@ -90,9 +90,13 @@ final class AnalysisLabels {
         if(t.startsWith("Miniatura JPEG"))return data("Anteprima JPEG incorporata","I byte dell’immagine di anteprima presente negli EXIF, distinta dalla foto principale.");
         Matcher tag=Pattern.compile("\\[0x([0-9A-Fa-f]{4})\\]").matcher(t);
         if(tag.find()){
-            int id=Integer.parseInt(tag.group(1),16);String field=tagName(id,t.startsWith("GPS")||t.startsWith("Valore · GPS"));
-            if(t.startsWith("Valore"))return data("Valore di "+field,"Byte del valore del tag, conservati fuori dalla sua voce di directory.");
-            return new Label(field,"Voce EXIF che dichiara tipo, numero di valori e valore oppure posizione dei dati. Un eventuale valore esterno è mostrato separatamente.","Voce EXIF");
+            int id=Integer.parseInt(tag.group(1),16);
+            String directory=node.field!=null?node.field.directory:t.startsWith("GPS")||t.startsWith("Valore · GPS")?"GPS":t.startsWith("Interop")||t.startsWith("Valore · Interop")?"Interop":"IFD0";
+            ExifTagDictionary.Entry entry=ExifTagDictionary.find(id,directory);
+            String field=entry==null?"Tag EXIF non tradotto":entry.name;
+            String meaning=entry==null?"Significato non presente nel dizionario; i byte restano consultabili.":entry.meaning+"\nNome del tag: "+entry.technical+".";
+            if(t.startsWith("Valore"))return data("Valore di "+field,meaning+"\nQuesti sono i dati del valore, conservati fuori dalla voce di directory.");
+            return new Label(field,meaning+"\nLa voce EXIF dichiara tipo, quantità e valore oppure posizione dei dati.","Voce EXIF");
         }
         if(t.equals("fLaC · firma"))return data("Inizio del file FLAC","Firma che identifica un file audio FLAC.");
         if(t.startsWith("STREAMINFO"))return data("Parametri dell’audio FLAC","Blocco con parametri fondamentali dell’audio, come frequenza, canali e precisione.");
@@ -121,10 +125,6 @@ final class AnalysisLabels {
             if(v>0&&v<meanings.length)text+="\nInterpretazione: "+meanings[v]+".";
         }
         return text;
-    }
-    private static String tagName(int id,boolean gps){
-        if(gps)switch(id){case 0:return "Versione dei dati GPS";case 1:return "Emisfero della latitudine";case 2:return "Latitudine";case 3:return "Emisfero della longitudine";case 4:return "Longitudine";case 5:return "Riferimento dell’altitudine";case 6:return "Altitudine";case 7:return "Ora GPS";case 0x1d:return "Data GPS";}
-        switch(id){case 0x10f:return "Marca della fotocamera";case 0x110:return "Modello della fotocamera";case 0x112:return "Orientamento della foto";case 0x11a:return "Risoluzione orizzontale dichiarata";case 0x11b:return "Risoluzione verticale dichiarata";case 0x128:return "Unità della risoluzione dichiarata";case 0x131:return "Software che ha scritto la foto";case 0x132:return "Data di modifica";case 0x201:return "Posizione della miniatura JPEG";case 0x202:return "Dimensione della miniatura JPEG";case 0x829a:return "Tempo di esposizione";case 0x829d:return "Apertura del diaframma";case 0x8769:return "Collegamento ai tag EXIF";case 0x8825:return "Collegamento ai tag GPS";case 0x8827:return "Sensibilità ISO";case 0x9000:return "Versione EXIF";case 0x9003:return "Data e ora dello scatto";case 0x9004:return "Data e ora di digitalizzazione";case 0x9204:return "Compensazione dell’esposizione";case 0x9209:return "Impostazioni del flash";case 0x920a:return "Lunghezza focale";case 0x927c:return "Dati del produttore della fotocamera";case 0xa001:return "Spazio colore dichiarato";case 0xa002:return "Larghezza dell’immagine";case 0xa003:return "Altezza dell’immagine";case 0xa005:return "Collegamento ai tag di interoperabilità";default:return "Tag EXIF non tradotto";}
     }
     private AnalysisLabels(){}
 }

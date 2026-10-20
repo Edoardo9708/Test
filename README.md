@@ -1,3 +1,11 @@
+# v0.86 · dizionario EXIF in italiano
+
+L’analisi riconosce e descrive 165 voci: 128 tag del catalogo standard EXIF, 32 GPS e 5 di interoperabilità. Nome italiano, significato e nome tecnico sono collegati sia alle voci di directory sia ai valori esterni. I popup conservano la scomposizione dei byte e aggiungono 42 tabelle di codici con valore presente evidenziato, interpretazione dei bit del flash, unità, tempi e aperture APEX, coordinate e strutture semplici documentate.
+
+Gli ID sono distinti per directory: un identificativo GPS non assume il significato di un tag EXIF o Interop con lo stesso numero. Tipo e quantità vengono controllati prima delle interpretazioni specifiche. Le strutture binarie non decodificate sono indicate esplicitamente: la copertura del dizionario non implica la decodifica completa di MakerNote, tabelle complesse o estensioni TIFF/DNG.
+
+Dettagli, fonti e limiti: [docs/exif-dictionary-0.86.md](docs/exif-dictionary-0.86.md). Aggiunti test con buffer TIFF reali e controllo della copertura del catalogo. Il motore di conversione resta invariato.
+
 # v0.85 · spiegazione dei campi in popup
 
 Il tocco su un elemento non espandibile apre un popup scorrevole; il pulsante «Spiegazione di questo blocco» apre lo stesso dettaglio per il contenitore corrente. Il pannello descrittivo non è più collocato in fondo alla pagina. Il valore trovato compare subito in cima; seguono identificazione, schema dei byte, regole di lunghezza e significato.

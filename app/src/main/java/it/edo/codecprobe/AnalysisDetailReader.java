@@ -59,19 +59,9 @@ final class AnalysisDetailReader {
             parts.add(part(r,"5 · Dati raggiunti tramite l’indirizzo",value,f.bytes,64,"Questi sono i byte del valore effettivo, esterni alla voce di directory ma dentro lo stesso segmento EXIF."));
         }
         String result=valueText(r,f,value);
-        String alternatives="";
-        if(tag==0x112&&type==3&&count==1){
-            long actual=r.uint(value,2,f.little);String meaning=orientation(actual);
-            result+="\n\nVALORE TROVATO: "+actual+" → "+meaning+".";
-            result+="\nIl tag descrive la trasformazione da applicare ai pixel. Da solo non dice se la foto è verticale o orizzontale: servono anche larghezza e altezza.";
-            StringBuilder choices=new StringBuilder("VALORI POSSIBILI DELL’ORIENTAMENTO\n");for(int i=1;i<=8;i++)choices.append(i==actual?"→ ":"").append(i).append(" = ").append(orientation(i)).append(i==actual?"  [PRESENTE NEL FILE]":"").append('\n');alternatives=choices.toString();
-        }else if(tag==0x128&&type==3&&count==1){
-            long actual=r.uint(value,2,f.little);alternatives="VALORI POSSIBILI DELL’UNITÀ DI RISOLUZIONE\n1 = nessuna unità assoluta\n2 = pollici\n3 = centimetri\nNel file: "+actual+".";
-        }else if(tag==0xa001&&type==3&&count==1){
-            long actual=r.uint(value,2,f.little);alternatives="VALORI DEL TAG SPAZIO COLORE\n1 = sRGB\n65535 = non calibrato in questo tag\nNel file: "+actual+". Un eventuale profilo colore separato va controllato a parte.";
-        }else if(f.gps&&type==2&&(tag==1||tag==3)){
-            alternatives=tag==1?"VALORI POSSIBILI\nN = latitudine nord\nS = latitudine sud":"VALORI POSSIBILI\nE = longitudine est\nW = longitudine ovest";
-        }
+        ExifValueInterpreter.Result interpreted=ExifValueInterpreter.read(r,f,value);
+        if(!interpreted.value.isEmpty())result+="\n\nVALORE TROVATO: "+interpreted.value+".";
+        String alternatives=interpreted.alternatives;
         return tiffDetail(n,parts,intro,result,alternatives);
     }
     private static AnalysisDetail tiffDetail(AnalysisNode node,List<AnalysisDetail.Part> parts,String intro,String result,String alternatives){
@@ -92,9 +82,6 @@ final class AnalysisDetailReader {
             case 11:case 12:{ByteBuffer b=ByteBuffer.wrap(r.bytes(p,f.unit)).order(f.little?ByteOrder.LITTLE_ENDIAN:ByteOrder.BIG_ENDIAN);text.append(f.type==11?Float.toString(b.getFloat()):Double.toString(b.getDouble()));break;}
             default:text.append("tipo non interpretato");
         }}if(f.count==0)text.append("(nessun valore)");if(f.count>limit)text.append("\nMostrati i primi ").append(limit).append(" di ").append(f.count).append(" valori.");return text.toString();
-    }
-    private static String orientation(long value){
-        switch((int)value){case 1:return "normale, nessuna trasformazione";case 2:return "specchiatura orizzontale (destra e sinistra scambiate)";case 3:return "rotazione di 180°";case 4:return "specchiatura verticale (alto e basso scambiati)";case 5:return "trasposizione lungo la diagonale alto-sinistra / basso-destra";case 6:return "rotazione di 90° in senso orario";case 7:return "trasposizione lungo la diagonale alto-destra / basso-sinistra";case 8:return "rotazione di 90° in senso antiorario";default:return "valore non riconosciuto; nessuna trasformazione viene dedotta";}
     }
     private static AnalysisDetail box(AnalysisReader r,AnalysisNode n)throws IOException{
         List<AnalysisDetail.Part> parts=new ArrayList<>();long declared=r.uint(n.offset,4,false),header=8;String sizeRule="La dimensione di un box comprende intestazione e contenuto.";
