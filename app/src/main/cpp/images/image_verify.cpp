@@ -1,11 +1,24 @@
 #include "image_core.h"
 #include <libheif/heif_properties.h>
+#include <algorithm>
 #include <cstring>
 #include <stdexcept>
 namespace photo {
 namespace {
 void require(bool value,const char* message){if(!value)throw std::runtime_error(message);}
 Bytes metadata(const heif_image_handle* handle,heif_item_id id){size_t size=heif_image_handle_get_metadata_size(handle,id);require(size<=24*1024*1024,"Metadato HEIC oltre limite");Bytes b(size);check(heif_image_handle_get_metadata(handle,id,b.data()),"Rilettura metadati");return b;}
+void verifyPixels(const heif_image_handle* handle,int w,int h,const heif_decoding_options* options){
+    heif_image* decoded=nullptr;check(heif_decode_image(handle,&decoded,heif_colorspace_YCbCr,heif_chroma_420,options),"Decodifica completa HEIC con FFmpeg");Image image(decoded);
+    require(heif_image_get_primary_width(decoded)==w&&heif_image_get_primary_height(decoded)==h,"Dimensioni pixel HEIC diverse");
+    require(heif_image_get_bits_per_pixel_range(decoded,heif_channel_Y)==8,"Precisione pixel decodificati diversa");
+    for(auto channel:{heif_channel_Y,heif_channel_Cb,heif_channel_Cr}){int stride;const uint8_t* plane=heif_image_get_plane_readonly(decoded,channel,&stride);int width=heif_image_get_width(decoded,channel),height=heif_image_get_height(decoded,channel);require(plane&&width>0&&height>0&&stride>=width,"Piano HEIC decodificato non valido");}
+}
+void verifyColor(const heif_image_handle* handle,const Source& source){
+    Bytes icc(heif_image_handle_get_raw_color_profile_size(handle));require(icc.size()<=16*1024*1024,"ICC HEIC troppo grande");if(!icc.empty())check(heif_image_handle_get_raw_color_profile(handle,icc.data()),"Rilettura ICC");require(icc==source.metadata.icc,"Profilo ICC diverso");
+    heif_color_profile_nclx* rawProfile=nullptr;check(heif_image_handle_get_nclx_color_profile(handle,&rawProfile),"Rilettura NCLX");
+    auto profile=std::unique_ptr<heif_color_profile_nclx,void(*)(heif_color_profile_nclx*)>(rawProfile,heif_nclx_color_profile_free);
+    require(rawProfile&&rawProfile->full_range_flag&&int(rawProfile->matrix_coefficients)==source.matrix&&int(rawProfile->color_primaries)==source.primaries&&int(rawProfile->transfer_characteristics)==source.transfer,"Dichiarazioni colore HEIC diverse");
+}
 }
 void verify(const std::string& path,const Source& source,const Stage& stage){
     Context context(heif_context_alloc());if(!context)throw std::bad_alloc();heif_context_set_maximum_image_size_limit(context.get(),16384);
@@ -31,15 +44,18 @@ void verify(const std::string& path,const Source& source,const Stage& stage){
         else throw std::runtime_error("Metadato HEIC inatteso");
     }
     require(exif==int(!source.metadata.exif.empty())&&xmp==int(!source.metadata.xmp.empty())&&bundle==1,"Metadati HEIC mancanti o duplicati");
-    Bytes icc(heif_image_handle_get_raw_color_profile_size(raw));require(icc.size()<=16*1024*1024,"ICC HEIC troppo grande");if(!icc.empty())check(heif_image_handle_get_raw_color_profile(raw,icc.data()),"Rilettura ICC");require(icc==source.metadata.icc,"Profilo ICC diverso");
-    heif_color_profile_nclx* rawProfile=nullptr;check(heif_image_handle_get_nclx_color_profile(raw,&rawProfile),"Rilettura NCLX");
-    auto profile=std::unique_ptr<heif_color_profile_nclx,void(*)(heif_color_profile_nclx*)>(rawProfile,heif_nclx_color_profile_free);
-    require(rawProfile&&rawProfile->full_range_flag&&int(rawProfile->matrix_coefficients)==source.matrix&&int(rawProfile->color_primaries)==source.primaries&&int(rawProfile->transfer_characteristics)==source.transfer,"Dichiarazioni colore HEIC diverse");
+    verifyColor(raw,source);
     auto options=std::unique_ptr<heif_decoding_options,void(*)(heif_decoding_options*)>(heif_decoding_options_alloc(),heif_decoding_options_free);if(!options)throw std::bad_alloc();options->ignore_transformations=0;options->strict_decoding=1;
-    heif_image* decoded=nullptr;check(heif_decode_image(raw,&decoded,heif_colorspace_YCbCr,heif_chroma_420,options.get()),"Decodifica completa HEIC con FFmpeg");Image image(decoded);
-    require(heif_image_get_primary_width(decoded)==w&&heif_image_get_primary_height(decoded)==h,"Dimensioni pixel HEIC diverse");
-    require(heif_image_get_bits_per_pixel_range(decoded,heif_channel_Y)==8,"Precisione pixel decodificati diversa");
-    for(auto channel:{heif_channel_Y,heif_channel_Cb,heif_channel_Cr}){int stride;const uint8_t* plane=heif_image_get_plane_readonly(decoded,channel,&stride);int width=heif_image_get_width(decoded,channel),height=heif_image_get_height(decoded,channel);require(plane&&width>0&&height>0&&stride>=width,"Piano HEIC decodificato non valido");}
+    verifyPixels(raw,w,h,options.get());
+    int edge=std::max(source.width,source.height);bool expected=edge>thumbnailEdge;
+    require(heif_image_handle_get_number_of_thumbnails(raw)==int(expected),"Miniatura HEIF mancante o inattesa");
+    if(expected){
+        heif_item_id id;require(heif_image_handle_get_list_of_thumbnail_IDs(raw,&id,1)==1,"Riferimento miniatura assente");
+        heif_image_handle* rawThumbnail=nullptr;check(heif_image_handle_get_thumbnail(raw,id,&rawThumbnail),"Rilettura miniatura HEIF");Handle thumbnail(rawThumbnail);
+        int tw=(source.width*thumbnailEdge/edge)&~1,th=(source.height*thumbnailEdge/edge)&~1;if(source.metadata.orientation>=5)std::swap(tw,th);
+        require(heif_image_handle_get_width(rawThumbnail)==tw&&heif_image_handle_get_height(rawThumbnail)==th,"Dimensioni miniatura HEIF diverse");
+        verifyColor(rawThumbnail,source);verifyPixels(rawThumbnail,tw,th,options.get());
+    }
     stage("HEIC verificato");
 }
 }

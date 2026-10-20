@@ -17,6 +17,8 @@ using Image=std::unique_ptr<heif_image,ImageDelete>;
 using Context=std::unique_ptr<heif_context,ContextDelete>;
 using Handle=std::unique_ptr<heif_image_handle,HandleDelete>;
 struct Source {Metadata metadata;Image image;int width=0,height=0,matrix=6,primaries=2,transfer=2;};
+constexpr int thumbnailEdge=1024;
+void addThumbnail(heif_context* context,const Source& source,const heif_image_handle* primary,const heif_encoding_options* options);
 void check(heif_error error,const char* action);
 Bytes readFile(const std::string& path,size_t limit);
 Source loadJpeg(const std::string& path);
