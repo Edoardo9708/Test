@@ -28,8 +28,14 @@ void sef(const Bytes& b){
         std::string name(reinterpret_cast<const char*>(b.data()+expected+8),nameSize);size_t payload=expected+8+nameSize,bytes=size-8-nameSize;
         bool utc=name=="Image_UTC_Data"&&type==0x0a010000&&bytes==13;
         bool mcc=name=="MCC_Data"&&type==0x0aa10000&&bytes==3;
-        if(!utc&&!mcc)bad("Record SEF foto non supportato: "+name);
-        for(size_t j=payload;j<payload+bytes;j++)if(b[j]<'0'||b[j]>'9')bad("Valore SEF foto non verificato");
+        bool scene=name=="Camera_Scene_Info"&&type==0x0d010000&&bytes==2;
+        bool capture=name=="Camera_Capture_Mode_Info"&&type==0x0c610000&&bytes==1;
+        bool p3=name=="Color_Display_P3"&&type==0x0cc10000&&bytes==3;
+        if(!utc&&!mcc&&!scene&&!capture&&!p3)bad("Record SEF foto non supportato: "+name);
+        // Scene/capture are bounded decimal codes in the observed S23 layout. P3 is
+        // a three-byte opaque marker: preserve it without interpreting it as colour
+        // instructions. The actual ICC profile is copied and verified separately.
+        if(!p3)for(size_t j=payload;j<payload+bytes;j++)if(b[j]<'0'||b[j]>'9')bad("Valore SEF foto non verificato");
         expected+=size;
     }
     if(expected!=dir)bad("Byte SEF non indicizzati");

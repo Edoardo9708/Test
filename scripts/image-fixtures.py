@@ -22,15 +22,16 @@ def insert(path, marker, payload):
     path.write_bytes(data[:2] + segment(marker, payload) + data[2:])
 
 
-def sef():
-    records = [(0x0a01, b'Image_UTC_Data', b'1567677602564'), (0x0aa1, b'MCC_Data', b'222')]
+def sef(records=None, version=105):
+    if records is None:
+        records = [(0x0a01, b'Image_UTC_Data', b'1567677602564'), (0x0aa1, b'MCC_Data', b'222')]
     data = b''
     offsets = []
     for kind, name, payload in records:
         block = struct.pack('<HHI', 0, kind, len(name)) + name + payload
         offsets.append((kind, len(data), len(block)))
         data += block
-    header = b'SEFH' + struct.pack('<II', 105, len(offsets))
+    header = b'SEFH' + struct.pack('<II', version, len(offsets))
     for kind, start, size in offsets:
         header += struct.pack('<HHII', 0, kind, len(data) - start, size)
     return data + header + struct.pack('<I', len(header)) + b'SEFT'
@@ -50,6 +51,36 @@ image.resize((193, 129)).save(directory / 'odd.jpg', quality=94)
 image.save(directory / 'sef.jpg', quality=94)
 with (directory / 'sef.jpg').open('ab') as out:
     out.write(sef())
+s23_records = [(0x0a01, b'Image_UTC_Data', b'1700000000000'),
+               (0x0aa1, b'MCC_Data', b'222'),
+               (0x0d01, b'Camera_Scene_Info', b'19'),
+               (0x0cc1, b'Color_Display_P3', b'\x0c\x06\x06'),
+               (0x0c61, b'Camera_Capture_Mode_Info', b'1')]
+image.save(directory / 'sef-s23.jpg', quality=94, icc_profile=icc)
+with (directory / 'sef-s23.jpg').open('ab') as out:
+    out.write(sef(s23_records, 107))
+# The new names are not a blanket exemption for malformed records or extra media.
+invalid_sef = [
+    ('scene-type', [(0x0d21, b'Camera_Scene_Info', b'19')]),
+    ('scene-length', [(0x0d01, b'Camera_Scene_Info', b'1')]),
+    ('scene-value', [(0x0d01, b'Camera_Scene_Info', b'1x')]),
+    ('capture-type', [(0x0c62, b'Camera_Capture_Mode_Info', b'1')]),
+    ('capture-length', [(0x0c61, b'Camera_Capture_Mode_Info', b'12')]),
+    ('capture-value', [(0x0c61, b'Camera_Capture_Mode_Info', b'x')]),
+    ('p3-type', [(0x0cc2, b'Color_Display_P3', b'\x0c\x06\x06')]),
+    ('p3-length', [(0x0cc1, b'Color_Display_P3', b'\x0c\x06')]),
+    ('hdr', [(0x0cd2, b'Photo_HDR_Info', b'opaque')]),
+    ('motion', [(0x0a30, b'MotionPhoto_Data', b'video')]),
+]
+for name, records in invalid_sef:
+    path = directory / f'reject-sef-{name}.jpg'
+    image.save(path, quality=94)
+    with path.open('ab') as out:
+        out.write(sef(records, 107))
+path = directory / 'reject-sef-truncated.jpg'
+image.save(path)
+with path.open('ab') as out:
+    out.write(sef(s23_records, 107)[:-1])
 image.save(directory / 'xmp.jpg', quality=94)
 insert(directory / 'xmp.jpg', 0xe1, b'http://ns.adobe.com/xap/1.0/\0<x:xmpmeta xmlns:x="adobe:ns:meta/">original</x:xmpmeta>')
 insert(directory / 'xmp.jpg', 0xe4, b'opaque Samsung APP test\0\1\2')
@@ -139,4 +170,16 @@ for name in ('xmp', 'sef'):
     result = subprocess.run([engine, 'verify', str(source), str(corrupted)], capture_output=True, text=True)
     assert result.returncode != 0, ('Corrupted archive accepted', name)
     corrupted.with_suffix('.log').write_text(result.stdout + result.stderr)
-print('OK HEIC: EXIF/GPS/date, eight orientations, ICC, XMP, opaque APP, SEF, 420/422/444, odd dimensions, rejected inputs, altered metadata; dedicated 1024 px thumbnails, oriented pixels, colour profiles, small-image boundary and missing-thumbnail rejection')
+# Each new proprietary value must survive unchanged in the original-data archive.
+source = directory / 'sef-s23.jpg'
+original = source.with_suffix('.heic').read_bytes()
+archive_start = original.index(b'CPJPEG1\0')
+for name in (b'Camera_Scene_Info', b'Color_Display_P3', b'Camera_Capture_Mode_Info'):
+    data = bytearray(original)
+    position = data.index(name, archive_start) + len(name)
+    data[position] ^= 1
+    corrupted = directory / ('corrupt-' + name.decode() + '.heic')
+    corrupted.write_bytes(data)
+    result = subprocess.run([engine, 'verify', str(source), str(corrupted)], capture_output=True, text=True)
+    assert result.returncode != 0 and 'Archivio APP/COM/SEF diverso' in result.stderr, (name, result.stderr)
+print('OK HEIC: EXIF/GPS/date, eight orientations, ICC, XMP, opaque APP, SEF including S23 v107 records, wrong SEF type/length/value and unknown HDR/Motion Photo rejection, altered SEF archive rejection, 420/422/444, odd dimensions, rejected inputs, altered metadata; dedicated 1024 px thumbnails, oriented pixels, colour profiles, small-image boundary and missing-thumbnail rejection')
