@@ -14,7 +14,7 @@ assert len(destinations) == 6, destinations
 settings = sorted(directory.glob('settings-*.png'))
 assert len(settings) == 1, settings
 analysis = sorted(directory.glob("analysis-*.png"))
-assert len(analysis) == 3, analysis
+assert len(analysis) == 4, analysis
 files = home + audio + images + destinations + settings + analysis
 for path in files:
     data = path.read_bytes()

@@ -1,3 +1,9 @@
+# v0.84 · gerarchia e spiegazioni nella mappa Analisi
+
+La mappa mantiene visibile il confine del file e disegna il contenitore aperto al suo interno, con i livelli intermedi e i comandi per risalire. Nei percorsi profondi abbrevia soltanto il disegno: il percorso completo resta scritto sopra. I riquadri hanno un nome in italiano, il nome tecnico originale, il ruolo (contenitore, dati o indice/collegamento), la dimensione e una breve spiegazione. La selezione evidenzia il blocco corrispondente.
+
+Glossario di presentazione indipendente dai lettori: box comuni ISO BMFF, segmenti JPEG, struttura EXIF e principali tag, blocchi FLAC e ID3. Le spiegazioni distinguono una relazione tra elementi dalla presenza fisica dei dati: meta elenca e collega; mdat può contenere i payload; thmb è un riferimento alla miniatura. I valori non decodificati non vengono inventati. I dettagli distinguono significato, dati effettivamente letti e posizione in byte spiegata in parole semplici. I valori EXIF esterni mantengono anche l’identificativo del tag nel loro nome tecnico.
+
 # v0.83 · prima bozza Analisi
 
 Quarta scheda indipendente dalle conversioni. L’elenco riusa i riferimenti e i nomi selezionati in Video, Audio e Immagini, senza aprire i file; le informazioni già disponibili nelle cache video/foto vengono mostrate senza ricalcolarle. I riferimenti video sono locali al processo, coerentemente con la selezione video esistente. Le selezioni audio/foto restano nelle rispettive bozze.

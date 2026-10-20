@@ -27,7 +27,7 @@ final class ExifAnalysisParser {
                     if((tag==0x8769||tag==0x8825||tag==0xa005)&&type==4&&amount==1){queue.add(r.uint(value,4,le));labels.add(tag==0x8825?"GPS":tag==0x8769?"EXIF":"Interop");}
                 }else detail+="\nTipo non interpretato";
                 out.add(AnalysisParser.leaf(label+" · "+name(tag)+String.format(Locale.ROOT," [0x%04X]",tag),detail,e,12));
-                if(unit>0&&bytes>4){AnalysisParser.limit(out);out.add(AnalysisParser.leaf("Valore · "+name(tag),"Dati del tag esterni alla voce della directory · "+bytes+" byte",value,bytes));}
+                if(unit>0&&bytes>4){AnalysisParser.limit(out);out.add(AnalysisParser.leaf("Valore · "+label+" · "+name(tag)+String.format(Locale.ROOT," [0x%04X]",tag),"Dati del tag esterni alla voce della directory · "+bytes+" byte",value,bytes));}
             }
             if(thumbnailOffset!=0&&thumbnailSize!=0){long absolute=base+thumbnailOffset;r.within(absolute,thumbnailSize,end);AnalysisParser.limit(out);out.add(AnalysisParser.leaf("Miniatura JPEG negli EXIF","Immagine incorporata · dati indicati da JPEGInterchangeFormat e JPEGInterchangeFormatLength",absolute,thumbnailSize));}
             long nextPos=p+2+count*12L;AnalysisParser.limit(out);long next=r.uint(nextPos,4,le);out.add(AnalysisParser.leaf(label+" · IFD successivo","Offset relativo: "+next,nextPos,4));if(next!=0){queue.add(next);labels.add("IFD successivo / miniatura");}
