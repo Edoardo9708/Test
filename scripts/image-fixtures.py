@@ -59,13 +59,21 @@ s23_records = [(0x0a01, b'Image_UTC_Data', b'1700000000000'),
 image.save(directory / 'sef-s23.jpg', quality=94, icc_profile=icc)
 with (directory / 'sef-s23.jpg').open('ab') as out:
     out.write(sef(s23_records, 107))
+for suffix, scene, capture in [('short', b'0', b'1'), ('longer', b'123', b'12')]:
+    path = directory / f'sef-s23-{suffix}.jpg'
+    image.save(path, quality=94)
+    with path.open('ab') as out:
+        out.write(sef([(0x0d01, b'Camera_Scene_Info', scene),
+                       (0x0c61, b'Camera_Capture_Mode_Info', capture)], 107))
 # The new names are not a blanket exemption for malformed records or extra media.
 invalid_sef = [
     ('scene-type', [(0x0d21, b'Camera_Scene_Info', b'19')]),
-    ('scene-length', [(0x0d01, b'Camera_Scene_Info', b'1')]),
+    ('scene-length', [(0x0d01, b'Camera_Scene_Info', b'12345678901234567')]),
+    ('scene-empty', [(0x0d01, b'Camera_Scene_Info', b'')]),
     ('scene-value', [(0x0d01, b'Camera_Scene_Info', b'1x')]),
     ('capture-type', [(0x0c62, b'Camera_Capture_Mode_Info', b'1')]),
-    ('capture-length', [(0x0c61, b'Camera_Capture_Mode_Info', b'12')]),
+    ('capture-length', [(0x0c61, b'Camera_Capture_Mode_Info', b'12345678901234567')]),
+    ('capture-empty', [(0x0c61, b'Camera_Capture_Mode_Info', b'')]),
     ('capture-value', [(0x0c61, b'Camera_Capture_Mode_Info', b'x')]),
     ('p3-type', [(0x0cc2, b'Color_Display_P3', b'\x0c\x06\x06')]),
     ('p3-length', [(0x0cc1, b'Color_Display_P3', b'\x0c\x06')]),
