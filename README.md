@@ -1,3 +1,15 @@
+# v0.83 · prima bozza Analisi
+
+Quarta scheda indipendente dalle conversioni. L’elenco riusa i riferimenti e i nomi selezionati in Video, Audio e Immagini, senza aprire i file; le informazioni già disponibili nelle cache video/foto vengono mostrate senza ricalcolarle. I riferimenti video sono locali al processo, coerentemente con la selezione video esistente. Le selezioni audio/foto restano nelle rispettive bozze.
+
+Aprendo un file si legge la struttura su worker: segmenti/scansioni/coda JPEG; directory e tag EXIF TIFF; box ISO BMFF di HEIC/MP4/MOV/M4A con contenitori annidati noti; metadati FLAC; tag ID3v2 come blocco. Ogni rettangolo riporta dimensione e percentuale del contenitore corrente, con spazio leggibile non proporzionale ai byte. Percorso navigabile, dettagli, offset assoluti e vista HEX/ASCII opzionale a pagine di 256 byte. Nessun pixel viene decodificato, nessun file modificato. Le scansioni JPEG sono percorse a blocchi di 64 KiB per localizzare i marcatori; mdat e audio compressi vengono saltati.
+
+Lettori puramente Java separati da sorgenti Android, stato/worker e vista. Limiti: 4.096 elementi per livello, 32 livelli nella UI e 32 directory TIFF; rendering progressivo a gruppi di 60 blocchi. Un provider deve consentire accesso seekable: nessuna copia implicita di video interi. Annullamento e generazione impediscono risultati tardivi dopo chiusura/cambio file. Dopo ricreazione si riapre il file dalla radice; nessun buffer viene serializzato. Per i video, con permesso posizione si richiede l’originale usando il flusso esistente; audio e foto usano la stessa URI delle rispettive sezioni. La schermata distingue il caso in cui il GPS originale non è verificato.
+
+Bozza: non interpreta ancora record SEF, singoli item HEIF tramite iloc, frame ID3 o pacchetti audio. Tipi sconosciuti restano opachi con dimensione e HEX; non vengono interpretati per tentativi. La mappa è un inventario strutturale, non una verifica di convertibilità. Il comando Rileggi rinnova la lettura; modifiche esterne durante l’esplorazione richiedono rilettura (il cambio dimensione viene rilevato).
+
+Verifiche dedicate su copertura dei byte JPEG, stuffing/restart, EXIF e cicli, box annidati, file sparse da 5 GiB, FLAC/ID3, troncamenti, annullamento; prove sui campioni reali S23 JPEG e HEIC. Test Android per elenco senza letture, navigazione/HEX, ricreazione, errore provider e integrità della sorgente; anteprime sintetiche chiare/scure.
+
 # v0.77 · conversione JPEG → HEIC
 
 La sezione Immagini converte fino a 100 JPEG in una coda foreground indipendente. Librerie incluse: libheif 1.23.6, x265 già usato dal progetto e FFmpeg 8.1.3, ora compilato anche con decoder MJPEG. Nessun decoder/codificatore Android è usato nel percorso foto. Selezione, bozza e impostazioni immagini sono separate; una sola conversione audio/video/immagini può usare il motore alla volta. La coda continua lasciando la pagina, ma non riprende dopo terminazione del processo. Annullamento al confine delle fasi: una singola codifica x265 non viene interrotta a metà.

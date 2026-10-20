@@ -54,6 +54,7 @@ final class HomeController {
         reset.bind();
         screen.preferences.setOnClickListener((v)->openSettings());
         HomeSavedState.restore(this, saved, defaults);
+        AnalysisSources.video(state.selectedInputs,state.selectedNames);
         if (saved != null && saved.getBoolean("videoDetailsExpanded")) {
             screen.files.videoDetails.setVisibility(View.VISIBLE);
             screen.files.details.setText("▾ Dettagli video");
@@ -157,6 +158,7 @@ final class HomeController {
     }
 
     void pause() {
+        AnalysisSources.video(state.selectedInputs,state.selectedNames);
         final HomeController home = this;
         home.state.conversionScreenVisible = false;
         home.conversion.updateScreenAwake();
