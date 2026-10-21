@@ -89,7 +89,7 @@ public class ImageLargeQueueTest {
             while(ImageConversionService.snapshot().running&&System.currentTimeMillis()<end){Shadows.shadowOf(Looper.getMainLooper()).idle();Thread.sleep(10);}
             ImageRunState run=ImageConversionService.snapshot();assertFalse(run.message,run.running);assertEquals(125,run.completed);assertEquals(125,run.failed);assertEquals(100,run.results.size());
             assertEquals(125,Files.readAllLines(new File(context.getFilesDir(),ImageFailureStore.FILE).toPath()).size());
-            String log=Files.readString(new File(context.getFilesDir(),ImageConversionService.LOG).toPath());assertTrue(log.contains("missing-large-queue-0.jpg"));assertTrue(log.contains("missing-large-queue-124.jpg"));assertTrue(run.log.length()<=24000);assertFalse(ImageQueueStore.file(context,id).exists());
+            String log=new String(Files.readAllBytes(new File(context.getFilesDir(),ImageConversionService.LOG).toPath()),StandardCharsets.UTF_8);assertTrue(log.contains("missing-large-queue-0.jpg"));assertTrue(log.contains("missing-large-queue-124.jpg"));assertTrue(run.log.length()<=24000);assertFalse(ImageQueueStore.file(context,id).exists());
         }finally{controller.destroy();stateField.set(null,previous);ImageQueueStore.discard(context,id);}
     }
     @Test public void largeDraftRestoresAllFiveThousandReferences(){
@@ -103,7 +103,7 @@ public class ImageLargeQueueTest {
         try{
             var write=ImageConversionService.class.getDeclaredMethod("write",String.class);write.setAccessible(true);
             write.invoke(controller.get(),"FIRST_ERROR\n"+"x".repeat(2*1024*1024));write.invoke(controller.get(),"LAST_ERROR");
-            String disk=Files.readString(new File(controller.get().getFilesDir(),ImageConversionService.LOG).toPath());assertTrue(disk.contains("FIRST_ERROR"));assertTrue(disk.contains("LAST_ERROR"));assertTrue(ImageConversionService.snapshot().log.length()<=24000);
+            String disk=new String(Files.readAllBytes(new File(controller.get().getFilesDir(),ImageConversionService.LOG).toPath()),StandardCharsets.UTF_8);assertTrue(disk.contains("FIRST_ERROR"));assertTrue(disk.contains("LAST_ERROR"));assertTrue(ImageConversionService.snapshot().log.length()<=24000);
         }finally{controller.destroy();field.set(null,previous);}
     }
     private static String text(View view){StringBuilder s=new StringBuilder();if(view instanceof TextView)s.append(((TextView)view).getText());if(view instanceof ViewGroup)for(int i=0;i<((ViewGroup)view).getChildCount();i++)s.append(text(((ViewGroup)view).getChildAt(i)));return s.toString();}
