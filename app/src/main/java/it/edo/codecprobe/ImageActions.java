@@ -33,7 +33,7 @@ final class ImageActions {
     void clearLog(){
         if(images.busy())return;
         logConfirmation=new AlertDialog.Builder(images.activity).setTitle("Cancellare il log immagini?").setMessage("Le foto e il resoconto restano conservati.")
-            .setNegativeButton("Indietro",null).setPositiveButton("Cancella",(d,w)->{java.io.File file=new java.io.File(images.activity.getFilesDir(),ImageConversionService.LOG);if(file.exists()&&!file.delete()){images.toast("Impossibile cancellare il log immagini");return;}ImageConversionService.clearLog();images.render();}).create();logConfirmation.show();
+            .setNegativeButton("Indietro",null).setPositiveButton("Cancella",(d,w)->{if(!ImageLogStore.clear(images.activity)){images.toast("Impossibile cancellare il log immagini");return;}ImageConversionService.clearLog();images.render();}).create();logConfirmation.show();
     }
     void close(){closed=true;if(cancelConfirmation!=null)cancelConfirmation.dismiss();if(logConfirmation!=null)logConfirmation.dismiss();worker.shutdownNow();}
 }

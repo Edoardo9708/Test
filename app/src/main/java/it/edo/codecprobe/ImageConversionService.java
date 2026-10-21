@@ -52,7 +52,7 @@ public final class ImageConversionService extends Service {
             ArrayList<String> queue=job.inputs,folders=job.folders;
             synchronized(LOCK){state.total=queue.size();state.queueNames=Collections.unmodifiableList(new ArrayList<>(job.names));}
             // New run log: never rotate away an error halfway through a large batch.
-            try(OutputStream out=new FileOutputStream(new File(getFilesDir(),LOG),false)){out.flush();}
+            ImageLogStore.reset(this);
             write("INIZIO IMMAGINI · v"+BuildConfig.VERSION_NAME+"\n"+options.description()+"\nEXIF/XMP/ICC standard; APP/COM e SEF foto supportato conservati anche nell’archivio interno originale. Funzioni proprietarie Samsung non garantite. Originali invariati.");
             for(String folder:new HashSet<>(folders))OutputDocuments.names(this,Uri.parse(folder));
             File[] stale=getCacheDir().listFiles((d,n)->(n.startsWith("image-source-")||n.startsWith("image-heic-"))&&n.endsWith(".tmp"));if(stale!=null)for(File f:stale)f.delete();
@@ -79,8 +79,7 @@ public final class ImageConversionService extends Service {
     }
     private void stage(String text){synchronized(LOCK){if(!state.cancelling)state.message=text;}notifyProgress();}
     private void write(String text)throws IOException{
-        File file=new File(getFilesDir(),LOG);
-        try(FileOutputStream out=new FileOutputStream(file,true)){out.write((text+"\n\n").getBytes(java.nio.charset.StandardCharsets.UTF_8));out.getFD().sync();}
+        ImageLogStore.append(this,LOG,text+"\n\n");
         synchronized(LOCK){state.log+=text+"\n\n";if(state.log.length()>24000)state.log=state.log.substring(state.log.length()-24000);}
     }
     private Notification notification(){ImageRunState run=snapshot();Intent open=new Intent(this,ImageActivity.class);PendingIntent page=PendingIntent.getActivities(this,NOTICE,new Intent[]{new Intent(this,MainActivity.class),open},PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);

@@ -1,3 +1,13 @@
+# v0.90 · log parziale durante la conversione e contatori nel sommario
+
+«Esporta log» e «Esporta archivio errori» sono disponibili anche con una coda foto in corso. Alla richiesta viene preparata su un worker dedicato una copia locale chiusa e coerente: le scritture attendono soltanto durante questa copia. Appena è pronta, la registrazione riprende sul file originale; la scelta della destinazione e la scrittura del TXT/JSONL esterno non mantengono il blocco. Nessun evento viene scartato, nessuna coda viene riavviata e il log originale non viene svuotato. La copia usa un buffer da 64 KiB e un file temporaneo su disco, senza caricare l’intero log in RAM.
+
+Il nome segnala «parziale» se la coda era attiva alla richiesta. Include gli eventi già registrati, non l’esito di una foto ancora in codifica. Il temporaneo viene eliminato dopo esportazione, annullamento o errore; una scelta di destinazione in corso sopravvive alla ricreazione della schermata. Durante una singola esportazione i pulsanti evitano richieste duplicate; «Cancella log» resta disabilitato durante la conversione.
+
+Il sommario delle foto mostra subito riuscite (nuove foto salvate), fallite, già presenti, senza risparmio e annullate, oltre all’indice corrente e alle completate. I contatori restano cumulativi anche quando i dettagli più vecchi escono dalla finestra di 100 risultati.
+
+Verifiche aggiunte: esportazione durante la conversione alla foto 600 su 8.500, contatori oltre la finestra di 100 dettagli, copia invariata dopo nuove scritture o nuova coda, scritture concorrenti senza eventi parziali o persi, destinazione lenta che non blocca gli eventi, ricreazione della schermata, annullamento, errore e nuovo tentativo, archivio JSONL con record completi.
+
 # v0.89 · conserva il record SEF delle foto frontali
 
 La conversione JPEG → HEIC accetta `Front_Cam_Selfie_Info` con tipo SEF `0x0910`. Il payload viene conservato integralmente come dato opaco nell’archivio proprietario già presente nel file HEIC: non viene decodificato, normalizzato o applicato ai pixel. Non richiede una specifica stringa ASCII: sono conservati anche byte binari, terminatori e payload vuoti strutturalmente validi. Il lettore SEF dei video resta invariato.

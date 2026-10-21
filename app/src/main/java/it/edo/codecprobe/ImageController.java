@@ -9,7 +9,7 @@ import java.util.concurrent.*;
 
 /** Coordinates the image workspace; slow provider/metadata reads never run on the UI thread. */
 final class ImageController {
-    final ImageActivity activity;final ImageState state;final ImageScreen screen;final ImageSelection selection;final ImageActions actions;final ImageWorkReport report;final MediaDestinationsController destinations;
+    final ImageActivity activity;final ImageState state;final ImageScreen screen;final ImageSelection selection;final ImageActions actions;final ImageLogExport logExport;final ImageWorkReport report;final MediaDestinationsController destinations;
     private final ExecutorService worker=Executors.newSingleThreadExecutor();
     private Future<?> analysis,exportTask,namesRead,folderTask;private int namesGeneration;private int generation;private boolean destroyed,visible,applying;
     private final android.os.Handler main=new android.os.Handler(android.os.Looper.getMainLooper());
@@ -20,7 +20,7 @@ final class ImageController {
             public AppUi ui(){return screen.ui;}public java.util.List<String> inputs(){return state.inputs;}public java.util.List<String> names(){return state.names;}public int selected(){return state.selected;}
             public DestinationDraft draft(){return state.destinations;}public String defaultFolder(){return state.options.folder;}public boolean busy(){return ImageController.this.busy();}
             public void persist(){ImageController.this.persist();}public void changed(){render();}public void toast(String text){ImageController.this.toast(text);}
-        },screen.destinations,MediaKind.IMAGE,saved);actions=new ImageActions(this);showOptions();
+        },screen.destinations,MediaKind.IMAGE,saved);actions=new ImageActions(this);logExport=new ImageLogExport(this,saved);showOptions();
         screen.importFolder.setOnClickListener(v->selection.sourceFolder());screen.retryFailures.setOnClickListener(v->loadFailures());
         screen.select.setOnClickListener(v->selection.pick());screen.clear.setOnClickListener(v->{if(busy())return;screen.selectedItem.cancelTransition();ImageMetadataCache.memory.clear();state.inputs.clear();state.names.clear();state.selected=0;state.bulk=false;state.selectionLabel="";ImageConversionService.clear();open();});
         screen.reload.setOnClickListener(v->{if(busy()||state.inputs.isEmpty())return;ImageMetadataCache.memory.clear();open();});
@@ -30,7 +30,7 @@ final class ImageController {
         screen.quality.changed=this::optionsEdited;screen.smaller.setOnCheckedChangeListener((b,checked)->optionsEdited());screen.screenOn.setOnCheckedChangeListener((b,checked)->screenOnEdited(checked));
         screen.settings.setOnClickListener(v->{android.content.Intent intent=new android.content.Intent(activity,ImageSettingsActivity.class);state.destinations.sync(state.inputs,state.options.folder);String currentFolder=state.inputs.isEmpty()?state.options.folder:state.destinations.plan.effective(state.selected).origin?null:state.destinations.plan.effective(state.selected).folder;state.options.withFolder(currentFolder).put(intent);activity.startActivity(intent);});open();
     }
-    boolean busy(){return state.importing||state.exporting||state.starting||ImageConversionService.snapshot().running||destinations!=null&&destinations.choosing();}
+    boolean busy(){return state.importing||state.exporting||logExport!=null&&logExport.busy()||state.starting||ImageConversionService.snapshot().running||destinations!=null&&destinations.choosing();}
     boolean visible(){return visible;}
     void select(int index){
         if(busy()||index<0||index>=state.inputs.size())return;
@@ -92,7 +92,7 @@ final class ImageController {
     void refresh(){ImageRunState run=ImageConversionService.snapshot();if(state.starting&&state.startingAt>0&&(run.startedAt!=state.previousRun||android.os.SystemClock.elapsedRealtime()-state.startingAt>5000)){state.starting=false;if(run.startedAt==state.previousRun)state.notice=run.message.isEmpty()?"La conversione non è partita: riprova.":run.message;}
         ImageOptions defaults=ImageOptions.load(activity);if(!busy()&&state.options.revision!=defaults.revision){state.options=defaults;showOptions();persist();}render();}
     void persist(){ImageDraftStore.save(activity,state);}
-    void save(Bundle out){persist();screen.sections.save(out);selection.save(out);destinations.save(out);}
+    void save(Bundle out){persist();screen.sections.save(out);selection.save(out);logExport.save(out);destinations.save(out);}
     void open(){
         int current=++generation;if(analysis!=null)analysis.cancel(true);
         state.clamp();state.info=null;state.notice="";state.name="";state.reading=!state.inputs.isEmpty();persist();render();if(!state.reading)return;
@@ -131,10 +131,6 @@ final class ImageController {
             String notice=result;activity.runOnUiThread(()->{if(destroyed)return;state.exporting=false;state.notice=notice;render();toast(notice);});
         });
     }
-    void exportLog(Uri output){exportLog(output,ImageConversionService.LOG);}
-    void exportLog(Uri output,String filename){
-        if(busy()||destroyed)return;state.exporting=true;render();exportTask=worker.submit(()->{String notice="Log immagini esportato.";try(InputStream in=new FileInputStream(new File(activity.getFilesDir(),filename));OutputStream out=activity.getContentResolver().openOutputStream(output,"wt")){if(out==null)throw new IOException("Destinazione non scrivibile");byte[] buffer=new byte[65536];int n;while((n=in.read(buffer))!=-1){if(Thread.currentThread().isInterrupted())throw new InterruptedIOException();out.write(buffer,0,n);}}catch(IOException|RuntimeException e){notice="Esportazione log non completata: "+message(e);}String result=notice;activity.runOnUiThread(()->{if(destroyed)return;state.exporting=false;state.notice=result;render();toast(result);});});
-    }
     void render(){
         state.clamp();int count=state.inputs.size();boolean any=count>0,busy=busy();
         screen.importFolder.setEnabled(!busy);screen.retryFailures.setEnabled(!busy&&activity.getDatabasePath(ImageProgressJournal.DATABASE).isFile());
@@ -146,8 +142,8 @@ final class ImageController {
         screen.reload.setVisibility(any?android.view.View.VISIBLE:android.view.View.GONE);screen.reload.setEnabled(any&&!busy&&!state.reading);
         screen.metadata.setVisibility(any?android.view.View.VISIBLE:android.view.View.GONE);screen.name.setText(state.name.isEmpty()?(any?state.names.get(state.selected):"Nessuna foto selezionata"):state.name);
         screen.export.setEnabled(state.info!=null&&!state.reading&&!busy);
-        screen.metadata.setEnabled(state.info!=null);screen.quality.enabled(!busy);screen.smaller.setEnabled(!busy);screen.exportLog.setEnabled(!busy&&new File(activity.getFilesDir(),ImageConversionService.LOG).isFile());screen.clearLog.setEnabled(screen.exportLog.isEnabled());
-        screen.exportErrors.setEnabled(!busy&&new File(activity.getFilesDir(),ImageFailureStore.FILE).isFile());
+        screen.metadata.setEnabled(state.info!=null);screen.quality.enabled(!busy);screen.smaller.setEnabled(!busy);screen.exportLog.setEnabled(logExport.available(ImageConversionService.LOG));screen.clearLog.setEnabled(!busy&&new File(activity.getFilesDir(),ImageConversionService.LOG).isFile());
+        screen.exportErrors.setEnabled(logExport.available(ImageFailureStore.FILE));
         destinations.render();
         ImageRunPresenter.render(this,ImageConversionService.snapshot());
         JpegInventory.Info info=state.info;
@@ -164,6 +160,6 @@ final class ImageController {
         detail.append("\n\nSHA-256 originale\n").append(info.sha256);screen.details.setText(detail);screen.selectedItem.showMetadata(Collections.singletonMap("IMMAGINE",screen.summary.getText().toString()),Collections.singletonMap("METADATI ORIGINALI",detail.toString()));
     }
     void toast(String value){Toast.makeText(activity,value,Toast.LENGTH_LONG).show();}
-    void destroy(){pause();destroyed=true;++generation;if(analysis!=null)analysis.cancel(true);if(exportTask!=null)exportTask.cancel(true);if(namesRead!=null)namesRead.cancel(true);if(folderTask!=null)folderTask.cancel(true);screen.selectedItem.close();worker.shutdownNow();screen.dashboard.monitor.close();destinations.close();report.close();actions.close();screen.sections.closed=true;}
+    void destroy(){pause();destroyed=true;++generation;if(analysis!=null)analysis.cancel(true);if(exportTask!=null)exportTask.cancel(true);if(namesRead!=null)namesRead.cancel(true);if(folderTask!=null)folderTask.cancel(true);screen.selectedItem.close();worker.shutdownNow();screen.dashboard.monitor.close();destinations.close();report.close();actions.close();logExport.close();screen.sections.closed=true;}
     private static String message(Exception e){return e.getMessage()==null?e.getClass().getSimpleName():e.getMessage();}
 }

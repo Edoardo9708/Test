@@ -15,8 +15,8 @@ final class ImageSelection {
     void pick(){if(images.busy())return;images.activity.startActivityForResult(new Intent(Intent.ACTION_OPEN_DOCUMENT).setType("image/jpeg").addCategory(Intent.CATEGORY_OPENABLE).putExtra(Intent.EXTRA_ALLOW_MULTIPLE,true).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION),FILES);}
     void sourceFolder(){if(!images.busy())images.activity.startActivityForResult(new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_WRITE_URI_PERMISSION|Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION|Intent.FLAG_GRANT_PREFIX_URI_PERMISSION),SOURCE_FOLDER);}
     void folder(){if(!images.busy())images.activity.startActivityForResult(new Intent(images.activity,FolderPickerActivity.class),FOLDER);}
-    void log(){if(!images.busy())images.activity.startActivityForResult(new Intent(Intent.ACTION_CREATE_DOCUMENT).setType("text/plain").addCategory(Intent.CATEGORY_OPENABLE).putExtra(Intent.EXTRA_TITLE,"v"+BuildConfig.VERSION_NAME+"-immagini-log-"+System.currentTimeMillis()+".txt"),LOG);}
-    void errors(){if(!images.busy())images.activity.startActivityForResult(new Intent(Intent.ACTION_CREATE_DOCUMENT).setType("application/x-ndjson").addCategory(Intent.CATEGORY_OPENABLE).putExtra(Intent.EXTRA_TITLE,"CodecProbe-errori-immagini.jsonl"),ERRORS);}
+    void log(){images.logExport.start(false);}
+    void errors(){images.logExport.start(true);}
     void export(){
         if(images.state.info==null||images.state.reading||images.busy()||pendingInput!=null)return;
         pendingInput=images.state.inputs.get(images.state.selected);
@@ -25,8 +25,7 @@ final class ImageSelection {
     void result(int request,int code,Intent data){
         if(images.destinations.result(request,code,data))return;
         if(request==REPORT){String input=pendingInput;pendingInput=null;if(code==Activity.RESULT_OK&&data!=null&&data.getData()!=null&&input!=null)images.export(Uri.parse(input),data.getData());return;}
-        if(request==ERRORS){if(code==Activity.RESULT_OK&&data!=null&&data.getData()!=null)images.exportLog(data.getData(),ImageFailureStore.FILE);return;}
-        if(request==LOG){if(code==Activity.RESULT_OK&&data!=null&&data.getData()!=null)images.exportLog(data.getData());return;}
+        if(request==ERRORS||request==LOG){images.logExport.result(request,code,data);return;}
         if(code!=Activity.RESULT_OK||data==null||images.busy())return;
         if(request==SOURCE_FOLDER){
             if(data.getData()==null)return;
