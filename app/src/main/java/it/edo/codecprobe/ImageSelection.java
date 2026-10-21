@@ -32,7 +32,9 @@ final class ImageSelection {
             if(data.getData()==null)return;
             try{int flags=data.getFlags()&(Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
                 if((flags&Intent.FLAG_GRANT_READ_URI_PERMISSION)==0)throw new SecurityException("Serve accesso in lettura");
-                images.activity.getContentResolver().takePersistableUriPermission(data.getData(),flags);images.importFolder(data.getData());
+                if((flags&Intent.FLAG_GRANT_WRITE_URI_PERMISSION)!=0)images.activity.getContentResolver().takePersistableUriPermission(data.getData(),Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+                else images.activity.getContentResolver().takePersistableUriPermission(data.getData(),Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                images.importFolder(data.getData());
             }catch(SecurityException error){images.toast("Cartella non importata: "+error.getMessage());}return;
         }
         if(request==FOLDER){if(data.getData()==null)return;try{int flags=data.getFlags()&(Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_WRITE_URI_PERMISSION);if(flags!=(Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_WRITE_URI_PERMISSION))throw new SecurityException("Servono lettura e scrittura");images.activity.getContentResolver().takePersistableUriPermission(data.getData(),Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_WRITE_URI_PERMISSION);images.setFolder(data.getData().toString());}catch(SecurityException e){images.toast("Cartella non salvata: "+e.getMessage());}return;}

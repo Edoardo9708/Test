@@ -43,7 +43,7 @@ public class ImageProgressJournalTest {
             try(var rows=journal.getReadableDatabase().rawQuery("SELECT count(*) FROM progress",null)){assertTrue(rows.moveToFirst());assertEquals(1,rows.getInt(0));}
         }
     }
-    @Test public void eightThousandFiveHundredRecordsOccupyLessThanTwentyMib()throws Exception{
+    @Test public void eightThousandFiveHundredRecordsOccupyLessThanTwentyMb()throws Exception{
         try(ImageProgressJournal journal=new ImageProgressJournal(context)){
             var db=journal.getWritableDatabase();db.beginTransaction();try{
                 for(int i=0;i<8500;i++){
@@ -52,7 +52,7 @@ public class ImageProgressJournalTest {
                 }db.setTransactionSuccessful();
             }finally{db.endTransaction();}
         }
-        long bytes=context.getDatabasePath(ImageProgressJournal.DATABASE).length();assertTrue(bytes>0);assertTrue("Registry size: "+bytes,bytes<20L*1024*1024);System.out.println("IMAGE_REGISTRY_8500_BYTES="+bytes);
+        long bytes=context.getDatabasePath(ImageProgressJournal.DATABASE).length();assertTrue(bytes>0);assertTrue("Registry size: "+bytes,bytes<20000000L);System.out.println("IMAGE_REGISTRY_8500_BYTES="+bytes);
     }
     @Test public void completeLargeFolderHandoffKeepsAllEntriesAndDraftSurvivesRecreation()throws Exception{
         ImageState state=new ImageState();state.bulk=true;state.selectionLabel="8500 JPEG dalla cartella";state.options=options();ArrayList<String> folders=new ArrayList<>();
