@@ -116,6 +116,22 @@ path = directory / 'reject-sef-truncated.jpg'
 image.save(path)
 with path.open('ab') as out:
     out.write(sef(s23_records, 107)[:-1])
+# Observed post-EOI padding: eleven D9 bytes then 172626 zeros. Keep every byte.
+for name, tail in [('observed', b'\xd9' * 11 + bytes(172626)),
+                   ('zero-only', bytes(48)), ('d9-only', b'\xd9' * 11),
+                   ('short', b'\xd9\0'), ('zero-short', b'\0'),
+                   ('max', b'\xd9' * 11 + bytes(4 * 1024 * 1024 - 11))]:
+    path = directory / f'padding-{name}.jpg'
+    image.save(path, quality=94)
+    with path.open('ab') as out:
+        out.write(tail)
+for name, tail in [('padding-mixed', b'\xd9' * 11 + bytes(64) + b'X'),
+                   ('padding-d9-after-zero', b'\xd9\0\xd9'),
+                   ('padding-over-limit', bytes(4 * 1024 * 1024 + 1))]:
+    path = directory / f'reject-{name}.jpg'
+    image.save(path, quality=94)
+    with path.open('ab') as out:
+        out.write(tail)
 image.save(directory / 'xmp.jpg', quality=94)
 insert(directory / 'xmp.jpg', 0xe1, b'http://ns.adobe.com/xap/1.0/\0<x:xmpmeta xmlns:x="adobe:ns:meta/">original</x:xmpmeta>')
 insert(directory / 'xmp.jpg', 0xe4, b'opaque Samsung APP test\0\1\2')
@@ -243,7 +259,7 @@ for value in (0, 9):
     image.save(path, exif=exif)
     result = subprocess.run([engine, str(path), str(path.with_suffix('.heic')), '60'], capture_output=True, text=True)
     assert result.returncode != 0 and f'valore={value}' in result.stderr, result.stderr
-for name, tail in [('short', b'XYZ'), ('padding', bytes(48)),
+for name, tail in [('short', b'XYZ'), ('mixed-padding', bytes(48) + b'X'),
                    ('long', bytes(range(256)) * 32)]:
     path = directory / f'original-unknown-tail-{name}.jpg'
     image.save(path)
@@ -252,6 +268,29 @@ for name, tail in [('short', b'XYZ'), ('padding', bytes(48)),
     result = subprocess.run([engine, str(path), str(path.with_suffix('.heic')), '60'], capture_output=True, text=True)
     assert result.returncode != 0 and f'byte={len(tail)};' in result.stderr, result.stderr
     assert 'primi=' in result.stderr and 'ultimi=' in result.stderr and len(result.stderr) < 512, result.stderr
+# Complete padding survives in the archive; changing or removing it is detected.
+for source in sorted(directory.glob('padding-*.jpg')):
+    source_data = source.read_bytes()
+    end = source_data.index(b'\xff\xd9') + 2
+    tail = source_data[end:]
+    original = source.with_suffix('.heic').read_bytes()
+    archive_start = original.index(b'CPJPEG1\0')
+    position = archive_start + 8
+    blocks = struct.unpack_from('>I', original, position)[0]
+    position += 4
+    for _ in range(blocks):
+        length = struct.unpack_from('>I', original, position + 1)[0]
+        position += 5 + length
+    length = struct.unpack_from('>I', original, position)[0]
+    position += 4
+    assert length == len(tail) and original[position:position + length] == tail
+    changed = bytearray(original)
+    changed[position + len(tail) - 1] ^= 1
+    corrupted = directory / (source.stem + '-changed.heic')
+    corrupted.write_bytes(changed)
+    result = subprocess.run([engine, 'verify', str(source), str(corrupted)], capture_output=True, text=True)
+    assert result.returncode != 0 and 'Archivio APP/COM/SEF diverso' in result.stderr, (source, result.stderr)
+print('OK JPEG padding: observed D9+zero tail and bounded variants preserved byte for byte; mixed/reordered/oversized tails and archive tampering rejected')
 print('OK burst SEF: versions 103/105/106/107, text/binary/terminated/empty payloads preserved byte for byte alongside selfie and MCC; tampering and wrong type/name rejected; bounded tail and explicit EXIF diagnostics')
 print('OK selfie SEF: versions 103/105/106/107, text/binary/terminated/empty payloads preserved byte for byte; altered archive and wrong type/name rejected')
 print('OK HEIC: EXIF/GPS/date, eight orientations, ICC, XMP, opaque APP, SEF including S23 v107 records, wrong SEF type/length/value and unknown HDR/Motion Photo rejection, altered SEF archive rejection, 420/422/444, odd dimensions, rejected inputs, altered metadata; dedicated 1024 px thumbnails, oriented pixels, colour profiles, small-image boundary and missing-thumbnail rejection')

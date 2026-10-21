@@ -1,3 +1,11 @@
+# v0.93 · conserva il riempimento dopo la fine JPEG
+
+Il campione originale rifiutato contiene 172.637 byte dopo il marcatore di fine JPEG: undici byte D9 e 172.626 byte nulli. La conversione accetta ora code di riempimento formate da una sequenza iniziale di D9 seguita esclusivamente da byte zero (anche sequenze contenenti un solo tipo di byte), fino a 4 MiB. Il riconoscimento verifica tutta la coda, non soltanto un prefisso. Altri dati continuano a seguire i controlli SEF o a essere rifiutati come non identificati.
+
+L’intera coda rimane nel blocco proprietario di metadati del file HEIC: nessun byte viene eliminato per risparmiare spazio. Prima della pubblicazione viene riletta e confrontata insieme agli altri metadati originali. Non viene attivata alcuna funzione Motion Photo. Gli originali restano invariati. Questo campione conferma una causa possibile dei precedenti 375 rifiuti, non dimostra che tutti abbiano lo stesso schema.
+
+Test nativi: schema osservato, varianti corte, solo zeri, solo D9 e limite esatto di 4 MiB; rifiuto di byte diversi, D9 dopo lo zero e dimensione oltre limite; conservazione della coda completa e rifiuto di un archivio alterato. La foto privata resta fuori dal repository; i test riproducono soltanto lo schema di riempimento. Prova locale sul campione originale con il motore nativo e le librerie incluse: qualità 65, CRF 17,5, preset slow; 8.506.036 → 6.365.820 byte (−25,2%), verifica completa di HEIC/metadati/coda riuscita, SHA-256 dell’originale invariato.
+
 # v0.92 · raffiche fotografiche SEF e diagnostica degli input rifiutati
 
 Il record foto `Burst_Shot_Info`, tipo SEF `0x09e0`, viene conservato integralmente nell’archivio proprietario JPEG del file HEIC e confrontato byte per byte alla rilettura. Il payload resta opaco, anche binario, vuoto o terminato: nessuna normalizzazione e nessuna ricostruzione della raffica nell’editor Samsung. Il parser SEF dei video resta invariato; Motion Photo e altri contenuti multimediali aggiuntivi non diventano automaticamente supportati.

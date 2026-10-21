@@ -20,8 +20,13 @@ std::string tailSummary(const Bytes& b){
     size_t head=std::min<size_t>(32,b.size()),last=std::min<size_t>(16,b.size());
     return "byte="+std::to_string(b.size())+"; primi="+hex(0,head)+"; ultimi="+hex(b.size()-last,last);
 }
-void sef(const Bytes& b){
-    if(b.empty())return;
+bool paddingTail(const Bytes& b){
+    if(b.size()>4*1024*1024)return false;
+    size_t at=0;while(at<b.size()&&b[at]==0xd9)at++;
+    return std::all_of(b.begin()+at,b.end(),[](uint8_t value){return value==0;});
+}
+void validateTail(const Bytes& b){
+    if(b.empty()||paddingTail(b))return;
     if(b.size()<32||b.size()>4*1024*1024||memcmp(b.data()+b.size()-4,"SEFT",4))bad("Dati dopo JPEG non supportati: tipo da identificare · "+tailSummary(b));
     uint32_t length=le32(b,b.size()-8);if(length<24||length>b.size()-8||(length-12)%12)bad("Directory SEF non valida");
     size_t dir=b.size()-8-length;uint32_t count=le32(b,dir+8),version=le32(b,dir+4);
@@ -93,7 +98,7 @@ Metadata metadata(const Bytes& input){
     }
     if(icc.size()!=size_t(iccParts))bad("Profilo ICC incompleto");for(const auto& part:icc)m.icc.insert(m.icc.end(),part.second.begin(),part.second.end());
     if(!m.icc.empty()&&(m.icc.size()<128||memcmp(m.icc.data()+36,"acsp",4)))bad("Header profilo ICC non valido");
-    m.orientation=orientation(m.exif);m.tail.assign(input.begin()+at,input.end());sef(m.tail);
+    m.orientation=orientation(m.exif);m.tail.assign(input.begin()+at,input.end());validateTail(m.tail);
     m.bundle={'C','P','J','P','E','G','1',0};put32(m.bundle,m.blocks.size());
     for(const Block& b:m.blocks){m.bundle.push_back(b.marker);put32(m.bundle,b.data.size());m.bundle.insert(m.bundle.end(),b.data.begin(),b.data.end());}
     put32(m.bundle,m.tail.size());m.bundle.insert(m.bundle.end(),m.tail.begin(),m.tail.end());return m;
