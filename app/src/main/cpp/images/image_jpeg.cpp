@@ -14,16 +14,22 @@ namespace {
 bool starts(const Bytes& b,const char* text,size_t n){return b.size()>=n&&!memcmp(b.data(),text,n);}
 uint32_t le32(const Bytes& b,size_t p){if(p+4>b.size())bad("SEF troncato");return uint32_t(b[p])|uint32_t(b[p+1])<<8|uint32_t(b[p+2])<<16|uint32_t(b[p+3])<<24;}
 void put32(Bytes& b,size_t value){for(int shift=24;shift>=0;shift-=8)b.push_back((value>>shift)&255);}
+std::string tailSummary(const Bytes& b){
+    static const char digits[]="0123456789abcdef";
+    auto hex=[&](size_t first,size_t count){std::string text;for(size_t i=first;i<first+count;i++){if(i>first)text+=' ';text+=digits[b[i]>>4];text+=digits[b[i]&15];}return text;};
+    size_t head=std::min<size_t>(32,b.size()),last=std::min<size_t>(16,b.size());
+    return "byte="+std::to_string(b.size())+"; primi="+hex(0,head)+"; ultimi="+hex(b.size()-last,last);
+}
 void sef(const Bytes& b){
     if(b.empty())return;
-    if(b.size()<32||b.size()>4*1024*1024||memcmp(b.data()+b.size()-4,"SEFT",4))bad("Dati dopo JPEG non supportati: possibile Motion Photo o altra immagine");
+    if(b.size()<32||b.size()>4*1024*1024||memcmp(b.data()+b.size()-4,"SEFT",4))bad("Dati dopo JPEG non supportati: tipo da identificare · "+tailSummary(b));
     uint32_t length=le32(b,b.size()-8);if(length<24||length>b.size()-8||(length-12)%12)bad("Directory SEF non valida");
     size_t dir=b.size()-8-length;uint32_t count=le32(b,dir+8),version=le32(b,dir+4);
     if(memcmp(b.data()+dir,"SEFH",4)||count==0||count>4096||count!=(length-12)/12||(version!=103&&version!=105&&version!=106&&version!=107))bad("Versione o directory SEF non supportata");
     size_t expected=0;
     for(size_t i=0;i<count;i++){
         size_t e=dir+12+i*12;uint32_t type=le32(b,e),offset=le32(b,e+4),size=le32(b,e+8);
-        if(offset>dir||dir-offset!=expected||size<9||size>dir-expected)bad("Riferimenti SEF non validi");
+        if(offset>dir||dir-offset!=expected||size<9||size>dir-expected)bad("Riferimenti SEF non validi: record="+std::to_string(i+1)+"; offset="+std::to_string(offset)+"; dimensione="+std::to_string(size)+"; inizio atteso="+std::to_string(expected)+"; directory="+std::to_string(dir));
         uint32_t nameSize=le32(b,expected+4);if(nameSize>256||nameSize==0||nameSize>size-8||le32(b,expected)!=type)bad("Record SEF non valido");
         std::string name(reinterpret_cast<const char*>(b.data()+expected+8),nameSize);size_t payload=expected+8+nameSize,bytes=size-8-nameSize;
         bool utc=name=="Image_UTC_Data"&&type==0x0a010000&&bytes==13;
@@ -32,14 +38,15 @@ void sef(const Bytes& b){
         bool capture=name=="Camera_Capture_Mode_Info"&&type==0x0c610000&&bytes>0&&bytes<=16;
         bool p3=name=="Color_Display_P3"&&type==0x0cc10000&&bytes==3;
         bool selfie=name=="Front_Cam_Selfie_Info"&&type==0x09100000;
-        if(!utc&&!mcc&&!scene&&!capture&&!p3&&!selfie)bad("Record SEF foto non supportato: "+name);
+        bool burst=name=="Burst_Shot_Info"&&type==0x09e00000;
+        if(!utc&&!mcc&&!scene&&!capture&&!p3&&!selfie&&!burst)bad("Record SEF foto non supportato: "+name);
         // Keep short decimal codes without binding their width to one sample's
         // scene/mode value. Sixteen bytes is our text bound, not a SEF specification. P3 is
         // a three-byte opaque marker: preserve it without interpreting it as colour
         // instructions. The actual ICC profile is copied and verified separately.
-        // Selfie data is archived verbatim, not interpreted or activated. Its payload
-        // need not match the text variant used by the separate video SEF parser.
-        if(!p3&&!selfie)for(size_t j=payload;j<payload+bytes;j++)if(b[j]<'0'||b[j]>'9')bad("Valore SEF foto non verificato");
+        // Selfie and burst data are archived verbatim, not interpreted or activated. Their payloads
+        // need not match text variants used by the separate video SEF parser.
+        if(!p3&&!selfie&&!burst)for(size_t j=payload;j<payload+bytes;j++)if(b[j]<'0'||b[j]>'9')bad("Valore SEF foto non verificato");
         expected+=size;
     }
     if(expected!=dir)bad("Byte SEF non indicizzati");
@@ -51,7 +58,7 @@ int orientation(const Bytes& exif){
     auto word=[&](size_t at,int count)->uint32_t{if(at>exif.size()||size_t(count)>exif.size()-at)bad("Riferimento EXIF fuori limite");uint32_t v=0;for(int n=0;n<count;n++)v|=uint32_t(exif[at+n])<<(8*(little?n:count-n-1));return v;};
     if(word(8,2)!=42)bad("Header TIFF EXIF non valido");size_t ifd=base+word(10,4);size_t count=word(ifd,2);if(count>(exif.size()-ifd-2)/12)bad("IFD EXIF troncato");
     int result=1;bool seen=false;
-    for(size_t i=0;i<count;i++){size_t p=ifd+2+i*12;if(word(p,2)==0x112){if(seen||word(p+2,2)!=3||word(p+4,4)!=1)bad("Orientamento EXIF non valido");result=word(p+8,2);seen=true;if(result<1||result>8)bad("Orientamento EXIF fuori intervallo");}}
+    for(size_t i=0;i<count;i++){size_t p=ifd+2+i*12;if(word(p,2)==0x112){if(seen)bad("Orientamento EXIF non valido: tag duplicato");if(word(p+2,2)!=3||word(p+4,4)!=1)bad("Orientamento EXIF non valido: tipo="+std::to_string(word(p+2,2))+"; quantita="+std::to_string(word(p+4,4)));result=word(p+8,2);seen=true;if(result<1||result>8)bad("Orientamento EXIF fuori intervallo: valore="+std::to_string(result)+"; atteso 1..8");}}
     return result;
 }
 Metadata metadata(const Bytes& input){
@@ -59,7 +66,7 @@ Metadata metadata(const Bytes& input){
     if(input.size()<4||input[0]!=255||input[1]!=216)bad("Input non JPEG");
     auto next=[&](){if(at>=input.size())bad("JPEG troncato");return int(input[at++]);};
     while(true){
-        int marker=pending;pending=-1;if(marker<0){if(next()!=255)bad("Marcatore JPEG atteso");do{marker=next();}while(marker==255);}
+        int marker=pending;pending=-1;if(marker<0){size_t markerAt=at;int prefix=next();if(prefix!=255)bad("Marcatore JPEG atteso: offset="+std::to_string(markerAt)+"; byte="+std::to_string(prefix));do{marker=next();}while(marker==255);}
         if(++segments>65536)bad("Troppi segmenti JPEG");if(marker==217)break;
         if(marker==216||marker==0||(marker>=208&&marker<=215))bad("Marcatori JPEG non validi");if(marker==1)continue;
         int length=(next()<<8);length+=next();length-=2;if(length<0||size_t(length)>input.size()-at)bad("Segmento JPEG troncato");

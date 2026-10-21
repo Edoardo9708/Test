@@ -76,8 +76,22 @@ for version in (103, 105, 106, 107):
         with path.open('ab') as out:
             out.write(sef([(0x0910, b'Front_Cam_Selfie_Info', payload),
                            (0x0aa1, b'MCC_Data', b'222')], version))
+# Burst identifiers are kept as opaque metadata, including non-text payload variants.
+for version in (103, 105, 106, 107):
+    for variant, payload in [('text', b'20180415192019'),
+                             ('binary', bytes(range(256))),
+                             ('terminated', b'20180415192019\0'),
+                             ('empty', b'')]:
+        path = directory / f'sef-burst-{version}-{variant}.jpg'
+        image.save(path, quality=94)
+        with path.open('ab') as out:
+            out.write(sef([(0x09e0, b'Burst_Shot_Info', payload),
+                           (0x0910, b'Front_Cam_Selfie_Info', b'Front_Cam_Selfie_Info'),
+                           (0x0aa1, b'MCC_Data', b'222')], version))
 # The new names are not a blanket exemption for malformed records or extra media.
 invalid_sef = [
+    ('burst-type', [(0x09e1, b'Burst_Shot_Info', b'opaque')]),
+    ('burst-name', [(0x09e0, b'Unknown_Burst_Info', b'opaque')]),
     ('selfie-type', [(0x0911, b'Front_Cam_Selfie_Info', b'opaque')]),
     ('selfie-name', [(0x0910, b'Unknown_Selfie_Info', b'opaque')]),
     ('scene-type', [(0x0d21, b'Camera_Scene_Info', b'19')]),
@@ -205,9 +219,9 @@ for name in (b'Camera_Scene_Info', b'Color_Display_P3', b'Camera_Capture_Mode_In
     assert result.returncode != 0 and 'Archivio APP/COM/SEF diverso' in result.stderr, (name, result.stderr)
 # The complete selfie SEF tail must occur in the proprietary archive unchanged.
 # Tampering with its payload must fail verification before an output is accepted.
-for source in sorted(directory.glob('sef-selfie-*.jpg')):
+for source in sorted(list(directory.glob('sef-selfie-*.jpg')) + list(directory.glob('sef-burst-*.jpg'))):
     source_data = source.read_bytes()
-    name = b'Front_Cam_Selfie_Info'
+    name = b'Burst_Shot_Info' if source.stem.startswith('sef-burst-') else b'Front_Cam_Selfie_Info'
     start = source_data.index(name) - 8
     tail = source_data[start:]
     original = source.with_suffix('.heic').read_bytes()
@@ -221,5 +235,23 @@ for source in sorted(directory.glob('sef-selfie-*.jpg')):
     corrupted.write_bytes(data)
     result = subprocess.run([engine, 'verify', str(source), str(corrupted)], capture_output=True, text=True)
     assert result.returncode != 0 and 'Archivio APP/COM/SEF diverso' in result.stderr, (source, result.stderr)
+# Report the real out-of-range orientation and bounded raw tail information.
+for value in (0, 9):
+    path = directory / f'original-invalid-orientation-{value}.jpg'
+    exif = Image.Exif()
+    exif[274] = value
+    image.save(path, exif=exif)
+    result = subprocess.run([engine, str(path), str(path.with_suffix('.heic')), '60'], capture_output=True, text=True)
+    assert result.returncode != 0 and f'valore={value}' in result.stderr, result.stderr
+for name, tail in [('short', b'XYZ'), ('padding', bytes(48)),
+                   ('long', bytes(range(256)) * 32)]:
+    path = directory / f'original-unknown-tail-{name}.jpg'
+    image.save(path)
+    with path.open('ab') as out:
+        out.write(tail)
+    result = subprocess.run([engine, str(path), str(path.with_suffix('.heic')), '60'], capture_output=True, text=True)
+    assert result.returncode != 0 and f'byte={len(tail)};' in result.stderr, result.stderr
+    assert 'primi=' in result.stderr and 'ultimi=' in result.stderr and len(result.stderr) < 512, result.stderr
+print('OK burst SEF: versions 103/105/106/107, text/binary/terminated/empty payloads preserved byte for byte alongside selfie and MCC; tampering and wrong type/name rejected; bounded tail and explicit EXIF diagnostics')
 print('OK selfie SEF: versions 103/105/106/107, text/binary/terminated/empty payloads preserved byte for byte; altered archive and wrong type/name rejected')
 print('OK HEIC: EXIF/GPS/date, eight orientations, ICC, XMP, opaque APP, SEF including S23 v107 records, wrong SEF type/length/value and unknown HDR/Motion Photo rejection, altered SEF archive rejection, 420/422/444, odd dimensions, rejected inputs, altered metadata; dedicated 1024 px thumbnails, oriented pixels, colour profiles, small-image boundary and missing-thumbnail rejection')

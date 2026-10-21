@@ -1,3 +1,11 @@
+# v0.92 · raffiche fotografiche SEF e diagnostica degli input rifiutati
+
+Il record foto `Burst_Shot_Info`, tipo SEF `0x09e0`, viene conservato integralmente nell’archivio proprietario JPEG del file HEIC e confrontato byte per byte alla rilettura. Il payload resta opaco, anche binario, vuoto o terminato: nessuna normalizzazione e nessuna ricostruzione della raffica nell’editor Samsung. Il parser SEF dei video resta invariato; Motion Photo e altri contenuti multimediali aggiuntivi non diventano automaticamente supportati.
+
+Per code JPEG non riconosciute, l’errore include lunghezza, primi 32 e ultimi 16 byte in HEX, senza diagnosticare una Motion Photo sulla sola presenza di dati in coda. Gli errori di orientamento riportano il valore fuori intervallo oppure tipo/quantità o duplicazione del tag; riferimenti SEF non validi riportano indice e limiti del record; un marcatore JPEG inatteso riporta offset e byte incontrato. I controlli strutturali restano attivi.
+
+Test nativi: quattro versioni SEF con payload testuali, binari, terminati e vuoti della raffica, insieme a selfie e MCC; conservazione integrale e rifiuto di una copia alterata; tipo/nome sbagliati; diagnostica limitata per code brevi/lunghe e orientamenti 0/9. Il log utente 0.88 contiene 98 rifiuti per Burst_Shot_Info: la correzione gestisce questo record, ma soltanto un nuovo tentativo può escludere ulteriori caratteristiche non supportate nelle stesse foto.
+
 # v0.91 · pausa e ripresa della coda immagini
 
 Il pulsante «Pausa» è nella sezione conversione immagini, sotto «Converti e salva» e «Annulla», ed è disponibile anche nella notifica. La richiesta lascia completare la foto in corso, compresi verifica, salvataggio, registro ed evento nel log; il worker si sospende prima della foto successiva. Durante l’attesa il comando diventa «Riprendi»: continua la stessa coda con gli stessi contatori, senza reimportare file o riavviare le foto completate. Una ripresa richiesta prima dell’effettiva pausa ritira la richiesta.
