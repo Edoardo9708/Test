@@ -45,7 +45,7 @@ public final class ImageConversionService extends Service {
         return START_NOT_STICKY;
     }
     private void run(String queueId,ArrayList<String> legacyQueue,ArrayList<String> legacyFolders,ImageOptions options,int startId){
-        try{
+        try(ImageProgressJournal journal=new ImageProgressJournal(this)){
             ImageQueueStore.Queue job;
             if(queueId!=null)job=ImageQueueStore.read(this,queueId);
             else{job=new ImageQueueStore.Queue();job.inputs.addAll(legacyQueue);job.folders.addAll(legacyFolders);for(int i=0;i<legacyQueue.size();i++)job.names.add("Foto "+(i+1));}
@@ -60,9 +60,14 @@ public final class ImageConversionService extends Service {
                 if(cancelled.get())break;Uri uri=Uri.parse(queue.get(i));String name=ImageFiles.name(this,uri);
                 synchronized(LOCK){state.current=i+1;state.name=name;state.message="Preparazione JPEG";}notifyProgress();
                 ImageRunState.Result result;
-                try{result=ImageConverter.convert(this,uri,name,options.withFolder(folders.get(i)),cancelled::get,this::stage);}
+                ImageOptions fileOptions=options.withFolder(folders.get(i));
+                try{
+                    stage("Controllo registro e originale");result=journal.reusable(this,queue.get(i),name,fileOptions,cancelled::get);
+                    if(result==null)result=ImageConverter.convert(this,uri,name,fileOptions,cancelled::get,this::stage);
+                }
                 catch(Exception e){result=new ImageRunState.Result(name,0,0,null,e.getMessage()==null?e.getClass().getSimpleName():e.getMessage(),cancelled.get()?ImageRunState.Outcome.CANCELLED:ImageRunState.Outcome.FAILED,android.util.Log.getStackTraceString(e));}
                 synchronized(LOCK){state.add(result);}
+                journal.record(queue.get(i),folders.get(i),fileOptions,result);
                 if(result.outcome==ImageRunState.Outcome.FAILED)ImageFailureStore.append(this,state.startedAt,i+1,queue.get(i),folders.get(i),options,result);
                 // The local result still owns the full details; only state.add keeps a bounded preview.
                 write(name+" · "+result.outcome+" · "+result.message+"\n"+result.details);

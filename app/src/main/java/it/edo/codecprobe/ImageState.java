@@ -7,6 +7,6 @@ final class ImageState {
     final ArrayList<String> inputs=new ArrayList<>(),names=new ArrayList<>();
     final DestinationDraft destinations=new DestinationDraft();
     int selected;String name="",notice="";JpegInventory.Info info;
-    boolean reading,exporting,starting;long startingAt,previousRun;ImageOptions options;
+    boolean reading,exporting,starting,importing,bulk;String selectionLabel="";long startingAt,previousRun;ImageOptions options;
     void clamp(){while(names.size()<inputs.size())names.add("Foto "+(names.size()+1));while(names.size()>inputs.size())names.remove(names.size()-1);selected=Math.max(0,Math.min(selected,inputs.size()-1));}
 }

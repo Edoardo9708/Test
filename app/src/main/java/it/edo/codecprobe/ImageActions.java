@@ -13,12 +13,13 @@ final class ImageActions {
     void start(){
         if(images.busy()||images.state.inputs.isEmpty())return;ImageOptions options=images.state.options;
         if(!images.destinations.ready()){images.toast("Autorizza tutte le cartelle di destinazione");images.screen.sections.focusCard(ImageScreen.FILES);return;}
+        final boolean bulk=images.state.bulk;
         images.stopPreviewReads();
         ArrayList<String> inputs=new ArrayList<>(images.state.inputs),folders=images.destinations.snapshot(),names=new ArrayList<>(images.state.names);images.state.starting=true;images.state.startingAt=0;images.state.previousRun=ImageConversionService.snapshot().startedAt;images.render();
         worker.execute(()->{
             String failure=null,id=null;try{
                 for(String folder:new HashSet<>(folders))OutputDocuments.names(images.activity,Uri.parse(folder));
-                id=ImageQueueStore.write(images.activity,inputs,names,folders);
+                id=ImageQueueStore.write(images.activity,inputs,names,folders,bulk);
             }catch(Exception e){failure=e.getMessage()==null?e.getClass().getSimpleName():e.getMessage();}
             String error=failure,queueId=id;images.activity.runOnUiThread(()->{
                 if(closed){ImageQueueStore.discard(images.activity,queueId);return;}if(error!=null){images.state.starting=false;images.state.notice="Preparazione coda non riuscita: "+error;images.render();images.toast(images.state.notice);return;}

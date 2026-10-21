@@ -1,3 +1,17 @@
+# v0.88 · importa cartella JPEG e registro degli esiti
+
+«Importa cartella JPEG» apre il selettore di cartella Android una sola volta. L’app elenca in background tutti i JPEG direttamente contenuti nella cartella, senza leggere i pixel e senza includere sottocartelle, HEIC o video. Il permesso persistente sulla cartella copre gli originali elencati. La selezione importata può superare 5.000 elementi: non occorre dividerla manualmente in lotti. Il limite manuale resta 5.000; l’importazione ha una protezione a 100.000 riferimenti e il file di passaggio al servizio resta limitato a 32 MiB. UI e storico dettagliato restano limitati a 100 elementi.
+
+Se non è già impostata una destinazione, per i file importati viene proposta la cartella selezionata. Le destinazioni rimangono visibili e modificabili prima di premere «Converti e salva». La scansione elenca nomi e riferimenti: i metadati della singola anteprima restano asincroni e ogni nuovo originale è controllato prima della propria codifica.
+
+Un registro SQLite privato, image-progress.db, conserva un solo esito aggiornato per URI originale: nome, destinazione, impostazioni, stato, dimensioni, impronte SHA-256 di originale e risultato ed eventuale URI del risultato. Nessun pixel, payload EXIF o dettaglio tecnico viene scritto nel registro; i dettagli degli errori restano nel JSONL e nel log separati. Il registro si consulta una voce per volta, senza caricarlo tutto in RAM.
+
+Durante una nuova esecuzione, prima di evitare una ricodifica l’app rilegge originale e HEIC a blocchi da 64 KiB e confronta entrambe le impronte con il registro, oltre alle impostazioni di conversione e alla destinazione. Un originale o risultato modificato, eliminato o non più leggibile non viene considerato già completato. Gli esiti «nessun risparmio» possono essere riutilizzati solo con originale e impostazioni invariati. Una modifica della sola opzione schermo acceso non forza la ricodifica. I risultati già presenti sono conteggiati separatamente e contribuiscono una sola volta ai totali dell’esecuzione corrente.
+
+«Carica fallite» ripristina in selezione tutti gli ultimi fallimenti del registro, con le destinazioni conservate. Le impostazioni di compressione restano quelle attuali, visibili prima dell’avvio. Un nuovo successo sostituisce l’esito fallito nel registro; il JSONL mantiene lo storico tecnico. Le conversioni precedenti all’introduzione del registro non vengono considerate riuscite soltanto perché esiste un HEIC con lo stesso nome.
+
+Verifiche aggiunte: cartella sintetica con 8.500 JPEG e file di altri tipi; un solo risultato del selettore di cartella produce 8.500 riferimenti e 100 pulsanti; salvataggio/ripristino della selezione grande; verifica delle due impronte anche dopo modifiche a parità di dimensione; risultati mancanti; cambi delle impostazioni; cancellazione durante la verifica; sostituzione degli esiti e caricamento dei falliti; dimensione reale del DB per 8.500 record realistici (controllo sotto 20 MiB). Il valore misurato è stampato nel log CI come IMAGE_REGISTRY_8500_BYTES; non include selezione, file temporanei o log tecnici separati.
+
 # v0.87 · coda foto fino a 5.000 elementi
 
 La selezione JPEG è cumulativa: «Aggiungi JPEG» aggiunge i file senza duplicati, fino a 5.000. Il carosello mostra tutte le foto fino a 100; sopra tale soglia mostra le prime 100 e «…», con il conteggio totale. Le liste di audio e video conservano il comportamento precedente.

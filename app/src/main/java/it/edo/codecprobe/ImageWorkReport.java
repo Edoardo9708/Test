@@ -34,21 +34,22 @@ final class ImageWorkReport {
             String status;
             switch(result.outcome){
                 case SAVED:status=CompressionSummary.size(result.inputBytes)+" → "+CompressionSummary.size(result.outputBytes)+" · "+CompressionSummary.change(result.inputBytes,result.outputBytes);break;
+                case ALREADY_DONE:status="Già convertita · originale e HEIC verificati · nessuna ricodifica";break;
                 case FAILED:status="Conversione fallita · nessun nuovo file completato";break;
                 case NOT_SMALLER:status="Nessun risparmio · risultato non salvato";break;
                 default:status="Conversione annullata";
             }
             String title="Foto "+(n+1)+" · "+result.name.replace('\n',' ').replace('\r',' ');
             ResultReportRow.add(ui,view.rows,title+"\n"+status,
-                result.outcome==ImageRunState.Outcome.SAVED&&result.uri!=null?()->open(result.uri):null,
+                (result.outcome==ImageRunState.Outcome.SAVED||result.outcome==ImageRunState.Outcome.ALREADY_DONE)&&result.uri!=null?()->open(result.uri):null,
                 result.outcome==ImageRunState.Outcome.FAILED?()->show(result):null);
         }
         long before=run.inputSavedBytes,after=run.outputSavedBytes;
         view.summary.setText(run.completed==0?"Nessuna conversione eseguita.":
-            "Salvate "+run.saved+" · fallite "+run.failed+" · senza risparmio "+run.skipped+" · annullate "+run.cancelledCount
-            +(run.saved==0?"":"\n"+CompressionSummary.size(before)+" → "+CompressionSummary.size(after)+" · "+CompressionSummary.change(before,after)
+            "Salvate "+run.saved+" · fallite "+run.failed+" · senza risparmio "+run.skipped+" · annullate "+run.cancelledCount+(run.alreadyDone>0?" · già presenti "+run.alreadyDone:"")
+            +(run.saved+run.alreadyDone==0?"":"\n"+CompressionSummary.size(before)+" → "+CompressionSummary.size(after)+" · "+CompressionSummary.change(before,after)
             +"\n"+(before>=after?"Spazio risparmiato: ":"Spazio aggiuntivo: ")+CompressionSummary.size(Math.abs(before-after)))
-            +"\nTotale su tutte le foto salvate, compresi i risultati usciti dalla finestra. MB = 1.000.000 byte."
+            +"\nTotale sulle foto salvate e su quelle già presenti verificate, compresi i risultati usciti dalla finestra. MB = 1.000.000 byte."
             +(large?"\nRighe "+(start+1)+"–"+end+" di "+run.total+". Dettagli completi nel log; tutti i fallimenti nell’archivio errori.":""));
     }
 
