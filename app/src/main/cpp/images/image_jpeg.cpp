@@ -31,12 +31,15 @@ void sef(const Bytes& b){
         bool scene=name=="Camera_Scene_Info"&&type==0x0d010000&&bytes>0&&bytes<=16;
         bool capture=name=="Camera_Capture_Mode_Info"&&type==0x0c610000&&bytes>0&&bytes<=16;
         bool p3=name=="Color_Display_P3"&&type==0x0cc10000&&bytes==3;
-        if(!utc&&!mcc&&!scene&&!capture&&!p3)bad("Record SEF foto non supportato: "+name);
+        bool selfie=name=="Front_Cam_Selfie_Info"&&type==0x09100000;
+        if(!utc&&!mcc&&!scene&&!capture&&!p3&&!selfie)bad("Record SEF foto non supportato: "+name);
         // Keep short decimal codes without binding their width to one sample's
         // scene/mode value. Sixteen bytes is our text bound, not a SEF specification. P3 is
         // a three-byte opaque marker: preserve it without interpreting it as colour
         // instructions. The actual ICC profile is copied and verified separately.
-        if(!p3)for(size_t j=payload;j<payload+bytes;j++)if(b[j]<'0'||b[j]>'9')bad("Valore SEF foto non verificato");
+        // Selfie data is archived verbatim, not interpreted or activated. Its payload
+        // need not match the text variant used by the separate video SEF parser.
+        if(!p3&&!selfie)for(size_t j=payload;j<payload+bytes;j++)if(b[j]<'0'||b[j]>'9')bad("Valore SEF foto non verificato");
         expected+=size;
     }
     if(expected!=dir)bad("Byte SEF non indicizzati");

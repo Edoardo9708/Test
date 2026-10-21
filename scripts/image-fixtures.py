@@ -65,8 +65,21 @@ for suffix, scene, capture in [('short', b'0', b'1'), ('longer', b'123', b'12')]
     with path.open('ab') as out:
         out.write(sef([(0x0d01, b'Camera_Scene_Info', scene),
                        (0x0c61, b'Camera_Capture_Mode_Info', capture)], 107))
+# Photo selfie records are opaque: preserve binary variants and text terminators too.
+for version in (103, 105, 106, 107):
+    for variant, payload in [('text', b'Front_Cam_Selfie_Info'),
+                             ('binary', bytes(range(256))),
+                             ('terminated', b'Front_Cam_Selfie_Info\0'),
+                             ('empty', b'')]:
+        path = directory / f'sef-selfie-{version}-{variant}.jpg'
+        image.save(path, quality=94)
+        with path.open('ab') as out:
+            out.write(sef([(0x0910, b'Front_Cam_Selfie_Info', payload),
+                           (0x0aa1, b'MCC_Data', b'222')], version))
 # The new names are not a blanket exemption for malformed records or extra media.
 invalid_sef = [
+    ('selfie-type', [(0x0911, b'Front_Cam_Selfie_Info', b'opaque')]),
+    ('selfie-name', [(0x0910, b'Unknown_Selfie_Info', b'opaque')]),
     ('scene-type', [(0x0d21, b'Camera_Scene_Info', b'19')]),
     ('scene-length', [(0x0d01, b'Camera_Scene_Info', b'12345678901234567')]),
     ('scene-empty', [(0x0d01, b'Camera_Scene_Info', b'')]),
@@ -190,4 +203,23 @@ for name in (b'Camera_Scene_Info', b'Color_Display_P3', b'Camera_Capture_Mode_In
     corrupted.write_bytes(data)
     result = subprocess.run([engine, 'verify', str(source), str(corrupted)], capture_output=True, text=True)
     assert result.returncode != 0 and 'Archivio APP/COM/SEF diverso' in result.stderr, (name, result.stderr)
+# The complete selfie SEF tail must occur in the proprietary archive unchanged.
+# Tampering with its payload must fail verification before an output is accepted.
+for source in sorted(directory.glob('sef-selfie-*.jpg')):
+    source_data = source.read_bytes()
+    name = b'Front_Cam_Selfie_Info'
+    start = source_data.index(name) - 8
+    tail = source_data[start:]
+    original = source.with_suffix('.heic').read_bytes()
+    archive_start = original.index(b'CPJPEG1\0')
+    position = original.index(tail, archive_start)
+    if source.stem.endswith('-empty'):
+        continue
+    data = bytearray(original)
+    data[position + 8 + len(name)] ^= 1
+    corrupted = directory / (source.stem + '-corrupt.heic')
+    corrupted.write_bytes(data)
+    result = subprocess.run([engine, 'verify', str(source), str(corrupted)], capture_output=True, text=True)
+    assert result.returncode != 0 and 'Archivio APP/COM/SEF diverso' in result.stderr, (source, result.stderr)
+print('OK selfie SEF: versions 103/105/106/107, text/binary/terminated/empty payloads preserved byte for byte; altered archive and wrong type/name rejected')
 print('OK HEIC: EXIF/GPS/date, eight orientations, ICC, XMP, opaque APP, SEF including S23 v107 records, wrong SEF type/length/value and unknown HDR/Motion Photo rejection, altered SEF archive rejection, 420/422/444, odd dimensions, rejected inputs, altered metadata; dedicated 1024 px thumbnails, oriented pixels, colour profiles, small-image boundary and missing-thumbnail rejection')

@@ -1,3 +1,11 @@
+# v0.89 · conserva il record SEF delle foto frontali
+
+La conversione JPEG → HEIC accetta `Front_Cam_Selfie_Info` con tipo SEF `0x0910`. Il payload viene conservato integralmente come dato opaco nell’archivio proprietario già presente nel file HEIC: non viene decodificato, normalizzato o applicato ai pixel. Non richiede una specifica stringa ASCII: sono conservati anche byte binari, terminatori e payload vuoti strutturalmente validi. Il lettore SEF dei video resta invariato.
+
+Restano i controlli sulla struttura SEF, sulle versioni 103/105/106/107, sugli offset e sulle dimensioni, con limite complessivo di 4 MiB. Prima del salvataggio viene riletto e confrontato l’intero archivio con i byte originali. Altri record sconosciuti e contenuti HDR/Motion Photo non supportati continuano a essere segnalati. La conservazione non garantisce che la galleria Samsung utilizzi il dato archiviato.
+
+Test nativi sintetici: quattro versioni SEF con varianti testuali, binarie, terminate e vuote; copia integrale della coda; rifiuto di tipo/nome errati e di un archivio alterato. La foto originale segnalata non è inclusa nei test perché è disponibile soltanto il messaggio d’errore. Dopo l’aggiornamento si possono riprovare gli ultimi fallimenti con «Carica fallite».
+
 # v0.88 · importa cartella JPEG e registro degli esiti
 
 «Importa cartella JPEG» apre il selettore di cartella Android una sola volta. L’app elenca in background tutti i JPEG direttamente contenuti nella cartella, senza leggere i pixel e senza includere sottocartelle, HEIC o video. Il permesso persistente sulla cartella copre gli originali elencati. La selezione importata può superare 5.000 elementi: non occorre dividerla manualmente in lotti. Il limite manuale resta 5.000; l’importazione ha una protezione a 100.000 riferimenti e il file di passaggio al servizio resta limitato a 32 MiB. UI e storico dettagliato restano limitati a 100 elementi.
