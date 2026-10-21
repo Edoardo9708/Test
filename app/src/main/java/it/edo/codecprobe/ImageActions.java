@@ -29,6 +29,7 @@ final class ImageActions {
             });
         });
     }
+    void pause(){ImageRunState run=ImageConversionService.snapshot();if(!run.running||run.cancelling)return;images.activity.startService(new Intent(images.activity,ImageConversionService.class).setAction(run.pauseRequested||run.paused?ImageConversionService.RESUME:ImageConversionService.PAUSE).putExtra("startedAt",run.startedAt));}
     void cancel(){ImageRunState run=ImageConversionService.snapshot();if(!run.running||run.cancelling)return;cancelConfirmation=new AlertDialog.Builder(images.activity).setTitle("Annullare la conversione?").setMessage("La fase di codifica in corso deve terminare prima dell’annullamento. I file già salvati restano disponibili.").setPositiveButton("Sì, annulla",(d,w)->images.activity.startService(new Intent(images.activity,ImageConversionService.class).setAction(ImageConversionService.CANCEL).putExtra("startedAt",run.startedAt))).setNegativeButton("Continua",null).create();cancelConfirmation.show();}
     void clearLog(){
         if(images.busy())return;

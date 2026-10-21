@@ -30,8 +30,8 @@ final class ImageRunState {
         if(detail.length()>DETAIL_LIMIT)result=new Result(result.name,result.inputBytes,result.outputBytes,result.uri,result.message,result.outcome,detail.substring(0,DETAIL_LIMIT)+"\nDettagli completi nel log su disco.",result.sourceSha,result.outputSha);
         results.add(result);if(results.size()>ImageQueueStore.VISIBLE)results.remove(0);
     }
-    boolean running,cancelling;long startedAt,endedAt;int current,total;String message="",name="",log="";ImageOptions options;
+    boolean running,cancelling,pauseRequested,paused;long startedAt,endedAt;int current,total;String message="",name="",log="";ImageOptions options;
     final ArrayList<Result> results=new ArrayList<>();
     ImageRunState(){}
-    ImageRunState(ImageRunState other){running=other.running;cancelling=other.cancelling;startedAt=other.startedAt;endedAt=other.endedAt;current=other.current;total=other.total;message=other.message;name=other.name;log=other.log;options=other.options;results.addAll(other.results);completed=other.completed;alreadyDone=other.alreadyDone;saved=other.saved;failed=other.failed;skipped=other.skipped;cancelledCount=other.cancelledCount;inputSavedBytes=other.inputSavedBytes;outputSavedBytes=other.outputSavedBytes;queueNames=other.queueNames;}
+    ImageRunState(ImageRunState other){running=other.running;cancelling=other.cancelling;pauseRequested=other.pauseRequested;paused=other.paused;startedAt=other.startedAt;endedAt=other.endedAt;current=other.current;total=other.total;message=other.message;name=other.name;log=other.log;options=other.options;results.addAll(other.results);completed=other.completed;alreadyDone=other.alreadyDone;saved=other.saved;failed=other.failed;skipped=other.skipped;cancelledCount=other.cancelledCount;inputSavedBytes=other.inputSavedBytes;outputSavedBytes=other.outputSavedBytes;queueNames=other.queueNames;}
 }

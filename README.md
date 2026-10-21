@@ -1,3 +1,11 @@
+# v0.91 · pausa e ripresa della coda immagini
+
+Il pulsante «Pausa» è nella sezione conversione immagini, sotto «Converti e salva» e «Annulla», ed è disponibile anche nella notifica. La richiesta lascia completare la foto in corso, compresi verifica, salvataggio, registro ed evento nel log; il worker si sospende prima della foto successiva. Durante l’attesa il comando diventa «Riprendi»: continua la stessa coda con gli stessi contatori, senza reimportare file o riavviare le foto completate. Una ripresa richiesta prima dell’effettiva pausa ritira la richiesta.
+
+La pausa mantiene il servizio e la coda, rilascia il wake lock e permette al display di spegnersi. Log e archivio errori rimangono esportabili. «Annulla» risveglia anche un worker già in pausa e termina la coda. I comandi sono associati all’esecuzione corrente: notifiche vecchie non possono controllare una nuova coda. Una pausa in memoria non sopravvive alla terminazione del processo e non estende i limiti Android sul servizio.
+
+Verifiche aggiunte sul servizio reale con sorgenti sintetiche: completamento della foto in corso e arresto prima della successiva, stessa coda e contatori dopo la ripresa, annullamento e distruzione del servizio durante l’attesa, revoca di una richiesta di pausa, rilascio del wake lock, comando in notifica, rifiuto dei comandi di una coda precedente, pulsante dopo ricreazione della schermata ed esportazione del log in pausa. I test non avviano il codec: il punto di pausa è tra due conversioni complete, senza cambiamenti al motore nativo.
+
 # v0.90 · log parziale durante la conversione e contatori nel sommario
 
 «Esporta log» e «Esporta archivio errori» sono disponibili anche con una coda foto in corso. Alla richiesta viene preparata su un worker dedicato una copia locale chiusa e coerente: le scritture attendono soltanto durante questa copia. Appena è pronta, la registrazione riprende sul file originale; la scelta della destinazione e la scrittura del TXT/JSONL esterno non mantengono il blocco. Nessun evento viene scartato, nessuna coda viene riavviata e il log originale non viene svuotato. La copia usa un buffer da 64 KiB e un file temporaneo su disco, senza caricare l’intero log in RAM.

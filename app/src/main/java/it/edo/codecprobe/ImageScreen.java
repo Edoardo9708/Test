@@ -7,7 +7,7 @@ import android.widget.*;
 final class ImageScreen {
     static final String FILES="01  FOTO E DESTINAZIONE",COMPRESSION="02  COMPRESSIONE IMMAGINI",HEIC="03  CONVERSIONE IMMAGINI",DETAILS="DIAGNOSTICA";
     final AppUi ui;final LinearLayout page;final AppSections sections;final AppNavigation navigation;final ImageQualityControls quality;
-    final Button settings,select,importFolder,retryFailures,clear,reload,remove,export,chooseFolder,convert,cancel,metadata,exportLog,exportErrors,clearLog,toggleLog;
+    final Button settings,select,importFolder,retryFailures,clear,reload,remove,export,chooseFolder,convert,cancel,pause,metadata,exportLog,exportErrors,clearLog,toggleLog;
     final CheckBox smaller,screenOn;final ProgressBar progress;
     final TextView position,name,summary,selectionSummary,details,status,folder,parameters,runStatus,log;
     final WorkReportView workReport;
@@ -27,7 +27,8 @@ final class ImageScreen {
         status=ui.text(files,"Scegli le foto. Gli originali restano invariati.",14);destinations=new MediaDestinationsView(ui,files,MediaKind.IMAGE);chooseFolder=destinations.pickFolder;folder=destinations.folderLabel;
         ui.text(destinations.body,"Il nome originale viene mantenuto con estensione .heic. In caso di omonimi viene aggiunto un numero; gli originali sono conservati.",13);
         LinearLayout compression=sections.card(page,COMPRESSION);quality=new ImageQualityControls(ui,compression,()->{});
-        LinearLayout output=sections.card(page,HEIC),buttons=ui.row(output);convert=ui.halfButton(buttons,"Converti e salva",true);cancel=ui.halfButton(buttons,"Annulla",false);ui.danger(cancel);
+        LinearLayout output=sections.card(page,HEIC),buttons=ui.row(output);convert=ui.halfButton(buttons,"Converti e salva",true);cancel=ui.halfButton(buttons,"Annulla",false);ui.danger(cancel);pause=ui.button(output,"Pausa");
+        ui.text(output,"Pausa completa la foto in corso, poi attende. Riprendi continua dalla foto successiva, senza ricreare la coda.",13);
         ConversionOptionsView options=new ConversionOptionsView(ui,output,false,true);smaller=options.smaller;screenOn=options.screenOn;
         dashboard=new ConversionDashboard(ui,output,new String[]{},new String[]{"Solo se più piccolo","Qualità","CRF","Preset","Tune","Formato","Dimensioni"});progress=dashboard.progress;runStatus=dashboard.status;
         parameters=ui.text(output,"",14);parameters.setVisibility(android.view.View.GONE);workReport=new WorkReportView(ui,output);

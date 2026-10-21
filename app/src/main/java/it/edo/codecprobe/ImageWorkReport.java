@@ -8,7 +8,7 @@ import java.util.*;
 final class ImageWorkReport {
     private final ImageController images;
     private List<ImageRunState.Result> rendered;
-    private boolean renderedRunning;
+    private boolean renderedRunning,renderedPaused,renderedPauseRequested;
     private int renderedCurrent=-1,renderedTotal=-1;
     private final ResultDialog popup;
 
@@ -16,11 +16,11 @@ final class ImageWorkReport {
 
     void render(ImageRunState run) {
         WorkReportView view = images.screen.workReport;
-        view.title.setText(run.running ? "REPORT LAVORI · IN CORSO" : "REPORT LAVORI");
+        view.title.setText(run.paused ? "REPORT LAVORI · IN PAUSA" : run.running ? "REPORT LAVORI · IN CORSO" : "REPORT LAVORI");
         view.panel.setVisibility(run.total==0&&run.completed==0?android.view.View.GONE:android.view.View.VISIBLE);
         view.summary.setVisibility(android.view.View.VISIBLE);
-        if(rendered!=null&&rendered.equals(run.results)&&renderedRunning==run.running&&renderedCurrent==run.current&&renderedTotal==run.total)return;
-        rendered=new ArrayList<>(run.results);renderedRunning=run.running;renderedCurrent=run.current;renderedTotal=run.total;
+        if(rendered!=null&&rendered.equals(run.results)&&renderedRunning==run.running&&renderedCurrent==run.current&&renderedTotal==run.total&&renderedPaused==run.paused&&renderedPauseRequested==run.pauseRequested)return;
+        rendered=new ArrayList<>(run.results);renderedRunning=run.running;renderedCurrent=run.current;renderedTotal=run.total;renderedPaused=run.paused;renderedPauseRequested=run.pauseRequested;
         view.rows.removeAllViews();AppUi ui=images.screen.ui;
         boolean large=run.total>ImageQueueStore.VISIBLE;
         int start=large?run.windowStart():0,end=large?Math.min(run.total,start+ImageQueueStore.VISIBLE):run.completed;
@@ -28,7 +28,7 @@ final class ImageWorkReport {
             ImageRunState.Result result=run.resultAt(n);
             if(result==null){
                 String name=n<run.queueNames.size()?run.queueNames.get(n):"Foto "+(n+1);
-                String status=run.running&&n==run.current-1?"IN CORSO · "+run.message:n<run.completed?"Completata · dettagli nel log":run.running?"In attesa":run.cancelling?"Non elaborata":"Non elaborata";
+                String status=run.running&&n==run.current-1?"IN CORSO · "+ImageConversionService.displayMessage(run):n<run.completed?"Completata · dettagli nel log":run.running?"In attesa":run.cancelling?"Non elaborata":"Non elaborata";
                 ResultReportRow.add(ui,view.rows,"Foto "+(n+1)+" · "+name.replace('\n',' ').replace('\r',' ')+"\n"+status,null,null);continue;
             }
             String status;
