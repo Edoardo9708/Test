@@ -94,14 +94,19 @@ final class OriginDirectoryPanel {
             activity.runOnUiThread(()->{
                 if(closed||revision!=generation)return;
                 rows.removeAllViews();buttons.clear();
-                int authorized=0;
+                int authorized=0,shown=0;
                 for(Group group:groups.values()){
                     boolean allowed=group.destination!=null;if(allowed)authorized++;
-                    String numbers="";for(int file:group.files)numbers+=(numbers.isEmpty()?"":", ")+(file+1);
+                    if(kind==MediaKind.IMAGE&&shown++>=ImageQueueStore.VISIBLE)continue;
+                    StringBuilder list=new StringBuilder();int numberLimit=kind==MediaKind.IMAGE?100:Integer.MAX_VALUE;
+                    for(int n=0;n<Math.min(group.files.size(),numberLimit);n++){if(n>0)list.append(", ");list.append(group.files.get(n)+1);}
+                    if(group.files.size()>numberLimit)list.append(", … (").append(group.files.size()).append(" foto)");
+                    String numbers=list.toString();
                     Button action=HomeDirectoryRow.add(ui,rows,group.label,numbers,allowed,group.manual,()->listener.authorize(group.parent,sources.get(group.files.get(0)),group.origin,group.requestedFolder),kind);
                     if(!group.origin&&(group.requestedFolder==null||group.requestedFolder.isEmpty()))action.setText("Scegli");
                     buttons.add(action);action.setEnabled(!busy);
                 }
+                if(kind==MediaKind.IMAGE&&groups.size()>ImageQueueStore.VISIBLE)label(rows,"… Altre "+(groups.size()-ImageQueueStore.VISIBLE)+" cartelle. Usa la destinazione per tutte le foto per gestirle insieme.",ink);
                 label(rows,"Cartelle autorizzate: "+authorized+" / "+groups.size(),ink);
                 listener.changed(!destinations.contains(null),destinations,notes);
             });

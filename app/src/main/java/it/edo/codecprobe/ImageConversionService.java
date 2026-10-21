@@ -26,23 +26,33 @@ public final class ImageConversionService extends Service {
         if(request==null){stopSelf(startId);return START_NOT_STICKY;}
         if(CANCEL.equals(request.getAction())){synchronized(LOCK){if(state.running&&request.getLongExtra("startedAt",-1)==state.startedAt){cancelled.set(true);state.cancelling=true;state.message="Annullamento dopo la fase di codifica in corso…";}}if(token==0)stopSelf(startId);return START_NOT_STICKY;}
         if(!START.equals(request.getAction())||token!=0||snapshot().running)return START_NOT_STICKY;
+        String queueId=request.getStringExtra("queueId");
         ArrayList<String> values=request.getStringArrayListExtra("inputs");ImageOptions options;
-        try{options=ImageOptions.from(request);if(values==null||values.isEmpty()||values.size()>100)throw new IllegalArgumentException();}
-        catch(RuntimeException e){stopSelf(startId);return START_NOT_STICKY;}
-        final ArrayList<String> folders;
-        try{folders=QueueDestinations.read(request,values.size(),options.folder);}catch(IllegalArgumentException error){stopSelf(startId);return START_NOT_STICKY;}
-        token=MediaConversionGate.INSTANCE.acquire();if(token==0){synchronized(LOCK){state.message="È già attiva una conversione: attendi il completamento.";}stopSelf(startId);return START_NOT_STICKY;}
-        ArrayList<String> queue=new ArrayList<>(values);cancelled.set(false);
-        synchronized(LOCK){state=new ImageRunState();state.running=true;state.total=queue.size();state.startedAt=SystemClock.elapsedRealtime();state.options=options;state.message="Avvio conversione immagini…";}
+        final ArrayList<String> legacyFolders;
+        try{
+            options=ImageOptions.from(request);
+            if(queueId!=null){if(!ImageQueueStore.file(this,queueId).isFile())throw new IOException("Coda non disponibile");legacyFolders=null;}
+            else{if(values==null||values.isEmpty()||values.size()>100)throw new IllegalArgumentException();legacyFolders=QueueDestinations.read(request,values.size(),options.folder);}
+        }catch(IOException|RuntimeException e){ImageQueueStore.discard(this,queueId);stopSelf(startId);return START_NOT_STICKY;}
+        token=MediaConversionGate.INSTANCE.acquire();if(token==0){ImageQueueStore.discard(this,queueId);synchronized(LOCK){state.message="È già attiva una conversione: attendi il completamento.";}stopSelf(startId);return START_NOT_STICKY;}
+        ArrayList<String> queue=values==null?null:new ArrayList<>(values);cancelled.set(false);
+        synchronized(LOCK){state=new ImageRunState();state.running=true;state.total=queue==null?0:queue.size();state.startedAt=SystemClock.elapsedRealtime();state.options=options;state.message="Avvio conversione immagini…";}
         try{
             startForeground(NOTICE,notification(),Build.VERSION.SDK_INT>=35?ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROCESSING:ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC);
             wake=getSystemService(PowerManager.class).newWakeLock(PowerManager.PARTIAL_WAKE_LOCK,"CodecProbe:images");wake.acquire(6*60*60*1000L);
-            worker.execute(()->run(queue,folders,options,startId));
-        }catch(RuntimeException error){synchronized(LOCK){state.running=false;state.endedAt=SystemClock.elapsedRealtime();state.message="Avvio immagini fallito: "+error.getMessage();}release();stopForeground(STOP_FOREGROUND_REMOVE);stopSelf(startId);}
+            worker.execute(()->run(queueId,queue,legacyFolders,options,startId));
+        }catch(RuntimeException error){ImageQueueStore.discard(this,queueId);synchronized(LOCK){state.running=false;state.endedAt=SystemClock.elapsedRealtime();state.message="Avvio immagini fallito: "+error.getMessage();}release();stopForeground(STOP_FOREGROUND_REMOVE);stopSelf(startId);}
         return START_NOT_STICKY;
     }
-    private void run(ArrayList<String> queue,ArrayList<String> folders,ImageOptions options,int startId){
+    private void run(String queueId,ArrayList<String> legacyQueue,ArrayList<String> legacyFolders,ImageOptions options,int startId){
         try{
+            ImageQueueStore.Queue job;
+            if(queueId!=null)job=ImageQueueStore.read(this,queueId);
+            else{job=new ImageQueueStore.Queue();job.inputs.addAll(legacyQueue);job.folders.addAll(legacyFolders);for(int i=0;i<legacyQueue.size();i++)job.names.add("Foto "+(i+1));}
+            ArrayList<String> queue=job.inputs,folders=job.folders;
+            synchronized(LOCK){state.total=queue.size();state.queueNames=Collections.unmodifiableList(new ArrayList<>(job.names));}
+            // New run log: never rotate away an error halfway through a large batch.
+            try(OutputStream out=new FileOutputStream(new File(getFilesDir(),LOG),false)){out.flush();}
             write("INIZIO IMMAGINI · v"+BuildConfig.VERSION_NAME+"\n"+options.description()+"\nEXIF/XMP/ICC standard; APP/COM e SEF foto supportato conservati anche nell’archivio interno originale. Funzioni proprietarie Samsung non garantite. Originali invariati.");
             for(String folder:new HashSet<>(folders))OutputDocuments.names(this,Uri.parse(folder));
             File[] stale=getCacheDir().listFiles((d,n)->(n.startsWith("image-source-")||n.startsWith("image-heic-"))&&n.endsWith(".tmp"));if(stale!=null)for(File f:stale)f.delete();
@@ -52,16 +62,20 @@ public final class ImageConversionService extends Service {
                 ImageRunState.Result result;
                 try{result=ImageConverter.convert(this,uri,name,options.withFolder(folders.get(i)),cancelled::get,this::stage);}
                 catch(Exception e){result=new ImageRunState.Result(name,0,0,null,e.getMessage()==null?e.getClass().getSimpleName():e.getMessage(),cancelled.get()?ImageRunState.Outcome.CANCELLED:ImageRunState.Outcome.FAILED,android.util.Log.getStackTraceString(e));}
-                synchronized(LOCK){state.results.add(result);}write(name+" · "+result.outcome+" · "+result.message+"\n"+result.details);notifyProgress();
+                synchronized(LOCK){state.add(result);}
+                if(result.outcome==ImageRunState.Outcome.FAILED)ImageFailureStore.append(this,state.startedAt,i+1,queue.get(i),folders.get(i),options,result);
+                // The local result still owns the full details; only state.add keeps a bounded preview.
+                write(name+" · "+result.outcome+" · "+result.message+"\n"+result.details);
+                notifyProgress();
             }
             synchronized(LOCK){state.message=cancelled.get()?"Coda immagini interrotta. I file già salvati restano disponibili.":"Coda immagini terminata.";}
         }catch(Exception error){synchronized(LOCK){state.message="Conversione immagini interrotta: "+error.getMessage();}try{write(android.util.Log.getStackTraceString(error));}catch(IOException ignored){}}
-        finally{synchronized(LOCK){state.running=false;state.cancelling=false;state.endedAt=SystemClock.elapsedRealtime();}release();stopForeground(STOP_FOREGROUND_REMOVE);stopSelf(startId);}
+        finally{ImageQueueStore.discard(this,queueId);synchronized(LOCK){state.running=false;state.cancelling=false;state.endedAt=SystemClock.elapsedRealtime();}release();stopForeground(STOP_FOREGROUND_REMOVE);stopSelf(startId);}
     }
     private void stage(String text){synchronized(LOCK){if(!state.cancelling)state.message=text;}notifyProgress();}
     private void write(String text)throws IOException{
-        File file=new File(getFilesDir(),LOG);if(file.length()>2*1024*1024)try(OutputStream out=new FileOutputStream(file,false)){out.write("Log immagini precedente ruotato al limite di 2 MiB.\n".getBytes(java.nio.charset.StandardCharsets.UTF_8));}
-        try(OutputStream out=new FileOutputStream(file,true)){out.write((text+"\n\n").getBytes(java.nio.charset.StandardCharsets.UTF_8));}
+        File file=new File(getFilesDir(),LOG);
+        try(FileOutputStream out=new FileOutputStream(file,true)){out.write((text+"\n\n").getBytes(java.nio.charset.StandardCharsets.UTF_8));out.getFD().sync();}
         synchronized(LOCK){state.log+=text+"\n\n";if(state.log.length()>24000)state.log=state.log.substring(state.log.length()-24000);}
     }
     private Notification notification(){ImageRunState run=snapshot();Intent open=new Intent(this,ImageActivity.class);PendingIntent page=PendingIntent.getActivities(this,NOTICE,new Intent[]{new Intent(this,MainActivity.class),open},PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);

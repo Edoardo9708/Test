@@ -13,14 +13,18 @@ final class ImageActions {
     void start(){
         if(images.busy()||images.state.inputs.isEmpty())return;ImageOptions options=images.state.options;
         if(!images.destinations.ready()){images.toast("Autorizza tutte le cartelle di destinazione");images.screen.sections.focusCard(ImageScreen.FILES);return;}
-        ArrayList<String> inputs=new ArrayList<>(images.state.inputs),folders=images.destinations.snapshot();images.state.starting=true;images.state.startingAt=0;images.state.previousRun=ImageConversionService.snapshot().startedAt;images.render();
+        images.stopPreviewReads();
+        ArrayList<String> inputs=new ArrayList<>(images.state.inputs),folders=images.destinations.snapshot(),names=new ArrayList<>(images.state.names);images.state.starting=true;images.state.startingAt=0;images.state.previousRun=ImageConversionService.snapshot().startedAt;images.render();
         worker.execute(()->{
-            String failure=null;try{for(String folder:new HashSet<>(folders))OutputDocuments.names(images.activity,Uri.parse(folder));}catch(Exception e){failure=e.getMessage();}
-            String error=failure;images.activity.runOnUiThread(()->{
-                if(closed)return;if(error!=null){images.state.starting=false;images.state.notice="Cartella non accessibile: "+error;images.render();images.toast(images.state.notice);return;}
-                Intent request=new Intent(images.activity,ImageConversionService.class).setAction(ImageConversionService.START).putStringArrayListExtra("inputs",inputs).putStringArrayListExtra("folders",folders);options.put(request);
+            String failure=null,id=null;try{
+                for(String folder:new HashSet<>(folders))OutputDocuments.names(images.activity,Uri.parse(folder));
+                id=ImageQueueStore.write(images.activity,inputs,names,folders);
+            }catch(Exception e){failure=e.getMessage()==null?e.getClass().getSimpleName():e.getMessage();}
+            String error=failure,queueId=id;images.activity.runOnUiThread(()->{
+                if(closed){ImageQueueStore.discard(images.activity,queueId);return;}if(error!=null){images.state.starting=false;images.state.notice="Preparazione coda non riuscita: "+error;images.render();images.toast(images.state.notice);return;}
+                Intent request=new Intent(images.activity,ImageConversionService.class).setAction(ImageConversionService.START).putExtra("queueId",queueId);options.put(request);
                 try{images.state.startingAt=android.os.SystemClock.elapsedRealtime();images.activity.startForegroundService(request);images.screen.sections.focusCard(ImageScreen.HEIC);images.render();}
-                catch(RuntimeException e){images.state.starting=false;images.state.notice="Avvio immagini non riuscito: "+e.getMessage();images.render();images.toast(images.state.notice);}
+                catch(RuntimeException e){ImageQueueStore.discard(images.activity,queueId);images.state.starting=false;images.state.notice="Avvio immagini non riuscito: "+e.getMessage();images.render();images.toast(images.state.notice);}
             });
         });
     }

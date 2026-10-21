@@ -6,7 +6,7 @@ import org.json.*;
 final class ImageDraftStore {
     static ImageState load(Context context){
         ImageState state=new ImageState();var prefs=context.getSharedPreferences("image-workspace",0);
-        try{JSONArray rows=new JSONArray(prefs.getString("selection","[]"));if(rows.length()>100)throw new JSONException("selection limit");for(int i=0;i<rows.length();i++)state.inputs.add(rows.getString(i));}
+        try{JSONArray rows=new JSONArray(prefs.getString("selection","[]"));if(rows.length()>ImageQueueStore.LIMIT)throw new JSONException("selection limit");for(int i=0;i<rows.length();i++)state.inputs.add(rows.getString(i));}
         catch(JSONException e){state.inputs.clear();}
         try{JSONArray names=new JSONArray(prefs.getString("names","[]"));for(int i=0;i<Math.min(names.length(),state.inputs.size());i++)state.names.add(names.getString(i));}catch(JSONException ignored){state.names.clear();}
         state.selected=prefs.getInt("selected",0);state.clamp();ImageOptions defaults=ImageOptions.load(context);

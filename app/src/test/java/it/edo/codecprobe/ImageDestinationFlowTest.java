@@ -34,9 +34,12 @@ public class ImageDestinationFlowTest {
             controller.recreate();images=controller.get().images;assertTrue(images.destinations.choosing());
             controller.get().onActivityResult(MediaDestinationsController.FILE,Activity.RESULT_OK,new Intent().setData(Uri.parse(MediaDestinationsTest.B)).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_WRITE_URI_PERMISSION));ready(images);
             assertEquals(java.util.Arrays.asList(MediaDestinationsTest.A,MediaDestinationsTest.B),images.destinations.snapshot());
+            images.state.reading=true;images.state.info=null;images.render();assertTrue(images.screen.convert.isEnabled());
             images.screen.convert.performClick();Intent command=null;long end=System.currentTimeMillis()+5000;
             while(command==null&&System.currentTimeMillis()<end){Shadows.shadowOf(Looper.getMainLooper()).idle();command=Shadows.shadowOf(controller.get()).getNextStartedService();Thread.sleep(5);}
-            assertNotNull(command);assertEquals(ImageConversionService.START,command.getAction());assertEquals(java.util.Arrays.asList(MediaDestinationsTest.A,MediaDestinationsTest.B),command.getStringArrayListExtra("folders"));assertEquals(65,command.getIntExtra("quality",-1));assertFalse(images.screen.destinations.pickFolder.isEnabled());
+            assertNotNull(command);assertEquals(ImageConversionService.START,command.getAction());assertNull(command.getStringArrayListExtra("inputs"));assertNull(command.getStringArrayListExtra("folders"));
+            String queueId=command.getStringExtra("queueId");assertNotNull(queueId);ImageQueueStore.Queue queued=ImageQueueStore.read(controller.get(),queueId);
+            assertEquals(java.util.Arrays.asList(MediaDestinationsTest.A,MediaDestinationsTest.B),queued.folders);assertEquals(2,queued.inputs.size());ImageQueueStore.discard(controller.get(),queueId);assertEquals(65,command.getIntExtra("quality",-1));assertFalse(images.screen.destinations.pickFolder.isEnabled());
         }finally{controller.pause().stop().destroy();one.delete();two.delete();reset();}
     }
 }

@@ -24,6 +24,7 @@ final class SelectedItemView {
     private IntConsumer selected;
     private int current, transition;
     private boolean closed;
+    private int renderedLimit=Integer.MAX_VALUE;
 
     SelectedItemView(AppUi ui, LinearLayout parent, String item, String empty, String detailsLabel) {
         this.ui = ui; this.item = item; this.empty = empty; this.detailsLabel = detailsLabel;
@@ -56,11 +57,15 @@ final class SelectedItemView {
     }
 
     void render(List<String> names, List<Boolean> errors, int current, boolean enabled, IntConsumer selected) {
-        this.selected = selected;
-        if (!this.names.equals(names) || !this.errors.equals(errors)) {
+        render(names,errors,current,enabled,selected,Integer.MAX_VALUE);
+    }
+    void render(List<String> names,List<Boolean> errors,int current,boolean enabled,IntConsumer selected,int limit){
+        this.selected=selected;
+        if (!this.names.equals(names) || !this.errors.equals(errors) || renderedLimit!=limit) {
+            renderedLimit=limit;
             this.names = new ArrayList<>(names); this.errors = new ArrayList<>(errors);
             navigator.removeAllViews(); chips.clear();
-            for (int n = 0; n < names.size(); n++) {
+            for (int n = 0; n < Math.min(names.size(),limit); n++) {
                 final int index = n;
                 String label = names.get(n);
                 int length = label.codePointCount(0, label.length());
@@ -76,6 +81,7 @@ final class SelectedItemView {
                 layout.setMargins(0, ui.dp(6), ui.dp(8), ui.dp(6));
                 navigator.addView(chip, layout); chips.add(chip);
             }
+            if(names.size()>limit){TextView more=ui.text(navigator,"…",23);more.setPadding(ui.dp(12),0,ui.dp(12),0);more.setContentDescription("Altre "+(names.size()-limit)+" foto accodate; visualizzate solo le prime "+limit);}
         }
         update(current, enabled, false);
     }
@@ -87,6 +93,7 @@ final class SelectedItemView {
         carousel.setVisibility(names.isEmpty() ? View.GONE : View.VISIBLE);
         details.setVisibility(names.isEmpty() ? View.GONE : View.VISIBLE);remove.setVisibility(names.isEmpty()?View.GONE:View.VISIBLE);remove.setEnabled(enabled);
         hint.setVisibility(names.size() > 1 ? View.VISIBLE : View.GONE);
+        hint.setText(names.size()>renderedLimit?"Mostrate le prime "+renderedLimit+" foto; tutte le "+names.size()+" foto sono in coda.":"Scorri la barra e tocca un elemento per mostrarne i dettagli.");
         for (int n = 0; n < chips.size(); n++) {
             Button chip = chips.get(n); boolean active = n == current;
             chip.setEnabled(enabled); chip.setSelected(active);

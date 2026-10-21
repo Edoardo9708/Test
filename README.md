@@ -1,3 +1,15 @@
+# v0.87 · coda foto fino a 5.000 elementi
+
+La selezione JPEG è cumulativa: «Aggiungi JPEG» aggiunge i file senza duplicati, fino a 5.000. Il carosello mostra tutte le foto fino a 100; sopra tale soglia mostra le prime 100 e «…», con il conteggio totale. Le liste di audio e video conservano il comportamento precedente.
+
+Il report foto ha al massimo 100 righe. Per le code grandi la finestra segue la foto corrente, al 50º posto quando sono disponibili abbastanza elementi prima e dopo; le righe successive indicano le foto in attesa. Agli estremi la finestra si adatta. I contatori e i byte delle foto salvate sono cumulativi e indipendenti dai risultati conservati: eliminare i vecchi dettagli non riduce il risparmio totale.
+
+Solo gli ultimi 100 risultati hanno dettagli in RAM (massimo 16.384 caratteri di dettaglio per risultato). Il log completo dell’ultima esecuzione è su disco e non ruota durante una coda; la UI conserva soltanto una coda testuale di 24.000 caratteri. Ogni fallimento è inoltre salvato subito in un archivio persistente JSONL con sorgente, nome, destinazione, impostazioni, motivo e dettagli completi. «Esporta archivio errori» permette di conservarlo anche fuori dall’app. L’archivio non viene cancellato svuotando la selezione o avviando una nuova conversione; non implica una ripetizione automatica dei fallimenti.
+
+L’elenco di lavoro viene scritto in un file privato e il servizio riceve solo il suo identificativo, evitando Intent con migliaia di URI. Le letture di anteprima e dei nomi sono asincrone e non bloccano l’avvio; vengono annullate quando si prepara la conversione. Ogni foto viene aperta e controllata prima della propria codifica dal motore esistente. Una lettura fallita produce un errore per quel file e la coda prosegue. I permessi delle destinazioni restano necessari prima dell’avvio. Se Android termina il processo, la conversione non riparte automaticamente.
+
+Verifiche: 5.000 riferimenti salvati e riletti; 5.000 esiti con dettagli grandi e storico limitato a 100; somme a 64 bit dopo l’eliminazione dei dettagli; riga corrente nella finestra; 125 errori consecutivi attraverso il servizio; archivio errori indipendente dalla RAM; log oltre 2 MiB; avvio mentre l’anteprima è ancora in lettura. La prova Java isolata della coda e dei totali passa con heap limitato a 32 MiB: non misura il consumo dell’intera app Android o del codec.
+
 # v0.86 · dizionario EXIF in italiano
 
 L’analisi riconosce e descrive 165 voci: 128 tag del catalogo standard EXIF, 32 GPS e 5 di interoperabilità. Nome italiano, significato e nome tecnico sono collegati sia alle voci di directory sia ai valori esterni. I popup conservano la scomposizione dei byte e aggiungono 42 tabelle di codici con valore presente evidenziato, interpretazione dei bit del flash, unità, tempi e aperture APEX, coordinate e strutture semplici documentate.

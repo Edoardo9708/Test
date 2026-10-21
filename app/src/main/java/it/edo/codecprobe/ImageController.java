@@ -24,7 +24,7 @@ final class ImageController {
         screen.select.setOnClickListener(v->selection.pick());screen.clear.setOnClickListener(v->{if(busy())return;screen.selectedItem.cancelTransition();ImageMetadataCache.memory.clear();state.inputs.clear();state.names.clear();state.selected=0;ImageConversionService.clear();open();});
         screen.reload.setOnClickListener(v->{if(busy()||state.inputs.isEmpty())return;ImageMetadataCache.memory.clear();open();});
         screen.remove.setOnClickListener(v->{if(busy()||state.inputs.isEmpty())return;screen.selectedItem.cancelTransition();ImageMetadataCache.memory.remove(state.inputs.remove(state.selected));state.names.remove(state.selected);state.clamp();open();});
-        screen.export.setOnClickListener(v->selection.export());screen.exportLog.setOnClickListener(v->selection.log());screen.clearLog.setOnClickListener(v->actions.clearLog());
+        screen.export.setOnClickListener(v->selection.export());screen.exportLog.setOnClickListener(v->selection.log());screen.exportErrors.setOnClickListener(v->selection.errors());screen.clearLog.setOnClickListener(v->actions.clearLog());
         screen.convert.setOnClickListener(v->actions.start());screen.cancel.setOnClickListener(v->actions.cancel());
         screen.quality.changed=this::optionsEdited;screen.smaller.setOnCheckedChangeListener((b,checked)->optionsEdited());screen.screenOn.setOnCheckedChangeListener((b,checked)->screenOnEdited(checked));
         screen.settings.setOnClickListener(v->{android.content.Intent intent=new android.content.Intent(activity,ImageSettingsActivity.class);state.destinations.sync(state.inputs,state.options.folder);String currentFolder=state.inputs.isEmpty()?state.options.folder:state.destinations.plan.effective(state.selected).origin?null:state.destinations.plan.effective(state.selected).folder;state.options.withFolder(currentFolder).put(intent);activity.startActivity(intent);});open();
@@ -39,6 +39,11 @@ final class ImageController {
             if(busy()||index>=state.inputs.size()||!uri.equals(state.inputs.get(index)))return;
             state.selected=index;open();screen.selectedItem.update(index,true,true);
         });
+    }
+    void stopPreviewReads(){
+        ++generation;++namesGeneration;
+        if(analysis!=null)analysis.cancel(true);if(namesRead!=null)namesRead.cancel(true);
+        state.reading=false;
     }
     void readNames(){
         int token=++namesGeneration;if(namesRead!=null)namesRead.cancel(true);
@@ -99,19 +104,21 @@ final class ImageController {
             String notice=result;activity.runOnUiThread(()->{if(destroyed)return;state.exporting=false;state.notice=notice;render();toast(notice);});
         });
     }
-    void exportLog(Uri output){
-        if(busy()||destroyed)return;state.exporting=true;render();exportTask=worker.submit(()->{String notice="Log immagini esportato.";try(InputStream in=new FileInputStream(new File(activity.getFilesDir(),ImageConversionService.LOG));OutputStream out=activity.getContentResolver().openOutputStream(output,"wt")){if(out==null)throw new IOException("Destinazione non scrivibile");byte[] buffer=new byte[65536];int n;while((n=in.read(buffer))!=-1){if(Thread.currentThread().isInterrupted())throw new InterruptedIOException();out.write(buffer,0,n);}}catch(IOException|RuntimeException e){notice="Esportazione log non completata: "+message(e);}String result=notice;activity.runOnUiThread(()->{if(destroyed)return;state.exporting=false;state.notice=result;render();toast(result);});});
+    void exportLog(Uri output){exportLog(output,ImageConversionService.LOG);}
+    void exportLog(Uri output,String filename){
+        if(busy()||destroyed)return;state.exporting=true;render();exportTask=worker.submit(()->{String notice="Log immagini esportato.";try(InputStream in=new FileInputStream(new File(activity.getFilesDir(),filename));OutputStream out=activity.getContentResolver().openOutputStream(output,"wt")){if(out==null)throw new IOException("Destinazione non scrivibile");byte[] buffer=new byte[65536];int n;while((n=in.read(buffer))!=-1){if(Thread.currentThread().isInterrupted())throw new InterruptedIOException();out.write(buffer,0,n);}}catch(IOException|RuntimeException e){notice="Esportazione log non completata: "+message(e);}String result=notice;activity.runOnUiThread(()->{if(destroyed)return;state.exporting=false;state.notice=result;render();toast(result);});});
     }
     void render(){
         state.clamp();int count=state.inputs.size();boolean any=count>0,busy=busy();
         screen.select.setEnabled(!busy);screen.clear.setEnabled(any&&!busy);screen.remove.setEnabled(any&&!busy);
-        screen.selectedItem.render(state.names,Collections.emptyList(),state.selected,!busy,this::select);
+        screen.selectedItem.render(state.names,Collections.emptyList(),state.selected,!busy,this::select,ImageQueueStore.VISIBLE);
         if(!any)screen.selectedItem.setExpanded(false);
         screen.remove.setVisibility(any?android.view.View.VISIBLE:android.view.View.GONE);
         screen.reload.setVisibility(any?android.view.View.VISIBLE:android.view.View.GONE);screen.reload.setEnabled(any&&!busy&&!state.reading);
         screen.metadata.setVisibility(any?android.view.View.VISIBLE:android.view.View.GONE);screen.name.setText(state.name.isEmpty()?(any?state.names.get(state.selected):"Nessuna foto selezionata"):state.name);
         screen.export.setEnabled(state.info!=null&&!state.reading&&!busy);
         screen.metadata.setEnabled(state.info!=null);screen.quality.enabled(!busy);screen.smaller.setEnabled(!busy);screen.exportLog.setEnabled(!busy&&new File(activity.getFilesDir(),ImageConversionService.LOG).isFile());screen.clearLog.setEnabled(screen.exportLog.isEnabled());
+        screen.exportErrors.setEnabled(!busy&&new File(activity.getFilesDir(),ImageFailureStore.FILE).isFile());
         destinations.render();
         ImageRunPresenter.render(this,ImageConversionService.snapshot());
         JpegInventory.Info info=state.info;

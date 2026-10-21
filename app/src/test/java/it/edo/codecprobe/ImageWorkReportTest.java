@@ -19,10 +19,10 @@ public class ImageWorkReportTest {
         try {
             ImageController images = controller.get().images;
             ImageRunState run = new ImageRunState();
-            run.results.add(new ImageRunState.Result("Foto.jpg", 3000000, 2000000, "content://saved/photo", "Salvato", ImageRunState.Outcome.SAVED, "Metadati verificati"));
-            run.results.add(new ImageRunState.Result("Errore.jpg", 9000000, 0, null, "JPEG non supportato", ImageRunState.Outcome.FAILED, "Dettaglio tecnico"));
-            run.results.add(new ImageRunState.Result("Grande.jpg", 1000000, 2000000, null, "Nessun risparmio", ImageRunState.Outcome.NOT_SMALLER, "Non salvato"));
-            run.results.add(new ImageRunState.Result("Annullata.jpg", 5000000, 0, null, "Annullata", ImageRunState.Outcome.CANCELLED, ""));
+            run.add(new ImageRunState.Result("Foto.jpg", 3000000, 2000000, "content://saved/photo", "Salvato", ImageRunState.Outcome.SAVED, "Metadati verificati"));
+            run.add(new ImageRunState.Result("Errore.jpg", 9000000, 0, null, "JPEG non supportato", ImageRunState.Outcome.FAILED, "Dettaglio tecnico"));
+            run.add(new ImageRunState.Result("Grande.jpg", 1000000, 2000000, null, "Nessun risparmio", ImageRunState.Outcome.NOT_SMALLER, "Non salvato"));
+            run.add(new ImageRunState.Result("Annullata.jpg", 5000000, 0, null, "Annullata", ImageRunState.Outcome.CANCELLED, ""));
             images.report.render(run);
             WorkReportView report = images.screen.workReport;
             String summary = report.summary.getText().toString();

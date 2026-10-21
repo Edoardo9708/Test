@@ -9,6 +9,7 @@ final class ImageWorkReport {
     private final ImageController images;
     private List<ImageRunState.Result> rendered;
     private boolean renderedRunning;
+    private int renderedCurrent=-1,renderedTotal=-1;
     private final ResultDialog popup;
 
     ImageWorkReport(ImageController images) { this.images = images;popup=new ResultDialog(images.screen.ui,images::toast); }
@@ -16,38 +17,39 @@ final class ImageWorkReport {
     void render(ImageRunState run) {
         WorkReportView view = images.screen.workReport;
         view.title.setText(run.running ? "REPORT LAVORI · IN CORSO" : "REPORT LAVORI");
-        view.panel.setVisibility(run.results.isEmpty()?android.view.View.GONE:android.view.View.VISIBLE);view.summary.setVisibility(android.view.View.GONE);
-        if (rendered != null && rendered.equals(run.results)&&renderedRunning==run.running) return;
-        rendered = new ArrayList<>(run.results);renderedRunning=run.running;
-        view.rows.removeAllViews();
-        AppUi ui = images.screen.ui;
-        long before = 0, after = 0;
-        int saved = 0, failed = 0, skipped = 0, cancelled = 0;
-        for (int n = 0; n < run.results.size(); n++) {
-            ImageRunState.Result result = run.results.get(n);
-            String status;
-            switch (result.outcome) {
-                case SAVED:
-                    saved++; before += result.inputBytes; after += result.outputBytes;
-                    status = CompressionSummary.size(result.inputBytes) + " → " + CompressionSummary.size(result.outputBytes)
-                        + " · " + CompressionSummary.change(result.inputBytes, result.outputBytes);
-                    break;
-                case FAILED: failed++; status = "Conversione fallita · nessun nuovo file completato"; break;
-                case NOT_SMALLER: skipped++; status = "Nessun risparmio · risultato non salvato"; break;
-                default: cancelled++; status = "Conversione annullata";
+        view.panel.setVisibility(run.total==0&&run.completed==0?android.view.View.GONE:android.view.View.VISIBLE);
+        view.summary.setVisibility(android.view.View.VISIBLE);
+        if(rendered!=null&&rendered.equals(run.results)&&renderedRunning==run.running&&renderedCurrent==run.current&&renderedTotal==run.total)return;
+        rendered=new ArrayList<>(run.results);renderedRunning=run.running;renderedCurrent=run.current;renderedTotal=run.total;
+        view.rows.removeAllViews();AppUi ui=images.screen.ui;
+        boolean large=run.total>ImageQueueStore.VISIBLE;
+        int start=large?run.windowStart():0,end=large?Math.min(run.total,start+ImageQueueStore.VISIBLE):run.completed;
+        for(int n=start;n<end;n++){
+            ImageRunState.Result result=run.resultAt(n);
+            if(result==null){
+                String name=n<run.queueNames.size()?run.queueNames.get(n):"Foto "+(n+1);
+                String status=run.running&&n==run.current-1?"IN CORSO · "+run.message:n<run.completed?"Completata · dettagli nel log":run.running?"In attesa":run.cancelling?"Non elaborata":"Non elaborata";
+                ResultReportRow.add(ui,view.rows,"Foto "+(n+1)+" · "+name.replace('\n',' ').replace('\r',' ')+"\n"+status,null,null);continue;
             }
-            String title = "Foto " + (n + 1) + " · " + result.name.replace('\n', ' ').replace('\r', ' ');
+            String status;
+            switch(result.outcome){
+                case SAVED:status=CompressionSummary.size(result.inputBytes)+" → "+CompressionSummary.size(result.outputBytes)+" · "+CompressionSummary.change(result.inputBytes,result.outputBytes);break;
+                case FAILED:status="Conversione fallita · nessun nuovo file completato";break;
+                case NOT_SMALLER:status="Nessun risparmio · risultato non salvato";break;
+                default:status="Conversione annullata";
+            }
+            String title="Foto "+(n+1)+" · "+result.name.replace('\n',' ').replace('\r',' ');
             ResultReportRow.add(ui,view.rows,title+"\n"+status,
                 result.outcome==ImageRunState.Outcome.SAVED&&result.uri!=null?()->open(result.uri):null,
                 result.outcome==ImageRunState.Outcome.FAILED?()->show(result):null);
         }
-        view.summary.setText(run.results.isEmpty() ? "Nessuna conversione eseguita." :
-            "Salvate " + saved + " · fallite " + failed + " · senza risparmio " + skipped + " · annullate " + cancelled
-            + (saved == 0 ? "" : "\n" + CompressionSummary.size(before) + " → " + CompressionSummary.size(after)
-            + " · " + CompressionSummary.change(before, after)
-            + "\n" + (before >= after ? "Spazio risparmiato: " : "Spazio aggiuntivo: ") + CompressionSummary.size(Math.abs(before - after)))
-            + "\nTotale calcolato sui file salvati, inclusi i metadati. MB = 1.000.000 byte.");
-        if(!run.results.isEmpty())ResultReportRow.add(ui,view.rows,(run.running?"TOTALE PARZIALE · FOTO RIUSCITE\n":"TOTALE · FOTO RIUSCITE\n")+view.summary.getText(),null,null);
+        long before=run.inputSavedBytes,after=run.outputSavedBytes;
+        view.summary.setText(run.completed==0?"Nessuna conversione eseguita.":
+            "Salvate "+run.saved+" · fallite "+run.failed+" · senza risparmio "+run.skipped+" · annullate "+run.cancelledCount
+            +(run.saved==0?"":"\n"+CompressionSummary.size(before)+" → "+CompressionSummary.size(after)+" · "+CompressionSummary.change(before,after)
+            +"\n"+(before>=after?"Spazio risparmiato: ":"Spazio aggiuntivo: ")+CompressionSummary.size(Math.abs(before-after)))
+            +"\nTotale su tutte le foto salvate, compresi i risultati usciti dalla finestra. MB = 1.000.000 byte."
+            +(large?"\nRighe "+(start+1)+"–"+end+" di "+run.total+". Dettagli completi nel log; tutti i fallimenti nell’archivio errori.":""));
     }
 
     private void open(String uri) {
