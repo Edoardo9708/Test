@@ -8,8 +8,8 @@ android {
         applicationId 'it.edo.codecprobe'
         minSdk 29
         targetSdk 35
-        versionCode 99
-        versionName '0.99'
+        versionCode 100
+        versionName '1.00'
         ndk { abiFilters 'arm64-v8a' }
         externalNativeBuild {
             cmake { cppFlags '-std=c++17 -fexceptions' }

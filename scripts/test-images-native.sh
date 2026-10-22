@@ -6,3 +6,5 @@ cmake --build image-host-build --parallel 2
 /usr/bin/python3 scripts/image-fixtures.py
 
 /usr/bin/python3 scripts/image-motion-fixtures.py
+
+/usr/bin/python3 scripts/image-extended-fixtures.py

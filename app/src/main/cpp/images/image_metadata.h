@@ -1,5 +1,6 @@
 #pragma once
 #include "image_sef.h"
+#include "image_gainmap.h"
 #include <cstdint>
 #include <string>
 #include <vector>
@@ -11,7 +12,9 @@ struct Metadata {
     Bytes exif,xmp,icc,tail,bundle;
     int orientation=1;
     size_t jpegEnd=0;
-    bool missingEoi=false,orientationWasZero=false,archivedPanorama=false;
+    bool missingEoi=false,orientationWasZero=false,archivedPanorama=false,externalTail=false,c2pa=false;
+    size_t sefZeroPrefix=0;
+    GainMap gainMap;
     MotionClip motion;
     JpegTailKind tailKind=JpegTailKind::Empty;
 };

@@ -99,6 +99,45 @@ void appendMotionVideo(const std::string& path,const std::vector<uint8_t>& tail,
     out.write(reinterpret_cast<char*>(header),8);out.write(reinterpret_cast<const char*>(tail.data()+clip.offset),clip.length);out.close();
     if(!out)bad("Scrittura video Motion Photo incompleta");
 }
+namespace {
+const uint8_t archiveUuid[16]={'C','P','J','P','E','G','3',0,0x80,0,0,0,0,0,0,1};
+bool archiveBox(std::ifstream& file,const FileBox& box){
+    if(box.type!="uuid"||box.end-box.payload<16)return false;
+    uint8_t uuid[16];file.seekg(box.payload);
+    return bool(file.read(reinterpret_cast<char*>(uuid),16))&&!memcmp(uuid,archiveUuid,16);
+}
+}
+void appendArchivedTail(const std::string& path,const std::vector<uint8_t>& tail,const MotionClip& clip){
+    if(clip.offset>tail.size()||clip.length>tail.size()-clip.offset||tail.size()>52*1024*1024)bad("Coda CPJPEG3 fuori limite");
+    auto boxes=fileBoxes(path);std::ifstream old(path,std::ios::binary);
+    for(const auto& box:boxes)if(archiveBox(old,box)||box.type=="mpvd")bad("Archivio CPJPEG3 duplicato o posizione non valida");
+    uint32_t size=uint32_t(tail.size()-clip.length+24);
+    uint8_t header[]={uint8_t(size>>24),uint8_t(size>>16),uint8_t(size>>8),uint8_t(size),'u','u','i','d'};
+    std::ofstream out(path,std::ios::binary|std::ios::app);
+    out.write(reinterpret_cast<char*>(header),8);out.write(reinterpret_cast<const char*>(archiveUuid),16);
+    out.write(reinterpret_cast<const char*>(tail.data()),clip.offset);
+    out.write(reinterpret_cast<const char*>(tail.data()+clip.offset+clip.length),tail.size()-clip.offset-clip.length);
+    out.close();if(!out)bad("Scrittura archivio CPJPEG3 incompleta");
+}
+void verifyArchivedTail(const std::string& path,const std::vector<uint8_t>& tail,const MotionClip& clip,bool expected){
+    auto boxes=fileBoxes(path);std::ifstream file(path,std::ios::binary);size_t count=0;
+    for(const auto& box:boxes)if(archiveBox(file,box)){
+        count++;
+        if(!expected||clip.offset>tail.size()||clip.length>tail.size()-clip.offset||box.end-box.payload!=tail.size()-clip.length+16)bad("Dimensione archivio CPJPEG3 diversa");
+        uint64_t end=clip.length?boxes.back().start:boxes.back().end;
+        if(box.end!=end)bad("Posizione archivio CPJPEG3 diversa");
+        file.seekg(box.payload+16);std::array<uint8_t,65536> buffer{};
+        auto compare=[&](size_t first,size_t length){
+            for(size_t at=0;at<length;){
+                size_t n=std::min(buffer.size(),length-at);
+                if(!file.read(reinterpret_cast<char*>(buffer.data()),n)||memcmp(buffer.data(),tail.data()+first+at,n))bad("Archivio CPJPEG3 diverso dall’originale");
+                at+=n;
+            }
+        };
+        compare(0,clip.offset);compare(clip.offset+clip.length,tail.size()-clip.offset-clip.length);
+    }
+    if(count!=size_t(expected))bad("Archivio CPJPEG3 mancante o duplicato");
+}
 void verifyMotionVideo(const std::string& path,const std::vector<uint8_t>& tail,const MotionClip& clip){
     auto boxes=fileBoxes(path);size_t count=0;
     for(const auto& box:boxes)if(box.type=="mpvd"){

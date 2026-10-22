@@ -25,3 +25,6 @@ image-fixtures/
 app/src/main/assets/libheif-LGPL.txt
 app/src/main/assets/x265-COPYING.txt
 app/src/main/assets/x265-revision.txt
+
+.tools/
+.tools-*.log

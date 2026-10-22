@@ -14,13 +14,16 @@ struct HandleDelete {void operator()(heif_image_handle* p)const{if(p)heif_image_
 using Image=std::unique_ptr<heif_image,ImageDelete>;
 using Context=std::unique_ptr<heif_context,ContextDelete>;
 using Handle=std::unique_ptr<heif_image_handle,HandleDelete>;
-struct Source {Metadata metadata;Image image;int width=0,height=0,matrix=6,primaries=2,transfer=2;};
+struct Source {Metadata metadata;Image image,gainMap;int width=0,height=0,matrix=6,primaries=2,transfer=2;};
 constexpr int thumbnailEdge=1024;
 void addThumbnail(heif_context* context,const Source& source,const heif_image_handle* primary,const heif_encoding_options* options);
 void check(heif_error error,const char* action);
 Bytes readFile(const std::string& path,size_t limit);
 std::string inspectJpeg(const std::string& path);
 Source loadJpeg(const std::string& path);
+Image decodeGainMap(const Metadata& metadata);
+void encodeGainMap(heif_context* context,const heif_image_handle* primary,const Source& source,const heif_encoding_options* options);
+void verifyGainMap(heif_context* context,const heif_image_handle* primary,const Source& source);
 void attach(heif_context* context,heif_image_handle* handle,const Metadata& data);
 void verify(const std::string& path,const Source& source,const Stage& stage);
 std::string convert(const std::string& input,const std::string& output,int quality,const std::string& preset,const std::string& tune,const Stage& stage);

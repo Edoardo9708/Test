@@ -17,6 +17,8 @@ std::string inspectJpeg(const std::string& path){
     // Same metadata parser as conversion, with no FFmpeg, libheif or x265 calls.
     Bytes input=readFile(path,64*1024*1024);Metadata m=readJpegMetadata(input);
     std::string headline="Metadati compatibili";
+    if(m.gainMap.width)headline+=" · mappa HDR Apple";
+    if(m.c2pa)headline+=" · C2PA originale archiviato";
     if(m.motion.length)headline+=" · Motion Photo con video";
     if(m.orientationWasZero)headline+=" · orientamento non definito";
     if(m.archivedPanorama)headline+=" · panorama archiviato";
@@ -57,6 +59,7 @@ Source loadJpeg(const std::string& path){
     auto profile=std::unique_ptr<heif_color_profile_nclx,void(*)(heif_color_profile_nclx*)>(heif_nclx_color_profile_alloc(),heif_nclx_color_profile_free);if(!profile)throw std::bad_alloc();
     check(heif_nclx_color_profile_set_color_primaries(profile.get(),source.primaries),"Primarie");check(heif_nclx_color_profile_set_transfer_characteristics(profile.get(),source.transfer),"Trasferimento");check(heif_nclx_color_profile_set_matrix_coefficients(profile.get(),source.matrix),"Matrice");profile->full_range_flag=1;
     check(heif_image_set_nclx_color_profile(raw,profile.get()),"Profilo NCLX");if(!source.metadata.icc.empty())check(heif_image_set_raw_color_profile(raw,"prof",source.metadata.icc.data(),source.metadata.icc.size()),"Profilo ICC");
+    if(source.metadata.gainMap.width)source.gainMap=decodeGainMap(source.metadata);
     return source;
 }
 }

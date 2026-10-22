@@ -36,7 +36,12 @@ bool opaquePhotoRecord(uint32_t type,const std::string& name){
         {0x0001,"SingleShot"}, {0x0001,"DualShot_1"}, {0x0001,"DualShot_2"}
     };
     for(const auto& record:records)if(type==(uint32_t(record.first)<<16)&&name==record.second)return true;
-    return false;
+    for(unsigned i=1;i<=10;i++){
+        if(type==0x00010000&&name=="DualShot_"+std::to_string(i))return true;
+        if(type==0x0b410000&&(name=="SingeShot_DepthMap_"+std::to_string(i)||name=="SingleShot_DepthMap_"+std::to_string(i)))return true;
+        if(type==0x0ab10000&&name=="DualShot_DepthMap_"+std::to_string(i))return true;
+    }
+    return type==0x0ac00000&&name=="ZoomInOut_Info";
 }
 std::string tailSummary(const Bytes& b){
     static const char digits[]="0123456789abcdef";
@@ -72,7 +77,7 @@ size_t jpegSefTailStart(const std::vector<uint8_t>& b){
         if(offset>dir||size<9||size>offset)bad("Riferimenti SEF non validi");
         first=std::min(first,dir-offset);
     }
-    if(b.size()-first>motionVideoLimit+4*1024*1024)bad("SEF oltre il limite: 48 MiB video e 4 MiB metadati");
+    if(b.size()-first>motionVideoLimit+4*1024*1024)bad("SEF oltre il limite complessivo di 52 MiB");
     return first;
 }
 JpegTailInfo inspectJpegTail(const std::vector<uint8_t>& b){
@@ -80,7 +85,7 @@ JpegTailInfo inspectJpegTail(const std::vector<uint8_t>& b){
     if(b.empty())return info;
     if(paddingTail(b)){info.kind=JpegTailKind::Padding;return info;}
     if(paddedOpaqueTail(b)){info.kind=JpegTailKind::PaddedOpaque;return info;}
-    if(b.size()>motionVideoLimit+4*1024*1024)bad("SEF oltre il limite: 48 MiB video e 4 MiB metadati");
+    if(b.size()>motionVideoLimit+4*1024*1024)bad("SEF oltre il limite complessivo di 52 MiB");
     if(b.size()<32||b.size()>motionVideoLimit+4*1024*1024||memcmp(b.data()+b.size()-4,"SEFT",4))bad("Dati dopo JPEG non supportati: tipo da identificare · "+tailSummary(b));
     uint32_t length=le32(b,b.size()-8);if(length<24||length>b.size()-8||(length-12)%12)bad("Directory SEF non valida");
     size_t dir=b.size()-8-length;uint32_t count=le32(b,dir+8),version=le32(b,dir+4);
@@ -116,9 +121,13 @@ JpegTailInfo inspectJpegTail(const std::vector<uint8_t>& b){
     // Directory order need not match physical order. Every data byte must still
     // belong to exactly one validated record: reject overlaps, holes and aliases.
     std::sort(ranges.begin(),ranges.end());size_t expected=0;
+    if(!ranges.empty()&&ranges[0].first>0&&ranges[0].first<=65536&&
+       std::all_of(b.begin(),b.begin()+ranges[0].first,[](uint8_t v){return v==0;})){
+        expected=ranges[0].first;info.zeroPrefix=expected;
+    }
     for(const auto& range:ranges){if(range.first!=expected)bad("Riferimenti SEF non validi: record sovrapposti o byte non indicizzati; atteso="+std::to_string(expected)+"; inizio="+std::to_string(range.first)+"; fine="+std::to_string(range.second));expected=range.second;}
     if(expected!=dir)bad("Byte SEF non indicizzati");
-    if(b.size()-info.motion.length>4*1024*1024)bad("Metadati SEF oltre il limite di 4 MiB, video escluso");
+    // Large validated records are stored outside HEIF metadata items in CPJPEG3.
     info.kind=JpegTailKind::Sef;return info;
 }
 JpegTailKind validateJpegTail(const std::vector<uint8_t>& b){return inspectJpegTail(b).kind;}

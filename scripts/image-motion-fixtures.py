@@ -152,6 +152,7 @@ element_properties = packet(directory='<C:MicroVideo>1</C:MicroVideo><C:MicroVid
                            f'<C:MicroVideoOffset>{len(video) + 56}</C:MicroVideoOffset>')
 cases = [("sef-only", video, None), ("legacy", video, legacy), ("modern", video, modern),
          ("element-properties", video, element_properties),
+         ("positive-primary-length", video, modern.replace(b'I:Padding="78"', b'I:Padding="78" I:Length="100"')),
          ("disabled", video, packet('C:MotionPhoto="0"')),
          ("over-4-MiB", large, None)]
 for name, movie, xmp in cases:
@@ -172,6 +173,7 @@ invalid = [
     ("duplicate-property", video, packet('C:MicroVideo="1"', '<C:MicroVideo>1</C:MicroVideo>'), False),
     ("bad-xml", video, b"<broken", False),
     ("dtd", video, b'<!DOCTYPE x [<!ENTITY a SYSTEM "file:///etc/passwd">]>' + legacy, False),
+    ("invalid-primary-length", video, modern.replace(b'I:Padding="78"', b'I:Padding="78" I:Length="99999999"'), False),
     ("wrong-item-length", video, modern.replace(f'I:Length="{len(video)}"'.encode(), b'I:Length="1"'), False),
     ("missing-mp4", b"not a video" * 9, None, False),
     ("duplicate-video", video, None, True),

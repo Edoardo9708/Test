@@ -204,7 +204,7 @@ for name, records in invalid_sef:
 path = directory / 'reject-sef-over-limit.jpg'
 image.save(path)
 with path.open('ab') as out:
-    out.write(sef([(0x09e1, b'BurstShot_Best_Photo_Info', bytes(4 * 1024 * 1024))], 107))
+    out.write(sef([(0x09e1, b'BurstShot_Best_Photo_Info', bytes(52 * 1024 * 1024))], 107))
 path = directory / 'reject-sef-truncated.jpg'
 image.save(path)
 with path.open('ab') as out:

@@ -28,8 +28,10 @@ std::string convert(const std::string& input,const std::string& output,int quali
         auto options=std::unique_ptr<heif_encoding_options,void(*)(heif_encoding_options*)>(heif_encoding_options_alloc(),heif_encoding_options_free);if(!options)throw std::bad_alloc();
         options->image_orientation=static_cast<heif_orientation>(source.metadata.orientation);options->save_two_colr_boxes_when_ICC_and_nclx_available=1;
         heif_image_handle* rawHandle=nullptr;check(heif_context_encode_image(context.get(),source.image.get(),encoder.get(),options.get(),&rawHandle),"Codifica HEIC");Handle handle(rawHandle);
+        if(source.gainMap){stage("Copia lossless mappa HDR Apple");encodeGainMap(context.get(),handle.get(),source,options.get());}
         stage("Generazione miniatura HEIF");addThumbnail(context.get(),source,handle.get(),options.get());
         stage("Copia metadati HEIC");attach(context.get(),handle.get(),source.metadata);check(heif_context_write_to_file(context.get(),output.c_str()),"Scrittura HEIC");
+        if(source.metadata.externalTail)appendArchivedTail(output,source.metadata.tail,source.metadata.motion);
         appendMotionVideo(output,source.metadata.tail,source.metadata.motion);
         stage("Verifica HEIC, pixel e metadati");verify(output,source,stage);
         return "OK HEIC · libheif "+std::string(heif_get_version())+" · "+heif_encoder_get_name(encoder.get())+" · qualità="+std::to_string(quality)+" · CRF="+std::to_string((100-quality)/2.0)+" · preset="+preset+" · tune="+tune+" · YUV420 8 bit full range · orientamento="+std::to_string(source.metadata.orientation)+" · APP/COM="+std::to_string(source.metadata.blocks.size())+" · coda JPEG="+std::to_string(source.metadata.tail.size())+" byte. "+(source.width>thumbnailEdge||source.height>thumbnailEdge?"Miniatura HEIF dedicata fino a 1024 pixel, collegata e decodificata. ":"Immagine entro 1024 pixel: nessuna miniatura aggiuntiva. ")+metadataNotes(source.metadata)+" EXIF/ICC, XMP attivo e archivio originali riletti e confrontati byte per byte; immagine decodificata completamente. I dati Samsung archiviati non garantiscono le funzioni dell’editor Samsung.";

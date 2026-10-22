@@ -6,7 +6,7 @@
 namespace photo {
 // Validate post-JPEG padding/SEF before archiving it verbatim. No payload interpretation.
 enum class JpegTailKind { Empty, Padding, PaddedOpaque, Sef };
-struct JpegTailInfo {JpegTailKind kind=JpegTailKind::Empty;MotionClip motion;bool archivedPanorama=false;};
+struct JpegTailInfo {JpegTailKind kind=JpegTailKind::Empty;MotionClip motion;bool archivedPanorama=false;size_t zeroPrefix=0;};
 JpegTailInfo inspectJpegTail(const std::vector<uint8_t>& bytes);
 JpegTailKind validateJpegTail(const std::vector<uint8_t>& bytes);
 // Locate a possible SEF boundary from the footer and directory, without decoding.

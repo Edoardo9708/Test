@@ -21,6 +21,7 @@ void verifyColor(const heif_image_handle* handle,const Source& source){
 }
 }
 void verify(const std::string& path,const Source& source,const Stage& stage){
+    verifyArchivedTail(path,source.metadata.tail,source.metadata.motion,source.metadata.externalTail);
     verifyMotionVideo(path,source.metadata.tail,source.metadata.motion);
     Context context(heif_context_alloc());if(!context)throw std::bad_alloc();heif_context_set_maximum_image_size_limit(context.get(),16384);
     check(heif_context_read_from_file(context.get(),path.c_str(),nullptr),"Riapertura HEIC");
@@ -45,7 +46,7 @@ void verify(const std::string& path,const Source& source,const Stage& stage){
         else throw std::runtime_error("Metadato HEIC inatteso");
     }
     require(exif==int(!source.metadata.exif.empty())&&xmp==int(!source.metadata.xmp.empty())&&bundle==1,"Metadati HEIC mancanti o duplicati");
-    verifyColor(raw,source);
+    verifyColor(raw,source);verifyGainMap(context.get(),raw,source);
     auto options=std::unique_ptr<heif_decoding_options,void(*)(heif_decoding_options*)>(heif_decoding_options_alloc(),heif_decoding_options_free);if(!options)throw std::bad_alloc();options->ignore_transformations=0;options->strict_decoding=1;
     verifyPixels(raw,w,h,options.get());
     int edge=std::max(source.width,source.height);bool expected=edge>thumbnailEdge;

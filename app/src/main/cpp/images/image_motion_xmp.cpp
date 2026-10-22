@@ -41,7 +41,7 @@ std::string property(XMLElement* element,const std::string& uri,const std::strin
     if(required&&!found)bad("proprietà mancante: "+name);
     return result;
 }
-void validateDirectory(XMLElement* directory,size_t eofOffset,const MotionClip& clip){
+void validateDirectory(XMLElement* directory,size_t eofOffset,size_t jpegSize,MotionClip& clip){
     auto seq=directory->FirstChildElement();
     if(!seq||!named(seq,rdf,"Seq")||seq->NextSiblingElement())bad("Directory deve essere una sequenza RDF");
     size_t index=0;
@@ -54,7 +54,7 @@ void validateDirectory(XMLElement* directory,size_t eofOffset,const MotionClip& 
         if(index==0){
             if(mime!="image/jpeg"||semantic!="Primary")bad("immagine primaria diversa dal JPEG semplice");
             auto length=property(entry,item,"Length",false),padding=property(entry,item,"Padding",false);
-            if(!length.empty()&&number(length)!=0)bad("Length dell’immagine primaria non valido");
+            if(!length.empty()){auto n=uint64_t(number(length));if(n>jpegSize+clip.offset)bad("Length dell’immagine primaria fuori dal JPEG");clip.primaryLengthRewritten=n!=0;}
             if(!padding.empty()&&uint64_t(number(padding))>eofOffset)bad("Padding fuori limite");
         }else{
             if(mime!="video/mp4"||semantic!="MotionPhoto")bad("elemento secondario diverso dal video Motion Photo");
@@ -66,7 +66,7 @@ void validateDirectory(XMLElement* directory,size_t eofOffset,const MotionClip& 
     if(index!=2)bad("Directory incompleta");
 }
 }
-std::vector<uint8_t> motionXmp(const std::vector<uint8_t>& original,size_t eofOffset,MotionClip& clip){
+std::vector<uint8_t> motionXmp(const std::vector<uint8_t>& original,size_t eofOffset,size_t jpegSize,MotionClip& clip){
     XMLDocument document;
     const char* empty="<x:xmpmeta xmlns:x=\"adobe:ns:meta/\"><rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\"/></x:xmpmeta>";
     if((original.empty()?document.Parse(empty):document.Parse(reinterpret_cast<const char*>(original.data()),original.size()))!=XML_SUCCESS)bad("XML non valido");
@@ -107,7 +107,7 @@ std::vector<uint8_t> motionXmp(const std::vector<uint8_t>& original,size_t eofOf
         auto n=number(values[key],true);if(seenTimestamp&&timestamp!=n)bad("timestamp camera incoerenti");seenTimestamp=true;timestamp=n;
     }
     if(values.count("MicroVideoOffset")&&uint64_t(number(values["MicroVideoOffset"]))!=eofOffset)bad("MicroVideoOffset non corrisponde al video SEF");
-    for(auto directory:directories)validateDirectory(directory,eofOffset,clip);
+    for(auto directory:directories)validateDirectory(directory,eofOffset,jpegSize,clip);
     // Retain all non-motion properties in the active XMP. The unmodified packet
     // also remains in the APP archive, including its original offsets and layout.
     for(const auto& a:attributes)a.first->DeleteAttribute(a.second.c_str());
