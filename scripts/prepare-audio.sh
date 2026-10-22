@@ -6,7 +6,7 @@ fetch() {
   local name="$1" archive="$2" digest="$3" directory="$4"
   local cache="vendor/$archive"
   if [ ! -f "$cache" ]; then
-    curl --fail --location --retry 3 "https://downloads.xiph.org/releases/$name/$archive" -o "$cache"
+    curl --fail --location --retry 3 --retry-all-errors --connect-timeout 30 --max-time 600 "https://downloads.xiph.org/releases/$name/$archive" -o "$cache"
   fi
   printf '%s  %s\n' "$digest" "$cache" | sha256sum --check
   if [ ! -d "vendor/$directory" ]; then tar -xf "$cache" -C vendor; fi
@@ -21,7 +21,7 @@ cp vendor/flac-1.5.0/COPYING.Xiph app/src/main/assets/flac-COPYING.txt
 # TagLib parses ID3 and MP4 metadata; pinned release and pinned header-only UTF-8 dependency.
 archive=vendor/taglib-2.3.2.tar.gz
 if [ ! -f "$archive" ]; then
-  curl --fail --location --retry 3 https://taglib.org/releases/taglib-2.3.2.tar.gz -o "$archive"
+  curl --fail --location --retry 3 --retry-all-errors --connect-timeout 30 --max-time 600 https://taglib.org/releases/taglib-2.3.2.tar.gz -o "$archive"
 fi
 printf '%s  %s\n' 3ca2d8afaa7f1cf7f6ed10e511ebc368bfacd6dcaa3dbfa690b89e502e8963dc "$archive" | sha256sum --check
 if [ ! -d vendor/taglib-2.3.2 ]; then tar -xf "$archive" -C vendor; fi
