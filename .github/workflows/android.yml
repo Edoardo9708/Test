@@ -185,7 +185,10 @@ jobs:
         if: always()
         with:
           name: Images-smoke-log
-          path: image-fixtures/*.log
+          path: |
+            image-fixtures/**/*.log
+            image-fixtures/*.log
+            image-host-build/image_smoke
 
   video-decoder:
     name: Software HEVC decoder smoke

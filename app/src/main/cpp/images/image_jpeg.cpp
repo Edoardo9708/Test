@@ -17,17 +17,20 @@ std::string inspectJpeg(const std::string& path){
     // Same metadata parser as conversion, with no FFmpeg, libheif or x265 calls.
     Bytes input=readFile(path,64*1024*1024);Metadata m=readJpegMetadata(input);
     std::string headline="Metadati compatibili";
+    if(m.motion.length)headline+=" · Motion Photo con video";
+    if(m.orientationWasZero)headline+=" · orientamento non definito";
+    if(m.archivedPanorama)headline+=" · panorama archiviato";
     if(m.missingEoi)headline+=" · marcatore finale da ricostruire";
     if(m.tailKind==JpegTailKind::PaddedOpaque)headline+=" · coda non identificata archiviabile";
     return headline+" · pixel non verificati\nBlocchi APP/COM="+std::to_string(m.blocks.size())+
         "; EXIF="+std::to_string(m.exif.size())+" byte; XMP="+std::to_string(m.xmp.size())+
         " byte; ICC="+std::to_string(m.icc.size())+" byte; coda JPEG="+std::to_string(m.tail.size())+
         " byte; orientamento="+std::to_string(m.orientation)+
-        metadataNotes(m)+". Pixel compressi non decodificati: integrità e formato colore restano da verificare in conversione.";
+        "."+metadataNotes(m)+" Pixel compressi non decodificati: integrità e formato colore restano da verificare in conversione.";
 }
 Source loadJpeg(const std::string& path){
     Bytes input=readFile(path,64*1024*1024);Source source;source.metadata=readJpegMetadata(input);
-    input.resize(source.metadata.jpegEnd);
+    input.resize(source.metadata.jpegEnd);input.shrink_to_fit();
     if(source.metadata.missingEoi){input.push_back(255);input.push_back(217);}
     const AVCodec* codec=avcodec_find_decoder(AV_CODEC_ID_MJPEG);if(!codec)bad("Decoder JPEG incluso assente");
     auto ctx=std::unique_ptr<AVCodecContext,void(*)(AVCodecContext*)>(avcodec_alloc_context3(codec),[](AVCodecContext* p){avcodec_free_context(&p);});

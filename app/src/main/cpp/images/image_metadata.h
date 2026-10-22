@@ -11,7 +11,8 @@ struct Metadata {
     Bytes exif,xmp,icc,tail,bundle;
     int orientation=1;
     size_t jpegEnd=0;
-    bool missingEoi=false;
+    bool missingEoi=false,orientationWasZero=false,archivedPanorama=false;
+    MotionClip motion;
     JpegTailKind tailKind=JpegTailKind::Empty;
 };
 // Structural inspection only: no decoding, encoding or HEIF initialization.

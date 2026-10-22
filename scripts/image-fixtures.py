@@ -7,6 +7,9 @@ from PIL import Image, ImageCms, ImageOps, ImageChops, ImageStat, ImageDraw
 
 directory = Path('image-fixtures')
 directory.mkdir(exist_ok=True)
+(directory / "metadata-probe-without-pixels.jpg").unlink(missing_ok=True)
+for obsolete in directory.glob("reject-orientation-long-*-0.jpg"):
+    obsolete.unlink()
 image = Image.new('RGB', (192, 128))
 image.putdata([((x * 3 + y) % 256, (y * 5) % 256, (x + y * 2) % 256)
                for y in range(128) for x in range(192)])
@@ -55,12 +58,16 @@ for order, label in [('<', 'le'), ('>', 'be')]:
     for value in range(1, 9):
         image.save(directory / f'orientation-long-{label}-{value}.jpg', quality=94,
                    subsampling=2, exif=orientation_exif(value, order))
-    for value in (0, 9, 65537, 0xffffffff):
+    for value in (9, 65537, 0xffffffff):
         image.save(directory / f'reject-orientation-long-{label}-{value}.jpg',
                    exif=orientation_exif(value, order))
     for field_type, count in [(4, 0), (4, 2), (9, 1)]:
         image.save(directory / f'reject-orientation-schema-{label}-{field_type}-{count}.jpg',
                    exif=orientation_exif(6, order, field_type, count))
+for order, label in [('<', 'le'), ('>', 'be')]:
+    for kind in (3, 4):
+        image.save(directory / f'orientation-undefined-{label}-{kind}.jpg', quality=94,
+                   exif=orientation_exif(0, order, kind))
 for subsampling in (0, 1):
     image.save(directory / f'chroma-{subsampling}.jpg', quality=94, subsampling=subsampling)
 image.save(directory / 'icc.jpg', quality=94, icc_profile=icc)
@@ -173,7 +180,7 @@ for variant, tail in [('alias', aliased), ('external', external),
 invalid_sef = [
     ('editor-unknown-name', [(0x0ba1, b'Unknown_Editor_Data', b'opaque')]),
     ('depth-unknown-suffix', [(0x0b41, b'SingeShot_DepthMap_99', b'opaque')]),
-    ('interactive-panorama', [(0x0201, b'Interactive_Panorama_000', b'video')]),
+    ('interactive-panorama', [(0x0202, b'Interactive_Panorama_000', b'video')]),
     ('burst-type', [(0x09e1, b'Burst_Shot_Info', b'opaque')]),
     ('burst-name', [(0x09e0, b'Unknown_Burst_Info', b'opaque')]),
     ('selfie-type', [(0x0911, b'Front_Cam_Selfie_Info', b'opaque')]),
@@ -288,6 +295,12 @@ for name, tail in [
 ]:
     (directory / ('reject-opaque-padded-' + name + '.jpg')).write_bytes(plain + tail)
 
+for kind, name in [(0x0a31, b'MotionPhoto_Version'), (0x08d0, b'Interactive_Panorama_Info'),
+                   (0x08e1, b'Motion_Panorama_Info'), (0x0bc0, b'Single_Relighting_Bokeh_Info'), (0x0b41, b'SingeShot_DepthMap_6'),
+                   (0x0201, b'Motion_Panorama_MP4_000'), (0x0201, b'Interactive_Panorama_000')]:
+    path = directory / (name.decode() + '.jpg')
+    path.write_bytes(plain + sef([(kind, name, b'\0\xffopaque archival data')]))
+
 engine = str(Path('image-host-build/image_smoke').resolve())
 for path in sorted(directory.glob('*.jpg')):
     if path.name.startswith('original-'):
@@ -381,7 +394,7 @@ for source in sorted(list(directory.glob('sef-selfie-*.jpg')) + list(directory.g
     result = subprocess.run([engine, 'verify', str(source), str(corrupted)], capture_output=True, text=True)
     assert result.returncode != 0 and 'Archivio APP/COM/SEF diverso' in result.stderr, (source, result.stderr)
 # Report the real out-of-range orientation and bounded raw tail information.
-for value in (0, 9):
+for value in (9,):
     path = directory / f'original-invalid-orientation-{value}.jpg'
     exif = Image.Exif()
     exif[274] = value
@@ -435,7 +448,7 @@ print('OK photo SEF catalog: 35 archival record types/names, binary/empty/JSON p
 print('OK JPEG padding: observed D9+zero tail and bounded variants preserved byte for byte; mixed/reordered/oversized tails and archive tampering rejected')
 print('OK burst SEF: versions 103/105/106/107, text/binary/terminated/empty payloads preserved byte for byte alongside selfie and MCC; tampering and wrong type/name rejected; bounded tail and explicit EXIF diagnostics')
 print('OK selfie SEF: versions 103/105/106/107, text/binary/terminated/empty payloads preserved byte for byte; altered archive and wrong type/name rejected')
-print('OK HEIC: EXIF/GPS/date, eight orientations, ICC, XMP, opaque APP, SEF including S23 v107 records, wrong SEF type/length/value and unknown HDR/Motion Photo rejection, altered SEF archive rejection, 420/422/444, odd dimensions, rejected inputs, altered metadata; dedicated 1024 px thumbnails, oriented pixels, colour profiles, small-image boundary and missing-thumbnail rejection')
+print('OK HEIC: EXIF/GPS/date, eight orientations, ICC, XMP, opaque APP, SEF including S23 v107 records, wrong SEF type/length/value and HDR and malformed Motion Photo rejection, altered SEF archive rejection, 420/422/444, odd dimensions, rejected inputs, altered metadata; dedicated 1024 px thumbnails, oriented pixels, colour profiles, small-image boundary and missing-thumbnail rejection')
 
 # A structurally traversable JPEG with no usable image data proves inspection
 # does not ask the decoder to validate pixels (and must never claim that it does).
@@ -447,7 +460,7 @@ converted = subprocess.run([engine, str(probe), str(probe.with_suffix('.heic'))]
 assert converted.returncode != 0 and not probe.with_suffix('.heic').exists(), converted.stdout
 print('OK metadata preflight: same parser and rejections as conversion; no decode for traversable JPEG without pixels; no HEIC produced')
 
-print('OK EXIF LONG orientation: both byte orders, all eight transforms and actual pixels, raw EXIF preserved; zero/out-of-range/full-width values, wrong count and signed type rejected')
+print('OK EXIF LONG orientation: both byte orders, all eight transforms and actual pixels, raw EXIF preserved; undefined zero retained without rotation; out-of-range/full-width values, wrong count and signed type rejected')
 
 # Repair changes only the decoder input; the same JPEG with EOI gives identical
 # converted pixels. The complete original trailer remains in the CPJPEG1 archive.

@@ -32,7 +32,7 @@ int exifOrientation(const std::vector<uint8_t>& exif){
         if((type!=3&&type!=4)||quantity!=1)
             bad("Orientamento EXIF non valido: tipo="+std::to_string(type)+"; quantita="+std::to_string(quantity));
         uint32_t value=word(p+8,type==4?4:2);
-        if(value<1||value>8)
+        if(value>8)
             bad("Orientamento EXIF fuori intervallo: valore="+std::to_string(value)+"; atteso 1..8");
         result=int(value);
         seen=true;

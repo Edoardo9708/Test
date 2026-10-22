@@ -24,10 +24,21 @@ public class ImageOutputTest {
         }
     }
     Context context;Documents provider;File encoded;
-    @Before public void setup()throws Exception{context=RuntimeEnvironment.getApplication();provider=new Documents();provider.directory=Files.createTempDirectory("image-docs").toFile();android.content.pm.ProviderInfo info=new android.content.pm.ProviderInfo();info.authority="audio.documents";info.exported=true;info.grantUriPermissions=true;provider.attachInfo(context,info);ShadowContentResolver.registerProviderInternal("audio.documents",provider);encoded=new File(provider.directory,"encoded.heic");Files.write(encoded.toPath(),new byte[]{1,2,3,4,5});}
+    @Before public void setup()throws Exception{context=RuntimeEnvironment.getApplication();provider=new Documents();provider.directory=Files.createTempDirectory("image-docs").toFile();android.content.pm.ProviderInfo info=new android.content.pm.ProviderInfo();info.authority="audio.documents";info.exported=true;info.grantUriPermissions=true;provider.attachInfo(context,info);ShadowContentResolver.registerProviderInternal("audio.documents",provider);encoded=new File(provider.directory,"encoded.heic");Files.write(encoded.toPath(),new byte[]{0,0,0,16,'f','t','y','p','h','e','i','c',0,0,0,0});}
     @After public void cleanup(){for(File f:provider.directory.listFiles())f.delete();provider.directory.delete();}
     @Test public void savesReReadsAllBytesAndAddsSuffixInsteadOfOverwriting()throws Exception{
         Uri first=ImageOutput.save(context,AudioMetadataFlowTest.TREE,encoded,"Photo.JPG",()->false),second=ImageOutput.save(context,AudioMetadataFlowTest.TREE,encoded,"Photo.JPG",()->false);assertNotEquals(first,second);assertEquals(java.util.List.of("Photo.heic","Photo (2).heic"),new java.util.ArrayList<>(provider.names.values()));for(File saved:provider.files.values())assertArrayEquals(Files.readAllBytes(encoded.toPath()),Files.readAllBytes(saved.toPath()));
+    }
+    @Test public void motionNamesKeepMpSuffixAcrossCollisionsAndHeaderScanSkipsPayload()throws Exception{
+        try(DataOutputStream out=new DataOutputStream(new FileOutputStream(encoded))){out.writeInt(16);out.writeBytes("ftypheic");out.writeInt(0);out.writeInt(12);out.writeBytes("mpvd");out.writeInt(123);}
+        assertTrue(ImageOutput.hasMotionVideo(encoded));
+        ImageOutput.save(context,AudioMetadataFlowTest.TREE,encoded,"Photo.JPG",()->false);
+        ImageOutput.save(context,AudioMetadataFlowTest.TREE,encoded,"Photo.JPG",()->false);
+        assertEquals(java.util.List.of("Photo_MP.heic","Photo (2)_MP.heic"),new java.util.ArrayList<>(provider.names.values()));
+        assertEquals("AlreadyMP.heic",ImageOutput.name("AlreadyMP.jpg",true));
+        assertEquals("Already (2)MP.heic",ImageOutput.unique("AlreadyMP.heic",java.util.Set.of("AlreadyMP.heic")));
+        try(RandomAccessFile file=new RandomAccessFile(encoded,"rw")){file.seek(16);file.writeInt(99);}
+        assertThrows(IOException.class,()->ImageOutput.hasMotionVideo(encoded));
     }
     @Test public void sameLengthCorruptionRollsBackTheNewDocument(){provider.corrupt=true;assertThrows(IOException.class,()->ImageOutput.save(context,AudioMetadataFlowTest.TREE,encoded,"Photo.jpg",()->false));assertTrue(provider.files.isEmpty());assertTrue(provider.names.isEmpty());}
     @Test public void cancellationPublishesNothing(){assertThrows(IOException.class,()->ImageOutput.save(context,AudioMetadataFlowTest.TREE,encoded,"Photo.jpg",()->true));assertTrue(provider.files.isEmpty());}

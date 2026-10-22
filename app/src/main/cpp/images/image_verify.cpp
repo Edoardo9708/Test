@@ -21,6 +21,7 @@ void verifyColor(const heif_image_handle* handle,const Source& source){
 }
 }
 void verify(const std::string& path,const Source& source,const Stage& stage){
+    verifyMotionVideo(path,source.metadata.tail,source.metadata.motion);
     Context context(heif_context_alloc());if(!context)throw std::bad_alloc();heif_context_set_maximum_image_size_limit(context.get(),16384);
     check(heif_context_read_from_file(context.get(),path.c_str(),nullptr),"Riapertura HEIC");
     require(heif_context_get_number_of_top_level_images(context.get())==1,"Numero immagini HEIC diverso da uno");

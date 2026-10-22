@@ -11,11 +11,27 @@ import java.util.function.BooleanSupplier;
 /** Publish a new HEIC, then re-read every saved byte. Roll back a partial/changed document. */
 final class ImageOutput {
     static String name(String original){String value=original.replace('/','_').replace('\\','_').replace('\n','_').replace('\r','_').trim();int dot=value.lastIndexOf('.');if(dot>0)value=value.substring(0,dot);if(value.isEmpty())value="Foto";if(value.length()>140)value=value.substring(0,140);return value+".heic";}
-    static String unique(String wanted,Set<String> existing){String base=wanted.substring(0,wanted.length()-5);for(int n=1;n<100000;n++){String candidate=n==1?wanted:base+" ("+n+").heic";boolean found=false;for(String value:existing)if(candidate.equalsIgnoreCase(value)){found=true;break;}if(!found)return candidate;}throw new IllegalStateException("Troppi nomi HEIC uguali");}
+    static String name(String original,boolean motion){String value=name(original);return motion&&!value.endsWith("MP.heic")?value.substring(0,value.length()-5)+"_MP.heic":value;}
+    static String unique(String wanted,Set<String> existing){String base=wanted.substring(0,wanted.length()-5);String suffix=base.endsWith("_MP")?"_MP":base.endsWith("MP")?"MP":"";String stem=base.substring(0,base.length()-suffix.length());for(int n=1;n<100000;n++){String candidate=n==1?wanted:stem+" ("+n+")"+suffix+".heic";boolean found=false;for(String value:existing)if(candidate.equalsIgnoreCase(value)){found=true;break;}if(!found)return candidate;}throw new IllegalStateException("Troppi nomi HEIC uguali");}
+    /** Read only top-level headers: no pixels or video payload enter Java memory. */
+    static boolean hasMotionVideo(File source)throws IOException{
+        try(RandomAccessFile file=new RandomAccessFile(source,"r")){
+            long end=file.length(),at=0;if(end<8)throw new IOException("HEIC vuoto o troncato");int boxes=0;boolean motion=false;
+            while(at<end){
+                if(end-at<8||++boxes>65536)throw new IOException("Box HEIC non valido");file.seek(at);
+                long size=Integer.toUnsignedLong(file.readInt());int type=file.readInt();int header=8;
+                if(size==1){if(end-at<16)throw new IOException("Header HEIC esteso troncato");size=file.readLong();header=16;}
+                if(size<header||size>end-at)throw new IOException("Dimensione box HEIC non valida");
+                if(type==0x6d707664){if(motion||at+size!=end)throw new IOException("Posizione video HEIC non valida");motion=true;}
+                at+=size;
+            }
+            return motion;
+        }
+    }
     static Uri save(Context c,Uri tree,File source,String original,BooleanSupplier cancelled)throws IOException{
         Uri document=null;
         try{
-            Set<String> names=OutputDocuments.names(c,tree);String chosen=unique(name(original),names);ImageConverter.check(cancelled);
+            Set<String> names=OutputDocuments.names(c,tree);String chosen=unique(name(original,hasMotionVideo(source)),names);ImageConverter.check(cancelled);
             document=DocumentsContract.createDocument(c.getContentResolver(),DocumentsContract.buildDocumentUriUsingTree(tree,DocumentsContract.getTreeDocumentId(tree)),"image/heic",chosen);if(document==null)throw new IOException("Creazione HEIC fallita");
             MessageDigest expected=JpegInventory.digest();long written=0;
             try(InputStream in=new FileInputStream(source);OutputStream out=c.getContentResolver().openOutputStream(document,"w")){

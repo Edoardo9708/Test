@@ -12,7 +12,7 @@ bool starts(const Bytes& b,const char* text,size_t n){return b.size()>=n&&!memcm
 void put32(Bytes& b,size_t value){for(int shift=24;shift>=0;shift-=8)b.push_back((value>>shift)&255);}
 }
 Metadata readJpegMetadata(const Bytes& input){
-    Metadata m;size_t at=2,total=0;int pending=-1,segments=0;std::map<int,Bytes> icc;int iccParts=0;
+    Metadata m;size_t at=2,total=0;int pending=-1,segments=0;bool motionHint=false,directoryHint=false;std::map<int,Bytes> icc;int iccParts=0;
     if(input.size()<4||input[0]!=255||input[1]!=216)bad("Input non JPEG");
     size_t sefStart=jpegSefTailStart(input);
     size_t jpegLimit=sefStart<input.size()?sefStart:input.size();
@@ -30,8 +30,8 @@ Metadata readJpegMetadata(const Bytes& input){
                 if(!m.xmp.empty())bad("XMP multipli non supportati");m.xmp.assign(b.begin()+29,b.end());std::string text(m.xmp.begin(),m.xmp.end());
                 std::transform(text.begin(),text.end(),text.begin(),[](unsigned char c){return std::tolower(c);});
                 for(const char* word:{"gainmap","hdrgm"})if(text.find(word)!=std::string::npos)bad("XMP con HDR/gain map non supportato");
-                for(const char* word:{"motionphoto","microvideo"})if(text.find(word)!=std::string::npos)bad("Motion Photo: video incorporato da trasferire nel contenitore HEIC insieme ai riferimenti XMP/SEF; supporto non ancora implementato. Nessun dato scartato, originale invariato");
-                if(text.find("container:directory")!=std::string::npos)bad("Directory XMP di contenuti aggiuntivi non supportata");
+                for(const char* word:{"motionphoto","microvideo"})if(text.find(word)!=std::string::npos)motionHint=true;
+                directoryHint=text.find("container:directory")!=std::string::npos;
             }else if(marker==226&&starts(b,"ICC_PROFILE\0",12)){
                 if(b.size()<14||!b[12]||!b[13]||b[12]>b[13]||(iccParts&&iccParts!=b[13])||icc.count(b[12]))bad("Sequenza ICC non valida");iccParts=b[13];icc[b[12]]=Bytes(b.begin()+14,b.end());
             }else if(marker==224&&starts(b,"JFIF\0",5)){}
@@ -55,15 +55,30 @@ Metadata readJpegMetadata(const Bytes& input){
     }
     if(icc.size()!=size_t(iccParts))bad("Profilo ICC incompleto");for(const auto& part:icc)m.icc.insert(m.icc.end(),part.second.begin(),part.second.end());
     if(!m.icc.empty()&&(m.icc.size()<128||memcmp(m.icc.data()+36,"acsp",4)))bad("Header profilo ICC non valido");
-    m.orientation=exifOrientation(m.exif);m.jpegEnd=at;m.tail.assign(input.begin()+at,input.end());m.tailKind=validateJpegTail(m.tail);
-    m.bundle={'C','P','J','P','E','G','1',0};put32(m.bundle,m.blocks.size());
+    m.orientation=exifOrientation(m.exif);if(m.orientation==0){m.orientationWasZero=true;m.orientation=1;}
+    m.jpegEnd=at;m.tail.assign(input.begin()+at,input.end());auto tailInfo=inspectJpegTail(m.tail);
+    m.tailKind=tailInfo.kind;m.motion=tailInfo.motion;m.archivedPanorama=tailInfo.archivedPanorama;
+    if(m.motion.length)m.xmp=motionXmp(m.xmp,input.size()-at-m.motion.offset,m.motion);
+    else if(motionHint||directoryHint)bad("XMP di contenuti aggiuntivi senza video Motion Photo SEF verificato");
+    m.bundle={'C','P','J','P','E','G',uint8_t(m.motion.length?'2':'1'),0};put32(m.bundle,m.blocks.size());
     for(const Block& b:m.blocks){m.bundle.push_back(b.marker);put32(m.bundle,b.data.size());m.bundle.insert(m.bundle.end(),b.data.begin(),b.data.end());}
-    put32(m.bundle,m.tail.size());m.bundle.insert(m.bundle.end(),m.tail.begin(),m.tail.end());return m;
+    put32(m.bundle,m.tail.size());
+    if(m.motion.length){
+        // CPJPEG2 stores the exact original tail minus the video. Its two extra
+        // u32 values locate the hole; the final mpvd payload fills it on recovery.
+        put32(m.bundle,m.motion.offset);put32(m.bundle,m.motion.length);
+        m.bundle.insert(m.bundle.end(),m.tail.begin(),m.tail.begin()+m.motion.offset);
+        m.bundle.insert(m.bundle.end(),m.tail.begin()+m.motion.offset+m.motion.length,m.tail.end());
+    }else m.bundle.insert(m.bundle.end(),m.tail.begin(),m.tail.end());
+    return m;
 }
 std::string metadataNotes(const Metadata& m){
     std::string notes;
     if(m.missingEoi)notes+=" Marcatore finale JPEG assente prima di un SEF valido: aggiunta alla sola copia privata per il decoder; verifica rigorosa dei pixel obbligatoria prima di accettare l’HEIC. Originale invariato.";
     if(m.tailKind==JpegTailKind::PaddedOpaque)notes+=" Coda con contenuto non identificato e area finale di zeri: conservazione integrale nell’archivio proprietario HEIC; nessuna funzione aggiuntiva è attivata.";
+    if(m.orientationWasZero)notes+=" EXIF orientamento 0 non definito: nessuna rotazione applicata, pixel nel loro ordine originale; tag EXIF conservato senza modifiche.";
+    if(m.motion.length)notes+=" Motion Photo: video originale di "+std::to_string(m.motion.length)+" byte copiato senza ricodifica nel box HEIC mpvd finale; XMP attivo adattato al nuovo contenitore. XMP e SEF originali ricostruibili esattamente dall’archivio CPJPEG2 e dal video, senza duplicare il filmato. Riproduzione da verificare nella galleria del dispositivo.";
+    if(m.archivedPanorama)notes+=" Contenuto panorama Samsung conservato integralmente nell’archivio proprietario; funzione interattiva Samsung non attivata nell’HEIC.";
     return notes;
 }
 }
