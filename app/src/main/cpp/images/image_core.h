@@ -1,15 +1,13 @@
 #pragma once
 #include <libheif/heif.h>
+#include "image_metadata.h"
 #include <cstdint>
 #include <functional>
 #include <memory>
 #include <string>
 #include <vector>
 namespace photo {
-using Bytes=std::vector<uint8_t>;
 using Stage=std::function<void(const std::string&)>;
-struct Block { uint8_t marker;Bytes data; };
-struct Metadata { std::vector<Block> blocks;Bytes exif,xmp,icc,tail,bundle;int orientation=1; };
 struct ImageDelete {void operator()(heif_image* p)const{if(p)heif_image_release(p);}};
 struct ContextDelete {void operator()(heif_context* p)const{if(p)heif_context_free(p);}};
 struct HandleDelete {void operator()(heif_image_handle* p)const{if(p)heif_image_handle_release(p);}};

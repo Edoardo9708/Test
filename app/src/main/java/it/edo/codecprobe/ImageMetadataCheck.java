@@ -19,7 +19,9 @@ final class ImageMetadataCheck {
             try{details=ImageNative.inspect(source.getAbsolutePath());}
             catch(LinkageError error){throw new IOException("Motore verifica metadati non caricabile",error);}
             ImageConverter.check(cancelled);
-            return new ImageRunState.Result(name,bytes,0,null,"Metadati compatibili · pixel non verificati",ImageRunState.Outcome.CHECKED,details);
+            int lineEnd=details.indexOf('\n');
+            String summary=lineEnd<0?"Metadati compatibili · pixel non verificati":details.substring(0,lineEnd);
+            return new ImageRunState.Result(name,bytes,0,null,summary,ImageRunState.Outcome.CHECKED,details);
         }finally{source.delete();}
     }
     private ImageMetadataCheck(){}

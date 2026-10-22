@@ -46,9 +46,36 @@ bool paddingTail(const Bytes& b){
     size_t at=0;while(at<b.size()&&b[at]==0xd9)at++;
     return std::all_of(b.begin()+at,b.end(),[](uint8_t value){return value==0;});
 }
+bool paddedOpaqueTail(const Bytes& b){
+    // Observed LG residue: a short opaque prefix followed by a large zero area.
+    // It is archived, never described as decoded metadata or disposable padding.
+    if(b.size()>4*1024*1024)return false;
+    size_t end=b.size();while(end&&b[end-1]==0)end--;
+    if(end==0||end>64*1024||b.size()-end<64*1024)return false;
+    for(const auto& signature:std::vector<Bytes>{{255,216},{'f','t','y','p'},{'S','E','F','H'},{'S','E','F','T'},{'M','P','F',0}})
+        if(std::search(b.begin(),b.begin()+end,signature.begin(),signature.end())!=b.begin()+end)return false;
+    return true;
 }
-void validateJpegTail(const std::vector<uint8_t>& b){
-    if(b.empty()||paddingTail(b))return;
+}
+size_t jpegSefTailStart(const std::vector<uint8_t>& b){
+    if(b.size()<32||memcmp(b.data()+b.size()-4,"SEFT",4))return b.size();
+    uint32_t length=le32(b,b.size()-8);
+    if(length<24||length>b.size()-8||(length-12)%12)bad("Directory SEF non valida");
+    size_t dir=b.size()-8-length;uint32_t count=le32(b,dir+8);
+    if(memcmp(b.data()+dir,"SEFH",4)||count==0||count>4096||count!=(length-12)/12)bad("Directory SEF non valida");
+    size_t first=dir;
+    for(size_t i=0;i<count;i++){
+        size_t e=dir+12+i*12;uint32_t offset=le32(b,e+4),size=le32(b,e+8);
+        if(offset>dir||size<9||size>offset)bad("Riferimenti SEF non validi");
+        first=std::min(first,dir-offset);
+    }
+    if(b.size()-first>4*1024*1024)bad("Blocco SEF oltre il limite di 4 MiB: byte="+std::to_string(b.size()-first));
+    return first;
+}
+JpegTailKind validateJpegTail(const std::vector<uint8_t>& b){
+    if(b.empty())return JpegTailKind::Empty;
+    if(paddingTail(b))return JpegTailKind::Padding;
+    if(paddedOpaqueTail(b))return JpegTailKind::PaddedOpaque;
     if(b.size()>4*1024*1024&&!memcmp(b.data()+b.size()-4,"SEFT",4))bad("Blocco SEF oltre il limite di 4 MiB: "+tailSummary(b));
     if(b.size()<32||b.size()>4*1024*1024||memcmp(b.data()+b.size()-4,"SEFT",4))bad("Dati dopo JPEG non supportati: tipo da identificare · "+tailSummary(b));
     uint32_t length=le32(b,b.size()-8);if(length<24||length>b.size()-8||(length-12)%12)bad("Directory SEF non valida");
@@ -80,5 +107,6 @@ void validateJpegTail(const std::vector<uint8_t>& b){
     std::sort(ranges.begin(),ranges.end());size_t expected=0;
     for(const auto& range:ranges){if(range.first!=expected)bad("Riferimenti SEF non validi: record sovrapposti o byte non indicizzati; atteso="+std::to_string(expected)+"; inizio="+std::to_string(range.first)+"; fine="+std::to_string(range.second));expected=range.second;}
     if(expected!=dir)bad("Byte SEF non indicizzati");
+    return JpegTailKind::Sef;
 }
 }

@@ -35,7 +35,7 @@ final class ImageWorkReport {
             switch(result.outcome){
                 case SAVED:status=CompressionSummary.size(result.inputBytes)+" → "+CompressionSummary.size(result.outputBytes)+" · "+CompressionSummary.change(result.inputBytes,result.outputBytes);break;
                 case ALREADY_DONE:status="Già convertita · originale e HEIC verificati · nessuna ricodifica";break;
-                case CHECKED:status="Metadati compatibili · pixel non verificati";break;
+                case CHECKED:status=result.message;break;
                 case FAILED:status=run.metadataOnly?"Da verificare · "+result.message:"Conversione fallita · nessun nuovo file completato";break;
                 case NOT_SMALLER:status="Nessun risparmio · risultato non salvato";break;
                 default:status=run.metadataOnly?"Verifica annullata":"Conversione annullata";

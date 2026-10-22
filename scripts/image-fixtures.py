@@ -259,6 +259,35 @@ image.save(directory / 'reject-tail.jpg')
 with (directory / 'reject-tail.jpg').open('ab') as out:
     out.write(b'Motion Photo payload')
 
+# Actual observed shapes, generated without including private originals.
+base = directory / 'eoi-reference.jpg'
+image.save(base, quality=94)
+plain = base.read_bytes()
+assert plain.endswith(b'\xff\xd9')
+base.write_bytes(plain + sef(version=106))
+(directory / 'missing-eoi-sef.jpg').write_bytes(plain[:-2] + sef(version=106))
+for name, data in [
+    ('plain-eof', plain[:-2]),
+    ('unindexed-tail', plain[:-2] + b'opaque'),
+    ('incomplete-marker', plain[:-2] + b'\xff' + sef()),
+    ('unknown-sef', plain[:-2] + sef([(0x1234, b'Unknown_Record', b'0')])),
+    ('broken-sef', plain[:-2] + sef()[:-8] + b'\0\0\0\0SEFT'),
+    ('damaged-scan', plain[:-202] + sef()),
+]:
+    (directory / ('reject-missing-eoi-' + name + '.jpg')).write_bytes(data)
+opaque = b'\xd9\xd9\xd9\xe7\xdb\xd8\xfe\xb5' + bytes(range(256)) * 15
+(directory / 'opaque-padded-tail.jpg').write_bytes(plain + opaque + bytes(173259))
+for name, tail in [
+    ('short-zero-area', opaque + bytes(65535)),
+    ('large-prefix', bytes([1]) * 65537 + bytes(65536)),
+    ('embedded-jpeg', b'\xff\xd8' + opaque + bytes(65536)),
+    ('embedded-video', b'ftypisom' + opaque + bytes(65536)),
+    ('embedded-sef', b'SEFH' + opaque + bytes(65536)),
+    ('nonzero-end', opaque + bytes(65536) + b'X'),
+    ('over-limit', opaque + bytes(4 * 1024 * 1024)),
+]:
+    (directory / ('reject-opaque-padded-' + name + '.jpg')).write_bytes(plain + tail)
+
 engine = str(Path('image-host-build/image_smoke').resolve())
 for path in sorted(directory.glob('*.jpg')):
     if path.name.startswith('original-'):
@@ -419,3 +448,28 @@ assert converted.returncode != 0 and not probe.with_suffix('.heic').exists(), co
 print('OK metadata preflight: same parser and rejections as conversion; no decode for traversable JPEG without pixels; no HEIC produced')
 
 print('OK EXIF LONG orientation: both byte orders, all eight transforms and actual pixels, raw EXIF preserved; zero/out-of-range/full-width values, wrong count and signed type rejected')
+
+# Repair changes only the decoder input; the same JPEG with EOI gives identical
+# converted pixels. The complete original trailer remains in the CPJPEG1 archive.
+for name in ('eoi-reference', 'missing-eoi-sef'):
+    result = subprocess.run([engine, 'decode-oriented', str(directory / (name + '.heic')),
+                             str(directory / (name + '.ppm'))], capture_output=True, text=True)
+    assert result.returncode == 0, result.stderr
+assert (directory / 'eoi-reference.ppm').read_bytes() == (directory / 'missing-eoi-sef.ppm').read_bytes()
+for name, note in [('missing-eoi-sef', 'marcatore finale da ricostruire'),
+                   ('opaque-padded-tail', 'coda non identificata archiviabile')]:
+    source = directory / (name + '.jpg')
+    result = subprocess.run([engine, 'inspect', str(source)], capture_output=True, text=True)
+    assert result.returncode == 0 and note in result.stdout.splitlines()[0], result.stdout
+    tail = sef(version=106) if name == 'missing-eoi-sef' else opaque + bytes(173259)
+    data = source.with_suffix('.heic').read_bytes()
+    position = data.index(tail, data.index(b'CPJPEG1\0'))
+    for offset in (0, len(tail) - 1):
+        changed = bytearray(data)
+        changed[position + offset] ^= 1
+        bad = directory / (name + '-archive-altered.heic')
+        bad.write_bytes(changed)
+        checked = subprocess.run([engine, 'verify', str(source), str(bad)], capture_output=True, text=True)
+        assert checked.returncode != 0 and 'Archivio APP/COM/SEF diverso' in checked.stderr, checked.stderr
+print('OK bounded opaque padded tails: all original bytes and zero area preserved, altered archive rejected; short/unbounded/embedded-image/video/SEF patterns rejected')
+print('OK missing EOI before fully indexed supported SEF: exact same converted pixels as EOI reference, full tail archived; ordinary EOF, partial markers, malformed/unknown SEF and damaged entropy rejected')

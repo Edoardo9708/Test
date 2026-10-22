@@ -1,6 +1,4 @@
 #include "image_core.h"
-#include "image_sef.h"
-#include "image_exif.h"
 extern "C" {
 #include <libavcodec/avcodec.h>
 #include <libavutil/pixdesc.h>
@@ -8,65 +6,29 @@ extern "C" {
 #include <algorithm>
 #include <cstring>
 #include <fstream>
-#include <map>
 #include <stdexcept>
 namespace photo {
 namespace {
 [[noreturn]] void bad(const std::string& message){throw std::runtime_error(message);}
-bool starts(const Bytes& b,const char* text,size_t n){return b.size()>=n&&!memcmp(b.data(),text,n);}
-void put32(Bytes& b,size_t value){for(int shift=24;shift>=0;shift-=8)b.push_back((value>>shift)&255);}
-
-Metadata metadata(const Bytes& input){
-    Metadata m;size_t at=2,total=0;int pending=-1,segments=0;std::map<int,Bytes> icc;int iccParts=0;
-    if(input.size()<4||input[0]!=255||input[1]!=216)bad("Input non JPEG");
-    auto next=[&](){if(at>=input.size())bad("JPEG troncato: offset="+std::to_string(at)+"; byte totali="+std::to_string(input.size()));return int(input[at++]);};
-    while(true){
-        int marker=pending;pending=-1;if(marker<0){size_t markerAt=at;int prefix=next();if(prefix!=255)bad("Marcatore JPEG atteso: offset="+std::to_string(markerAt)+"; byte="+std::to_string(prefix));do{marker=next();}while(marker==255);}
-        if(++segments>65536)bad("Troppi segmenti JPEG");if(marker==217)break;
-        if(marker==216||marker==0||(marker>=208&&marker<=215))bad("Marcatori JPEG non validi");if(marker==1)continue;
-        int length=(next()<<8);length+=next();length-=2;if(length<0||size_t(length)>input.size()-at)bad("Segmento JPEG troncato");
-        size_t offset=at;at+=length;
-        if((marker>=224&&marker<=239)||marker==254){
-            total+=length;if(total>16*1024*1024)bad("Metadati JPEG oltre 16 MiB");Bytes b(input.begin()+offset,input.begin()+at);m.blocks.push_back({uint8_t(marker),b});
-            if(marker==225&&starts(b,"Exif\0\0",6)){if(!m.exif.empty())bad("EXIF multipli non supportati");m.exif=b;}
-            else if(marker==225&&starts(b,"http://ns.adobe.com/xap/1.0/\0",29)){
-                if(!m.xmp.empty())bad("XMP multipli non supportati");m.xmp.assign(b.begin()+29,b.end());std::string text(m.xmp.begin(),m.xmp.end());
-                std::transform(text.begin(),text.end(),text.begin(),[](unsigned char c){return std::tolower(c);});
-                for(const char* word:{"gainmap","hdrgm","motionphoto","microvideo","container:directory"})if(text.find(word)!=std::string::npos)bad("XMP con HDR/gain map/Motion Photo non supportato");
-            }else if(marker==226&&starts(b,"ICC_PROFILE\0",12)){
-                if(b.size()<14||!b[12]||!b[13]||b[12]>b[13]||(iccParts&&iccParts!=b[13])||icc.count(b[12]))bad("Sequenza ICC non valida");iccParts=b[13];icc[b[12]]=Bytes(b.begin()+14,b.end());
-            }else if(marker==224&&starts(b,"JFIF\0",5)){}
-            else if(marker==238&&starts(b,"Adobe",5)){}
-            else if(marker==254){}
-            else if(marker==226&&starts(b,"MPF\0",4))bad("JPEG multipicture/MPF non supportato");
-            else if(marker==225&&starts(b,"http://ns.adobe.com/xmp/extension/\0",35))bad("XMP esteso non ancora supportato");
-            else if(marker==235&&!std::all_of(b.begin(),b.end(),[](uint8_t v){return v==0;}))bad("APP11/JUMBF non supportato: possibile contenuto HDR aggiuntivo");
-            // Other JPEG APP/COM payloads have no HEIF semantics. Preserve their complete
-            // original bytes/order in the explicitly proprietary archive; never activate them.
-        }
-        if(marker==218){while(true){if(next()!=255)continue;int value;do{value=next();}while(value==255);if(value==0||(value>=208&&value<=215))continue;pending=value;break;}}
-    }
-    if(icc.size()!=size_t(iccParts))bad("Profilo ICC incompleto");for(const auto& part:icc)m.icc.insert(m.icc.end(),part.second.begin(),part.second.end());
-    if(!m.icc.empty()&&(m.icc.size()<128||memcmp(m.icc.data()+36,"acsp",4)))bad("Header profilo ICC non valido");
-    m.orientation=exifOrientation(m.exif);m.tail.assign(input.begin()+at,input.end());validateJpegTail(m.tail);
-    m.bundle={'C','P','J','P','E','G','1',0};put32(m.bundle,m.blocks.size());
-    for(const Block& b:m.blocks){m.bundle.push_back(b.marker);put32(m.bundle,b.data.size());m.bundle.insert(m.bundle.end(),b.data.begin(),b.data.end());}
-    put32(m.bundle,m.tail.size());m.bundle.insert(m.bundle.end(),m.tail.begin(),m.tail.end());return m;
-}
 }
 Bytes readFile(const std::string& path,size_t limit){std::ifstream file(path,std::ios::binary|std::ios::ate);if(!file)bad("File non leggibile");auto size=file.tellg();if(size<=0||uint64_t(size)>limit)bad("Dimensione file oltre il limite");Bytes bytes(static_cast<size_t>(size));file.seekg(0);if(!file.read(reinterpret_cast<char*>(bytes.data()),bytes.size()))bad("Lettura file incompleta");return bytes;}
 void check(heif_error error,const char* action){if(error.code)bad(std::string(action)+": "+error.message);}
 std::string inspectJpeg(const std::string& path){
     // Same metadata parser as conversion, with no FFmpeg, libheif or x265 calls.
-    Bytes input=readFile(path,64*1024*1024);Metadata m=metadata(input);
-    return "Metadati compatibili · blocchi APP/COM="+std::to_string(m.blocks.size())+
+    Bytes input=readFile(path,64*1024*1024);Metadata m=readJpegMetadata(input);
+    std::string headline="Metadati compatibili";
+    if(m.missingEoi)headline+=" · marcatore finale da ricostruire";
+    if(m.tailKind==JpegTailKind::PaddedOpaque)headline+=" · coda non identificata archiviabile";
+    return headline+" · pixel non verificati\nBlocchi APP/COM="+std::to_string(m.blocks.size())+
         "; EXIF="+std::to_string(m.exif.size())+" byte; XMP="+std::to_string(m.xmp.size())+
         " byte; ICC="+std::to_string(m.icc.size())+" byte; coda JPEG="+std::to_string(m.tail.size())+
         " byte; orientamento="+std::to_string(m.orientation)+
-        ". Pixel compressi non decodificati: integrità e formato colore restano da verificare in conversione.";
+        metadataNotes(m)+". Pixel compressi non decodificati: integrità e formato colore restano da verificare in conversione.";
 }
 Source loadJpeg(const std::string& path){
-    Bytes input=readFile(path,64*1024*1024);Source source;source.metadata=metadata(input);
+    Bytes input=readFile(path,64*1024*1024);Source source;source.metadata=readJpegMetadata(input);
+    input.resize(source.metadata.jpegEnd);
+    if(source.metadata.missingEoi){input.push_back(255);input.push_back(217);}
     const AVCodec* codec=avcodec_find_decoder(AV_CODEC_ID_MJPEG);if(!codec)bad("Decoder JPEG incluso assente");
     auto ctx=std::unique_ptr<AVCodecContext,void(*)(AVCodecContext*)>(avcodec_alloc_context3(codec),[](AVCodecContext* p){avcodec_free_context(&p);});
     auto frame=std::unique_ptr<AVFrame,void(*)(AVFrame*)>(av_frame_alloc(),[](AVFrame* p){av_frame_free(&p);});
@@ -74,6 +36,7 @@ Source loadJpeg(const std::string& path){
     if(!ctx||!frame||!packet)throw std::bad_alloc();ctx->thread_count=2;ctx->max_pixels=48000000;ctx->err_recognition=AV_EF_EXPLODE|AV_EF_CAREFUL;
     if(avcodec_open2(ctx.get(),codec,nullptr)<0||av_new_packet(packet.get(),input.size())<0)bad("Apertura decoder JPEG fallita");
     memcpy(packet->data,input.data(),input.size());if(avcodec_send_packet(ctx.get(),packet.get())<0||avcodec_receive_frame(ctx.get(),frame.get())<0)bad("Decodifica JPEG fallita");
+    if(frame->decode_error_flags||frame->flags&AV_FRAME_FLAG_CORRUPT)bad("JPEG con errori di decodifica o pixel ricostruiti dal decoder");
     source.width=frame->width;source.height=frame->height;if(source.width<64||source.height<64||source.width>16384||source.height>16384||int64_t(source.width)*source.height>48000000)bad("JPEG supportati: lati da 64 a 16384 pixel, massimo 48 megapixel");
     int sx=0,sy=0;heif_chroma chroma;
     switch(frame->format){case AV_PIX_FMT_YUVJ420P:case AV_PIX_FMT_YUV420P:chroma=heif_chroma_420;sx=sy=1;break;
