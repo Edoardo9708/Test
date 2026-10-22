@@ -235,6 +235,11 @@ for path in sorted(directory.glob('*.jpg')):
     output.unlink(missing_ok=True)
     result = subprocess.run([engine, str(path), str(output), '60'], capture_output=True, text=True)
     path.with_suffix('.log').write_text(result.stdout + result.stderr)
+    inspected = subprocess.run([engine, 'inspect', str(path)], capture_output=True, text=True)
+    if result.returncode == 0:
+        assert inspected.returncode == 0 and 'Pixel compressi non decodificati' in inspected.stdout, (path, inspected.stderr)
+    if inspected.returncode != 0:
+        assert result.returncode != 0 and inspected.stderr == result.stderr, (path, inspected.stderr, result.stderr)
     if path.name.startswith('reject-'):
         assert result.returncode != 0 and not output.exists(), (path, result.stdout, result.stderr)
     else:
@@ -361,3 +366,13 @@ print('OK JPEG padding: observed D9+zero tail and bounded variants preserved byt
 print('OK burst SEF: versions 103/105/106/107, text/binary/terminated/empty payloads preserved byte for byte alongside selfie and MCC; tampering and wrong type/name rejected; bounded tail and explicit EXIF diagnostics')
 print('OK selfie SEF: versions 103/105/106/107, text/binary/terminated/empty payloads preserved byte for byte; altered archive and wrong type/name rejected')
 print('OK HEIC: EXIF/GPS/date, eight orientations, ICC, XMP, opaque APP, SEF including S23 v107 records, wrong SEF type/length/value and unknown HDR/Motion Photo rejection, altered SEF archive rejection, 420/422/444, odd dimensions, rejected inputs, altered metadata; dedicated 1024 px thumbnails, oriented pixels, colour profiles, small-image boundary and missing-thumbnail rejection')
+
+# A structurally traversable JPEG with no usable image data proves inspection
+# does not ask the decoder to validate pixels (and must never claim that it does).
+probe = directory / 'metadata-probe-without-pixels.jpg'
+probe.write_bytes(b'\xff\xd8\xff\xda\x00\x08\x01\x01\x00\x00\x3f\x00\xff\xd9')
+inspected = subprocess.run([engine, 'inspect', str(probe)], capture_output=True, text=True)
+assert inspected.returncode == 0 and 'Pixel compressi non decodificati' in inspected.stdout, inspected.stderr
+converted = subprocess.run([engine, str(probe), str(probe.with_suffix('.heic'))], capture_output=True, text=True)
+assert converted.returncode != 0 and not probe.with_suffix('.heic').exists(), converted.stdout
+print('OK metadata preflight: same parser and rejections as conversion; no decode for traversable JPEG without pixels; no HEIC produced')

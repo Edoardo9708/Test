@@ -2,6 +2,7 @@
 #include <iostream>
 #include <fstream>
 int main(int argc,char** argv){try{
+    if(argc==3&&std::string(argv[1])=="inspect"){std::cout<<photo::inspectJpeg(argv[2])<<std::endl;return 0;}
     if(argc==4&&std::string(argv[1])=="verify"){photo::check(heif_init(nullptr),"Init");auto source=photo::loadJpeg(argv[2]);photo::verify(argv[3],source,[](const std::string&){});std::cout<<"OK existing HEIC"<<std::endl;return 0;}
     if(argc==4&&(std::string(argv[1])=="decode"||std::string(argv[1])=="decode-thumbnail")){
         photo::check(heif_init(nullptr),"Init");photo::Context context(heif_context_alloc());photo::check(heif_context_read_from_file(context.get(),argv[2],nullptr),"Read");heif_image_handle* rawHandle;photo::check(heif_context_get_primary_image_handle(context.get(),&rawHandle),"Handle");photo::Handle handle(rawHandle);

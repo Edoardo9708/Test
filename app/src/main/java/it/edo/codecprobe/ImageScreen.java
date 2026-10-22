@@ -5,9 +5,9 @@ import android.widget.*;
 
 /** Image view composition only; file and engine actions belong to separate coordinators. */
 final class ImageScreen {
-    static final String FILES="01  FOTO E DESTINAZIONE",COMPRESSION="02  COMPRESSIONE IMMAGINI",HEIC="03  CONVERSIONE IMMAGINI",DETAILS="DIAGNOSTICA";
+    static final String FILES="01  FOTO E DESTINAZIONE",COMPRESSION="02  COMPRESSIONE IMMAGINI",HEIC="03  AVANZAMENTO IMMAGINI",DETAILS="DIAGNOSTICA";
     final AppUi ui;final LinearLayout page;final AppSections sections;final AppNavigation navigation;final ImageQualityControls quality;
-    final Button settings,select,importFolder,retryFailures,clear,reload,remove,export,chooseFolder,convert,cancel,pause,metadata,exportLog,exportErrors,clearLog,toggleLog;
+    final Button settings,select,importFolder,retryFailures,clear,reload,remove,export,chooseFolder,checkMetadata,convert,cancel,pause,metadata,exportLog,exportErrors,clearLog,toggleLog;
     final CheckBox smaller,screenOn;final ProgressBar progress;
     final TextView position,name,summary,selectionSummary,details,status,folder,parameters,runStatus,log;
     final WorkReportView workReport;
@@ -24,6 +24,8 @@ final class ImageScreen {
         metadata=selectedItem.details;remove=selectedItem.remove;
         details=ui.text(selectedItem.detailsBody,"Seleziona una foto per leggere i metadati.",15);details.setTextIsSelectable(true);details.setVisibility(android.view.View.GONE);
         reload=ui.button(files,"Rileggi metadati");
+        checkMetadata=ui.button(files,"Verifica compatibilità");
+        ui.text(files,"Controlla i metadati di tutte le foto selezionate, inclusa la coda JPEG, senza decodificare o convertire. Legge una foto alla volta; pausa, annulla e risultati nella sezione avanzamento. Un esito positivo riguarda i metadati: i pixel saranno verificati durante la conversione.",13);
         status=ui.text(files,"Scegli le foto. Gli originali restano invariati.",14);destinations=new MediaDestinationsView(ui,files,MediaKind.IMAGE);chooseFolder=destinations.pickFolder;folder=destinations.folderLabel;
         ui.text(destinations.body,"Il nome originale viene mantenuto con estensione .heic. In caso di omonimi viene aggiunto un numero; gli originali sono conservati.",13);
         LinearLayout compression=sections.card(page,COMPRESSION);quality=new ImageQualityControls(ui,compression,()->{});

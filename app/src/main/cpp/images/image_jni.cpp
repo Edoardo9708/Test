@@ -10,3 +10,11 @@ extern "C" JNIEXPORT jstring JNICALL Java_it_edo_codecprobe_ImageNative_convert(
         return env->NewStringUTF(result.c_str());
     }catch(const std::exception& error){if(!env->ExceptionCheck()){jclass type=env->FindClass("java/io/IOException");env->ThrowNew(type,error.what());env->DeleteLocalRef(type);}return nullptr;}
 }
+
+extern "C" JNIEXPORT jstring JNICALL Java_it_edo_codecprobe_ImageNative_inspect(JNIEnv* env,jclass,jstring input){
+    try{
+        const char* p=env->GetStringUTFChars(input,nullptr);if(!p)return nullptr;
+        std::string path(p);env->ReleaseStringUTFChars(input,p);
+        return env->NewStringUTF(photo::inspectJpeg(path).c_str());
+    }catch(const std::exception& error){if(!env->ExceptionCheck()){jclass type=env->FindClass("java/io/IOException");env->ThrowNew(type,error.what());env->DeleteLocalRef(type);}return nullptr;}
+}

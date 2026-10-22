@@ -65,6 +65,15 @@ Metadata metadata(const Bytes& input){
 }
 Bytes readFile(const std::string& path,size_t limit){std::ifstream file(path,std::ios::binary|std::ios::ate);if(!file)bad("File non leggibile");auto size=file.tellg();if(size<=0||uint64_t(size)>limit)bad("Dimensione file oltre il limite");Bytes bytes(static_cast<size_t>(size));file.seekg(0);if(!file.read(reinterpret_cast<char*>(bytes.data()),bytes.size()))bad("Lettura file incompleta");return bytes;}
 void check(heif_error error,const char* action){if(error.code)bad(std::string(action)+": "+error.message);}
+std::string inspectJpeg(const std::string& path){
+    // Same metadata parser as conversion, with no FFmpeg, libheif or x265 calls.
+    Bytes input=readFile(path,64*1024*1024);Metadata m=metadata(input);
+    return "Metadati compatibili · blocchi APP/COM="+std::to_string(m.blocks.size())+
+        "; EXIF="+std::to_string(m.exif.size())+" byte; XMP="+std::to_string(m.xmp.size())+
+        " byte; ICC="+std::to_string(m.icc.size())+" byte; coda JPEG="+std::to_string(m.tail.size())+
+        " byte; orientamento="+std::to_string(m.orientation)+
+        ". Pixel compressi non decodificati: integrità e formato colore restano da verificare in conversione.";
+}
 Source loadJpeg(const std::string& path){
     Bytes input=readFile(path,64*1024*1024);Source source;source.metadata=metadata(input);
     const AVCodec* codec=avcodec_find_decoder(AV_CODEC_ID_MJPEG);if(!codec)bad("Decoder JPEG incluso assente");

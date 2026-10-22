@@ -8,7 +8,7 @@ import java.util.*;
 final class ImageWorkReport {
     private final ImageController images;
     private List<ImageRunState.Result> rendered;
-    private boolean renderedRunning,renderedPaused,renderedPauseRequested;
+    private boolean renderedRunning,renderedPaused,renderedPauseRequested,renderedMetadataOnly;
     private int renderedCurrent=-1,renderedTotal=-1;
     private final ResultDialog popup;
 
@@ -16,11 +16,11 @@ final class ImageWorkReport {
 
     void render(ImageRunState run) {
         WorkReportView view = images.screen.workReport;
-        view.title.setText(run.paused ? "REPORT LAVORI · IN PAUSA" : run.running ? "REPORT LAVORI · IN CORSO" : "REPORT LAVORI");
+        view.title.setText(run.metadataOnly?"VERIFICA METADATI"+(run.paused?" · IN PAUSA":run.running?" · IN CORSO":""):run.paused ? "REPORT LAVORI · IN PAUSA" : run.running ? "REPORT LAVORI · IN CORSO" : "REPORT LAVORI");
         view.panel.setVisibility(run.total==0&&run.completed==0?android.view.View.GONE:android.view.View.VISIBLE);
         view.summary.setVisibility(android.view.View.VISIBLE);
-        if(rendered!=null&&rendered.equals(run.results)&&renderedRunning==run.running&&renderedCurrent==run.current&&renderedTotal==run.total&&renderedPaused==run.paused&&renderedPauseRequested==run.pauseRequested)return;
-        rendered=new ArrayList<>(run.results);renderedRunning=run.running;renderedCurrent=run.current;renderedTotal=run.total;renderedPaused=run.paused;renderedPauseRequested=run.pauseRequested;
+        if(rendered!=null&&rendered.equals(run.results)&&renderedMetadataOnly==run.metadataOnly&&renderedRunning==run.running&&renderedCurrent==run.current&&renderedTotal==run.total&&renderedPaused==run.paused&&renderedPauseRequested==run.pauseRequested)return;
+        renderedMetadataOnly=run.metadataOnly;rendered=new ArrayList<>(run.results);renderedRunning=run.running;renderedCurrent=run.current;renderedTotal=run.total;renderedPaused=run.paused;renderedPauseRequested=run.pauseRequested;
         view.rows.removeAllViews();AppUi ui=images.screen.ui;
         boolean large=run.total>ImageQueueStore.VISIBLE;
         int start=large?run.windowStart():0,end=large?Math.min(run.total,start+ImageQueueStore.VISIBLE):run.completed;
@@ -35,17 +35,18 @@ final class ImageWorkReport {
             switch(result.outcome){
                 case SAVED:status=CompressionSummary.size(result.inputBytes)+" → "+CompressionSummary.size(result.outputBytes)+" · "+CompressionSummary.change(result.inputBytes,result.outputBytes);break;
                 case ALREADY_DONE:status="Già convertita · originale e HEIC verificati · nessuna ricodifica";break;
-                case FAILED:status="Conversione fallita · nessun nuovo file completato";break;
+                case CHECKED:status="Metadati compatibili · pixel non verificati";break;
+                case FAILED:status=run.metadataOnly?"Da verificare · "+result.message:"Conversione fallita · nessun nuovo file completato";break;
                 case NOT_SMALLER:status="Nessun risparmio · risultato non salvato";break;
-                default:status="Conversione annullata";
+                default:status=run.metadataOnly?"Verifica annullata":"Conversione annullata";
             }
             String title="Foto "+(n+1)+" · "+result.name.replace('\n',' ').replace('\r',' ');
             ResultReportRow.add(ui,view.rows,title+"\n"+status,
                 (result.outcome==ImageRunState.Outcome.SAVED||result.outcome==ImageRunState.Outcome.ALREADY_DONE)&&result.uri!=null?()->open(result.uri):null,
-                result.outcome==ImageRunState.Outcome.FAILED?()->show(result):null);
+                (result.outcome==ImageRunState.Outcome.FAILED||result.outcome==ImageRunState.Outcome.CHECKED)?()->show(result,run.metadataOnly):null);
         }
         long before=run.inputSavedBytes,after=run.outputSavedBytes;
-        view.summary.setText(run.completed==0?"Nessuna conversione eseguita.":
+        view.summary.setText(run.metadataOnly?"Compatibili: "+run.checked+" · da verificare: "+run.failed+" · annullate: "+run.cancelledCount+"\nNessuna decodifica o codifica. Esito limitato ai metadati; integrità dei pixel e formato colore saranno verificati in conversione. Il primo blocco non supportato viene segnalato per ciascuna foto.\nDettagli completi nel log; problemi conservati nell’archivio errori. Righe mostrate: massimo 100.":run.completed==0?"Nessuna conversione eseguita.":
             "Salvate "+run.saved+" · fallite "+run.failed+" · senza risparmio "+run.skipped+" · annullate "+run.cancelledCount+(run.alreadyDone>0?" · già presenti "+run.alreadyDone:"")
             +(run.saved+run.alreadyDone==0?"":"\n"+CompressionSummary.size(before)+" → "+CompressionSummary.size(after)+" · "+CompressionSummary.change(before,after)
             +"\n"+(before>=after?"Spazio risparmiato: ":"Spazio aggiuntivo: ")+CompressionSummary.size(Math.abs(before-after)))
@@ -61,8 +62,8 @@ final class ImageWorkReport {
         } catch (SecurityException error) { images.toast("Accesso al file non più disponibile"); }
     }
 
-    private void show(ImageRunState.Result result) {
-        popup.show("Conversione fallita",result.name,result.message,"",result.details,result.name+"\n"+result.message+"\n\n"+result.details);
+    private void show(ImageRunState.Result result,boolean metadataOnly) {
+        popup.show(metadataOnly?"Verifica metadati":"Conversione fallita",result.name,result.message,"",result.details,result.name+"\n"+result.message+"\n\n"+result.details);
     }
     void close(){popup.close();}
 }

@@ -21,6 +21,7 @@ constexpr int thumbnailEdge=1024;
 void addThumbnail(heif_context* context,const Source& source,const heif_image_handle* primary,const heif_encoding_options* options);
 void check(heif_error error,const char* action);
 Bytes readFile(const std::string& path,size_t limit);
+std::string inspectJpeg(const std::string& path);
 Source loadJpeg(const std::string& path);
 void attach(heif_context* context,heif_image_handle* handle,const Metadata& data);
 void verify(const std::string& path,const Source& source,const Stage& stage);

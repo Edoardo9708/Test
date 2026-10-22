@@ -1,3 +1,11 @@
+# v0.96 · Verifica compatibilità foto senza codec
+
+Nella sezione foto, «Verifica compatibilità» controlla tutte le foto selezionate senza richiedere una destinazione. Usa lo stesso parser nativo dei metadati della conversione (EXIF/orientamento, XMP, ICC, APP/COM, coda e SEF), senza chiamare FFmpeg, libheif o x265. Il file viene comunque letto e attraversato per trovare marcatori/fine JPEG; non vengono allocati piani pixel né creati HEIC. Si lavora su una foto alla volta, file massimo 64 MiB, con una copia temporanea privata eliminata a fine foto. Non è una garanzia su integrità dei pixel, formato colore o riuscita della conversione.
+
+La verifica usa la coda in foreground con pausa/riprendi/annulla, notifica e risultati limitati a 100 righe; contatori cumulativi «compatibili / da verificare». Log completo esportabile anche durante la verifica e problemi nel JSONL con `operation=metadata-check`. Il registro SQLite delle conversioni non viene aperto o modificato; «Carica fallite» continua a riferirsi alle conversioni. Ogni foto si ferma al primo errore del parser. In conversione i controlli vengono sempre ripetuti sui dati letti in quel momento. Come per una conversione, iniziare una nuova coda sostituisce il log dell’ultima esecuzione: esportarlo prima se serve; l’archivio errori è cumulativo.
+
+Verifiche: test nativi di parità del parser su tutti i JPEG di prova; JPEG attraversabile senza pixel accettato dalla verifica e rifiutato dal decoder, nessun HEIC; test Android per avvio senza destinazione, coda di 8.500 riferimenti, pausa/ripresa, log/errori, assenza di modifiche al registro e contatori indipendenti dalla finestra risultati.
+
 # v0.95 · conserva altri metadati Samsung e accetta directory SEF non ordinate
 
 Aggiunte 24 coppie tipo/nome SEF per la sola conservazione nell’archivio proprietario del file HEIC: dati galleria, editor e livelli grafici, riferimenti all’originale, Pro/panorama fotografico, mappe di profondità e relativi metadati. I payload vengono copiati integralmente, senza interpretare o attivare istruzioni di modifica/rotazione/colore; dopo la conversione l’archivio è riletto e confrontato byte per byte. Le funzioni dell’editor Samsung non sono garantite.
