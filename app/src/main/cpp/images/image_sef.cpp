@@ -11,6 +11,7 @@ using Bytes=std::vector<uint8_t>;
 uint32_t le32(const Bytes& b,size_t p){if(p+4>b.size())bad("SEF troncato");return uint32_t(b[p])|uint32_t(b[p+1])<<8|uint32_t(b[p+2])<<16|uint32_t(b[p+3])<<24;}
 // Names and types cross-checked against ExifTool Samsung.pm. These are only
 // archived as opaque metadata; never applied as edits, transforms or colour rules.
+std::string typeHex(uint32_t type){static const char digits[]="0123456789abcdef";std::string value="0x";for(int shift=28;shift>=16;shift-=4)value+=digits[(type>>shift)&15];return value;}
 bool opaquePhotoRecord(uint32_t type,const std::string& name){
     static const std::pair<uint16_t,const char*> records[]={
         {0x0ce1,"Gallery_DC_Data"}, {0x0ba1,"PhotoEditor_Re_Edit_Data"},
@@ -24,7 +25,12 @@ bool opaquePhotoRecord(uint32_t type,const std::string& name){
         {0x0b41,"SingeShot_DepthMap_5"}, {0x0b41,"SingeShot_DepthMap_8"},
         {0x0b41,"SingeShot_DepthMap_10"}, {0x0ab0,"DualShot_Meta_Info"},
         {0x0ab3,"DualShot_Extra_Info"}, {0x0ab4,"DualShot_Core_Info"},
-        {0x0ab1,"DualShot_DepthMap_1"}, {0x0ab1,"DualShot_DepthMap_5"}
+        {0x0ab1,"DualShot_DepthMap_1"}, {0x0ab1,"DualShot_DepthMap_5"},
+        {0x09e1,"BurstShot_Best_Photo_Info"}, {0x0bd0,"Dual_Relighting_Bokeh_Info"},
+        {0x0c21,"Portrait_Effect_Info"}, {0x0b90,"Document_Scan_Info"},
+        {0x0d01,"Camera_Scene_Info"}, {0x0d21,"Camera_Scene_Info"},
+        {0x0d01,"Camera_Scene_Info2"}, {0x0d01,"Camera_Scene_Info3"},
+        {0x0001,"SingleShot"}, {0x0001,"DualShot_1"}, {0x0001,"DualShot_2"}
     };
     for(const auto& record:records)if(type==(uint32_t(record.first)<<16)&&name==record.second)return true;
     return false;
@@ -43,6 +49,7 @@ bool paddingTail(const Bytes& b){
 }
 void validateJpegTail(const std::vector<uint8_t>& b){
     if(b.empty()||paddingTail(b))return;
+    if(b.size()>4*1024*1024&&!memcmp(b.data()+b.size()-4,"SEFT",4))bad("Blocco SEF oltre il limite di 4 MiB: "+tailSummary(b));
     if(b.size()<32||b.size()>4*1024*1024||memcmp(b.data()+b.size()-4,"SEFT",4))bad("Dati dopo JPEG non supportati: tipo da identificare · "+tailSummary(b));
     uint32_t length=le32(b,b.size()-8);if(length<24||length>b.size()-8||(length-12)%12)bad("Directory SEF non valida");
     size_t dir=b.size()-8-length;uint32_t count=le32(b,dir+8),version=le32(b,dir+4);
@@ -57,25 +64,21 @@ void validateJpegTail(const std::vector<uint8_t>& b){
         ranges.emplace_back(start,start+size);
         bool utc=name=="Image_UTC_Data"&&type==0x0a010000&&bytes==13;
         bool mcc=name=="MCC_Data"&&type==0x0aa10000&&bytes==3;
-        bool scene=name=="Camera_Scene_Info"&&type==0x0d010000&&bytes>0&&bytes<=16;
         bool capture=name=="Camera_Capture_Mode_Info"&&type==0x0c610000&&bytes>0&&bytes<=16;
         bool p3=name=="Color_Display_P3"&&type==0x0cc10000&&bytes==3;
         bool selfie=name=="Front_Cam_Selfie_Info"&&type==0x09100000;
         bool burst=name=="Burst_Shot_Info"&&type==0x09e00000;
         bool opaque=opaquePhotoRecord(type,name);
-        if(!utc&&!mcc&&!scene&&!capture&&!p3&&!selfie&&!burst&&!opaque)bad("Record SEF foto non supportato: "+name);
-        // Keep short decimal codes without binding their width to one sample's
-        // scene/mode value. Sixteen bytes is our text bound, not a SEF specification. P3 is
-        // a three-byte opaque marker: preserve it without interpreting it as colour
-        // instructions. The actual ICC profile is copied and verified separately.
-        // Selfie and burst data are archived verbatim, not interpreted or activated. Their payloads
-        // need not match text variants used by the separate video SEF parser.
+        if(!utc&&!mcc&&!capture&&!p3&&!selfie&&!burst&&!opaque)bad("Record SEF foto non supportato: "+name+"; tipo="+typeHex(type)+"; payload="+std::to_string(bytes)+" byte");
+        // Only UTC, MCC and capture-mode codes are checked as decimal text.
+        // Scene/editor/embedded-image records remain archival bytes; their values
+        // never supply transforms, colour instructions or additional HEIF images.
         if(!p3&&!selfie&&!burst&&!opaque)for(size_t j=payload;j<payload+bytes;j++)if(b[j]<'0'||b[j]>'9')bad("Valore SEF foto non verificato");
     }
     // Directory order need not match physical order. Every data byte must still
     // belong to exactly one validated record: reject overlaps, holes and aliases.
     std::sort(ranges.begin(),ranges.end());size_t expected=0;
-    for(const auto& range:ranges){if(range.first!=expected)bad("Riferimenti SEF non validi: record sovrapposti o byte non indicizzati");expected=range.second;}
+    for(const auto& range:ranges){if(range.first!=expected)bad("Riferimenti SEF non validi: record sovrapposti o byte non indicizzati; atteso="+std::to_string(expected)+"; inizio="+std::to_string(range.first)+"; fine="+std::to_string(range.second));expected=range.second;}
     if(expected!=dir)bad("Byte SEF non indicizzati");
 }
 }

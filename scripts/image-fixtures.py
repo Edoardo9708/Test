@@ -44,6 +44,23 @@ for orientation in range(1, 9):
     exif[34853] = {1: 'N', 2: (Fraction(45), Fraction(1), Fraction(2)),
                    3: 'E', 4: (Fraction(8), Fraction(1), Fraction(2))}
     image.save(directory / f'orientation-{orientation}.jpg', quality=94, subsampling=2, exif=exif)
+# A non-standard unsigned LONG orientation is interpreted without rewriting EXIF.
+def orientation_exif(value, order='<', field_type=4, count=1):
+    slot = struct.pack(order + 'H', value) + b'\0\0' if field_type == 3 else struct.pack(order + 'I', value)
+    return (b'Exif\0\0' + (b'II' if order == '<' else b'MM') +
+            struct.pack(order + 'HIH', 42, 8, 1) +
+            struct.pack(order + 'HHI', 274, field_type, count) + slot + struct.pack(order + 'I', 0))
+
+for order, label in [('<', 'le'), ('>', 'be')]:
+    for value in range(1, 9):
+        image.save(directory / f'orientation-long-{label}-{value}.jpg', quality=94,
+                   subsampling=2, exif=orientation_exif(value, order))
+    for value in (0, 9, 65537, 0xffffffff):
+        image.save(directory / f'reject-orientation-long-{label}-{value}.jpg',
+                   exif=orientation_exif(value, order))
+    for field_type, count in [(4, 0), (4, 2), (9, 1)]:
+        image.save(directory / f'reject-orientation-schema-{label}-{field_type}-{count}.jpg',
+                   exif=orientation_exif(6, order, field_type, count))
 for subsampling in (0, 1):
     image.save(directory / f'chroma-{subsampling}.jpg', quality=94, subsampling=subsampling)
 image.save(directory / 'icc.jpg', quality=94, icc_profile=icc)
@@ -102,7 +119,12 @@ photo_records = [
     (0x0b41, b'SingeShot_DepthMap_5'), (0x0b41, b'SingeShot_DepthMap_8'),
     (0x0b41, b'SingeShot_DepthMap_10'), (0x0ab0, b'DualShot_Meta_Info'),
     (0x0ab3, b'DualShot_Extra_Info'), (0x0ab4, b'DualShot_Core_Info'),
-    (0x0ab1, b'DualShot_DepthMap_1'), (0x0ab1, b'DualShot_DepthMap_5')]
+    (0x0ab1, b'DualShot_DepthMap_1'), (0x0ab1, b'DualShot_DepthMap_5'),
+    (0x09e1, b'BurstShot_Best_Photo_Info'), (0x0bd0, b'Dual_Relighting_Bokeh_Info'),
+    (0x0c21, b'Portrait_Effect_Info'), (0x0b90, b'Document_Scan_Info'),
+    (0x0d01, b'Camera_Scene_Info'), (0x0d21, b'Camera_Scene_Info'),
+    (0x0d01, b'Camera_Scene_Info2'), (0x0d01, b'Camera_Scene_Info3'),
+    (0x0001, b'SingleShot'), (0x0001, b'DualShot_1'), (0x0001, b'DualShot_2')]
 opaque_records = [(kind, name, b'\0\xff' + bytes(range(256)) + b'{"rotation":90,"originalPath":"synthetic.jpg"}')
                   for kind, name in photo_records]
 for version in (103, 105, 106, 107):
@@ -122,10 +144,18 @@ for variant, tail in [('reverse', sef(opaque_records, 107, list(reversed(range(l
     with path.open('ab') as out:
         out.write(tail)
 for kind, name in photo_records:
-    path = directory / ('reject-photo-type-' + name.decode() + '.jpg')
+    path = directory / (f'reject-photo-type-{kind:04x}-' + name.decode() + '.jpg')
     image.save(path)
     with path.open('ab') as out:
         out.write(sef([(kind + 1, name, b'opaque')], 107))
+# Actual embedded JPEG payloads are preserved, never promoted to a second HEIF image.
+embedded_path = directory / 'sef-embedded-jpeg.jpg'
+image.save(embedded_path, quality=94)
+embedded_bytes = embedded_path.read_bytes()
+with embedded_path.open('ab') as out:
+    out.write(sef([(0x0001, b'SingleShot', embedded_bytes),
+                   (0x0001, b'DualShot_1', embedded_bytes),
+                   (0x0001, b'DualShot_2', embedded_bytes)], 107))
 # A correct record header cannot legitimize duplicate directory references or holes.
 small_records = opaque_records[:2]
 aliased = bytearray(sef(small_records, 107))
@@ -148,10 +178,8 @@ invalid_sef = [
     ('burst-name', [(0x09e0, b'Unknown_Burst_Info', b'opaque')]),
     ('selfie-type', [(0x0911, b'Front_Cam_Selfie_Info', b'opaque')]),
     ('selfie-name', [(0x0910, b'Unknown_Selfie_Info', b'opaque')]),
-    ('scene-type', [(0x0d21, b'Camera_Scene_Info', b'19')]),
-    ('scene-length', [(0x0d01, b'Camera_Scene_Info', b'12345678901234567')]),
-    ('scene-empty', [(0x0d01, b'Camera_Scene_Info', b'')]),
-    ('scene-value', [(0x0d01, b'Camera_Scene_Info', b'1x')]),
+    ('scene-type', [(0x0d22, b'Camera_Scene_Info', b'19')]),
+    ('embedded-unknown-name', [(0x0001, b'SingleShot_Unknown', b'opaque')]),
     ('capture-type', [(0x0c62, b'Camera_Capture_Mode_Info', b'1')]),
     ('capture-length', [(0x0c61, b'Camera_Capture_Mode_Info', b'12345678901234567')]),
     ('capture-empty', [(0x0c61, b'Camera_Capture_Mode_Info', b'')]),
@@ -166,6 +194,10 @@ for name, records in invalid_sef:
     image.save(path, quality=94)
     with path.open('ab') as out:
         out.write(sef(records, 107))
+path = directory / 'reject-sef-over-limit.jpg'
+image.save(path)
+with path.open('ab') as out:
+    out.write(sef([(0x09e1, b'BurstShot_Best_Photo_Info', bytes(4 * 1024 * 1024))], 107))
 path = directory / 'reject-sef-truncated.jpg'
 image.save(path)
 with path.open('ab') as out:
@@ -246,6 +278,15 @@ for path in sorted(directory.glob('*.jpg')):
         assert result.returncode == 0 and output.stat().st_size > 0, (path, result.stdout, result.stderr)
         checked = subprocess.run([engine, 'verify', str(path), str(output)], capture_output=True, text=True)
         assert checked.returncode == 0, (path, checked.stderr)
+        if path.stem.startswith('orientation-long-'):
+            ppm = path.with_suffix('.ppm')
+            decoded = subprocess.run([engine, 'decode', str(output), str(ppm)], capture_output=True, text=True)
+            assert decoded.returncode == 0, (path, decoded.stderr)
+            with Image.open(ppm) as actual, Image.open(path) as original:
+                reference = ImageOps.exif_transpose(original)
+                assert actual.size == reference.size, (path, actual.size, reference.size)
+                error = sum(ImageStat.Stat(ImageChops.difference(reference, actual)).mean) / 3
+                assert error < 8, (path, 'LONG orientation differs from independently oriented pixels', error)
         if path.stem.startswith('thumbnail-'):
             ppm = path.with_suffix('.ppm')
             decoded = subprocess.run([engine, 'decode-thumbnail', str(output), str(ppm)], capture_output=True, text=True)
@@ -353,15 +394,15 @@ for source in sorted(directory.glob('padding-*.jpg')):
 source = directory / 'sef-photo-records-107.jpg'
 original = source.with_suffix('.heic').read_bytes()
 archive_start = original.index(b'CPJPEG1\0')
-for _, name in photo_records:
+for kind, name in photo_records:
     data = bytearray(original)
-    position = data.index(name, archive_start) + len(name)
+    position = data.index(struct.pack('<HHI', 0, kind, len(name)) + name, archive_start) + 8 + len(name)
     data[position] ^= 1
-    corrupted = directory / ('corrupt-photo-record-' + name.decode() + '.heic')
+    corrupted = directory / (f'corrupt-photo-record-{kind:04x}-' + name.decode() + '.heic')
     corrupted.write_bytes(data)
     result = subprocess.run([engine, 'verify', str(source), str(corrupted)], capture_output=True, text=True)
     assert result.returncode != 0 and 'Archivio APP/COM/SEF diverso' in result.stderr, (name, result.stderr)
-print('OK photo SEF catalog: 24 archival record types/names, binary/empty/JSON payloads, four SEF versions, every altered payload and wrong type rejected; unordered directories accepted; alias/external/gap references rejected')
+print('OK photo SEF catalog: 35 archival record types/names, binary/empty/JSON payloads, four SEF versions, every altered payload and wrong type rejected; unordered directories accepted; alias/external/gap references rejected')
 print('OK JPEG padding: observed D9+zero tail and bounded variants preserved byte for byte; mixed/reordered/oversized tails and archive tampering rejected')
 print('OK burst SEF: versions 103/105/106/107, text/binary/terminated/empty payloads preserved byte for byte alongside selfie and MCC; tampering and wrong type/name rejected; bounded tail and explicit EXIF diagnostics')
 print('OK selfie SEF: versions 103/105/106/107, text/binary/terminated/empty payloads preserved byte for byte; altered archive and wrong type/name rejected')
@@ -376,3 +417,5 @@ assert inspected.returncode == 0 and 'Pixel compressi non decodificati' in inspe
 converted = subprocess.run([engine, str(probe), str(probe.with_suffix('.heic'))], capture_output=True, text=True)
 assert converted.returncode != 0 and not probe.with_suffix('.heic').exists(), converted.stdout
 print('OK metadata preflight: same parser and rejections as conversion; no decode for traversable JPEG without pixels; no HEIC produced')
+
+print('OK EXIF LONG orientation: both byte orders, all eight transforms and actual pixels, raw EXIF preserved; zero/out-of-range/full-width values, wrong count and signed type rejected')

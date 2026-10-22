@@ -1,5 +1,6 @@
 #include "image_core.h"
 #include "image_sef.h"
+#include "image_exif.h"
 extern "C" {
 #include <libavcodec/avcodec.h>
 #include <libavutil/pixdesc.h>
@@ -15,16 +16,6 @@ namespace {
 bool starts(const Bytes& b,const char* text,size_t n){return b.size()>=n&&!memcmp(b.data(),text,n);}
 void put32(Bytes& b,size_t value){for(int shift=24;shift>=0;shift-=8)b.push_back((value>>shift)&255);}
 
-int orientation(const Bytes& exif){
-    if(exif.empty())return 1;
-    if(exif.size()<14)bad("EXIF incompleto");size_t base=6;bool little=exif[6]=='I'&&exif[7]=='I';
-    if(!little&&!(exif[6]=='M'&&exif[7]=='M'))bad("Ordine byte EXIF non valido");
-    auto word=[&](size_t at,int count)->uint32_t{if(at>exif.size()||size_t(count)>exif.size()-at)bad("Riferimento EXIF fuori limite");uint32_t v=0;for(int n=0;n<count;n++)v|=uint32_t(exif[at+n])<<(8*(little?n:count-n-1));return v;};
-    if(word(8,2)!=42)bad("Header TIFF EXIF non valido");size_t ifd=base+word(10,4);size_t count=word(ifd,2);if(count>(exif.size()-ifd-2)/12)bad("IFD EXIF troncato");
-    int result=1;bool seen=false;
-    for(size_t i=0;i<count;i++){size_t p=ifd+2+i*12;if(word(p,2)==0x112){if(seen)bad("Orientamento EXIF non valido: tag duplicato");if(word(p+2,2)!=3||word(p+4,4)!=1)bad("Orientamento EXIF non valido: tipo="+std::to_string(word(p+2,2))+"; quantita="+std::to_string(word(p+4,4)));result=word(p+8,2);seen=true;if(result<1||result>8)bad("Orientamento EXIF fuori intervallo: valore="+std::to_string(result)+"; atteso 1..8");}}
-    return result;
-}
 Metadata metadata(const Bytes& input){
     Metadata m;size_t at=2,total=0;int pending=-1,segments=0;std::map<int,Bytes> icc;int iccParts=0;
     if(input.size()<4||input[0]!=255||input[1]!=216)bad("Input non JPEG");
@@ -57,7 +48,7 @@ Metadata metadata(const Bytes& input){
     }
     if(icc.size()!=size_t(iccParts))bad("Profilo ICC incompleto");for(const auto& part:icc)m.icc.insert(m.icc.end(),part.second.begin(),part.second.end());
     if(!m.icc.empty()&&(m.icc.size()<128||memcmp(m.icc.data()+36,"acsp",4)))bad("Header profilo ICC non valido");
-    m.orientation=orientation(m.exif);m.tail.assign(input.begin()+at,input.end());validateJpegTail(m.tail);
+    m.orientation=exifOrientation(m.exif);m.tail.assign(input.begin()+at,input.end());validateJpegTail(m.tail);
     m.bundle={'C','P','J','P','E','G','1',0};put32(m.bundle,m.blocks.size());
     for(const Block& b:m.blocks){m.bundle.push_back(b.marker);put32(m.bundle,b.data.size());m.bundle.insert(m.bundle.end(),b.data.begin(),b.data.end());}
     put32(m.bundle,m.tail.size());m.bundle.insert(m.bundle.end(),m.tail.begin(),m.tail.end());return m;
