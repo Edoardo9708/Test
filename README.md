@@ -1,3 +1,7 @@
+# v0.94 · scorciatoie qualità foto e icona di notifica
+
+I tre pulsanti rapidi della qualità immagini sono ora 50, 55 e 60, sia nella schermata di conversione sia nelle impostazioni immagini. La notifica del servizio foto usa un’icona monocromatica dedicata con un’immagine, coerente con le icone specifiche già usate da video e audio.
+
 # v0.93 · conserva il riempimento dopo la fine JPEG
 
 Il campione originale rifiutato contiene 172.637 byte dopo il marcatore di fine JPEG: undici byte D9 e 172.626 byte nulli. La conversione accetta ora code di riempimento formate da una sequenza iniziale di D9 seguita esclusivamente da byte zero (anche sequenze contenenti un solo tipo di byte), fino a 4 MiB. Il riconoscimento verifica tutta la coda, non soltanto un prefisso. Altri dati continuano a seguire i controlli SEF o a essere rifiutati come non identificati.

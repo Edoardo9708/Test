@@ -8,7 +8,7 @@ final class ImageQualityControls {
     ImageQualityControls(AppUi ui,LinearLayout parent,Runnable changed){
         this.changed=changed;value=ui.parameterRow(parent,"Qualità","Valori da 40 a 95. Un valore maggiore tende a conservare più dettagli e occupare più spazio. La conversione è con perdita.");
         quality=new SeekBar(ui.activity);quality.setMax(55);ui.styleSlider(quality);parent.addView(quality,new LinearLayout.LayoutParams(-1,ui.dp(48)));
-        shortcuts=new QualityButtons(ui,new int[]{60,65,70},new String[]{"60","65","70"},"qualità",q->quality.setProgress(q-40));parent.addView(shortcuts,new LinearLayout.LayoutParams(-1,-2));
+        shortcuts=new QualityButtons(ui,new int[]{50,55,60},new String[]{"50","55","60"},"qualità",q->quality.setProgress(q-40));parent.addView(shortcuts,new LinearLayout.LayoutParams(-1,-2));
         preset=new ChoiceSlider(ui,parent,"Preset",new String[]{"fast","medium","slow"},"Il preset più lento prova più alternative e richiede più tempo.",()->this.changed.run());
         tune=new ChoiceSlider(ui,parent,"Tune",new String[]{"standard","ssim","psnr"},"Standard usa il comportamento psicovisivo predefinito di x265; SSIM e PSNR sono opzioni di confronto.",()->this.changed.run());
         ui.text(parent,"Dimensioni originali, 8 bit e YCbCr 4:2:0. Qualità e preset sono indipendenti.",13);
