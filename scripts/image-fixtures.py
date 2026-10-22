@@ -280,7 +280,7 @@ for path in sorted(directory.glob('*.jpg')):
         assert checked.returncode == 0, (path, checked.stderr)
         if path.stem.startswith('orientation-long-'):
             ppm = path.with_suffix('.ppm')
-            decoded = subprocess.run([engine, 'decode', str(output), str(ppm)], capture_output=True, text=True)
+            decoded = subprocess.run([engine, 'decode-oriented', str(output), str(ppm)], capture_output=True, text=True)
             assert decoded.returncode == 0, (path, decoded.stderr)
             with Image.open(ppm) as actual, Image.open(path) as original:
                 reference = ImageOps.exif_transpose(original)
