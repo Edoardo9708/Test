@@ -1,4 +1,5 @@
 #include "image_core.h"
+#include "image_sef.h"
 extern "C" {
 #include <libavcodec/avcodec.h>
 #include <libavutil/pixdesc.h>
@@ -12,50 +13,8 @@ namespace photo {
 namespace {
 [[noreturn]] void bad(const std::string& message){throw std::runtime_error(message);}
 bool starts(const Bytes& b,const char* text,size_t n){return b.size()>=n&&!memcmp(b.data(),text,n);}
-uint32_t le32(const Bytes& b,size_t p){if(p+4>b.size())bad("SEF troncato");return uint32_t(b[p])|uint32_t(b[p+1])<<8|uint32_t(b[p+2])<<16|uint32_t(b[p+3])<<24;}
 void put32(Bytes& b,size_t value){for(int shift=24;shift>=0;shift-=8)b.push_back((value>>shift)&255);}
-std::string tailSummary(const Bytes& b){
-    static const char digits[]="0123456789abcdef";
-    auto hex=[&](size_t first,size_t count){std::string text;for(size_t i=first;i<first+count;i++){if(i>first)text+=' ';text+=digits[b[i]>>4];text+=digits[b[i]&15];}return text;};
-    size_t head=std::min<size_t>(32,b.size()),last=std::min<size_t>(16,b.size());
-    return "byte="+std::to_string(b.size())+"; primi="+hex(0,head)+"; ultimi="+hex(b.size()-last,last);
-}
-bool paddingTail(const Bytes& b){
-    if(b.size()>4*1024*1024)return false;
-    size_t at=0;while(at<b.size()&&b[at]==0xd9)at++;
-    return std::all_of(b.begin()+at,b.end(),[](uint8_t value){return value==0;});
-}
-void validateTail(const Bytes& b){
-    if(b.empty()||paddingTail(b))return;
-    if(b.size()<32||b.size()>4*1024*1024||memcmp(b.data()+b.size()-4,"SEFT",4))bad("Dati dopo JPEG non supportati: tipo da identificare · "+tailSummary(b));
-    uint32_t length=le32(b,b.size()-8);if(length<24||length>b.size()-8||(length-12)%12)bad("Directory SEF non valida");
-    size_t dir=b.size()-8-length;uint32_t count=le32(b,dir+8),version=le32(b,dir+4);
-    if(memcmp(b.data()+dir,"SEFH",4)||count==0||count>4096||count!=(length-12)/12||(version!=103&&version!=105&&version!=106&&version!=107))bad("Versione o directory SEF non supportata");
-    size_t expected=0;
-    for(size_t i=0;i<count;i++){
-        size_t e=dir+12+i*12;uint32_t type=le32(b,e),offset=le32(b,e+4),size=le32(b,e+8);
-        if(offset>dir||dir-offset!=expected||size<9||size>dir-expected)bad("Riferimenti SEF non validi: record="+std::to_string(i+1)+"; offset="+std::to_string(offset)+"; dimensione="+std::to_string(size)+"; inizio atteso="+std::to_string(expected)+"; directory="+std::to_string(dir));
-        uint32_t nameSize=le32(b,expected+4);if(nameSize>256||nameSize==0||nameSize>size-8||le32(b,expected)!=type)bad("Record SEF non valido");
-        std::string name(reinterpret_cast<const char*>(b.data()+expected+8),nameSize);size_t payload=expected+8+nameSize,bytes=size-8-nameSize;
-        bool utc=name=="Image_UTC_Data"&&type==0x0a010000&&bytes==13;
-        bool mcc=name=="MCC_Data"&&type==0x0aa10000&&bytes==3;
-        bool scene=name=="Camera_Scene_Info"&&type==0x0d010000&&bytes>0&&bytes<=16;
-        bool capture=name=="Camera_Capture_Mode_Info"&&type==0x0c610000&&bytes>0&&bytes<=16;
-        bool p3=name=="Color_Display_P3"&&type==0x0cc10000&&bytes==3;
-        bool selfie=name=="Front_Cam_Selfie_Info"&&type==0x09100000;
-        bool burst=name=="Burst_Shot_Info"&&type==0x09e00000;
-        if(!utc&&!mcc&&!scene&&!capture&&!p3&&!selfie&&!burst)bad("Record SEF foto non supportato: "+name);
-        // Keep short decimal codes without binding their width to one sample's
-        // scene/mode value. Sixteen bytes is our text bound, not a SEF specification. P3 is
-        // a three-byte opaque marker: preserve it without interpreting it as colour
-        // instructions. The actual ICC profile is copied and verified separately.
-        // Selfie and burst data are archived verbatim, not interpreted or activated. Their payloads
-        // need not match text variants used by the separate video SEF parser.
-        if(!p3&&!selfie&&!burst)for(size_t j=payload;j<payload+bytes;j++)if(b[j]<'0'||b[j]>'9')bad("Valore SEF foto non verificato");
-        expected+=size;
-    }
-    if(expected!=dir)bad("Byte SEF non indicizzati");
-}
+
 int orientation(const Bytes& exif){
     if(exif.empty())return 1;
     if(exif.size()<14)bad("EXIF incompleto");size_t base=6;bool little=exif[6]=='I'&&exif[7]=='I';
@@ -69,7 +28,7 @@ int orientation(const Bytes& exif){
 Metadata metadata(const Bytes& input){
     Metadata m;size_t at=2,total=0;int pending=-1,segments=0;std::map<int,Bytes> icc;int iccParts=0;
     if(input.size()<4||input[0]!=255||input[1]!=216)bad("Input non JPEG");
-    auto next=[&](){if(at>=input.size())bad("JPEG troncato");return int(input[at++]);};
+    auto next=[&](){if(at>=input.size())bad("JPEG troncato: offset="+std::to_string(at)+"; byte totali="+std::to_string(input.size()));return int(input[at++]);};
     while(true){
         int marker=pending;pending=-1;if(marker<0){size_t markerAt=at;int prefix=next();if(prefix!=255)bad("Marcatore JPEG atteso: offset="+std::to_string(markerAt)+"; byte="+std::to_string(prefix));do{marker=next();}while(marker==255);}
         if(++segments>65536)bad("Troppi segmenti JPEG");if(marker==217)break;
@@ -98,7 +57,7 @@ Metadata metadata(const Bytes& input){
     }
     if(icc.size()!=size_t(iccParts))bad("Profilo ICC incompleto");for(const auto& part:icc)m.icc.insert(m.icc.end(),part.second.begin(),part.second.end());
     if(!m.icc.empty()&&(m.icc.size()<128||memcmp(m.icc.data()+36,"acsp",4)))bad("Header profilo ICC non valido");
-    m.orientation=orientation(m.exif);m.tail.assign(input.begin()+at,input.end());validateTail(m.tail);
+    m.orientation=orientation(m.exif);m.tail.assign(input.begin()+at,input.end());validateJpegTail(m.tail);
     m.bundle={'C','P','J','P','E','G','1',0};put32(m.bundle,m.blocks.size());
     for(const Block& b:m.blocks){m.bundle.push_back(b.marker);put32(m.bundle,b.data.size());m.bundle.insert(m.bundle.end(),b.data.begin(),b.data.end());}
     put32(m.bundle,m.tail.size());m.bundle.insert(m.bundle.end(),m.tail.begin(),m.tail.end());return m;

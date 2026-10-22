@@ -1,3 +1,15 @@
+# v0.95 · conserva altri metadati Samsung e accetta directory SEF non ordinate
+
+Aggiunte 24 coppie tipo/nome SEF per la sola conservazione nell’archivio proprietario del file HEIC: dati galleria, editor e livelli grafici, riferimenti all’originale, Pro/panorama fotografico, mappe di profondità e relativi metadati. I payload vengono copiati integralmente, senza interpretare o attivare istruzioni di modifica/rotazione/colore; dopo la conversione l’archivio è riletto e confrontato byte per byte. Le funzioni dell’editor Samsung non sono garantite.
+
+Il lettore SEF delle foto è ora separato dal decoder JPEG. Le voci della directory possono avere un ordine diverso dai record fisici: i riferimenti vengono controllati individualmente e gli intervalli ordinati per verificare che tutti i byte siano indicizzati una sola volta, senza sovrapposizioni, alias, buchi o riferimenti esterni. Il contenuto originale della directory non viene riordinato nel file archiviato. Il lettore SEF dei video resta indipendente.
+
+Nel run più ampio del log 0.91, 164 rifiuti nominano record aggiunti in questa versione; raffiche e riempimento erano già affrontati dalle versioni 0.92/0.93. Questi conteggi identificano il primo controllo fallito, non garantiscono la riuscita di ogni foto: altri record o strutture possono emergere solo al nuovo tentativo. Restano da esaminare con originali HDR/gain map/Motion Photo, MPF/JUMBF, panorama con video incorporato, orientamenti invalidi e JPEG segnalati come troncati/non decodificabili. Gli errori di troncamento riportano ora offset e byte totali.
+
+Verifiche: 24 coppie tipo/nome con payload binari, vuoti e JSON su quattro versioni SEF, ogni payload alterato rifiutato, tipi e nomi non riconosciuti rifiutati, directory invertite/permutate, alias/riferimenti esterni/buchi rifiutati. Il validatore isolato supera 39 casi e 10.000 buffer mutati/casuali con AddressSanitizer e UndefinedBehaviorSanitizer (rilevazione perdite disabilitata perché non disponibile nell’ambiente locale).
+
+Riferimenti e limiti: [docs/photo-sef-0.95.md](docs/photo-sef-0.95.md).
+
 # v0.94 · scorciatoie qualità foto e icona di notifica
 
 I tre pulsanti rapidi della qualità immagini sono ora 50, 55 e 60, sia nella schermata di conversione sia nelle impostazioni immagini. La notifica del servizio foto usa un’icona monocromatica dedicata con un’immagine, coerente con le icone specifiche già usate da video e audio.

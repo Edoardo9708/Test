@@ -22,17 +22,17 @@ def insert(path, marker, payload):
     path.write_bytes(data[:2] + segment(marker, payload) + data[2:])
 
 
-def sef(records=None, version=105):
+def sef(records=None, version=105, directory_order=None, data_prefix=b''):
     if records is None:
         records = [(0x0a01, b'Image_UTC_Data', b'1567677602564'), (0x0aa1, b'MCC_Data', b'222')]
-    data = b''
+    data = data_prefix
     offsets = []
     for kind, name, payload in records:
         block = struct.pack('<HHI', 0, kind, len(name)) + name + payload
         offsets.append((kind, len(data), len(block)))
         data += block
     header = b'SEFH' + struct.pack('<II', version, len(offsets))
-    for kind, start, size in offsets:
+    for kind, start, size in (offsets if directory_order is None else [offsets[i] for i in directory_order]):
         header += struct.pack('<HHII', 0, kind, len(data) - start, size)
     return data + header + struct.pack('<I', len(header)) + b'SEFT'
 
@@ -88,8 +88,62 @@ for version in (103, 105, 106, 107):
             out.write(sef([(0x09e0, b'Burst_Shot_Info', payload),
                            (0x0910, b'Front_Cam_Selfie_Info', b'Front_Cam_Selfie_Info'),
                            (0x0aa1, b'MCC_Data', b'222')], version))
+# Archival-only records: their exact type/name pair is recognized, their payload
+# is never parsed as colour/edit/rotation instructions for the converted picture.
+photo_records = [
+    (0x0ce1, b'Gallery_DC_Data'), (0x0ba1, b'PhotoEditor_Re_Edit_Data'),
+    (0x0ba1, b'Original_Path_Hash_Key'), (0x0ba1, b'deco_doodle_bitmap'),
+    (0x0ba1, b'deco_sticker_bitmap'), (0x0ba1, b'deco_text_bitmap'),
+    (0x0ba2, b'Copy_Available_Edit_Info'), (0x0b51, b'Intelligent_PhotoEditor_Data'),
+    (0x0b60, b'UltraWide_PhotoEditor_Data'), (0x0bf0, b'Remaster_Info'),
+    (0x0d91, b'PEg_Info'), (0x09f0, b'Pro_Mode_Info'),
+    (0x08e0, b'Panorama_Shot_Info'), (0x0b40, b'SingleShotMeta'),
+    (0x0b41, b'SingleShot_DepthMap_1'), (0x0b41, b'SingeShot_DepthMap_1'),
+    (0x0b41, b'SingeShot_DepthMap_5'), (0x0b41, b'SingeShot_DepthMap_8'),
+    (0x0b41, b'SingeShot_DepthMap_10'), (0x0ab0, b'DualShot_Meta_Info'),
+    (0x0ab3, b'DualShot_Extra_Info'), (0x0ab4, b'DualShot_Core_Info'),
+    (0x0ab1, b'DualShot_DepthMap_1'), (0x0ab1, b'DualShot_DepthMap_5')]
+opaque_records = [(kind, name, b'\0\xff' + bytes(range(256)) + b'{"rotation":90,"originalPath":"synthetic.jpg"}')
+                  for kind, name in photo_records]
+for version in (103, 105, 106, 107):
+    path = directory / f'sef-photo-records-{version}.jpg'
+    image.save(path, quality=94)
+    with path.open('ab') as out:
+        out.write(sef(opaque_records, version))
+for variant, payload in [('empty', b''), ('json', b'{"rotation":90,"scale":0.5}')]:
+    path = directory / f'sef-photo-records-{variant}.jpg'
+    image.save(path, quality=94)
+    with path.open('ab') as out:
+        out.write(sef([(kind, name, payload) for kind, name in photo_records], 107))
+for variant, tail in [('reverse', sef(opaque_records, 107, list(reversed(range(len(opaque_records)))))),
+                      ('permuted', sef(opaque_records, 107, list(range(1, len(opaque_records))) + [0]))]:
+    path = directory / f'sef-directory-{variant}.jpg'
+    image.save(path, quality=94)
+    with path.open('ab') as out:
+        out.write(tail)
+for kind, name in photo_records:
+    path = directory / ('reject-photo-type-' + name.decode() + '.jpg')
+    image.save(path)
+    with path.open('ab') as out:
+        out.write(sef([(kind + 1, name, b'opaque')], 107))
+# A correct record header cannot legitimize duplicate directory references or holes.
+small_records = opaque_records[:2]
+aliased = bytearray(sef(small_records, 107))
+directory_at = len(aliased) - 8 - struct.unpack_from('<I', aliased, len(aliased) - 8)[0]
+aliased[directory_at + 24:directory_at + 36] = aliased[directory_at + 12:directory_at + 24]
+external = bytearray(sef(small_records, 107))
+struct.pack_into('<I', external, directory_at + 16, directory_at + 1)
+for variant, tail in [('alias', aliased), ('external', external),
+                      ('gap', sef(small_records, 107, data_prefix=b'X'))]:
+    path = directory / f'reject-sef-directory-{variant}.jpg'
+    image.save(path)
+    with path.open('ab') as out:
+        out.write(tail)
 # The new names are not a blanket exemption for malformed records or extra media.
 invalid_sef = [
+    ('editor-unknown-name', [(0x0ba1, b'Unknown_Editor_Data', b'opaque')]),
+    ('depth-unknown-suffix', [(0x0b41, b'SingeShot_DepthMap_99', b'opaque')]),
+    ('interactive-panorama', [(0x0201, b'Interactive_Panorama_000', b'video')]),
     ('burst-type', [(0x09e1, b'Burst_Shot_Info', b'opaque')]),
     ('burst-name', [(0x09e0, b'Unknown_Burst_Info', b'opaque')]),
     ('selfie-type', [(0x0911, b'Front_Cam_Selfie_Info', b'opaque')]),
@@ -290,6 +344,19 @@ for source in sorted(directory.glob('padding-*.jpg')):
     corrupted.write_bytes(changed)
     result = subprocess.run([engine, 'verify', str(source), str(corrupted)], capture_output=True, text=True)
     assert result.returncode != 0 and 'Archivio APP/COM/SEF diverso' in result.stderr, (source, result.stderr)
+# Every archival field is preserved in the HEIC; altering any payload is detected.
+source = directory / 'sef-photo-records-107.jpg'
+original = source.with_suffix('.heic').read_bytes()
+archive_start = original.index(b'CPJPEG1\0')
+for _, name in photo_records:
+    data = bytearray(original)
+    position = data.index(name, archive_start) + len(name)
+    data[position] ^= 1
+    corrupted = directory / ('corrupt-photo-record-' + name.decode() + '.heic')
+    corrupted.write_bytes(data)
+    result = subprocess.run([engine, 'verify', str(source), str(corrupted)], capture_output=True, text=True)
+    assert result.returncode != 0 and 'Archivio APP/COM/SEF diverso' in result.stderr, (name, result.stderr)
+print('OK photo SEF catalog: 24 archival record types/names, binary/empty/JSON payloads, four SEF versions, every altered payload and wrong type rejected; unordered directories accepted; alias/external/gap references rejected')
 print('OK JPEG padding: observed D9+zero tail and bounded variants preserved byte for byte; mixed/reordered/oversized tails and archive tampering rejected')
 print('OK burst SEF: versions 103/105/106/107, text/binary/terminated/empty payloads preserved byte for byte alongside selfie and MCC; tampering and wrong type/name rejected; bounded tail and explicit EXIF diagnostics')
 print('OK selfie SEF: versions 103/105/106/107, text/binary/terminated/empty payloads preserved byte for byte; altered archive and wrong type/name rejected')
