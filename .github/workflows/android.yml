@@ -67,6 +67,28 @@ jobs:
         run: gradle --no-daemon :app:assembleDebug :app:testDebugUnitTest :app:lintDebug
       - name: Render synthetic Home UI previews
         run: python3 scripts/emit-ui-previews.py
+      - name: Verify permanent APK signature
+        if: steps.signing.outputs.ready == 'true'
+        run: python3 scripts/verify-signing.py
+      - name: Verify native optimization and APK architecture
+        run: python3 scripts/verify-native-build.py
+      - name: Name APK with built app version
+        id: package
+        run: |
+          python3 scripts/package-apk.py
+          python3 scripts/verify-version.py
+      - uses: actions/upload-artifact@v4
+        if: steps.signing.outputs.ready == 'true'
+        with:
+          name: v${{ steps.package.outputs.version }}-CodecProbe-APK
+          path: ${{ steps.package.outputs.apk_path }}
+          if-no-files-found: error
+      - name: Package corresponding source
+        run: tar --exclude=.git --exclude=.gradle --exclude=.cxx --exclude=app/build --exclude=native-smoke --exclude=arm-smoke --exclude=audio-smoke --exclude=yuv-test --exclude=CodecProbe-source.tar.gz -czf CodecProbe-source.tar.gz app scripts tests vendor build.gradle settings.gradle gradle.properties README.md docs .github
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v${{ steps.package.outputs.version }}-CodecProbe-source
+          path: CodecProbe-source.tar.gz
       - name: Build and run native software smoke test
         if: needs.scope.outputs.native == 'true'
         run: |
@@ -107,28 +129,6 @@ jobs:
           python3 scripts/verify-hdr-metadata.py
           java -cp yuv-test it.edo.codecprobe.HdrHeaderCheck hdr10-16.hevc 16
           java -cp yuv-test it.edo.codecprobe.HdrHeaderCheck hdr10-18.hevc 18
-      - name: Verify permanent APK signature
-        if: steps.signing.outputs.ready == 'true'
-        run: python3 scripts/verify-signing.py
-      - name: Verify native optimization and APK architecture
-        run: python3 scripts/verify-native-build.py
-      - name: Name APK with built app version
-        id: package
-        run: |
-          python3 scripts/package-apk.py
-          python3 scripts/verify-version.py
-      - uses: actions/upload-artifact@v4
-        if: steps.signing.outputs.ready == 'true'
-        with:
-          name: v${{ steps.package.outputs.version }}-CodecProbe-APK
-          path: ${{ steps.package.outputs.apk_path }}
-          if-no-files-found: error
-      - name: Package corresponding source
-        run: tar --exclude=.git --exclude=.gradle --exclude=.cxx --exclude=app/build --exclude=native-smoke --exclude=arm-smoke --exclude=audio-smoke --exclude=yuv-test --exclude=CodecProbe-source.tar.gz -czf CodecProbe-source.tar.gz app scripts tests vendor build.gradle settings.gradle gradle.properties README.md docs .github
-      - uses: actions/upload-artifact@v4
-        with:
-          name: v${{ steps.package.outputs.version }}-CodecProbe-source
-          path: CodecProbe-source.tar.gz
       - uses: actions/upload-artifact@v4
         if: always() && needs.scope.outputs.native == 'true'
         with:
@@ -173,7 +173,7 @@ jobs:
       - name: Configure bounded Ubuntu package downloads
         run: bash scripts/prepare-ci-apt.sh
       - name: Install fixture and comparison tools
-        run: sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends ffmpeg python3-pil
+        run: sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends python3-pil
       - name: Prepare pinned image libraries
         run: |
           bash scripts/prepare-x265.sh
