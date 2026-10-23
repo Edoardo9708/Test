@@ -43,7 +43,7 @@ public class ImageMetadataCheckTest {
             assertEquals(ImageConversionService.START,request[0].getAction());assertTrue(request[0].getBooleanExtra("metadataOnly",false));id=request[0].getStringExtra("queueId");assertTrue(ImageQueueStore.read(controller.get(),id).metadataOnly);
         }finally{ImageQueueStore.discard(controller.get(),id);controller.pause().stop().destroy();}
     }
-    @Test public void checkPausesResumesAndArchivesProblemsWithoutTouchingConversionJournal()throws Exception{
+    @Test public void checkPausesResumesAndKeepsRetryableProblemsSeparateFromConversionOutcomes()throws Exception{
         var c=RuntimeEnvironment.getApplication();ImagePauseTest.BlockingPhotos photos=new ImagePauseTest.BlockingPhotos();ShadowContentResolver.registerProviderInternal("pausephotos",photos);
         String id=ImageQueueStore.writeInspection(c,Arrays.asList("content://pausephotos/one","content://pausephotos/two"),Arrays.asList("one.jpg","two.jpg"),false);
         var controller=Robolectric.buildService(ImageConversionService.class).create();
@@ -51,10 +51,10 @@ public class ImageMetadataCheckTest {
             Intent start=new Intent().setAction(ImageConversionService.START).putExtra("queueId",id).putExtra("metadataOnly",true);ImageOptions.load(c).withFolder(null).put(start);controller.get().onStartCommand(start,0,1);
             assertTrue(photos.entered.await(5,TimeUnit.SECONDS));long token=ImageConversionService.snapshot().startedAt;
             controller.get().onStartCommand(new Intent().setAction(ImageConversionService.PAUSE).putExtra("startedAt",token),0,2);photos.release.countDown();await(()->ImageConversionService.snapshot().paused);
-            assertTrue(ImageConversionService.snapshot().metadataOnly);assertEquals(1,ImageConversionService.snapshot().completed);assertFalse(c.getDatabasePath(ImageProgressJournal.DATABASE).exists());
+            assertTrue(ImageConversionService.snapshot().metadataOnly);assertEquals(1,ImageConversionService.snapshot().completed);assertRegistry(c,1);
             File copy=ImageLogStore.snapshot(c,ImageConversionService.LOG);try{assertTrue(read(copy).contains("INIZIO VERIFICA METADATI"));}finally{copy.delete();}
             controller.get().onStartCommand(new Intent().setAction(ImageConversionService.RESUME).putExtra("startedAt",token),0,3);await(()->!ImageConversionService.snapshot().running);
-            var run=ImageConversionService.snapshot();assertEquals(2,run.failed);assertEquals(0,run.saved);assertEquals(0,run.checked);assertFalse(c.getDatabasePath(ImageProgressJournal.DATABASE).exists());assertTrue(read(new File(c.getFilesDir(),ImageFailureStore.FILE)).contains("metadata-check"));assertFalse(ImageQueueStore.file(c,id).exists());
+            var run=ImageConversionService.snapshot();assertEquals(2,run.failed);assertEquals(0,run.saved);assertEquals(0,run.checked);assertRegistry(c,2);assertTrue(read(new File(c.getFilesDir(),ImageFailureStore.FILE)).contains("metadata-check"));assertFalse(ImageQueueStore.file(c,id).exists());
             File[] tmp=c.getCacheDir().listFiles((d,n)->n.startsWith("image-source-")||n.startsWith("image-heic-"));assertNotNull(tmp);assertEquals(0,tmp.length);
         }finally{photos.release.countDown();controller.get().onStartCommand(new Intent().setAction(ImageConversionService.CANCEL).putExtra("startedAt",ImageConversionService.snapshot().startedAt),0,4);await(()->!ImageConversionService.snapshot().running);controller.destroy();ImageQueueStore.discard(c,id);}
     }
@@ -63,6 +63,12 @@ public class ImageMetadataCheckTest {
         for(int n=0;n<8500;n++)state.add(new ImageRunState.Result("photo",100,0,null,"Metadati compatibili",ImageRunState.Outcome.CHECKED,"Pixel non verificati"));
         ImageRunState copy=new ImageRunState(state);assertTrue(copy.metadataOnly);assertEquals(8500,copy.checked);assertEquals(0,copy.saved);assertEquals(0,copy.cancelledCount);assertEquals(0,copy.inputSavedBytes);assertEquals(100,copy.results.size());
         var controller=Robolectric.buildActivity(ImageActivity.class).setup();try{stateField.set(null,copy);controller.get().images.render();assertTrue(controller.get().images.screen.dashboard.summary.getText().toString().contains("Compatibili: 8500"));assertFalse(controller.get().images.screen.dashboard.summary.getText().toString().contains("Riuscite:"));var row=(android.widget.LinearLayout)ImageVirtualReportTest.row(controller.get().images,0,null);assertTrue(row.getChildAt(1).getContentDescription().toString().startsWith("Mostra dettagli:"));assertEquals("i",((android.widget.Button)row.getChildAt(1)).getText().toString());}finally{controller.pause().stop().destroy();}
+    }
+    private static void assertRegistry(android.content.Context context,int failures){
+        try(ImageProgressJournal journal=new ImageProgressJournal(context)){
+            assertEquals(failures,journal.failures().inputs.size());
+            try(var rows=journal.getReadableDatabase().rawQuery("SELECT count(*) FROM progress",null)){assertTrue(rows.moveToFirst());assertEquals(0,rows.getInt(0));}
+        }
     }
     private static String read(File file)throws IOException{return new String(Files.readAllBytes(file.toPath()),StandardCharsets.UTF_8);}
     private static void await(BooleanSupplier done)throws Exception{long deadline=System.currentTimeMillis()+10000;while(!done.getAsBoolean()&&System.currentTimeMillis()<deadline){Shadows.shadowOf(Looper.getMainLooper()).idle();Thread.sleep(5);}Shadows.shadowOf(Looper.getMainLooper()).idle();assertTrue("Metadata check did not reach the expected state",done.getAsBoolean());}
