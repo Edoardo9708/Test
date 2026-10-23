@@ -91,6 +91,21 @@ class ScopeTest(unittest.TestCase):
                 self.assertEqual(str(expected[1]).lower(), result['native'])
                 self.assertIn('Test selection', summary.read_text())
 
+    def test_cancelled_push_changes_are_compared_to_last_success_not_previous_push(self):
+        with tempfile.TemporaryDirectory() as directory:
+            payload=Path(directory,'event.json');payload.write_text(json.dumps({'before':'b'*40,'after':'c'*40}))
+            outputs=Path(directory,'outputs')
+            for baseline in ['a'*40,'']:
+                with self.subTest(baseline=baseline):
+                    env={'GITHUB_EVENT_PATH':str(payload),'GITHUB_EVENT_NAME':'push','GITHUB_OUTPUT':str(outputs),'CI_BASE_SHA':baseline}
+                    def pending_changes(event,event_name):
+                        self.assertEqual(baseline,event['before']);self.assertEqual('c'*40,event['after'])
+                        return ([scope.JAVA+'AppUi.java','app/src/main/cpp/pending.cpp'] if baseline else []),'baseline'
+                    with patch.dict(os.environ,env),patch.object(scope,'changes',side_effect=pending_changes),patch.object(scope,'native_java_changes',return_value=False),contextlib.redirect_stdout(io.StringIO()):
+                        scope.main()
+                    result=dict(line.split('=',1) for line in outputs.read_text().splitlines())
+                    self.assertEqual('true',result['native'])
+
     def test_real_git_diff_covers_multiple_commits_and_both_sides_of_rename(self):
         with tempfile.TemporaryDirectory() as directory:
             def git(*args):

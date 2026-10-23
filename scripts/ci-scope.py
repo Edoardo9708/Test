@@ -84,7 +84,13 @@ def main():
     try:
         event = json.loads(Path(os.environ['GITHUB_EVENT_PATH']).read_text())
         event_name = os.environ.get('GITHUB_EVENT_NAME', '')
+        if event_name == 'push' and 'CI_BASE_SHA' in os.environ:
+            # A cancelled/failed push may contain native changes absent from the latest push diff.
+            # An empty/invalid baseline deliberately selects all checks.
+            event = {**event, 'before': os.environ['CI_BASE_SHA']}
         paths, source = changes(event, event_name)
+        if event_name == 'push' and 'CI_BASE_SHA' in os.environ:
+            source = 'Changes since last successfully verified push'
         # Manual runs default to full, including if the input is absent on an older workflow.
         manual = event_name == 'workflow_dispatch'
         requested = str(event.get('inputs', {}).get('full_tests', 'true')).lower() == 'true'
