@@ -12,9 +12,9 @@ final class ImageWorkReport {
     private String renderedMessage="";
     private int renderedCurrent=-1,renderedTotal=-1;
     private final ResultDialog popup;
-    private final ArrayList<ResultReportRow.Reusable> rows=new ArrayList<>();
+    final ImageResultList results;
 
-    ImageWorkReport(ImageController images) { this.images = images;popup=new ResultDialog(images.screen.ui,images::toast); }
+    ImageWorkReport(ImageController images) { this.images = images;popup=new ResultDialog(images.screen.ui,images::toast);results=new ImageResultList(images.screen.ui,images.screen.workReport.rows); }
 
     void render(ImageRunState run) {
         WorkReportView view = images.screen.workReport;
@@ -23,20 +23,19 @@ final class ImageWorkReport {
         view.summary.setVisibility(android.view.View.VISIBLE);
         if(rendered!=null&&rendered.equals(run.results)&&renderedMetadataOnly==run.metadataOnly&&renderedRunning==run.running&&renderedCurrent==run.current&&renderedTotal==run.total&&renderedPaused==run.paused&&renderedPauseRequested==run.pauseRequested&&renderedMessage.equals(run.message))return;
         renderedMetadataOnly=run.metadataOnly;rendered=new ArrayList<>(run.results);renderedRunning=run.running;renderedCurrent=run.current;renderedTotal=run.total;renderedPaused=run.paused;renderedPauseRequested=run.pauseRequested;renderedMessage=run.message;
-        AppUi ui=images.screen.ui;
+
         boolean large=run.total>ImageQueueStore.VISIBLE;
         int start=large?run.windowStart():0,end=large?Math.min(run.total,start+ImageQueueStore.VISIBLE):run.completed;
-        int count=end-start;
-        while(rows.size()>count){ResultReportRow.Reusable removed=rows.remove(rows.size()-1);view.rows.removeView(removed.row);}
-        while(rows.size()<count)rows.add(new ResultReportRow.Reusable(ui,view.rows));
+        ArrayList<ImageResultList.Item> items=new ArrayList<>();
         for(int n=start;n<end;n++){
-            ResultReportRow.Reusable row=rows.get(n-start);
-            ImageRunState.Result result=run.resultAt(n);
+            ImageRunState.Result result=run.resultAt(n);ImageResultList.Item previous=results.item(n);
             if(result==null){
                 String name=n<run.queueNames.size()?run.queueNames.get(n):"Foto "+(n+1);
-                String status=run.running&&n==run.current-1?"IN CORSO · "+ImageConversionService.displayMessage(run):n<run.completed?"Completata · dettagli nel log":run.running?"In attesa":run.cancelling?"Non elaborata":"Non elaborata";
-                row.bind("Foto "+(n+1)+" · "+name.replace('\n',' ').replace('\r',' ')+"\n"+status,null,null,false);continue;
+                String status=run.running&&n==run.current-1?"IN CORSO · "+ImageConversionService.displayMessage(run):n<run.completed?"Completata · dettagli nel log":run.running?"In attesa":"Non elaborata";
+                if(previous!=null&&previous.result==null&&previous.name.equals(name)&&previous.phase.equals(status)){items.add(previous);continue;}
+                items.add(new ImageResultList.Item(n,name,status,"Foto "+(n+1)+" · "+name.replace('\n',' ').replace('\r',' ')+"\n"+status,null,run.metadataOnly,null,null,false));continue;
             }
+            if(previous!=null&&previous.result==result&&previous.metadataOnly==run.metadataOnly){items.add(previous);continue;}
             String status;
             switch(result.outcome){
                 case SAVED:status=CompressionSummary.size(result.inputBytes)+" → "+CompressionSummary.size(result.outputBytes)+" · "+CompressionSummary.change(result.inputBytes,result.outputBytes);break;
@@ -47,12 +46,13 @@ final class ImageWorkReport {
                 default:status=run.metadataOnly?"Verifica annullata":"Conversione annullata";
             }
             String title="Foto "+(n+1)+" · "+result.name.replace('\n',' ').replace('\r',' ');
-            row.bind(title+"\n"+status,
+            items.add(new ImageResultList.Item(n,result.name,"",title+"\n"+status,result,run.metadataOnly,
                 (result.outcome==ImageRunState.Outcome.SAVED||result.outcome==ImageRunState.Outcome.ALREADY_DONE)&&result.uri!=null?()->open(result.uri):null,
-                (result.outcome==ImageRunState.Outcome.FAILED||result.outcome==ImageRunState.Outcome.CHECKED)?()->show(result,run.metadataOnly):null,result.outcome==ImageRunState.Outcome.CHECKED);
+                (result.outcome==ImageRunState.Outcome.FAILED||result.outcome==ImageRunState.Outcome.CHECKED)?()->show(result,run.metadataOnly):null,result.outcome==ImageRunState.Outcome.CHECKED));
         }
+        results.submit(items,run.current-1);
         long before=run.inputSavedBytes,after=run.outputSavedBytes;
-        view.summary.setText(run.metadataOnly?"Compatibili: "+run.checked+" · da verificare: "+run.failed+" · annullate: "+run.cancelledCount+"\nNessuna decodifica o codifica. Esito limitato ai metadati; integrità dei pixel e formato colore saranno verificati in conversione. Il primo blocco non supportato viene segnalato per ciascuna foto.\nDettagli completi nel log; problemi conservati nell’archivio errori. Righe mostrate: massimo 100.":run.completed==0?"Nessuna conversione eseguita.":
+        UiText.set(view.summary,run.metadataOnly?"Compatibili: "+run.checked+" · da verificare: "+run.failed+" · annullate: "+run.cancelledCount+"\nNessuna decodifica o codifica. Esito limitato ai metadati; integrità dei pixel e formato colore saranno verificati in conversione. Il primo blocco non supportato viene segnalato per ciascuna foto.\nDettagli completi nel log; problemi conservati nell’archivio errori. Righe mostrate: massimo 100.":run.completed==0?"Nessuna conversione eseguita.":
             "Salvate "+run.saved+" · fallite "+run.failed+" · senza risparmio "+run.skipped+" · annullate "+run.cancelledCount+(run.alreadyDone>0?" · già presenti "+run.alreadyDone:"")
             +(run.saved+run.alreadyDone==0?"":"\n"+CompressionSummary.size(before)+" → "+CompressionSummary.size(after)+" · "+CompressionSummary.change(before,after)
             +"\n"+(before>=after?"Spazio risparmiato: ":"Spazio aggiuntivo: ")+CompressionSummary.size(Math.abs(before-after)))

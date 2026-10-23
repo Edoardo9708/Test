@@ -46,9 +46,9 @@ public class ImageLargeQueueTest {
             ImageRunState run=new ImageRunState();run.total=5000;run.current=1000;run.running=true;run.message="Verifica";
             ArrayList<String> names=new ArrayList<>();for(int i=0;i<5000;i++)names.add("Nome "+(i+1));run.queueNames=Collections.unmodifiableList(names);
             for(int i=0;i<999;i++)run.add(new ImageRunState.Result(names.get(i),3000000,2000000,"content://saved/"+i,"Salvato",ImageRunState.Outcome.SAVED,"OK"));
-            var images=controller.get().images;images.report.render(run);assertEquals(100,images.screen.workReport.rows.getChildCount());
-            assertTrue(text(images.screen.workReport.rows.getChildAt(49)).contains("Foto 1000 · Nome 1000"));assertTrue(text(images.screen.workReport.rows.getChildAt(49)).contains("IN CORSO"));
-            assertTrue(text(images.screen.workReport.rows.getChildAt(50)).contains("In attesa"));assertTrue(images.screen.workReport.summary.getText().toString().contains("Salvate 999"));
+            var images=controller.get().images;images.report.render(run);assertEquals(100,images.report.results.size());
+            assertTrue(images.report.results.item(999).text.contains("Foto 1000 · Nome 1000"));assertTrue(images.report.results.item(999).text.contains("IN CORSO"));
+            assertTrue(images.report.results.item(1000).text.contains("In attesa"));assertTrue(images.screen.workReport.summary.getText().toString().contains("Salvate 999"));
             assertEquals(950,run.windowStart());run.current=5000;assertEquals(4900,run.windowStart());run.current=1;assertEquals(0,run.windowStart());
         }finally{controller.pause().stop().destroy();}
     }

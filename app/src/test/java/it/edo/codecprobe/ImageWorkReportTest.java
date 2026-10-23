@@ -29,23 +29,23 @@ public class ImageWorkReportTest {
             assertTrue(summary.contains("Salvate 1 · fallite 1 · senza risparmio 1 · annullate 1"));
             assertTrue(summary.contains("3,00 MB → 2,00 MB"));
             assertTrue(summary.contains("Spazio risparmiato: 1,00 MB"));
-            find(report.rows, "Apri risultato:").performClick();
+            find(ImageVirtualReportTest.row(images,0,null), "Apri risultato:").performClick();
             Intent opened = Shadows.shadowOf(controller.get()).getNextStartedActivity();
             assertEquals("image/heic", opened.getType());
             assertEquals("content://saved/photo", opened.getDataString());
             assertNotEquals(0, opened.getFlags() & Intent.FLAG_GRANT_READ_URI_PERMISSION);
-            find(report.rows, "Mostra errore: Foto 2").performClick();
+            find(ImageVirtualReportTest.row(images,1,null), "Mostra errore: Foto 2").performClick();
             AlertDialog dialog = org.robolectric.shadows.ShadowAlertDialog.getLatestAlertDialog();
             dialog.getButton(AlertDialog.BUTTON_POSITIVE).performClick();
             String copied = controller.get().getSystemService(ClipboardManager.class).getPrimaryClip().getItemAt(0).getText().toString();
             assertTrue(copied.contains("JPEG non supportato"));
             assertTrue(copied.contains("Dettaglio tecnico"));
             assertTrue(dialog.isShowing());
-            View firstRow = report.rows.getChildAt(0);
+            View firstRow = ImageVirtualReportTest.row(images,0,null);
             images.report.render(new ImageRunState(run));
-            assertSame(firstRow, report.rows.getChildAt(0));
+            assertSame(firstRow, ImageVirtualReportTest.row(images,0,firstRow));
             images.report.render(new ImageRunState());
-            assertEquals(0, report.rows.getChildCount());
+            assertEquals(0, images.report.results.size());
             assertEquals("Nessuna conversione eseguita.", report.summary.getText().toString());
         } finally { controller.pause().stop().destroy(); }
     }

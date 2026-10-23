@@ -14,7 +14,7 @@ final class ImageController {
     private Future<?> analysis,exportTask,namesRead,folderTask;private int namesGeneration;private int generation;private boolean destroyed,visible,applying;
     private boolean renderedBusy;
     private final android.os.Handler main=new android.os.Handler(android.os.Looper.getMainLooper());
-    private final Runnable tick=new Runnable(){public void run(){if(!visible||destroyed)return;screen.dashboard.monitor.sample(android.os.SystemClock.elapsedRealtime());refresh();main.postDelayed(this,500);}};
+    private final Runnable tick=new Runnable(){public void run(){if(!visible||destroyed)return;if(screen.dashboard.cpu.isShown())screen.dashboard.monitor.sample(android.os.SystemClock.elapsedRealtime());refresh();main.postDelayed(this,500);}};
     ImageController(ImageActivity activity,Bundle saved){
         this.activity=activity;state=ImageDraftStore.load(activity);screen=new ImageScreen(new AppUi(activity),saved);report=new ImageWorkReport(this);selection=new ImageSelection(this,saved);
         destinations=new MediaDestinationsController(new MediaDestinationsController.Host(){
@@ -112,7 +112,7 @@ final class ImageController {
     void refresh(){ImageRunState run=ImageConversionService.snapshot();if(state.starting&&state.startingAt>0&&(run.startedAt!=state.previousRun||android.os.SystemClock.elapsedRealtime()-state.startingAt>5000)){state.starting=false;if(run.startedAt==state.previousRun)state.notice=run.message.isEmpty()?"La conversione non è partita: riprova.":run.message;}
         ImageOptions defaults=ImageOptions.load(activity);if(!busy()&&state.options.revision!=defaults.revision){state.options=defaults;showOptions();persist();render();return;}
         // Progress ticks must not rebuild the selection, metadata or destination plan.
-        if(renderedBusy!=busy())render();else ImageRunPresenter.render(this,run);
+        if(renderedBusy!=busy())render();else ImageRunPresenter.renderLive(this,run);
     }
     void persist(){ImageDraftStore.save(activity,state);}
     void save(Bundle out){persist();screen.sections.save(out);selection.save(out);logExport.save(out);destinations.save(out);}

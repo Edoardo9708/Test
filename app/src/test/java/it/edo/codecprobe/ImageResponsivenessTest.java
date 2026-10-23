@@ -39,11 +39,11 @@ public class ImageResponsivenessTest {
             ImageController images=controller.get().images;
             for(int i=0;i<8500;i++){images.state.inputs.add("content://photos/"+i);images.state.names.add("Foto "+i);}
             ImageRunState run=new ImageRunState();run.running=true;run.total=8500;run.current=200;run.message="Codifica";field.set(null,run);images.render();
-            View row=images.screen.workReport.rows.getChildAt(49);Drawable background=images.screen.selectedItem.chips.get(0).getBackground();
+            images.screen.sections.focusCard(ImageScreen.HEIC);ImageResultList.Item retained=images.report.results.item(198);Drawable background=images.screen.selectedItem.chips.get(0).getBackground();
             images.screen.status.setText("untouched workspace");run.message="Verifica";images.refresh();
             assertEquals("untouched workspace",images.screen.status.getText().toString());assertSame(background,images.screen.selectedItem.chips.get(0).getBackground());
-            assertSame(row,images.screen.workReport.rows.getChildAt(49));assertTrue(text(row).contains("Verifica"));
-            run.current=201;images.refresh();assertSame(row,images.screen.workReport.rows.getChildAt(49));assertTrue(text(row).contains("Foto 201"));
+            assertSame(retained,images.report.results.item(198));assertTrue(images.report.results.item(199).text.contains("Verifica"));
+            run.current=201;images.refresh();assertSame(retained,images.report.results.item(198));assertTrue(images.report.results.item(200).text.contains("Foto 201"));
         }finally{field.set(null,old);controller.pause().stop().destroy();}
     }
     @Test public void cachedPersistenceKeepsAllFilesAndDetectsIndividualDestinationEdits(){
@@ -74,7 +74,7 @@ public class ImageResponsivenessTest {
         var controller=Robolectric.buildActivity(ImageActivity.class).setup();try{
             ImageController images=controller.get().images;ImageRunState run=new ImageRunState();run.total=5000;run.current=1000;run.running=true;
             for(int i=0;i<1000;i++)run.add(new ImageRunState.Result("Foto "+i,300,200,"content://saved/"+i,"OK",ImageRunState.Outcome.SAVED,""));
-            images.report.render(run);View row=images.screen.workReport.rows.getChildAt(48);run.current=1001;images.report.render(run);assertSame(row,images.screen.workReport.rows.getChildAt(48));
+            images.report.render(run);View row=ImageVirtualReportTest.row(images,48,null);run.current=1001;images.report.render(run);assertSame(row,ImageVirtualReportTest.row(images,48,row));
             Button button=find(row,"Apri risultato:");assertNotNull(button);button.performClick();assertEquals("content://saved/999",Shadows.shadowOf(controller.get()).getNextStartedActivity().getDataString());
         }finally{controller.pause().stop().destroy();}
     }
