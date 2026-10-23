@@ -37,7 +37,7 @@ public class ImageSessionServiceTest {
         var controller=Robolectric.buildService(ImageConversionService.class).create();try{
             controller.get().onStartCommand(ImageSessionStore.load(context).request(context),0,1);drain(controller.get());
             ImageRunState run=ImageConversionService.snapshot();assertFalse(run.running);assertEquals(2,run.completed);assertEquals(1,run.saved);assertEquals(1,run.alreadyDone);assertEquals(201,run.inputSavedBytes-run.outputSavedBytes);assertFalse(ImageSessionStore.exists(context));assertFalse(ImageQueueStore.file(context,id).exists());
-            String log=Files.readString(new File(context.getFilesDir(),ImageConversionService.LOG).toPath());assertTrue(log.startsWith("previous-details"));assertTrue(log.contains("RIPRESA CODA"));assertFalse(log.contains("must-not-be-reopened"));
+            String log=new String(Files.readAllBytes(new File(context.getFilesDir(),ImageConversionService.LOG).toPath()),java.nio.charset.StandardCharsets.UTF_8);assertTrue(log.startsWith("previous-details"));assertTrue(log.contains("RIPRESA CODA"));assertFalse(log.contains("must-not-be-reopened"));
         }finally{controller.destroy();}
     }
     @Test public void fatalLogFailureKeepsQueueAndPreviousCursorForRetry()throws Exception{
