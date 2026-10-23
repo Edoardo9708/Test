@@ -31,6 +31,8 @@ final class MediaDestinationsController {
     private AlertDialog dialog;
     private Runnable afterReady;
     private List<String> expectedInputs;
+    private List<String> panelInputs=Collections.emptyList(),panelNames=Collections.emptyList();
+    private DestinationPlan.Snapshot panelPlan;
 
     MediaDestinationsController(Host host,MediaDestinationsView view,MediaKind kind,Bundle saved){
         this.host=host;this.view=view;
@@ -72,7 +74,10 @@ final class MediaDestinationsController {
         if(closed)return;
         DestinationPlan plan=plan();
         view.render(plan,host.inputs().size(),host.selected(),host.busy(),choosing);panel.setBusy(host.busy()||choosing);
-        panel.setInputs(host.inputs(),host.names(),plan.effectiveOrigins(),plan.effectiveFolders());
+        if(panelPlan==null||!panelInputs.equals(host.inputs())||!panelNames.equals(host.names())||!panelPlan.matches(plan)){
+            panelInputs=new ArrayList<>(host.inputs());panelNames=new ArrayList<>(host.names());panelPlan=new DestinationPlan.Snapshot(plan);
+            panel.setInputs(panelInputs,panelNames,plan.effectiveOrigins(),plan.effectiveFolders());
+        }
     }
     void refresh(){if(closed)return;render();panel.refresh();}
     private void edited(){ready=false;host.persist();render();host.changed();}

@@ -25,5 +25,5 @@ final class ConversionDashboard {
         ui.parameterRow(parent,"Info misure","CPU: percentuale del processo rispetto a tutti i core disponibili. RAM: PSS del processo, inclusi Java, codice nativo e quota delle pagine condivise; MiB = 1.048.576 byte. La temperatura è quella della batteria. I colori indicano intensità di utilizzo e temperatura, non errori. Il tempo trascorso include analisi, codifica, verifica e salvataggio; non è una stima del tempo rimanente.");
         monitor=new ProcessSystemMonitor(ui,cpu,ram,battery);
     }
-    void parameter(String name,String value){parameters.get(name).setText(value);}
+    void parameter(String name,String value){UiText.set(parameters.get(name),value);}
 }

@@ -45,9 +45,6 @@ final class ImageSelection {
         LinkedHashSet<String> combined=new LinkedHashSet<>(images.state.inputs);combined.addAll(values);
         int limit=images.state.bulk?ImageQueueStore.BULK_LIMIT:ImageQueueStore.LIMIT;
         if(combined.size()>limit){images.toast("La coda può contenere al massimo "+limit+" foto.");return;}
-        boolean temporary=false;
-        for(String value:values)try{images.activity.getContentResolver().takePersistableUriPermission(Uri.parse(value),Intent.FLAG_GRANT_READ_URI_PERMISSION);}catch(SecurityException e){temporary=true;}
-        images.screen.selectedItem.cancelTransition();ImageMetadataCache.memory.clear();images.state.names.clear();images.state.inputs.clear();images.state.inputs.addAll(combined);images.state.selected=0;images.state.destinations.sync(images.state.inputs,images.state.options.folder);images.open();images.readNames();
-        if(temporary)images.toast("Alcune foto concedono solo accesso temporaneo: potrebbe servire riselezionarle dopo la chiusura.");
+        images.acceptSelection(new java.util.ArrayList<>(combined),new java.util.ArrayList<>(values));
     }
 }

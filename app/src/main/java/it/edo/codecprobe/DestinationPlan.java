@@ -23,6 +23,18 @@ final class DestinationPlan {
     ArrayList<String> effectiveFolders(){ArrayList<String> r=new ArrayList<>();for(int i=0;i<files.size();i++)r.add(effective(i).folder);return r;}
     boolean[] individualOrigins(){boolean[] r=new boolean[files.size()];for(int i=0;i<r.length;i++)r[i]=files.get(i).origin;return r;}
     ArrayList<String> individualFolders(){ArrayList<String> r=new ArrayList<>();for(Choice c:files)r.add(c.folder);return r;}
+    static final class Snapshot {
+        private final boolean[] origins;
+        private final ArrayList<String> folders;
+        private final boolean applyAll,allOrigin;
+        private final String allFolder;
+        Snapshot(DestinationPlan plan){origins=plan.individualOrigins();folders=plan.individualFolders();applyAll=plan.applyAll;allOrigin=plan.all.origin;allFolder=plan.all.folder;}
+        boolean matches(DestinationPlan plan){
+            if(origins.length!=plan.files.size()||applyAll!=plan.applyAll||allOrigin!=plan.all.origin||!Objects.equals(allFolder,plan.all.folder))return false;
+            for(int i=0;i<origins.length;i++){Choice choice=plan.files.get(i);if(origins[i]!=choice.origin||!Objects.equals(folders.get(i),choice.folder))return false;}
+            return true;
+        }
+    }
     void restore(boolean[] origins,List<String> folders,boolean apply,boolean allOrigin,String allFolder){
         if(origins==null||folders==null||origins.length!=files.size()||folders.size()!=files.size())return;
         for(int i=0;i<origins.length;i++){files.get(i).origin=origins[i];files.get(i).folder=folders.get(i)==null?"":folders.get(i);}

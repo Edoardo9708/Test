@@ -24,7 +24,8 @@ final class SelectedItemView {
     private IntConsumer selected;
     private int current, transition;
     private boolean closed;
-    private int renderedLimit=Integer.MAX_VALUE;
+    private int renderedLimit=Integer.MAX_VALUE,total;
+    private boolean updateNeeded=true,lastEnabled;
 
     SelectedItemView(AppUi ui, LinearLayout parent, String item, String empty, String detailsLabel) {
         this.ui = ui; this.item = item; this.empty = empty; this.detailsLabel = detailsLabel;
@@ -61,9 +62,13 @@ final class SelectedItemView {
     }
     void render(List<String> names,List<Boolean> errors,int current,boolean enabled,IntConsumer selected,int limit){
         this.selected=selected;
-        if (!this.names.equals(names) || !this.errors.equals(errors) || renderedLimit!=limit) {
+        int shown=Math.min(names.size(),limit);
+        List<String> visibleNames=names.subList(0,shown);
+        List<Boolean> visibleErrors=errors.subList(0,Math.min(errors.size(),shown));
+        if (total!=names.size()||!this.names.equals(visibleNames)||!this.errors.equals(visibleErrors)||renderedLimit!=limit) {
+            total=names.size();updateNeeded=true;
             renderedLimit=limit;
-            this.names = new ArrayList<>(names); this.errors = new ArrayList<>(errors);
+            this.names = new ArrayList<>(visibleNames); this.errors = new ArrayList<>(visibleErrors);
             navigator.removeAllViews(); chips.clear();
             for (int n = 0; n < Math.min(names.size(),limit); n++) {
                 final int index = n;
@@ -87,18 +92,21 @@ final class SelectedItemView {
     }
 
     void update(int current, boolean enabled, boolean reveal) {
-        this.current = current;
-        number.setText(names.isEmpty() ? empty : item + " " + (current + 1) + " di " + names.size());
-        number.setVisibility(names.isEmpty() ? View.GONE : View.VISIBLE);
-        carousel.setVisibility(names.isEmpty() ? View.GONE : View.VISIBLE);
-        details.setVisibility(names.isEmpty() ? View.GONE : View.VISIBLE);remove.setVisibility(names.isEmpty()?View.GONE:View.VISIBLE);remove.setEnabled(enabled);
-        hint.setVisibility(names.size() > 1 ? View.VISIBLE : View.GONE);
-        hint.setText(names.size()>renderedLimit?"Mostrate le prime "+renderedLimit+" foto; tutte le "+names.size()+" foto sono in coda.":"Scorri la barra e tocca un elemento per mostrarne i dettagli.");
-        for (int n = 0; n < chips.size(); n++) {
-            Button chip = chips.get(n); boolean active = n == current;
-            chip.setEnabled(enabled); chip.setSelected(active);
-            chip.setTextColor(active ? ui.bg : ui.accent);
-            chip.setBackground(new RippleDrawable(ColorStateList.valueOf(ui.border), ui.shape(active ? ui.accent : ui.surface, 14), null));
+        if(updateNeeded||this.current!=current||lastEnabled!=enabled){
+            int previous=this.current;boolean all=updateNeeded||lastEnabled!=enabled;
+            this.current=current;lastEnabled=enabled;updateNeeded=false;
+            UiText.set(number,total==0?empty:item+" "+(current+1)+" di "+total);
+            number.setVisibility(total==0?View.GONE:View.VISIBLE);
+            carousel.setVisibility(total==0?View.GONE:View.VISIBLE);
+            details.setVisibility(total==0?View.GONE:View.VISIBLE);remove.setVisibility(total==0?View.GONE:View.VISIBLE);remove.setEnabled(enabled);
+            hint.setVisibility(total>1?View.VISIBLE:View.GONE);
+            UiText.set(hint,total>renderedLimit?"Mostrate le prime "+renderedLimit+" foto; tutte le "+total+" foto sono in coda.":"Scorri la barra e tocca un elemento per mostrarne i dettagli.");
+            for(int n=0;n<chips.size();n++){
+                if(!all&&n!=previous&&n!=current)continue;
+                Button chip=chips.get(n);boolean active=n==current;
+                chip.setEnabled(enabled);chip.setSelected(active);chip.setTextColor(active?ui.bg:ui.accent);
+                chip.setBackground(new RippleDrawable(ColorStateList.valueOf(ui.border),ui.shape(active?ui.accent:ui.surface,14),null));
+            }
         }
         if (reveal) carousel.post(() -> {
             if (closed || this.current < 0 || this.current >= chips.size()) return;

@@ -9,27 +9,33 @@ final class ImageWorkReport {
     private final ImageController images;
     private List<ImageRunState.Result> rendered;
     private boolean renderedRunning,renderedPaused,renderedPauseRequested,renderedMetadataOnly;
+    private String renderedMessage="";
     private int renderedCurrent=-1,renderedTotal=-1;
     private final ResultDialog popup;
+    private final ArrayList<ResultReportRow.Reusable> rows=new ArrayList<>();
 
     ImageWorkReport(ImageController images) { this.images = images;popup=new ResultDialog(images.screen.ui,images::toast); }
 
     void render(ImageRunState run) {
         WorkReportView view = images.screen.workReport;
-        view.title.setText(run.metadataOnly?"VERIFICA METADATI"+(run.paused?" · IN PAUSA":run.running?" · IN CORSO":""):run.paused ? "REPORT LAVORI · IN PAUSA" : run.running ? "REPORT LAVORI · IN CORSO" : "REPORT LAVORI");
+        UiText.set(view.title,run.metadataOnly?"VERIFICA METADATI"+(run.paused?" · IN PAUSA":run.running?" · IN CORSO":""):run.paused ? "REPORT LAVORI · IN PAUSA" : run.running ? "REPORT LAVORI · IN CORSO" : "REPORT LAVORI");
         view.panel.setVisibility(run.total==0&&run.completed==0?android.view.View.GONE:android.view.View.VISIBLE);
         view.summary.setVisibility(android.view.View.VISIBLE);
-        if(rendered!=null&&rendered.equals(run.results)&&renderedMetadataOnly==run.metadataOnly&&renderedRunning==run.running&&renderedCurrent==run.current&&renderedTotal==run.total&&renderedPaused==run.paused&&renderedPauseRequested==run.pauseRequested)return;
-        renderedMetadataOnly=run.metadataOnly;rendered=new ArrayList<>(run.results);renderedRunning=run.running;renderedCurrent=run.current;renderedTotal=run.total;renderedPaused=run.paused;renderedPauseRequested=run.pauseRequested;
-        view.rows.removeAllViews();AppUi ui=images.screen.ui;
+        if(rendered!=null&&rendered.equals(run.results)&&renderedMetadataOnly==run.metadataOnly&&renderedRunning==run.running&&renderedCurrent==run.current&&renderedTotal==run.total&&renderedPaused==run.paused&&renderedPauseRequested==run.pauseRequested&&renderedMessage.equals(run.message))return;
+        renderedMetadataOnly=run.metadataOnly;rendered=new ArrayList<>(run.results);renderedRunning=run.running;renderedCurrent=run.current;renderedTotal=run.total;renderedPaused=run.paused;renderedPauseRequested=run.pauseRequested;renderedMessage=run.message;
+        AppUi ui=images.screen.ui;
         boolean large=run.total>ImageQueueStore.VISIBLE;
         int start=large?run.windowStart():0,end=large?Math.min(run.total,start+ImageQueueStore.VISIBLE):run.completed;
+        int count=end-start;
+        while(rows.size()>count){ResultReportRow.Reusable removed=rows.remove(rows.size()-1);view.rows.removeView(removed.row);}
+        while(rows.size()<count)rows.add(new ResultReportRow.Reusable(ui,view.rows));
         for(int n=start;n<end;n++){
+            ResultReportRow.Reusable row=rows.get(n-start);
             ImageRunState.Result result=run.resultAt(n);
             if(result==null){
                 String name=n<run.queueNames.size()?run.queueNames.get(n):"Foto "+(n+1);
                 String status=run.running&&n==run.current-1?"IN CORSO · "+ImageConversionService.displayMessage(run):n<run.completed?"Completata · dettagli nel log":run.running?"In attesa":run.cancelling?"Non elaborata":"Non elaborata";
-                ResultReportRow.add(ui,view.rows,"Foto "+(n+1)+" · "+name.replace('\n',' ').replace('\r',' ')+"\n"+status,null,null);continue;
+                row.bind("Foto "+(n+1)+" · "+name.replace('\n',' ').replace('\r',' ')+"\n"+status,null,null,false);continue;
             }
             String status;
             switch(result.outcome){
@@ -41,7 +47,7 @@ final class ImageWorkReport {
                 default:status=run.metadataOnly?"Verifica annullata":"Conversione annullata";
             }
             String title="Foto "+(n+1)+" · "+result.name.replace('\n',' ').replace('\r',' ');
-            ResultReportRow.add(ui,view.rows,title+"\n"+status,
+            row.bind(title+"\n"+status,
                 (result.outcome==ImageRunState.Outcome.SAVED||result.outcome==ImageRunState.Outcome.ALREADY_DONE)&&result.uri!=null?()->open(result.uri):null,
                 (result.outcome==ImageRunState.Outcome.FAILED||result.outcome==ImageRunState.Outcome.CHECKED)?()->show(result,run.metadataOnly):null,result.outcome==ImageRunState.Outcome.CHECKED);
         }

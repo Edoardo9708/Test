@@ -12,6 +12,7 @@ final class ImageController {
     final ImageActivity activity;final ImageState state;final ImageScreen screen;final ImageSelection selection;final ImageActions actions;final ImageLogExport logExport;final ImageWorkReport report;final MediaDestinationsController destinations;
     private final ExecutorService worker=Executors.newSingleThreadExecutor();
     private Future<?> analysis,exportTask,namesRead,folderTask;private int namesGeneration;private int generation;private boolean destroyed,visible,applying;
+    private boolean renderedBusy;
     private final android.os.Handler main=new android.os.Handler(android.os.Looper.getMainLooper());
     private final Runnable tick=new Runnable(){public void run(){if(!visible||destroyed)return;screen.dashboard.monitor.sample(android.os.SystemClock.elapsedRealtime());refresh();main.postDelayed(this,500);}};
     ImageController(ImageActivity activity,Bundle saved){
@@ -73,6 +74,24 @@ final class ImageController {
             });
         });
     }
+    void acceptSelection(ArrayList<String> combined,ArrayList<String> added){
+        stopPreviewReads();screen.selectedItem.cancelTransition();ImageMetadataCache.memory.clear();
+        state.names.clear();state.inputs.clear();state.inputs.addAll(combined);state.selected=0;state.clamp();state.destinations.sync(state.inputs,state.options.folder);
+        state.importing=true;state.reading=true;state.info=null;state.name="";state.notice="Acquisizione dell’accesso alle foto…";persist();render();
+        folderTask=worker.submit(()->{
+            boolean temporary=false;
+            for(String value:added){
+                if(Thread.currentThread().isInterrupted())return;
+                try{activity.getContentResolver().takePersistableUriPermission(Uri.parse(value),android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION);}
+                catch(SecurityException error){temporary=true;}
+            }
+            boolean temporaryAccess=temporary;
+            activity.runOnUiThread(()->{
+                if(destroyed)return;state.importing=false;open();readNames();
+                if(temporaryAccess)toast("Alcune foto concedono solo accesso temporaneo: potrebbe servire riselezionarle dopo la chiusura.");
+            });
+        });
+    }
     void readNames(){
         int token=++namesGeneration;if(namesRead!=null)namesRead.cancel(true);
         ArrayList<String> inputs=new ArrayList<>(state.inputs);
@@ -91,7 +110,10 @@ final class ImageController {
     void resume(){visible=true;screen.dashboard.monitor.reset();destinations.refresh();main.removeCallbacks(tick);tick.run();}
     void pause(){visible=false;main.removeCallbacks(tick);activity.getWindow().clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);}
     void refresh(){ImageRunState run=ImageConversionService.snapshot();if(state.starting&&state.startingAt>0&&(run.startedAt!=state.previousRun||android.os.SystemClock.elapsedRealtime()-state.startingAt>5000)){state.starting=false;if(run.startedAt==state.previousRun)state.notice=run.message.isEmpty()?"La conversione non è partita: riprova.":run.message;}
-        ImageOptions defaults=ImageOptions.load(activity);if(!busy()&&state.options.revision!=defaults.revision){state.options=defaults;showOptions();persist();}render();}
+        ImageOptions defaults=ImageOptions.load(activity);if(!busy()&&state.options.revision!=defaults.revision){state.options=defaults;showOptions();persist();render();return;}
+        // Progress ticks must not rebuild the selection, metadata or destination plan.
+        if(renderedBusy!=busy())render();else ImageRunPresenter.render(this,run);
+    }
     void persist(){ImageDraftStore.save(activity,state);}
     void save(Bundle out){persist();screen.sections.save(out);selection.save(out);logExport.save(out);destinations.save(out);}
     void open(){
@@ -133,7 +155,7 @@ final class ImageController {
         });
     }
     void render(){
-        state.clamp();int count=state.inputs.size();boolean any=count>0,busy=busy();
+        state.clamp();int count=state.inputs.size();boolean any=count>0,busy=busy();renderedBusy=busy;
         screen.importFolder.setEnabled(!busy);screen.retryFailures.setEnabled(!busy&&activity.getDatabasePath(ImageProgressJournal.DATABASE).isFile());
         screen.selectionSummary.setText(state.selectionLabel);screen.selectionSummary.setVisibility(state.selectionLabel.isEmpty()?android.view.View.GONE:android.view.View.VISIBLE);
         screen.select.setEnabled(!busy);screen.clear.setEnabled(any&&!busy);screen.remove.setEnabled(any&&!busy);
@@ -149,7 +171,7 @@ final class ImageController {
         ImageRunPresenter.render(this,ImageConversionService.snapshot());
         JpegInventory.Info info=state.info;
         screen.summary.setText(info==null?"":String.format(Locale.ITALY,"%d × %d · %.2f MB · JPEG %d bit · %d componenti",info.width,info.height,info.bytes/1000000.0,info.precision,info.components));
-        screen.status.setText(state.reading?"Analisi della foto…":!state.notice.isEmpty()?state.notice:info!=null?"JPEG analizzato. La compatibilità completa verrà controllata prima della codifica.":"Scegli le foto. Gli originali restano invariati.");
+        screen.status.setText(state.importing?state.notice:state.reading?"Analisi della foto…":!state.notice.isEmpty()?state.notice:info!=null?"JPEG analizzato. La compatibilità completa verrà controllata prima della codifica.":"Scegli le foto. Gli originali restano invariati.");
         if(info==null){screen.selectedItem.showMetadata(Collections.emptyMap(),Collections.emptyMap());screen.details.setText(state.reading?"Lettura metadati…":state.notice.isEmpty()?"Seleziona una foto per leggere i metadati.":"Analisi non disponibile: "+state.notice);return;}
         LinkedHashMap<String,Integer> counts=new LinkedHashMap<>();for(JpegInventory.Block b:info.blocks)counts.put(b.kind,counts.getOrDefault(b.kind,0)+1);
         StringBuilder detail=new StringBuilder();for(Map.Entry<String,Integer> e:counts.entrySet())detail.append(e.getKey()).append(": ").append(e.getValue()).append(" blocchi\n");
