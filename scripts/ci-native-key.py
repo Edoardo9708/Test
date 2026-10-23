@@ -37,8 +37,12 @@ def main():
     environment['workspace'] = str(root.resolve())
     key = fingerprint(root, paths, environment)
     print('Native cache fingerprint: ' + key)
+    ndk = re.search(r'''ndkVersion\s+['"]([0-9.]+)['"]''', (root / 'app/build.gradle').read_text())
+    if not ndk:
+        raise SystemExit('Missing pinned NDK version')
     with open(os.environ['GITHUB_OUTPUT'], 'a') as out:
         out.write('key=' + key + '\n')
+        out.write('ndk=' + str(Path(os.environ['ANDROID_HOME']) / 'ndk' / ndk[1]) + '\n')
 
 
 if __name__ == '__main__':
