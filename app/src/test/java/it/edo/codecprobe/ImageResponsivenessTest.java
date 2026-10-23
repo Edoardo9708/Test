@@ -61,7 +61,8 @@ public class ImageResponsivenessTest {
             ImageController images=controller.get().images;
             android.content.ClipData clips=android.content.ClipData.newRawUri("photos",android.net.Uri.parse("content://photos/0"));
             for(int i=1;i<125;i++)clips.addItem(new android.content.ClipData.Item(android.net.Uri.parse("content://photos/"+i)));
-            images.selection.result(ImageSelection.FILES,Activity.RESULT_OK,new android.content.Intent().setClipData(clips));
+            android.content.Intent picked=new android.content.Intent();picked.setClipData(clips);
+            images.selection.result(ImageSelection.FILES,Activity.RESULT_OK,picked);
             assertTrue(images.state.importing);assertEquals(125,images.state.inputs.size());assertFalse(images.screen.convert.isEnabled());
             java.util.concurrent.atomic.AtomicBoolean responsive=new java.util.concurrent.atomic.AtomicBoolean();new android.os.Handler(android.os.Looper.getMainLooper()).post(()->responsive.set(true));
             long deadline=System.currentTimeMillis()+5000;
