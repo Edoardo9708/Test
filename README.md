@@ -1,4 +1,13 @@
-# v1.02 · report foto con righe virtualizzate
+# v1.03 · code foto recuperabili e meno lavoro ripetuto
+
+- Punto di ripresa atomico per le immagini: conserva coda, opzioni, posizione e totali in caso di errore o chiusura del processo. «Riprendi coda interrotta» continua dall’ultimo punto salvato; «Scarta coda interrotta» elimina solo il recupero. Annulla resta un’interruzione definitiva della coda.
+- La ripresa conserva il log su disco; i dettagli dei risultati precedenti non vengono ricaricati in RAM. Il registro SHA-256 continua a verificare i risultati riutilizzati.
+- Nomi delle destinazioni caricati una volta per cartella nella fase di salvataggio, poi aggiornati in memoria; confronto dei nomi con un insieme, senza attraversare tutti i file per ogni foto. Il controllo preliminare dei permessi resta separato.
+- «Carica fallite» include anche i fallimenti della verifica metadati. Migrazione del database esistente senza eliminare lo storico di conversione.
+- Lettura dei nomi su un esecutore separato dall’analisi della foto selezionata; notifiche di avanzamento accorpate a una al secondo, comandi pausa/riprendi/annulla immediati.
+- Test di regressione per recupero, errori del log, migrazione, falliti, query alle cartelle, priorità delle letture e notifiche.
+
+## v1.02 · report foto con righe virtualizzate
 
 La v1.01 riutilizzava i widget ma manteneva ancora 100 righe dentro il LinearLayout della pagina. Quando la finestra avanzava, ogni posizione riceveva un altro file: molti testi venivano modificati e misurati insieme. Corretto questo limite usando un ListView Android con altezza limitata (240–420 dp, secondo lo schermo), senza nuove dipendenze. I dati rimangono al massimo 100; i widget sono soltanto quelli richiesti dal riquadro e vengono riciclati scorrendo. Il file corrente conserva il cinquantesimo posto nella finestra logica, quando possibile.
 
@@ -363,86 +372,139 @@ Non è incluso un Gradle wrapper: la CI installa esplicitamente la versione sopr
 - Save the complete displayed log (including recovered x265 logs) as UTF-8 TXT through the Android document picker. The export freezes a snapshot before opening the picker.
 - Native x265 and JNI compile as RelWithDebInfo with -O3; the APK remains debug-signed for installation. CI checks actual compiler commands and the APK ELF64 AArch64 header.
 - Keep the pinned x265 version, 30 synthetic frames, CRF 24/32, two threads and assembly disabled to isolate compiler optimization. ARM assembly is a subsequent experiment.
-- Log real pointer size, architecture, optimization macro, x265-only call times and total cycle time. The old upstream build_info labels non-x86 as 32 bit; it is not authoritative on ARM.
-- On the SM-S916B, run the software test with the phone cool and idle, save TXT, and compare total times with v0.3. The short benchmark and historic comparison are indicative, not sustained-performance or quality measurements.
+- Log real pointer size, architecture, optimization macro, x265-only call times and total cycle time. The old upstream build_info labels non-x86 as 32 bit; it is not authoritative on AR…10590 tokens truncated…port java.io.*;
+import java.util.*;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 
-## v0.6: ARM64 assembly experiment
-
-Enable pinned x265 ARM64/NEON routines while retaining O3, two threads and the same 30 frames/CRFs. The prepare script applies only target-flag and assembler-directive portability fixes. CI runs an ARM64 Linux build under QEMU, independently decodes its output, and checks linked Android assembly symbols. QEMU does not measure phone speed or validate Android runtime behavior. On-device logs compare with v0.5 (1333.327448 ms / 1985.072707 ms).
-
-
-## v0.7: real-video conversion UI
-Select a video using Android's document picker, select an output folder, and choose any integer CRF from 0 to 51 (default 23). Lower numbers generally retain more detail and produce larger files; descriptions are approximate. CRF 0 is not x265 lossless mode. Synthetic/API diagnostic buttons are removed from the main UI; diagnostic source remains for automated smoke tests.
-
-The pipeline reads decoded YUV_420_888 planes with stride/crop handling, feeds the stateful x265 encoder on the CPU, preserves video timestamps/orientation and copies one AAC audio track. It verifies all output video frames, then creates a uniquely named MP4 in the selected folder. Originals are read-only. Failed/cancelled exports attempt to remove the partial document. The full step-by-step UTF-8 log remains exportable; the UI displays only recent entries to avoid rendering an ever-growing log.
-
-Initial supported scope: SDR 8-bit, even dimensions up to 3840x2160 including portrait, one video and zero/one AAC track. HDR, non-YUV420 decoder output, multiple audio/video tracks and non-AAC audio produce an explicit error. Other track types are excluded with a log warning. Missing color metadata uses logged SDR defaults. Keep the app open; leaving/destroying the activity cancels the worker. Temporary MP4 storage is needed before export. No resizing, audio transcoding or HDR tone mapping yet.
-
-Validation: host and emulated ARM64 streaming tests cover CRF 0/23/51, variable input timestamps and independent FFmpeg full-frame decode; Java plane packing tests cover crop/padding/interleaved chroma. Android build/lint and native architecture/symbol checks remain required. Android picker and real-device decoder integration need on-device verification.
-
-## v0.8: controls and monitoring
-
-- System-aware dark/light palette, matching status/navigation icon contrast, rounded cards and buttons.
-- Encoder preset menu ultrafast through veryslow, slow default. The streaming pipeline still applies zerolatency and disables B-frames/lookahead to preserve its PTS-only muxing contract; these are not unmodified offline presets.
-- Quality choices CRF 18/23/28 plus integer entry 0–51, checked before conversion.
-- Application process CPU time sampled each second, normalized by available processor count (100% = all available cores); not total device utilization or CPU frequency. Battery temperature and Android thermal status are explicitly labeled, unavailable values have a fallback.
-- Video seconds encoded and remaining use last emitted packet PTS, then full duration only after successful encoder flush. Unknown duration remains unknown. Overall progress reserves final steps for audio, validation and saving.
-- Native CI tests exercise ultrafast, slow and veryslow with CRF 0/23/51 respectively, including independent full decoding. Phone UI and end-to-end playback still require device verification.
-
-## v0.9: input information and CPU policies
-
-- Replaces fixed single-line Spinner rows with wrapping selection buttons and dynamically measured dialog rows.
-- Shows source size in decimal MB and exact bytes (provider query, then descriptor stat fallback), declared container MIME, video/audio codecs, resolution, duration, rotation, declared fps, color transfer/HDR and known HEVC bit depth. Missing values remain unknown; no claim of playback validation from metadata. Reads run on the worker and ignore obsolete selection results. Same summary is included in the full conversion log.
-- CPU policies: Limited retains frame threads=2/pool=2; Automatic delegates frame threads and pool size to x265; Maximum assigns workers for available cores (pool cap 64) and up to six frame threads. The maximum policy is a parallelism configuration, not a guarantee of 100% CPU utilization. Automatic is the default.
-- Native tests cover all three CPU policies with variable input PTS and verify that every frame decodes. Logs include requested CPU policy and effective frame thread count.
-
-## v0.10: file compression and background conversion
-
-- B-frame and extended lookahead switches default ON. Preset settings are used without zerolatency. With B-frames ON / extended lookahead OFF, x265 requires bframes+1 lookahead frames: adaptive B choice and CU-tree are disabled in that minimal mode. Both OFF means no B-frames or lookahead. Effective values and output PTS/DTS/slice type are logged.
-- Android MediaMuxer supports MP4 B-frames since API 25; packets are delivered in encoder output order with original presentation timestamps. Every decoded output PTS is compared with the original decoded input PTS (1 ms container rounding tolerance), including VFR; failed validation prevents publication.
-- Conversion runs in a foreground service, with progress/cancel notification and partial wake lock for screen-off processing. API35+ uses mediaProcessing, older supported releases use dataSync. Notification permission is requested on API33+. Service timeout cancels and reports the reason; this does not bypass Android stop/force-stop or memory/resource decisions. No automatic restart of interrupted conversions.
-- Inspector sums compressed sample sizes per track without decoding; non-sample bytes are explicitly described as overhead, tags and padding. A bounded MP4 box reader measures moov and descriptive udta/meta blocks without double counting nested tags. Other formats/nonseekable providers report unsupported box measurement.
-- Expandable metadata shows all retriever metadata fields and all MediaFormat keys exposed by Android, including binary field lengths. Proprietary metadata is not guaranteed readable. Descriptive tags/location/date are displayed but not automatically copied; output preserves technical video format/orientation/timestamps.
-- CI tests MP4 box size accounting, all four B/lookahead combinations and actual B-picture presence, original PTS set preservation and independent full frame decoding on host and ARM64. Foreground lifecycle and Android B-frame MP4 muxing require phone testing; full app verification checks the final MP4 before saving.
-
-## v0.11: metadata preservation and readable input sections
-
-- Input properties are grouped into File, Video, Audio, Track sizes and Metadata/container sections. Expandable sections separate Date/GPS, Title/author, other fields and technical properties per track, with clear labels and spacing. Android-readable values are not an exhaustive decoder of vendor tags.
-- MP4/MOV descriptive udta/meta/uuid/meco blocks are copied as opaque payloads at root, movie, track and media levels, preserving proprietary tags within them. Creation/modification dates in mvhd/tkhd/mdhd and track language are patched from the original. New codec/sample tables and media offsets are retained. Copied payloads are verified using SHA-256; dates and language are read back and checked.
-- The rewritten moov is appended and the old moov becomes free padding, keeping all encoded media chunk offsets unchanged. This adds a second movie-table-sized overhead and can put the active moov at the end; generated files remain ordinary seekable MP4s.
-- A strict source preflight rejects fragmented/non-MP4 formats, malformed/trailing vendor data and unsupported top-level blocks, rather than claiming complete metadata retention. An opaque vendor UUID/tag may itself contain private references whose interpretation is not guaranteed by raw copying. Filesystem timestamps controlled by the Android document provider are not set to the source times.
-- Application metadata tracks supported by Android MediaMuxer are copied with original packet contents and PTS. Unsupported tracks abort conversion. Audio/metadata copied packets are read back and verified in addition to full video decode and original PTS checks.
-- CI round trips no-tag and tagged fixtures with nested metadata, dates/languages and root UUIDs, asserts media data positions unchanged, and tests cancellation and unsupported containers. Device testing remains required for real camera metadata and vendor playback interpretation.
-
-- Preservation preflight additionally rejects item-location metadata (iloc/idat/iref/pitm) and unrecognized UUIDs, since opaque copying could leave pointers to old media. The known Adobe XMP UUID is supported. Unsupported vendor formats need an explicit parser before the app can guarantee preservation.
-
-- Track handler/name payloads and playback flags, layer/group/volume and transformation matrices are preserved and read back. IDs, codec descriptions, durations and media chunk indexes remain those of the new file.
-
-## Versioned downloads
-
-APK artifacts now start with the actual version from the built APK metadata, for example `v0.11-CodecProbe-APK.zip`. The APK inside is `v0.11-CodecProbe.apk`. The corresponding source artifact also starts with the version. App version is unchanged when only packaging changes.
-
-## v0.13: original media access and explicit GPS checks
-
-Before conversion, request ACCESS_MEDIA_LOCATION to preserve embedded coordinates (no live location access). Convert supported SAF document URIs to the equivalent MediaStore item using the existing document grant and setRequireOriginal. Fail instead of silently falling back to redacted local media; other providers are explicitly labelled as unverified. Reopen source bytes after permission changes and refresh input inspection. Compare Android-exposed ISO 6709 location against both the temporary MP4 and the final saved file; delete a failed output. Null source location is labelled non-verifiable, never successful GPS preservation. Opaque metadata blocks still receive byte-level verification.
-
-Device check: select the camera original that displays a location in Samsung Gallery, grant media location permission, convert, and export the log. Look for GPS ACCESSO requireOriginal=true, GPS ORIGINALE, GPS CONVERTITO and GPS ESITO. Previously redacted copies cannot recover coordinates.
-
-## v0.14: separate video-read authorization
-
-The v0.13 device log exposed a SecurityException opening a MediaStore URI with requireOriginal despite ACCESS_MEDIA_LOCATION being granted. Request READ_MEDIA_VIDEO separately; Android 14+ also offers READ_MEDIA_VISUAL_USER_SELECTED so the user can restrict access to selected videos. Android 10–12 use READ_EXTERNAL_STORAGE (maxSdkVersion 32). Keep strict original access and validate opening the actual URI before reporting requireOriginal success. Restricted selection must include the conversion input. Permission denial blocks conversion with a readable reason. GPS comparisons and original metadata copying remain intact.
-
-## v0.15: Android provider numeric compatibility
-
-The v0.14 Samsung Android 16 log confirms original GPS is readable, then exposes Long accurate-framecount where conversion assumed Integer. Read MediaFormat numeric fields using getNumber; convert integer fields exactly with explicit finite/integral/range checks. Apply this to conversion properties, duration, frame rate, verification dimensions and input inspection. Regression tests cover Long(52), integer and float representations, duration, overflow, fractional/non-finite values and missing numbers. GPS preservation still needs an end-to-end device conversion.
-
-## v0.16: one runtime version and exact source color
-
-BuildConfig.VERSION_NAME generated from app/build.gradle now supplies the screen and conversion log. APK and ZIP names already derive from the built output metadata. Only versionName/versionCode in Gradle are updated for a release; UI and log have no literal versions.
-
-Read H.264/H.265 SPS VUI directly from codec CSD, including exact primaries, transfer, matrix, full range and presence flags/video format. Pass those values to x265 instead of collapsing Android SDR to SMPTE170M. Verify emitted HEVC headers against the original before muxing. Unsupported/truncated SPS and inconsistent multiple SPS fail explicitly, with no color guess. Tests include the Samsung SPS from the sample, generated AVC BT709 and HEVC SMPTE170M full-range, plus truncated input. MP4 nclx/nclc color declarations are checked against SPS; conflicts and ICC profiles are explicitly rejected rather than guessed. Native host and ARM64 tests independently verify BT709, SMPTE170M full-range and linear output with ffprobe.
-
-## v0.17: small read-only metadata diagnostics
-
-The diagnostic screen adds Export original metadata TXT. It opens the selected original with the same media/location permissions and exports ftyp, udta/meta/uuid/meco and sefd blocks with original offsets, sizes, full HEX and SHA256. It skips mdat by seeking, so a multi-GB video yields a small metadata-only file. Limits: 4 MB per copied block and 8 MB total metadata; no partial-success report. Failed or cancelled exports delete their temporary file. Conversion still rejects unverified sefd; the diagnostic export does not enable blind copying. Attach the exported TXT to identify actual SEF entries and assess relocation.
-
+/** Foreground photo queue. Owns engine lease, wake lock and lifetime of every temporary output. */
+public final class ImageConversionService extends Service {
+    static final String START="it.edo.codecprobe.IMAGE_START",CANCEL="it.edo.codecprobe.IMAGE_CANCEL",PAUSE="it.edo.codecprobe.IMAGE_PAUSE",RESUME="it.edo.codecprobe.IMAGE_RESUME";
+    static final String LOG="image-conversion.log";
+    private static final Object LOCK=new Object();private static ImageRunState state=new ImageRunState();
+    private static final String CHANNEL="image-conversion";private static final int NOTICE=30;
+    private final ExecutorService worker=Executors.newSingleThreadExecutor();private final AtomicBoolean cancelled=new AtomicBoolean();
+    private final ConversionControl control=new ConversionControl(cancelled,SystemClock::elapsedRealtime,this::pauseChanged);
+    private final Handler notifications=new Handler(Looper.getMainLooper());
+    private long lastNotification;private boolean notificationPending;
+    private final Runnable publishNotification=()->{notificationPending=false;if(!destroyed&&snapshot().running){lastNotification=SystemClock.elapsedRealtime();getSystemService(NotificationManager.class).notify(NOTICE,notification());}};
+    private long token;private PowerManager.WakeLock wake;private volatile boolean destroyed;private volatile int latestStartId;
+    static ImageRunState snapshot(){synchronized(LOCK){return new ImageRunState(state);}}
+    static void clear(){synchronized(LOCK){if(!state.running){String log=state.log;state=new ImageRunState();state.log=log;}}}
+    static void clearLog(){synchronized(LOCK){if(!state.running)state.log="";}}
+    @Override public void onCreate(){super.onCreate();getSystemService(NotificationManager.class).createNotificationChannel(new NotificationChannel(CHANNEL,"Conversione immagini",NotificationManager.IMPORTANCE_LOW));}
+    @Override public int onStartCommand(Intent request,int flags,int startId){
+        latestStartId=startId;
+        if(request==null){stopSelf(startId);return START_NOT_STICKY;}
+        if(PAUSE.equals(request.getAction())||RESUME.equals(request.getAction())){
+            boolean pause=PAUSE.equals(request.getAction());
+            synchronized(LOCK){if(!state.running||state.cancelling||request.getLongExtra("startedAt",-1)!=state.startedAt){if(token==0)stopSelf(startId);return START_NOT_STICKY;}state.pauseRequested=pause;}
+            control.pause(pause);notifyProgress(true);return START_NOT_STICKY;
+        }
+        if(CANCEL.equals(request.getAction())){
+            boolean accepted;
+            synchronized(LOCK){accepted=state.running&&request.getLongExtra("startedAt",-1)==state.startedAt;if(accepted){state.cancelling=true;state.pauseRequested=false;state.message=state.metadataOnly?"Annullamento verifica metadati…":"Annullamento dopo la fase di codifica in corso…";}}
+            if(accepted){control.cancel();notifyProgress(true);}if(token==0)stopSelf(startId);return START_NOT_STICKY;
+        }
+        if(!START.equals(request.getAction())||token!=0||snapshot().running)return START_NOT_STICKY;
+        String queueId=request.getStringExtra("queueId");boolean metadataOnly=request.getBooleanExtra("metadataOnly",false),restore=request.getBooleanExtra("restore",false);
+        ArrayList<String> values=request.getStringArrayListExtra("inputs");ImageOptions options;
+        final ArrayList<String> legacyFolders;
+        try{
+            options=ImageOptions.from(request);
+            if(queueId!=null){if(!ImageQueueStore.file(this,queueId).isFile())throw new IOException("Coda non disponibile");legacyFolders=null;}
+            else{if(metadataOnly)throw new IllegalArgumentException("La verifica richiede una coda su disco");if(values==null||values.isEmpty()||values.size()>100)throw new IllegalArgumentException();legacyFolders=QueueDestinations.read(request,values.size(),options.folder);}
+        }catch(IOException|RuntimeException e){if(!ImageSessionStore.exists(this))ImageQueueStore.discard(this,queueId);stopSelf(startId);return START_NOT_STICKY;}
+        token=MediaConversionGate.INSTANCE.acquire();if(token==0){if(!ImageSessionStore.exists(this))ImageQueueStore.discard(this,queueId);synchronized(LOCK){state.message="È già attiva una conversione: attendi il completamento.";}stopSelf(startId);return START_NOT_STICKY;}
+        ArrayList<String> queue=values==null?null:new ArrayList<>(values);cancelled.set(false);control.pause(false);
+        synchronized(LOCK){state=new ImageRunState();state.running=true;state.metadataOnly=metadataOnly;state.total=queue==null?0:queue.size();state.startedAt=SystemClock.elapsedRealtime();state.options=options;state.message=metadataOnly?"Avvio verifica metadati…":"Avvio conversione immagini…";}
+        try{
+            startForeground(NOTICE,notification(),Build.VERSION.SDK_INT>=35?ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROCESSING:ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC);
+            acquireWake();
+            worker.execute(()->run(queueId,queue,legacyFolders,options,restore));
+        }catch(RuntimeException error){if(!ImageSessionStore.exists(this))ImageQueueStore.discard(this,queueId);synchronized(LOCK){state.running=false;state.endedAt=SystemClock.elapsedRealtime();state.message="Avvio immagini fallito: "+error.getMessage();}release();stopForeground(STOP_FOREGROUND_REMOVE);stopSelf(latestStartId);}
+        return START_NOT_STICKY;
+    }
+    private void run(String queueId,ArrayList<String> legacyQueue,ArrayList<String> legacyFolders,ImageOptions options,boolean restore){
+        boolean metadataOnly=snapshot().metadataOnly;boolean finished=false;
+        try(ImageProgressJournal journal=new ImageProgressJournal(this)){
+            ImageQueueStore.Queue job;
+            if(queueId!=null)job=ImageQueueStore.read(this,queueId);
+            else{job=new ImageQueueStore.Queue();job.inputs.addAll(legacyQueue);job.folders.addAll(legacyFolders);for(int i=0;i<legacyQueue.size();i++)job.names.add("Foto "+(i+1));}
+            if(job.metadataOnly!=metadataOnly)throw new IOException("Tipo coda immagini non coerente");
+            ArrayList<String> queue=job.inputs,folders=job.folders;
+            synchronized(LOCK){
+                if(restore){ImageSessionStore.Session saved=ImageSessionStore.load(this);if(saved==null||!saved.queueId.equals(queueId)||saved.run.metadataOnly!=metadataOnly||saved.run.total!=queue.size())throw new IOException("Sessione e coda non coerenti");state=saved.run;state.running=true;state.startedAt=SystemClock.elapsedRealtime();}
+                state.total=queue.size();state.queueNames=Collections.unmodifiableList(new ArrayList<>(job.names));
+            }
+            if(queueId!=null)ImageSessionStore.save(this,queueId,snapshot());
+            // New run log: never rotate away an error halfway through a large batch.
+            if(!restore)ImageLogStore.reset(this);
+            else write("RIPRESA CODA IMMAGINI · completate: "+snapshot().completed+" · i dettagli precedenti restano nel log su disco");
+            write(metadataOnly?"INIZIO VERIFICA METADATI · v"+BuildConfig.VERSION_NAME+"\nNessuna decodifica o codifica. Esito positivo limitato ai metadati; non garantisce integrità dei pixel o conversione. Originali invariati.":"INIZIO IMMAGINI · v"+BuildConfig.VERSION_NAME+"\n"+options.description()+"\nEXIF/XMP/ICC standard; APP/COM e SEF foto supportato conservati anche nell’archivio interno originale. Funzioni proprietarie Samsung non garantite. Originali invariati.");
+            ImageOutput.Names outputNames=new ImageOutput.Names();
+            File[] stale=getCacheDir().listFiles((d,n)->(n.startsWith("image-source-")||n.startsWith("image-heic-"))&&n.endsWith(".tmp"));if(stale!=null)for(File f:stale)f.delete();
+            for(int i=snapshot().completed;i<queue.size();i++){
+                if(control.checkpoint())break;Uri uri=Uri.parse(queue.get(i));String name=ImageFiles.name(this,uri);
+                synchronized(LOCK){state.current=i+1;state.name=name;state.message="Preparazione JPEG";}notifyProgress();
+                ImageRunState.Result result;
+                ImageOptions fileOptions=options.withFolder(folders.get(i));
+                try{
+                    if(metadataOnly)result=ImageMetadataCheck.inspect(this,uri,name,cancelled::get,this::stage);
+                    else{stage("Controllo registro e originale");result=journal.reusable(this,queue.get(i),name,fileOptions,cancelled::get);
+                    if(result==null)result=ImageConverter.convert(this,uri,name,fileOptions,cancelled::get,this::stage,outputNames);}
+                }
+                catch(Exception e){result=new ImageRunState.Result(name,0,0,null,e.getMessage()==null?e.getClass().getSimpleName():e.getMessage(),cancelled.get()?ImageRunState.Outcome.CANCELLED:ImageRunState.Outcome.FAILED,android.util.Log.getStackTraceString(e));}
+                if(destroyed&&result.outcome==ImageRunState.Outcome.CANCELLED)break;
+                if(metadataOnly)journal.inspection(queue.get(i),result);
+                else journal.record(queue.get(i),folders.get(i),fileOptions,result);
+                if(result.outcome==ImageRunState.Outcome.FAILED)ImageFailureStore.append(this,state.startedAt,i+1,queue.get(i),folders.get(i),options,result,metadataOnly);
+                // The local result still owns the full details; only state.add keeps a bounded preview.
+                write(name+" · "+result.outcome+" · "+result.message+"\n"+result.details);
+                synchronized(LOCK){state.add(result);}
+                if(queueId!=null)ImageSessionStore.save(this,queueId,snapshot());
+                notifyProgress();
+            }
+            finished=!destroyed;
+            synchronized(LOCK){state.message=metadataOnly?(cancelled.get()?"Verifica metadati interrotta.":"Verifica metadati terminata · pixel non verificati."):cancelled.get()?"Coda immagini interrotta. I file già salvati restano disponibili.":"Coda immagini terminata.";}
+        }catch(Exception error){synchronized(LOCK){state.message=(metadataOnly?"Verifica metadati interrotta: ":"Conversione immagini interrotta: ")+error.getMessage();}try{write(android.util.Log.getStackTraceString(error));}catch(IOException ignored){}}
+        finally{if(finished){if(queueId!=null)ImageSessionStore.clear(this,queueId);}else if(queueId!=null){synchronized(LOCK){state.message+=" · Coda conservata: usa Riprendi coda interrotta.";}}synchronized(LOCK){state.running=false;state.cancelling=false;state.paused=false;state.pauseRequested=false;state.endedAt=SystemClock.elapsedRealtime();}release();stopForeground(STOP_FOREGROUND_REMOVE);stopSelf(latestStartId);}
+    }
+    private void stage(String text){synchronized(LOCK){if(!state.cancelling)state.message=text;}notifyProgress();}
+    private void write(String text)throws IOException{
+        ImageLogStore.append(this,LOG,text+"\n\n");
+        synchronized(LOCK){state.log+=text+"\n\n";if(state.log.length()>24000)state.log=state.log.substring(state.log.length()-24000);}
+    }
+    static String displayMessage(ImageRunState run){
+        if(run.cancelling)return "Annullamento della coda immagini…";
+        if(run.paused)return "Coda immagini in pausa · premi Riprendi per continuare";
+        if(run.pauseRequested)return "Pausa richiesta · completo la foto in corso…";
+        return run.message;
+    }
+    private void pauseChanged(boolean paused){
+        if(paused)releaseWake();else if(!destroyed&&!cancelled.get()&&!control.pauseRequested())acquireWake();
+        synchronized(LOCK){state.paused=paused;}
+        try{write(paused?"PAUSA IMMAGINI · foto completate: "+snapshot().completed+" · nessuna nuova foto avviata":"FINE PAUSA IMMAGINI · "+(cancelled.get()?"annullamento":"ripresa della stessa coda"));}
+        catch(IOException error){throw new UncheckedIOException(error);}
+        notifyProgress(true);
+    }
+    private Notification notification(){ImageRunState run=snapshot();Intent open=new Intent(this,ImageActivity.class);PendingIntent page=PendingIntent.getActivities(this,NOTICE,new Intent[]{new Intent(this,MainActivity.class),open},PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
+        Intent cancel=new Intent(this,ImageConversionService.class).setAction(CANCEL).putExtra("startedAt",run.startedAt);PendingIntent stop=PendingIntent.getService(this,NOTICE,cancel,PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
+        Notification.Builder notice=new Notification.Builder(this,CHANNEL).setSmallIcon(R.drawable.ic_notification_image).setContentTitle(run.metadataOnly?"Verifica metadati · "+run.completed+" / "+run.total:run.paused?"Immagini in pausa · "+run.completed+" / "+run.total:"Immagini · "+run.current+" / "+run.total).setContentText(displayMessage(run)).setContentIntent(page).setOngoing(true).setOnlyAlertOnce(true);
+        if(run.running&&!run.cancelling){boolean resume=run.pauseRequested||run.paused;Intent command=new Intent(this,ImageConversionService.class).setAction(resume?RESUME:PAUSE).putExtra("startedAt",run.startedAt);PendingIntent action=PendingIntent.getService(this,resume?32:31,command,PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);notice.addAction(new Notification.Action.Builder(null,resume?"Riprendi":"Pausa",action).build());}
+        return notice.addAction(new Notification.Action.Builder(null,"Interrompi",stop).build()).build();}
+    private synchronized void acquireWake(){if(wake==null)wake=getSystemService(PowerManager.class).newWakeLock(PowerManager.PARTIAL_WAKE_LOCK,"CodecProbe:images");if(!wake.isHeld())wake.acquire(6*60*60*1000L);}
+    private void notifyProgress(){notifyProgress(false);}
+    private void notifyProgress(boolean force){
+        notifications.post(()->{
+            if(destroyed||!snapshot().running)return;
+            if(force){notifications.removeCallbacks(publishNotification);notificationPending=false;publishNotification.run();}
+            else if(!notificationPending){notificationPending=true;notifications.postDelayed(publishNotification,Math.max(0,1000-(SystemClock.elapsedRealtime()-lastNotification)));}
+        });
+    }
+    private synchronized void releaseWake(){if(wake!=null&&wake.isHeld())wake.release();wake=null;}
+    private synchronized void release(){releaseWake();if(token!=0){MediaConversionGate.INSTANCE.release(token);token=0;}}
+    @Override public void onTimeout(int startId,int type){control.cancel();synchronized(LOCK){state.cancelling=true;state.pauseRequested=false;}stage("Tempo massimo Android raggiunto: annullamento dopo la codifica in corso…");releaseWake();stopForeground(STOP_FOREGROUND_REMOVE);stopSelf(startId);}
+    @Override public void onDestroy(){destroyed=true;notifications.removeCallbacksAndMessages(null);control.cancel();worker.shutdown();super.onDestroy();}
+    @Override public IBinder onBind(Intent intent){return null;}
+}

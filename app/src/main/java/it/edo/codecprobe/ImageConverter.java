@@ -8,6 +8,9 @@ import java.util.function.*;
 /** Private staging → bundled engine → verified HEIC → SAF publication. */
 final class ImageConverter {
     static ImageRunState.Result convert(Context c,Uri input,String name,ImageOptions options,BooleanSupplier cancelled,Consumer<String> stage)throws IOException{
+        return convert(c,input,name,options,cancelled,stage,new ImageOutput.Names());
+    }
+    static ImageRunState.Result convert(Context c,Uri input,String name,ImageOptions options,BooleanSupplier cancelled,Consumer<String> stage,ImageOutput.Names names)throws IOException{
         File source=File.createTempFile("image-source-",".tmp",c.getCacheDir()),output=null;
         try{
             output=File.createTempFile("image-heic-",".tmp",c.getCacheDir());stage.accept("Lettura JPEG originale");
@@ -23,7 +26,7 @@ final class ImageConverter {
             check(cancelled);if(output.length()==0)throw new IOException("Output HEIC vuoto");
             if(options.onlySmaller&&output.length()>=bytes)return new ImageRunState.Result(name,bytes,output.length(),null,"Non salvato: nessun risparmio",ImageRunState.Outcome.NOT_SMALLER,details,sourceSha,"");
             String outputSha=ImageFingerprint.file(output,cancelled);
-            stage.accept("Salvataggio HEIC verificato");Uri saved=ImageOutput.save(c,Uri.parse(options.folder),output,name,cancelled);
+            stage.accept("Salvataggio HEIC verificato");Uri saved=ImageOutput.save(c,Uri.parse(options.folder),output,name,cancelled,names);
             return new ImageRunState.Result(name,bytes,output.length(),saved.toString(),"Salvato",ImageRunState.Outcome.SAVED,details,sourceSha,outputSha);
         }finally{source.delete();if(output!=null)output.delete();}
     }

@@ -11,6 +11,7 @@ import java.util.concurrent.*;
 final class ImageController {
     final ImageActivity activity;final ImageState state;final ImageScreen screen;final ImageSelection selection;final ImageActions actions;final ImageLogExport logExport;final ImageWorkReport report;final MediaDestinationsController destinations;
     private final ExecutorService worker=Executors.newSingleThreadExecutor();
+    private final ExecutorService namesWorker=Executors.newSingleThreadExecutor();
     private Future<?> analysis,exportTask,namesRead,folderTask;private int namesGeneration;private int generation;private boolean destroyed,visible,applying;
     private boolean renderedBusy;
     private final android.os.Handler main=new android.os.Handler(android.os.Looper.getMainLooper());
@@ -28,7 +29,7 @@ final class ImageController {
         screen.remove.setOnClickListener(v->{if(busy()||state.inputs.isEmpty())return;screen.selectedItem.cancelTransition();ImageMetadataCache.memory.remove(state.inputs.remove(state.selected));state.names.remove(state.selected);state.clamp();open();});
         screen.export.setOnClickListener(v->selection.export());screen.exportLog.setOnClickListener(v->selection.log());screen.exportErrors.setOnClickListener(v->selection.errors());screen.clearLog.setOnClickListener(v->actions.clearLog());
         screen.checkMetadata.setOnClickListener(v->actions.start(true));
-        screen.convert.setOnClickListener(v->actions.start());screen.cancel.setOnClickListener(v->actions.cancel());screen.pause.setOnClickListener(v->actions.pause());
+        screen.convert.setOnClickListener(v->actions.start());screen.cancel.setOnClickListener(v->actions.cancel());screen.pause.setOnClickListener(v->actions.pause());screen.resumeSession.setOnClickListener(v->actions.resumeSession());screen.discardSession.setOnClickListener(v->actions.discardSession());
         screen.quality.changed=this::optionsEdited;screen.smaller.setOnCheckedChangeListener((b,checked)->optionsEdited());screen.screenOn.setOnCheckedChangeListener((b,checked)->screenOnEdited(checked));
         screen.settings.setOnClickListener(v->{android.content.Intent intent=new android.content.Intent(activity,ImageSettingsActivity.class);state.destinations.sync(state.inputs,state.options.folder);String currentFolder=state.inputs.isEmpty()?state.options.folder:state.destinations.plan.effective(state.selected).origin?null:state.destinations.plan.effective(state.selected).folder;state.options.withFolder(currentFolder).put(intent);activity.startActivity(intent);});open();
     }
@@ -69,7 +70,7 @@ final class ImageController {
                 screen.selectedItem.cancelTransition();ImageMetadataCache.memory.clear();
                 state.inputs.clear();state.inputs.addAll(result.inputs);state.names.clear();state.names.addAll(result.names);state.selected=0;state.bulk=true;state.selectionLabel=result.inputs.size()+" · "+label;
                 state.destinations.reset(state.inputs,state.options.folder);
-                for(int i=0;i<result.inputs.size();i++)state.destinations.plan.setFolder(i,result.folders.get(i));
+                for(int i=0;i<result.inputs.size();i++)if(!result.folders.get(i).isEmpty())state.destinations.plan.setFolder(i,result.folders.get(i));
                 open();
             });
         });
@@ -95,7 +96,7 @@ final class ImageController {
     void readNames(){
         int token=++namesGeneration;if(namesRead!=null)namesRead.cancel(true);
         ArrayList<String> inputs=new ArrayList<>(state.inputs);
-        namesRead=worker.submit(()->{
+        namesRead=namesWorker.submit(()->{
             ArrayList<String> names=new ArrayList<>();
             for(String value:inputs){if(Thread.currentThread().isInterrupted())return;names.add(ImageFiles.name(activity,Uri.parse(value)));}
             activity.runOnUiThread(()->{if(destroyed||token!=namesGeneration||!inputs.equals(state.inputs))return;state.names.clear();state.names.addAll(names);persist();render();});
@@ -183,6 +184,6 @@ final class ImageController {
         detail.append("\n\nSHA-256 originale\n").append(info.sha256);screen.details.setText(detail);screen.selectedItem.showMetadata(Collections.singletonMap("IMMAGINE",screen.summary.getText().toString()),Collections.singletonMap("METADATI ORIGINALI",detail.toString()));
     }
     void toast(String value){Toast.makeText(activity,value,Toast.LENGTH_LONG).show();}
-    void destroy(){pause();destroyed=true;++generation;if(analysis!=null)analysis.cancel(true);if(exportTask!=null)exportTask.cancel(true);if(namesRead!=null)namesRead.cancel(true);if(folderTask!=null)folderTask.cancel(true);screen.selectedItem.close();worker.shutdownNow();screen.dashboard.monitor.close();destinations.close();report.close();actions.close();logExport.close();screen.sections.closed=true;}
+    void destroy(){pause();destroyed=true;++generation;if(analysis!=null)analysis.cancel(true);if(exportTask!=null)exportTask.cancel(true);if(namesRead!=null)namesRead.cancel(true);if(folderTask!=null)folderTask.cancel(true);screen.selectedItem.close();worker.shutdownNow();namesWorker.shutdownNow();screen.dashboard.monitor.close();destinations.close();report.close();actions.close();logExport.close();screen.sections.closed=true;}
     private static String message(Exception e){return e.getMessage()==null?e.getClass().getSimpleName():e.getMessage();}
 }

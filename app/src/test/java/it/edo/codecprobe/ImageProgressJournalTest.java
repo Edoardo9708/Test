@@ -43,6 +43,29 @@ public class ImageProgressJournalTest {
             try(var rows=journal.getReadableDatabase().rawQuery("SELECT count(*) FROM progress",null)){assertTrue(rows.moveToFirst());assertEquals(1,rows.getInt(0));}
         }
     }
+    @Test public void inspectionFailuresRemainRetryableWithoutErasingConversionHistory(){
+        try(ImageProgressJournal journal=new ImageProgressJournal(context)){
+            String uri="content://photo/check";
+            ImageRunState.Result failure=new ImageRunState.Result("check.jpg",0,0,null,"Metadata",ImageRunState.Outcome.FAILED,"");
+            journal.inspection(uri,failure);assertEquals(java.util.List.of(uri),journal.failures().inputs);
+            assertEquals("",journal.failures().folders.get(0));
+            journal.record(uri,options().folder,options(),failure);assertEquals(1,journal.failures().inputs.size());assertEquals(options().folder,journal.failures().folders.get(0));
+            journal.inspection(uri,new ImageRunState.Result("check.jpg",0,0,null,"OK",ImageRunState.Outcome.CHECKED,""));
+            assertEquals(1,journal.failures().inputs.size()); // A metadata pass must not hide a conversion failure.
+            journal.record(uri,options().folder,options(),new ImageRunState.Result("check.jpg",100,50,"content://output", "OK",ImageRunState.Outcome.SAVED,""));
+            assertTrue(journal.failures().inputs.isEmpty());
+            journal.inspection(uri,failure);assertEquals(1,journal.failures().inputs.size());
+            journal.inspection(uri,new ImageRunState.Result("check.jpg",0,0,null,"Interrupted",ImageRunState.Outcome.CANCELLED,""));assertEquals(1,journal.failures().inputs.size());
+            journal.inspection(uri,new ImageRunState.Result("check.jpg",0,0,null,"OK",ImageRunState.Outcome.CHECKED,""));assertTrue(journal.failures().inputs.isEmpty());
+            assertNotNull(journal.getReadableDatabase());
+        }
+    }
+    @Test public void upgradesVersionOneWithoutLosingExistingRecords(){
+        var db=android.database.sqlite.SQLiteDatabase.openOrCreateDatabase(context.getDatabasePath(ImageProgressJournal.DATABASE),null);
+        db.execSQL("CREATE TABLE progress (uri TEXT PRIMARY KEY, name TEXT NOT NULL, folder TEXT NOT NULL, settings TEXT NOT NULL, status TEXT NOT NULL, source_sha TEXT NOT NULL, output_uri TEXT NOT NULL, output_sha TEXT NOT NULL, input_bytes INTEGER NOT NULL, output_bytes INTEGER NOT NULL, updated INTEGER NOT NULL)");
+        db.execSQL("INSERT INTO progress VALUES ('content://old','old.jpg','content://dest','old','FAILED','','','',0,0,1)");db.setVersion(1);db.close();
+        try(ImageProgressJournal journal=new ImageProgressJournal(context)){assertEquals(java.util.List.of("content://old"),journal.failures().inputs);assertEquals(2,journal.getReadableDatabase().getVersion());}
+    }
     @Test public void eightThousandFiveHundredRecordsOccupyLessThanTwentyMb()throws Exception{
         try(ImageProgressJournal journal=new ImageProgressJournal(context)){
             var db=journal.getWritableDatabase();db.beginTransaction();try{

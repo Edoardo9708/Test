@@ -17,7 +17,8 @@ import static org.junit.Assert.*;
 @LooperMode(LooperMode.Mode.PAUSED)
 public class ImageOutputTest {
     public static class Documents extends AudioMetadataFlowTest.Documents {
-        boolean corrupt;
+        boolean corrupt;int listings;
+        @Override public android.database.Cursor query(Uri uri,String[] projection,String selection,String[] args,String sort){if("children".equals(uri.getLastPathSegment()))listings++;return super.query(uri,projection,selection,args,sort);}
         @Override public ParcelFileDescriptor openFile(Uri uri,String mode)throws FileNotFoundException{
             if(corrupt&&mode.equals("r"))try(RandomAccessFile out=new RandomAccessFile(files.get(uri.getLastPathSegment()),"rw")){out.seek(0);out.write(99);}catch(IOException e){throw new FileNotFoundException(e.toString());}
             return super.openFile(uri,mode);
@@ -39,6 +40,14 @@ public class ImageOutputTest {
         assertEquals("Already (2)MP.heic",ImageOutput.unique("AlreadyMP.heic",java.util.Set.of("AlreadyMP.heic")));
         try(RandomAccessFile file=new RandomAccessFile(encoded,"rw")){file.seek(16);file.writeInt(99);}
         assertThrows(IOException.class,()->ImageOutput.hasMotionVideo(encoded));
+    }
+    @Test public void wholeBatchListsDestinationOnceAndRetainsCaseInsensitiveReservations()throws Exception{
+        ImageOutput.Names names=new ImageOutput.Names();
+        for(int i=0;i<100;i++)ImageOutput.save(context,AudioMetadataFlowTest.TREE,encoded,i%2==0?"Photo.JPG":"photo.JPG",()->false,names);
+        assertEquals(1,provider.listings);assertEquals(100,provider.files.size());
+        java.util.Set<String> unique=new java.util.HashSet<>();for(String name:provider.names.values())assertTrue(unique.add(name.toLowerCase(java.util.Locale.ROOT)));
+        ImageOutput.save(context,AudioMetadataFlowTest.TREE,encoded,"Photo.JPG",()->false,new ImageOutput.Names());
+        assertEquals(2,provider.listings);assertEquals(101,provider.files.size());
     }
     @Test public void sameLengthCorruptionRollsBackTheNewDocument(){provider.corrupt=true;assertThrows(IOException.class,()->ImageOutput.save(context,AudioMetadataFlowTest.TREE,encoded,"Photo.jpg",()->false));assertTrue(provider.files.isEmpty());assertTrue(provider.names.isEmpty());}
     @Test public void cancellationPublishesNothing(){assertThrows(IOException.class,()->ImageOutput.save(context,AudioMetadataFlowTest.TREE,encoded,"Photo.jpg",()->true));assertTrue(provider.files.isEmpty());}

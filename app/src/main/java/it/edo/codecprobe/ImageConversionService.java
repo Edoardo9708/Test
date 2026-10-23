@@ -19,6 +19,9 @@ public final class ImageConversionService extends Service {
     private final ExecutorService worker=Executors.newSingleThreadExecutor();private final AtomicBoolean cancelled=new AtomicBoolean();
     private final ConversionControl control=new ConversionControl(cancelled,SystemClock::elapsedRealtime,this::pauseChanged);
     private long token;private PowerManager.WakeLock wake;private volatile boolean destroyed;private volatile int latestStartId;
+    private final Handler notifications=new Handler(Looper.getMainLooper());
+    private long lastNotification;private boolean notificationPending;
+    private final Runnable publishNotification=()->{notificationPending=false;if(!destroyed&&snapshot().running){lastNotification=SystemClock.elapsedRealtime();getSystemService(NotificationManager.class).notify(NOTICE,notification());}};
     static ImageRunState snapshot(){synchronized(LOCK){return new ImageRunState(state);}}
     static void clear(){synchronized(LOCK){if(!state.running){String log=state.log;state=new ImageRunState();state.log=log;}}}
     static void clearLog(){synchronized(LOCK){if(!state.running)state.log="";}}
@@ -29,47 +32,52 @@ public final class ImageConversionService extends Service {
         if(PAUSE.equals(request.getAction())||RESUME.equals(request.getAction())){
             boolean pause=PAUSE.equals(request.getAction());
             synchronized(LOCK){if(!state.running||state.cancelling||request.getLongExtra("startedAt",-1)!=state.startedAt){if(token==0)stopSelf(startId);return START_NOT_STICKY;}state.pauseRequested=pause;}
-            control.pause(pause);notifyProgress();return START_NOT_STICKY;
+            control.pause(pause);notifyProgress(true);return START_NOT_STICKY;
         }
         if(CANCEL.equals(request.getAction())){
             boolean accepted;
             synchronized(LOCK){accepted=state.running&&request.getLongExtra("startedAt",-1)==state.startedAt;if(accepted){state.cancelling=true;state.pauseRequested=false;state.message=state.metadataOnly?"Annullamento verifica metadati…":"Annullamento dopo la fase di codifica in corso…";}}
-            if(accepted){control.cancel();notifyProgress();}if(token==0)stopSelf(startId);return START_NOT_STICKY;
+            if(accepted){control.cancel();notifyProgress(true);}if(token==0)stopSelf(startId);return START_NOT_STICKY;
         }
         if(!START.equals(request.getAction())||token!=0||snapshot().running)return START_NOT_STICKY;
-        String queueId=request.getStringExtra("queueId");boolean metadataOnly=request.getBooleanExtra("metadataOnly",false);
+        String queueId=request.getStringExtra("queueId");boolean metadataOnly=request.getBooleanExtra("metadataOnly",false),restore=request.getBooleanExtra("restore",false);
         ArrayList<String> values=request.getStringArrayListExtra("inputs");ImageOptions options;
         final ArrayList<String> legacyFolders;
         try{
             options=ImageOptions.from(request);
             if(queueId!=null){if(!ImageQueueStore.file(this,queueId).isFile())throw new IOException("Coda non disponibile");legacyFolders=null;}
             else{if(metadataOnly)throw new IllegalArgumentException("La verifica richiede una coda su disco");if(values==null||values.isEmpty()||values.size()>100)throw new IllegalArgumentException();legacyFolders=QueueDestinations.read(request,values.size(),options.folder);}
-        }catch(IOException|RuntimeException e){ImageQueueStore.discard(this,queueId);stopSelf(startId);return START_NOT_STICKY;}
-        token=MediaConversionGate.INSTANCE.acquire();if(token==0){ImageQueueStore.discard(this,queueId);synchronized(LOCK){state.message="È già attiva una conversione: attendi il completamento.";}stopSelf(startId);return START_NOT_STICKY;}
+        }catch(IOException|RuntimeException e){if(!ImageSessionStore.exists(this))ImageQueueStore.discard(this,queueId);stopSelf(startId);return START_NOT_STICKY;}
+        token=MediaConversionGate.INSTANCE.acquire();if(token==0){if(!ImageSessionStore.exists(this))ImageQueueStore.discard(this,queueId);synchronized(LOCK){state.message="È già attiva una conversione: attendi il completamento.";}stopSelf(startId);return START_NOT_STICKY;}
         ArrayList<String> queue=values==null?null:new ArrayList<>(values);cancelled.set(false);control.pause(false);
         synchronized(LOCK){state=new ImageRunState();state.running=true;state.metadataOnly=metadataOnly;state.total=queue==null?0:queue.size();state.startedAt=SystemClock.elapsedRealtime();state.options=options;state.message=metadataOnly?"Avvio verifica metadati…":"Avvio conversione immagini…";}
         try{
             startForeground(NOTICE,notification(),Build.VERSION.SDK_INT>=35?ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROCESSING:ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC);
             acquireWake();
-            worker.execute(()->run(queueId,queue,legacyFolders,options,startId));
-        }catch(RuntimeException error){ImageQueueStore.discard(this,queueId);synchronized(LOCK){state.running=false;state.endedAt=SystemClock.elapsedRealtime();state.message="Avvio immagini fallito: "+error.getMessage();}release();stopForeground(STOP_FOREGROUND_REMOVE);stopSelf(latestStartId);}
+            worker.execute(()->run(queueId,queue,legacyFolders,options,restore));
+        }catch(RuntimeException error){if(!ImageSessionStore.exists(this))ImageQueueStore.discard(this,queueId);synchronized(LOCK){state.running=false;state.endedAt=SystemClock.elapsedRealtime();state.message="Avvio immagini fallito: "+error.getMessage();}release();stopForeground(STOP_FOREGROUND_REMOVE);stopSelf(latestStartId);}
         return START_NOT_STICKY;
     }
-    private void run(String queueId,ArrayList<String> legacyQueue,ArrayList<String> legacyFolders,ImageOptions options,int startId){
-        boolean metadataOnly=snapshot().metadataOnly;
-        try(ImageProgressJournal journal=metadataOnly?null:new ImageProgressJournal(this)){
+    private void run(String queueId,ArrayList<String> legacyQueue,ArrayList<String> legacyFolders,ImageOptions options,boolean restore){
+        boolean metadataOnly=snapshot().metadataOnly;boolean finished=false;
+        try(ImageProgressJournal journal=new ImageProgressJournal(this)){
             ImageQueueStore.Queue job;
             if(queueId!=null)job=ImageQueueStore.read(this,queueId);
             else{job=new ImageQueueStore.Queue();job.inputs.addAll(legacyQueue);job.folders.addAll(legacyFolders);for(int i=0;i<legacyQueue.size();i++)job.names.add("Foto "+(i+1));}
             if(job.metadataOnly!=metadataOnly)throw new IOException("Tipo coda immagini non coerente");
             ArrayList<String> queue=job.inputs,folders=job.folders;
-            synchronized(LOCK){state.total=queue.size();state.queueNames=Collections.unmodifiableList(new ArrayList<>(job.names));}
+            synchronized(LOCK){
+                if(restore){ImageSessionStore.Session saved=ImageSessionStore.load(this);if(saved==null||!saved.queueId.equals(queueId)||saved.run.metadataOnly!=metadataOnly||saved.run.total!=queue.size())throw new IOException("Sessione e coda non coerenti");state=saved.run;state.running=true;state.startedAt=SystemClock.elapsedRealtime();}
+                state.total=queue.size();state.queueNames=Collections.unmodifiableList(new ArrayList<>(job.names));
+            }
+            if(queueId!=null)ImageSessionStore.save(this,queueId,snapshot());
             // New run log: never rotate away an error halfway through a large batch.
-            ImageLogStore.reset(this);
+            if(!restore)ImageLogStore.reset(this);
+            else write("RIPRESA CODA IMMAGINI · completate: "+snapshot().completed+" · i dettagli precedenti restano nel log su disco");
             write(metadataOnly?"INIZIO VERIFICA METADATI · v"+BuildConfig.VERSION_NAME+"\nNessuna decodifica o codifica. Esito positivo limitato ai metadati; non garantisce integrità dei pixel o conversione. Originali invariati.":"INIZIO IMMAGINI · v"+BuildConfig.VERSION_NAME+"\n"+options.description()+"\nEXIF/XMP/ICC standard; APP/COM e SEF foto supportato conservati anche nell’archivio interno originale. Funzioni proprietarie Samsung non garantite. Originali invariati.");
-            if(!metadataOnly)for(String folder:new HashSet<>(folders))OutputDocuments.names(this,Uri.parse(folder));
+            ImageOutput.Names outputNames=new ImageOutput.Names();
             File[] stale=getCacheDir().listFiles((d,n)->(n.startsWith("image-source-")||n.startsWith("image-heic-"))&&n.endsWith(".tmp"));if(stale!=null)for(File f:stale)f.delete();
-            for(int i=0;i<queue.size();i++){
+            for(int i=snapshot().completed;i<queue.size();i++){
                 if(control.checkpoint())break;Uri uri=Uri.parse(queue.get(i));String name=ImageFiles.name(this,uri);
                 synchronized(LOCK){state.current=i+1;state.name=name;state.message="Preparazione JPEG";}notifyProgress();
                 ImageRunState.Result result;
@@ -77,19 +85,23 @@ public final class ImageConversionService extends Service {
                 try{
                     if(metadataOnly)result=ImageMetadataCheck.inspect(this,uri,name,cancelled::get,this::stage);
                     else{stage("Controllo registro e originale");result=journal.reusable(this,queue.get(i),name,fileOptions,cancelled::get);
-                    if(result==null)result=ImageConverter.convert(this,uri,name,fileOptions,cancelled::get,this::stage);}
+                    if(result==null)result=ImageConverter.convert(this,uri,name,fileOptions,cancelled::get,this::stage,outputNames);}
                 }
                 catch(Exception e){result=new ImageRunState.Result(name,0,0,null,e.getMessage()==null?e.getClass().getSimpleName():e.getMessage(),cancelled.get()?ImageRunState.Outcome.CANCELLED:ImageRunState.Outcome.FAILED,android.util.Log.getStackTraceString(e));}
-                synchronized(LOCK){state.add(result);}
-                if(!metadataOnly)journal.record(queue.get(i),folders.get(i),fileOptions,result);
+                if(destroyed&&result.outcome==ImageRunState.Outcome.CANCELLED)break;
+                if(metadataOnly)journal.inspection(queue.get(i),result);
+                else journal.record(queue.get(i),folders.get(i),fileOptions,result);
                 if(result.outcome==ImageRunState.Outcome.FAILED)ImageFailureStore.append(this,state.startedAt,i+1,queue.get(i),folders.get(i),options,result,metadataOnly);
                 // The local result still owns the full details; only state.add keeps a bounded preview.
                 write(name+" · "+result.outcome+" · "+result.message+"\n"+result.details);
+                synchronized(LOCK){state.add(result);}
+                if(queueId!=null)ImageSessionStore.save(this,queueId,snapshot());
                 notifyProgress();
             }
+            finished=!destroyed;
             synchronized(LOCK){state.message=metadataOnly?(cancelled.get()?"Verifica metadati interrotta.":"Verifica metadati terminata · pixel non verificati."):cancelled.get()?"Coda immagini interrotta. I file già salvati restano disponibili.":"Coda immagini terminata.";}
         }catch(Exception error){synchronized(LOCK){state.message=(metadataOnly?"Verifica metadati interrotta: ":"Conversione immagini interrotta: ")+error.getMessage();}try{write(android.util.Log.getStackTraceString(error));}catch(IOException ignored){}}
-        finally{ImageQueueStore.discard(this,queueId);synchronized(LOCK){state.running=false;state.cancelling=false;state.paused=false;state.pauseRequested=false;state.endedAt=SystemClock.elapsedRealtime();}release();stopForeground(STOP_FOREGROUND_REMOVE);stopSelf(latestStartId);}
+        finally{if(finished){if(queueId!=null)ImageSessionStore.clear(this,queueId);}else if(queueId!=null){synchronized(LOCK){state.message+=" · Coda conservata: usa Riprendi coda interrotta.";}}synchronized(LOCK){state.running=false;state.cancelling=false;state.paused=false;state.pauseRequested=false;state.endedAt=SystemClock.elapsedRealtime();}release();stopForeground(STOP_FOREGROUND_REMOVE);stopSelf(latestStartId);}
     }
     private void stage(String text){synchronized(LOCK){if(!state.cancelling)state.message=text;}notifyProgress();}
     private void write(String text)throws IOException{
@@ -107,7 +119,7 @@ public final class ImageConversionService extends Service {
         synchronized(LOCK){state.paused=paused;}
         try{write(paused?"PAUSA IMMAGINI · foto completate: "+snapshot().completed+" · nessuna nuova foto avviata":"FINE PAUSA IMMAGINI · "+(cancelled.get()?"annullamento":"ripresa della stessa coda"));}
         catch(IOException error){throw new UncheckedIOException(error);}
-        notifyProgress();
+        notifyProgress(true);
     }
     private Notification notification(){ImageRunState run=snapshot();Intent open=new Intent(this,ImageActivity.class);PendingIntent page=PendingIntent.getActivities(this,NOTICE,new Intent[]{new Intent(this,MainActivity.class),open},PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
         Intent cancel=new Intent(this,ImageConversionService.class).setAction(CANCEL).putExtra("startedAt",run.startedAt);PendingIntent stop=PendingIntent.getService(this,NOTICE,cancel,PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
@@ -115,10 +127,17 @@ public final class ImageConversionService extends Service {
         if(run.running&&!run.cancelling){boolean resume=run.pauseRequested||run.paused;Intent command=new Intent(this,ImageConversionService.class).setAction(resume?RESUME:PAUSE).putExtra("startedAt",run.startedAt);PendingIntent action=PendingIntent.getService(this,resume?32:31,command,PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);notice.addAction(new Notification.Action.Builder(null,resume?"Riprendi":"Pausa",action).build());}
         return notice.addAction(new Notification.Action.Builder(null,"Interrompi",stop).build()).build();}
     private synchronized void acquireWake(){if(wake==null)wake=getSystemService(PowerManager.class).newWakeLock(PowerManager.PARTIAL_WAKE_LOCK,"CodecProbe:images");if(!wake.isHeld())wake.acquire(6*60*60*1000L);}
-    private void notifyProgress(){if(!destroyed)getSystemService(NotificationManager.class).notify(NOTICE,notification());}
+    private void notifyProgress(){notifyProgress(false);}
+    private void notifyProgress(boolean force){
+        notifications.post(()->{
+            if(destroyed||!snapshot().running)return;
+            if(force){notifications.removeCallbacks(publishNotification);notificationPending=false;publishNotification.run();}
+            else if(!notificationPending){notificationPending=true;notifications.postDelayed(publishNotification,Math.max(0,1000-(SystemClock.elapsedRealtime()-lastNotification)));}
+        });
+    }
     private synchronized void releaseWake(){if(wake!=null&&wake.isHeld())wake.release();wake=null;}
     private synchronized void release(){releaseWake();if(token!=0){MediaConversionGate.INSTANCE.release(token);token=0;}}
     @Override public void onTimeout(int startId,int type){control.cancel();synchronized(LOCK){state.cancelling=true;state.pauseRequested=false;}stage("Tempo massimo Android raggiunto: annullamento dopo la codifica in corso…");releaseWake();stopForeground(STOP_FOREGROUND_REMOVE);stopSelf(startId);}
-    @Override public void onDestroy(){destroyed=true;control.cancel();worker.shutdown();super.onDestroy();}
+    @Override public void onDestroy(){destroyed=true;notifications.removeCallbacksAndMessages(null);control.cancel();worker.shutdown();super.onDestroy();}
     @Override public IBinder onBind(Intent intent){return null;}
 }
