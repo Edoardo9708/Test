@@ -8,6 +8,9 @@ on:
         description: 'Run native SDR, ARM64 and HDR smoke tests too'
         type: boolean
         default: true
+concurrency:
+  group: apk-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 permissions:
   contents: read
 jobs:
@@ -22,7 +25,9 @@ jobs:
         with:
           fetch-depth: 0
       - name: Verify test selection rules
-        run: python3 -m unittest discover -s tests -p test_ci_scope.py -v
+        run: |
+          python3 -m unittest discover -s tests -p test_ci_scope.py -v
+          python3 -m unittest discover -s tests -p test_ci_native_key.py -v
       - name: Select checks for the complete push
         id: scope
         run: python3 scripts/ci-scope.py
@@ -50,6 +55,18 @@ jobs:
         run: bash scripts/test-yuv.sh
       - name: Install Android SDK
         run: sdkmanager "platforms;android-35" "build-tools;35.0.0" "ndk;27.2.12479018" "cmake;3.22.1"
+      - name: Fingerprint native build inputs
+        id: native-key
+        run: python3 scripts/ci-native-key.py
+      - name: Restore native sources and CMake compilation
+        id: native-cache
+        uses: actions/cache@v4
+        with:
+          key: ${{ runner.os }}-${{ runner.arch }}-native-v1-${{ steps.native-key.outputs.key }}
+          path: |
+            vendor
+            app/.cxx
+            app/build/intermediates/cxx
       - name: Prepare pinned x265 source and license
         run: bash scripts/prepare-x265.sh
       - name: Prepare pinned audio libraries and licenses
@@ -63,8 +80,10 @@ jobs:
         env:
           CODECPROBE_SIGNING_JSON: ${{ secrets.CODECPROBE_SIGNING_JSON }}
         run: python3 scripts/restore-signing.py
-      - name: Build and lint
-        run: gradle --no-daemon :app:assembleDebug :app:testDebugUnitTest :app:lintDebug
+      - name: Compile Java, run unit tests and lint before native compilation
+        run: gradle --no-daemon --build-cache :app:testDebugUnitTest :app:lintDebug
+      - name: Build installable APK
+        run: gradle --no-daemon --build-cache :app:assembleDebug
       - name: Render synthetic Home UI previews
         run: python3 scripts/emit-ui-previews.py
       - name: Verify permanent APK signature
@@ -81,6 +100,7 @@ jobs:
         if: steps.signing.outputs.ready == 'true'
         with:
           name: v${{ steps.package.outputs.version }}-CodecProbe-APK
+          overwrite: true
           path: ${{ steps.package.outputs.apk_path }}
           if-no-files-found: error
       - name: Package corresponding source
@@ -88,6 +108,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: v${{ steps.package.outputs.version }}-CodecProbe-source
+          overwrite: true
           path: CodecProbe-source.tar.gz
       - name: Build and run native software smoke test
         if: needs.scope.outputs.native == 'true'
