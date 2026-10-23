@@ -2,6 +2,11 @@ name: Build APK
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - README.md
+      - docs/**
+      - LICENSE
+      - LICENSE.md
   workflow_dispatch:
     inputs:
       full_tests:

@@ -8,7 +8,7 @@ La cache nativa conserva `vendor`, `app/.cxx` e `app/build/intermediates/cxx`. N
 
 Dopo il ripristino vengono comunque eseguiti preparazione e controlli delle dipendenze, CMake/Gradle, firma e verifica delle librerie effettivamente incluse nell’APK. La prima build con una chiave nuova resta completa e popola la cache; il vantaggio sulle librerie si misura dalle build successive. Le patch idempotenti non riscrivono sorgenti invariati, così Ninja può riusare gli oggetti compilati.
 
-Gli aggiornamenti dello stesso ramo annullano le esecuzioni precedenti ancora in corso. Le riesecuzioni possono sostituire i propri artifact generati senza conflitti di nome.
+Le modifiche limitate a documentazione e licenze non avviano una build e non annullano una build del codice già in corso. Gli aggiornamenti del codice dello stesso ramo annullano le esecuzioni precedenti ancora in corso. Le riesecuzioni possono sostituire i propri artifact generati senza conflitti di nome.
 
 Per verificare localmente le regole:
 
