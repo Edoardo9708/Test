@@ -2,7 +2,7 @@
 
 La build esegue prima compilazione Java, test Robolectric e lint. Solo se passano compila e firma l’APK: un errore Java o un test fallito non deve aspettare la compilazione dei codec.
 
-I test Java restano completi. Gradle usa la propria cache delle attività; test o sorgenti diversi invalidano automaticamente i risultati relativi. Gli smoke test nativi restano selezionati da `scripts/ci-scope.py`, con controllo completo per modifiche native, configurazioni sconosciute e richiesta manuale completa.
+I test Java restano completi. Le anteprime generate sono dichiarate come output dei test, per recuperarle insieme ai risultati quando Gradle riusa una verifica identica. Gradle usa la propria cache delle attività; test o sorgenti diversi invalidano automaticamente i risultati relativi. Gli smoke test nativi restano selezionati da `scripts/ci-scope.py`, con controllo completo per modifiche native, configurazioni sconosciute e richiesta manuale completa.
 
 La cache nativa conserva `vendor`, `app/.cxx` e `app/build/intermediates/cxx`. Non conserva APK, DEX o chiavi di firma. La chiave deriva da tutti i file nativi tracciati, script di preparazione/patch/compilazione, configurazione Gradle e workflow, oltre ai percorsi del workspace e SDK e al sistema del runner. Non ci sono chiavi di ripiego: sorgenti o strumenti diversi richiedono una nuova compilazione. Le sole righe `versionCode` e `versionName` non invalidano le librerie native.
 

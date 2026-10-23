@@ -37,7 +37,11 @@ android {
     }
     testOptions {
         unitTests.includeAndroidResources = true
-        unitTests.all { testLogging { events 'passed', 'failed'; exceptionFormat 'full' } }
+        unitTests.all {
+            // Render tests create previews consumed by emit-ui-previews.py. Cache them with the test results.
+            outputs.dir(project.layout.buildDirectory.dir('reports/ui'))
+            testLogging { events 'passed', 'failed'; exceptionFormat 'full' }
+        }
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
