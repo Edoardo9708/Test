@@ -95,7 +95,8 @@ internal fun PhotoButton(
     shape: Shape? = null,
     tag: String = "",
     compact: Boolean = false,
-    destructive: Boolean = false
+    destructive: Boolean = false,
+    chrome: Boolean = false
 ) {
     val groupInteraction = LocalPhotoButtonInteraction.current
     val interaction = groupInteraction ?: remember { MutableInteractionSource() }
@@ -131,7 +132,8 @@ internal fun PhotoButton(
     Surface(
         onClick = onClick, enabled = enabled, interactionSource = interaction, shape = actualShape,
         color = fill, contentColor = ink, border = BorderStroke(1.dp, edge),
-        modifier = modifier.defaultMinSize(minHeight = 48.dp).clip(actualShape).semantics {
+        modifier = modifier.defaultMinSize(minHeight = 48.dp).clip(actualShape)
+            .then(if (chrome) Modifier.photoGlass(actualShape, chrome = true) else Modifier).semantics {
             role = Role.Button
             if (tag.isNotEmpty()) testTag = tag
             this.selected = selected

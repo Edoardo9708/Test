@@ -111,8 +111,8 @@ private fun PhotoDock(state: PhotoUiState, host: PhotoComposeHost, modifier: Mod
     Column(modifier.widthIn(max = 440.dp).fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            PhotoButton("Indietro", { host.command(PhotoCommand.BACK) }, Modifier.weight(1f).fillMaxHeight().photoGlass(RoundedCornerShape(28.dp), chrome = true),
-                icon = R.drawable.trial_back, tag = "photo-back", compact = true)
+            PhotoButton("Indietro", { host.command(PhotoCommand.BACK) }, Modifier.weight(1f).fillMaxHeight(),
+                icon = R.drawable.trial_back, tag = "photo-back", compact = true, chrome = true)
             if (state.step == ImageScreen.FILES || state.step == ImageScreen.COMPRESSION) {
                 PhotoButton(if (state.step == ImageScreen.FILES) "Procedi al punto 2" else "Procedi al punto 3",
                     { host.command(PhotoCommand.NEXT) }, Modifier.weight(1f).fillMaxHeight(), icon = R.drawable.trial_next,
