@@ -8,7 +8,9 @@ audio = sorted(directory.glob('audio-*.png'))
 images = sorted(directory.glob('image-*.png'))
 assert len(home) == 10, home
 assert len(audio) == 4, audio
-assert len(images) == 5, images
+required_images = {"image-conversion.png", "image-files.png", "image-floating-workspace.png",
+                   "image-metadata-dark.png", "image-quality-dark.png", "image-settings.png"}
+assert required_images.issubset({path.name for path in images}), images
 destinations = sorted(directory.glob('destination-*.png'))
 assert len(destinations) == 6, destinations
 settings = sorted(directory.glob('settings-*.png'))

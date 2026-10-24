@@ -14,12 +14,19 @@ final class AppNavigation extends LinearLayout {
     AppNavigation(AppUi ui,boolean audioSelected){
         this(ui,audioSelected?Workspace.AUDIO:Workspace.VIDEO);
     }
-    AppNavigation(AppUi ui,Workspace selected){
+    AppNavigation(AppUi ui,Workspace selected){this(ui,selected,false);}
+    AppNavigation(AppUi ui,Workspace selected,boolean compact){
         super(ui.activity);setOrientation(HORIZONTAL);setBackgroundColor(ui.bg);
         video=tab(ui,"Video",selected==Workspace.VIDEO,()->open(ui,selected,Workspace.VIDEO,MainActivity.class));
         audio=tab(ui,"Audio",selected==Workspace.AUDIO,()->open(ui,selected,Workspace.AUDIO,AudioActivity.class));
         images=tab(ui,"Immagini",selected==Workspace.IMAGES,()->open(ui,selected,Workspace.IMAGES,ImageActivity.class));
         analysis=tab(ui,"Analisi",selected==Workspace.ANALYSIS,()->open(ui,selected,Workspace.ANALYSIS,AnalysisActivity.class));
+        if(compact)for(Button b:new Button[]{video,audio,images,analysis}){
+            LinearLayout column=(LinearLayout)b.getParent();column.removeViewAt(1);
+            b.setTextSize(12);b.setPadding(ui.dp(2),0,ui.dp(2),0);b.setMinHeight(ui.dp(44));b.setMinimumHeight(ui.dp(44));
+            b.setBackground(new RippleDrawable(ColorStateList.valueOf(ui.border),ui.shape(b.isSelected()?ui.dark?0xFF314E7C:0xFFD5E4FF:android.graphics.Color.TRANSPARENT,24),null));
+            column.setLayoutParams(new LinearLayout.LayoutParams(0,-1,1));
+        }
     }
     private static void open(AppUi ui,Workspace selected,Workspace target,Class<? extends Activity> screen){
         if(selected==target)return;
