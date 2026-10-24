@@ -22,7 +22,7 @@ permissions:
 jobs:
   scope:
     name: Select relevant checks
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       build: ${{ steps.scope.outputs.build }}
       native: ${{ steps.scope.outputs.native }}
@@ -49,7 +49,7 @@ jobs:
   build:
     needs: scope
     if: needs.scope.outputs.build == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
@@ -191,7 +191,7 @@ jobs:
     name: Audio conversion smoke
     needs: scope
     if: needs.scope.outputs.native == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
@@ -213,7 +213,7 @@ jobs:
     name: JPEG to HEIC conversion smoke
     needs: scope
     if: needs.scope.outputs.native == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
@@ -241,7 +241,7 @@ jobs:
     name: Software HEVC decoder smoke
     needs: scope
     if: needs.scope.outputs.native == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4

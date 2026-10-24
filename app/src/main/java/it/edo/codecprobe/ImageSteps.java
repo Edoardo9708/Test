@@ -11,6 +11,7 @@ final class ImageSteps extends AppSections {
     private final LinkedHashMap<String,LinearLayout> panels=new LinkedHashMap<>();
     final LinearLayout chooser;
     final Button newWork,previousWork;
+    final TextView previousHint;
     Runnable changed=()->{};
     private String current;
 
@@ -22,6 +23,7 @@ final class ImageSteps extends AppSections {
         ui.text(chooser,"Puoi tornare qui senza perdere il nuovo lavoro.",14);
         newWork=ui.button(chooser,"Nuovo lavoro");ui.styleButton(newWork,true);
         previousWork=ui.button(chooser,"Riprendi sessione");
+        previousHint=ui.text(chooser,"",13);
         newWork.setOnClickListener(v->focusCard(ImageScreen.FILES));
         previousWork.setOnClickListener(v->focusCard(ImageScreen.HEIC));
     }
@@ -34,7 +36,8 @@ final class ImageSteps extends AppSections {
         parent.addView(panel,lp);return panel;
     }
     @Override LinearLayout card(LinearLayout page,String title){
-        LinearLayout panel=group(ui,page);panels.put(title,panel);
+        LinearLayout panel=new LinearLayout(ui.activity);panel.setOrientation(LinearLayout.VERTICAL);
+        page.addView(panel,new LinearLayout.LayoutParams(-1,-2));panels.put(title,panel);
         Button heading=new Button(ui.activity);ui.styleButton(heading,false);
         heading.setText(title);heading.setGravity(android.view.Gravity.START|android.view.Gravity.CENTER_VERTICAL);
         heading.setPadding(0,0,0,ui.dp(6));heading.setBackground(null);heading.setClickable(false);
@@ -42,6 +45,7 @@ final class ImageSteps extends AppSections {
         heading.setAccessibilityHeading(true);panel.addView(heading,new LinearLayout.LayoutParams(-1,-2));headers.put(title,heading);
         LinearLayout body=new LinearLayout(ui.activity);body.setOrientation(LinearLayout.VERTICAL);
         panel.addView(body,new LinearLayout.LayoutParams(-1,-2));bodies.put(title,body);
+        if(!title.equals(ImageScreen.FILES)){body.setPadding(ui.dp(16),ui.dp(12),ui.dp(16),ui.dp(16));body.setBackground(ui.shape(ui.dark?0xE6293548:0xE6E8EFFC,26));}
         render();return body;
     }
     @Override void setCardExpanded(String title,boolean expanded){if(expanded)focusCard(title);}

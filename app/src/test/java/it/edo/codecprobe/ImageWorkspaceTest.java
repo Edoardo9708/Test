@@ -41,7 +41,7 @@ public class ImageWorkspaceTest {
             JSONObject block=json.getJSONArray("metadataPayloads").getJSONObject(0);byte[] payload=Base64.getDecoder().decode(block.getString("base64"));assertArrayEquals(Arrays.copyOfRange(original,block.getInt("payloadOffset"),block.getInt("payloadOffset")+block.getInt("bytes")),payload);
             assertArrayEquals(original,Files.readAllBytes(source.toPath()));assertEquals(1,ImageDraftStore.load(controller.get()).inputs.size());
             assertEquals("audio-sentinel",audioPrefs.getString("selection",""));
-            images.screen.clear.performClick();org.robolectric.shadows.ShadowAlertDialog.getLatestAlertDialog().getButton(android.content.DialogInterface.BUTTON_POSITIVE).performClick();assertTrue(images.state.inputs.isEmpty());assertNull(images.state.info);assertFalse(images.screen.export.isEnabled());assertArrayEquals(original,Files.readAllBytes(source.toPath()));
+            images.screen.clear.performClick();org.robolectric.shadows.ShadowAlertDialog.getLatestAlertDialog().getButton(android.content.DialogInterface.BUTTON_POSITIVE).performClick();Shadows.shadowOf(Looper.getMainLooper()).idle();assertTrue(images.state.inputs.isEmpty());assertNull(images.state.info);assertFalse(images.screen.export.isEnabled());assertArrayEquals(original,Files.readAllBytes(source.toPath()));
         }finally{controller.pause().stop().destroy();source.delete();report.delete();audioPrefs.edit().putString("selection",previous).commit();}
     }
     @Test public void cancelledSelectionKeepsDraftAndUnsupportedFileCannotExport()throws Exception{

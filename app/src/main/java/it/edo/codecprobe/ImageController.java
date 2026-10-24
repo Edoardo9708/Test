@@ -168,7 +168,7 @@ final class ImageController {
         });
     }
     void render(){
-        state.clamp();selectedPhotos.retainAll(state.inputs);int count=state.inputs.size();boolean any=count>0,busy=busy();renderedBusy=busy;
+        state.clamp();if(!selectedPhotos.isEmpty())selectedPhotos.retainAll(new HashSet<>(state.inputs));int count=state.inputs.size();boolean any=count>0,busy=busy();renderedBusy=busy;
         screen.importFolder.setEnabled(!busy);screen.retryFailures.setEnabled(!busy&&activity.getDatabasePath(ImageProgressJournal.DATABASE).isFile());
         screen.selectionSummary.setText(state.selectionLabel);screen.selectionSummary.setVisibility(state.selectionLabel.isEmpty()?android.view.View.GONE:android.view.View.VISIBLE);
         screen.select.setEnabled(!busy);screen.clear.setEnabled(any&&!busy);screen.remove.setEnabled(any&&!busy);
@@ -193,7 +193,7 @@ final class ImageController {
         JpegInventory.Info info=state.info;
         screen.summary.setText(info==null?"":String.format(Locale.ITALY,"%d × %d · %.2f MB · JPEG %d bit · %d componenti",info.width,info.height,info.bytes/1000000.0,info.precision,info.components));
         screen.status.setText(state.importing?state.notice:state.reading?"Analisi della foto…":!state.notice.isEmpty()?state.notice:info!=null?"JPEG analizzato. La compatibilità completa verrà controllata prima della codifica.":"Scegli le foto. Gli originali restano invariati.");
-        if(info==null){screen.selectedItem.showMetadata(Collections.emptyMap(),Collections.emptyMap());screen.details.setText(state.reading?"Lettura metadati…":state.notice.isEmpty()?"Seleziona una foto per leggere i metadati.":"Analisi non disponibile: "+state.notice);return;}
+        if(info==null){screen.selectedItem.showMetadata(Collections.singletonMap("LETTURA",state.reading?"Lettura metadati…":state.notice.isEmpty()?"Seleziona una foto per leggere i metadati.":state.notice),Collections.emptyMap());screen.details.setText(state.reading?"Lettura metadati…":state.notice.isEmpty()?"Seleziona una foto per leggere i metadati.":"Analisi non disponibile: "+state.notice);return;}
         LinkedHashMap<String,Integer> counts=new LinkedHashMap<>();for(JpegInventory.Block b:info.blocks)counts.put(b.kind,counts.getOrDefault(b.kind,0)+1);
         StringBuilder detail=new StringBuilder();for(Map.Entry<String,Integer> e:counts.entrySet())detail.append(e.getKey()).append(": ").append(e.getValue()).append(" blocchi\n");
         if(counts.isEmpty())detail.append("Nessun blocco APP o commento presente.\n");
@@ -212,7 +212,7 @@ final class ImageController {
     private ArrayList<String> selectionSources(){ArrayList<String> result=new ArrayList<>();for(int n:selectionIndices())result.add(state.inputs.get(n));return result;}
     void toggleSelection(int index){
         if(busy()||index<0||index>=state.inputs.size())return;
-        screen.selectedItem.cancelTransition();String input=state.inputs.get(index);
+        screen.selectedItem.cancelTransition();stopPreviewReads();String input=state.inputs.get(index);
         if(!selectedPhotos.remove(input)){selectedPhotos.add(input);state.selected=index;}
         if(selectedPhotos.size()==1)state.selected=state.inputs.indexOf(selectedPhotos.iterator().next());
         if(selectedPhotos.size()<=1)open();else render();

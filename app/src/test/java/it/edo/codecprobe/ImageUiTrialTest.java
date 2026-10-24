@@ -61,10 +61,10 @@ public class ImageUiTrialTest {
             assertEquals(View.VISIBLE,images.screen.selectedItem.detailsBody.getVisibility());
             images.screen.remove.performClick();assertEquals(3,images.state.inputs.size());
             ShadowAlertDialog.getLatestAlertDialog().getButton(DialogInterface.BUTTON_NEGATIVE).performClick();assertEquals(3,images.state.inputs.size());
-            images.screen.remove.performClick();ShadowAlertDialog.getLatestAlertDialog().getButton(DialogInterface.BUTTON_POSITIVE).performClick();settle(images);
+            images.screen.remove.performClick();ShadowAlertDialog.getLatestAlertDialog().getButton(DialogInterface.BUTTON_POSITIVE).performClick();Shadows.shadowOf(Looper.getMainLooper()).idle();settle(images);
             assertEquals(1,images.state.inputs.size());for(File file:files)assertTrue(file.exists());
             images.screen.clear.performClick();assertEquals(1,images.state.inputs.size());
-            ShadowAlertDialog.getLatestAlertDialog().getButton(DialogInterface.BUTTON_POSITIVE).performClick();assertTrue(images.state.inputs.isEmpty());
+            ShadowAlertDialog.getLatestAlertDialog().getButton(DialogInterface.BUTTON_POSITIVE).performClick();Shadows.shadowOf(Looper.getMainLooper()).idle();assertTrue(images.state.inputs.isEmpty());
         }finally{activity.pause().stop().destroy();}
     }
     @Test public void folderImportIsAdditiveAndKeepsExistingDestinationEvenForDuplicates()throws Exception{

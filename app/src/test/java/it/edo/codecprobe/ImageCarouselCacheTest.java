@@ -50,7 +50,7 @@ public class ImageCarouselCacheTest {
             assertSame(original,images.state.info);assertEquals(2,images.screen.selectedItem.chips.size());
             images.screen.reload.performClick();settle(images);
             assertNull(images.state.info);assertTrue(images.state.notice.contains("Non è un JPEG"));
-            images.screen.clear.performClick();org.robolectric.shadows.ShadowAlertDialog.getLatestAlertDialog().getButton(android.content.DialogInterface.BUTTON_POSITIVE).performClick();assertEquals(0,ImageMetadataCache.memory.size());
+            images.screen.clear.performClick();org.robolectric.shadows.ShadowAlertDialog.getLatestAlertDialog().getButton(android.content.DialogInterface.BUTTON_POSITIVE).performClick();Shadows.shadowOf(Looper.getMainLooper()).idle();assertEquals(0,ImageMetadataCache.memory.size());
             assertEquals(0,images.screen.selectedItem.chips.size());assertTrue(first.exists());
         }finally{controller.pause().stop().destroy();first.delete();second.delete();reset();}
     }

@@ -18,20 +18,27 @@ final class ImageScreen {
     ImageScreen(AppUi ui,Bundle saved){
         this.ui=ui;page=ui.newPage();settings=AppHeader.add(ui,page,"Converti immagini","JPEG → HEIC · x265 · v"+BuildConfig.VERSION_NAME);
         sections=new ImageSteps(ui,page,saved);
-        LinearLayout files=sections.card(page,FILES),actions=ui.row(files);select=ui.halfButton(actions,"Aggiungi file",true);clear=ui.halfButton(actions,"Svuota tutto",false);
-        LinearLayout imports=ui.row(files);importFolder=ui.halfButton(imports,"Leggi cartella",true);retryFailures=ui.halfButton(imports,"Carica fallite",false);
-        selectionSummary=ui.text(files,"",14);
-        selectedItem=new SelectedItemView(ui,files,"Foto","Nessuna foto selezionata","Dettagli foto",true);position=selectedItem.number;name=selectedItem.name;summary=selectedItem.summary;
+        LinearLayout files=sections.card(page,FILES),importsPanel=ImageSteps.group(ui,files),actions=ui.row(importsPanel);
+        select=ui.halfButton(actions,"Aggiungi\nfile",true);importFolder=ui.halfButton(actions,"Leggi\ncartella",true);clear=ui.halfButton(actions,"Svuota",false);
+        LinearLayout photoPanel=ImageSteps.group(ui,files);
+        selectionSummary=ui.text(photoPanel,"",14);
+        selectedItem=new SelectedItemView(ui,photoPanel,"Foto","Nessuna foto selezionata","Dettagli foto",true);position=selectedItem.number;name=selectedItem.name;summary=selectedItem.summary;
         metadata=selectedItem.details;remove=selectedItem.remove;
         details=ui.text(selectedItem.detailsBody,"Seleziona una foto per leggere i metadati.",15);details.setTextIsSelectable(true);details.setVisibility(android.view.View.GONE);
-        reload=ui.button(files,"Rileggi metadati");
-        checkMetadata=ui.button(files,"Verifica compatibilità");
-        ui.text(files,"Controlla i metadati di tutte le foto selezionate, inclusa la coda JPEG, senza decodificare o convertire. Legge una foto alla volta; pausa, annulla e risultati nella sezione avanzamento. Un esito positivo riguarda i metadati: i pixel saranno verificati durante la conversione.",13);
-        status=ui.text(files,"Scegli le foto. Gli originali restano invariati.",14);destinations=new MediaDestinationsView(ui,files,MediaKind.IMAGE);chooseFolder=destinations.pickFolder;folder=destinations.folderLabel;
+        ((android.view.ViewGroup)remove.getParent()).removeView(remove);((android.view.ViewGroup)metadata.getParent()).removeView(metadata);
+        LinearLayout photoActions=ui.row(photoPanel);photoActions.addView(remove,new LinearLayout.LayoutParams(0,-2,1));
+        reload=ui.halfButton(photoActions,"Rileggi",false);photoActions.addView(metadata,new LinearLayout.LayoutParams(0,-2,1));remove.setText("Rimuovi");metadata.setText("Dettagli");
+        ((android.view.ViewGroup)selectedItem.detailsBody.getParent()).removeView(selectedItem.detailsBody);photoPanel.addView(selectedItem.detailsBody);
+        status=ui.text(photoPanel,"Scegli le foto. Gli originali restano invariati.",14);
+        LinearLayout savingPanel=ImageSteps.group(ui,files);ui.text(savingPanel,"Salvataggio",21).setAccessibilityHeading(true);
+        destinations=new MediaDestinationsView(ui,savingPanel,MediaKind.IMAGE);chooseFolder=destinations.pickFolder;folder=destinations.folderLabel;
         ui.text(destinations.body,"Il nome originale viene mantenuto con estensione .heic. In caso di omonimi viene aggiunto un numero; gli originali sono conservati.",13);
-        ConversionOptionsView options=new ConversionOptionsView(ui,files,false,true);smaller=options.smaller;screenOn=options.screenOn;
+        ConversionOptionsView options=new ConversionOptionsView(ui,savingPanel,false,true);smaller=options.smaller;screenOn=options.screenOn;
         LinearLayout compression=sections.card(page,COMPRESSION);quality=new ImageQualityControls(ui,compression,()->{});
-        LinearLayout output=sections.card(page,HEIC),buttons=ui.row(output);convert=ui.halfButton(buttons,"Converti e salva",true);cancel=ui.halfButton(buttons,"Annulla",false);ui.danger(cancel);pause=ui.button(output,"Pausa");
+        LinearLayout output=sections.card(page,HEIC);
+        checkMetadata=ui.button(output,"Verifica compatibilità dei metadati");retryFailures=ui.button(output,"Carica foto fallite");
+        ui.text(output,"La verifica legge i metadati senza convertire. I pixel saranno verificati durante la conversione.",13);
+        LinearLayout buttons=ui.row(output);convert=ui.halfButton(buttons,"Converti e salva",true);cancel=ui.halfButton(buttons,"Annulla",false);ui.danger(cancel);pause=ui.button(output,"Pausa");
         LinearLayout recovery=ui.row(output);resumeSession=ui.halfButton(recovery,"Riprendi coda interrotta",true);discardSession=ui.halfButton(recovery,"Scarta coda interrotta",false);
         ui.text(output,"Pausa completa la foto in corso, poi attende. Riprendi continua dalla foto successiva, senza ricreare la coda.",13);
 
@@ -45,6 +52,10 @@ final class ImageScreen {
         LogPanelView logPanel=new LogPanelView(ui,diagnostic,"Cancella log immagini","Cancella il log immagini nell’app. Le foto, il resoconto e i TXT già esportati restano salvati.");clearLog=logPanel.clear;toggleLog=logPanel.toggle;log=logPanel.log;
         Button diagnosticButton=ui.button(output,"Diagnostica e log");diagnosticButton.setOnClickListener(v->sections.focusCard(DETAILS));
         TrialIcons.set(ui,select,R.drawable.trial_add,true);TrialIcons.set(ui,importFolder,R.drawable.trial_folder,true);TrialIcons.set(ui,clear,R.drawable.trial_bin,false);
+        for(Button button:new Button[]{select,importFolder,clear}){
+            android.graphics.drawable.Drawable icon=button.getCompoundDrawablesRelative()[0];button.setCompoundDrawablesRelative(null,icon,null,null);
+            button.setTextSize(13);button.setMinHeight(ui.dp(84));button.setMinimumHeight(ui.dp(84));button.setPadding(ui.dp(4),ui.dp(10),ui.dp(4),ui.dp(8));
+        }
         navigation=new AppNavigation(ui,AppNavigation.Workspace.IMAGES,true);layout=new ImageWorkspaceLayout(ui,page,navigation,sections);
         Runnable navigate=sections.changed;sections.changed=()->{navigate.run();selectedItem.thumbnails.active(FILES.equals(sections.current()));};
     }

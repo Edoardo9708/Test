@@ -55,7 +55,7 @@ final class MediaDestinationsController {
         view.pickAllFolder.setOnClickListener(v->pick(ALL,null));
         view.videoOrigin.setOnCheckedChangeListener((v,value)->{
             if(view.updating||host.busy()||choosing||host.inputs().isEmpty())return;
-            for(int index:host.selectedIndices())plan().files.get(index).origin=value;edited();
+            DestinationPlan plan=plan();for(int index:host.selectedIndices())plan.files.get(index).origin=value;edited();
         });
         view.applyAllDestinations.setOnCheckedChangeListener((v,value)->{
             if(view.updating||host.busy()||choosing)return;plan().applyAll=value;edited();
@@ -76,7 +76,8 @@ final class MediaDestinationsController {
         if(closed)return;
         DestinationPlan plan=plan();
         view.render(plan,host.inputs().size(),host.selected(),host.busy(),choosing);
-        if(host.selectedIndices().size()>1){view.videoDestinationTitle.setText("DESTINAZIONE · "+host.selectedIndices().size()+" FILE CORRENTI");view.videoDestinationHelp.setText(plan.applyAll?"È attiva la regola di tutta la coda. Disattivala per gestire il gruppo.":"La cartella scelta verrà applicata a tutti i file selezionati.");}panel.setBusy(host.busy()||choosing);
+        int groupSize=host.selectedIndices().size();
+        if(groupSize>1){view.videoDestinationTitle.setText("DESTINAZIONE · "+groupSize+" FILE CORRENTI");view.videoDestinationHelp.setText(plan.applyAll?"È attiva la regola di tutta la coda. Disattivala per gestire il gruppo.":"La cartella scelta verrà applicata a tutti i file selezionati.");}panel.setBusy(host.busy()||choosing);
         if(panelPlan==null||!panelInputs.equals(host.inputs())||!panelNames.equals(host.names())||!panelPlan.matches(plan)){
             panelInputs=new ArrayList<>(host.inputs());panelNames=new ArrayList<>(host.names());panelPlan=new DestinationPlan.Snapshot(plan);
             panel.setInputs(panelInputs,panelNames,plan.effectiveOrigins(),plan.effectiveFolders());
@@ -120,7 +121,8 @@ final class MediaDestinationsController {
                 int index=host.inputs().indexOf(source);
                 if(index<0)throw new IllegalStateException("Il file della richiesta non è più selezionato");
                 if(targets.isEmpty())targets.add(source);
-                for(String input:targets){int selected=host.inputs().indexOf(input);if(selected>=0)plan().setFolder(selected,data.getData().toString());}edited();
+                DestinationPlan plan=plan();HashMap<String,Integer> indices=new HashMap<>();for(int n=0;n<host.inputs().size();n++)indices.put(host.inputs().get(n),n);
+                for(String input:targets){Integer selected=indices.get(input);if(selected!=null)plan.setFolder(selected,data.getData().toString());}edited();
             }
         }catch(RuntimeException error){host.toast("Cartella non salvata: "+error.getMessage());}
         clearPending();refresh();host.changed();return true;

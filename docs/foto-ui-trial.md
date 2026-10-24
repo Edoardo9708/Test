@@ -24,4 +24,6 @@ Questa prova non implementa ancora tutta la specifica: editor unificato della de
 
 ## Verifica
 
-I test Robolectric verificano selezione, navigazione, destinazioni e rendering sintetico. GitHub Actions esegue test Java, lint e compilazione APK anche sui branch `ui/**`. La prova su telefono resta necessaria per gesti, compatibilità dei provider SAF, leggibilità, prestazioni e animazioni.
+I test Robolectric verificano selezione, navigazione, destinazioni e rendering sintetico. GitHub Actions esegue test Java, lint e compilazione APK anche sui branch `ui/**`. Runner fissato a Ubuntu 24.04: Ubuntu 26.04 include CMake 4, che rifiuta le policy obsolete della versione fissata di x265.
+
+La prova su telefono resta necessaria per gesti, compatibilità dei provider SAF, leggibilità, prestazioni e animazioni.
