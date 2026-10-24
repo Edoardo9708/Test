@@ -77,12 +77,13 @@ private fun PhotoCarousel(state: PhotoUiState, host: PhotoComposeHost) {
                 ImageRequest.Builder(context).data(item.uri).size(192).memoryCacheKey("${item.uri}:${state.thumbnailRevision}")
                     .placeholder(placeholder).error(placeholder).crossfade(false).build()
             }
-            AsyncImage(request, item.name, imageLoader = host.imageLoader, contentScale = ContentScale.Crop,
-                modifier = Modifier.padding(vertical = 4.dp).size(64.dp).clip(RoundedCornerShape(14.dp))
-                    .border(if (item.selected) 3.dp else 1.dp,
-                        if (item.selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline, RoundedCornerShape(14.dp))
-                    .combinedClickable(enabled = !state.busy, onClick = { host.select(index, false) }, onLongClick = { host.select(index, true) })
-                    .semantics { selected = item.selected; testTag = "photo-$index" })
+            val tile = Modifier.padding(vertical = 4.dp).size(64.dp).clip(RoundedCornerShape(14.dp))
+                .border(if (item.selected) 3.dp else 1.dp,
+                    if (item.selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline, RoundedCornerShape(14.dp))
+                .combinedClickable(enabled = !state.busy, onClick = { host.select(index, false) }, onLongClick = { host.select(index, true) })
+                .semantics { selected = item.selected; testTag = "photo-$index" }
+            if (host.active) AsyncImage(request, item.name, imageLoader = host.imageLoader, contentScale = ContentScale.Crop, modifier = tile)
+            else Image(androidx.compose.ui.res.painterResource(placeholder), item.name, modifier = tile, contentScale = ContentScale.Crop)
         }
         if (state.total > state.items.size) item { Text("…", Modifier.padding(16.dp)) }
     }

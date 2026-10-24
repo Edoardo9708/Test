@@ -18,7 +18,7 @@ Permessi cartelle, avanzamento, report e diagnostica sono ancora controlli Java 
 
 I comandi richiamano i binding esistenti, mantenendo conferme, URI delle richieste pendenti, permessi e recupero. Durante questa fase vengono ancora costruiti i widget Java di binding, ma la loro vecchia pagina è scollegata e non viene disegnata. La loro rimozione è un passaggio successivo, dopo aver separato completamente lo stato di presentazione dai widget. Questo compromesso non viene presentato come un'ottimizzazione delle allocazioni iniziali.
 
-Coil carica solo le miniature composte dalla `LazyRow`, con richiesta da 192 px, cache RAM limitata a 2 MiB e nessuna cache disco. Le tessere restano da 64 dp. La rilettura invalida la cache. Il movimento decorativo si ferma dopo 36 secondi, si sospende fuori pagina/durante elaborazioni e rispetta le animazioni di sistema. Nessuna animazione decorativa deve competere con la conversione.
+Coil carica solo le miniature composte dalla `LazyRow`, con richiesta da 192 px, cache RAM limitata a 2 MiB e nessuna cache disco. Fetch e decodifica passano da un dispatcher con parallelismo uno; uscendo dalla pagina le richieste delle miniature vengono cancellate. Le tessere restano da 64 dp. La rilettura invalida la cache. Il movimento decorativo si ferma dopo 36 secondi, si sospende fuori pagina/durante elaborazioni e rispetta le animazioni di sistema. Nessuna animazione decorativa deve competere con la conversione.
 
 ## Dipendenze
 

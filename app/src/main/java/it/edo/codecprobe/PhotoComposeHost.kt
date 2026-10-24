@@ -13,6 +13,7 @@ import coil.ImageLoader
 import coil.memory.MemoryCache
 
 /** Temporary boundary: Compose commands use the existing Java coordinators and confirmations. */
+@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 internal class PhotoComposeHost(private val images: ImageController) {
     private val screen get() = images.screen
     private val destinations get() = screen.destinations as PhotoDestinationsView
@@ -22,6 +23,8 @@ internal class PhotoComposeHost(private val images: ImageController) {
     var active by mutableStateOf(false)
         private set
     val imageLoader = ImageLoader.Builder(images.activity)
+        .dispatcher(kotlinx.coroutines.Dispatchers.IO.limitedParallelism(1))
+        .bitmapFactoryMaxParallelism(1)
         .memoryCache { MemoryCache.Builder(images.activity).maxSizeBytes(2 * 1024 * 1024).build() }
         .diskCache(null)
         .build()

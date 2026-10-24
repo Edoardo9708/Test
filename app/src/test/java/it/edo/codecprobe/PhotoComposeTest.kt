@@ -50,8 +50,8 @@ class PhotoComposeTest {
         compose.onNodeWithTag("photo-back").performClick()
         compose.onNodeWithTag("photo-back").performClick()
         compose.onNodeWithTag("photo-new").assertIsDisplayed().performClick()
-        val tree = compose.onRoot().printToString()
-        compose.runOnIdle { assertEquals(tree, ImageScreen.FILES, compose.activity.images.screen.sections.current()) }
+        val restoredTree = compose.onRoot().printToString()
+        compose.runOnIdle { assertEquals(restoredTree, ImageScreen.FILES, compose.activity.images.screen.sections.current()) }
         compose.runOnIdle {
             val images = compose.activity.images
             assertTrue(images.compose.view.isShown)
