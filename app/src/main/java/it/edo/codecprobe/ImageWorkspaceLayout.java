@@ -29,7 +29,7 @@ final class ImageWorkspaceLayout {
         FrameLayout.LayoutParams top=new FrameLayout.LayoutParams(-1,-2,Gravity.TOP);top.setMargins(ui.dp(12),0,ui.dp(12),0);root.addView(title,top);
         footer=new LinearLayout(ui.activity);footer.setOrientation(LinearLayout.VERTICAL);
         footer.setPadding(ui.dp(16),ui.dp(6),ui.dp(16),ui.dp(8));
-        actions=new LinearLayout(ui.activity);
+        actions=new LinearLayout(ui.activity);actions.setBaselineAligned(false);actions.setGravity(Gravity.CENTER_VERTICAL);
         back=ui.halfButton(actions,"Indietro",false);forward=ui.halfButton(actions,"Procedi al punto 2",true);
         for(Button b:new Button[]{back,forward}){b.setMinHeight(ui.dp(52));b.setMinimumHeight(ui.dp(52));b.setPadding(ui.dp(12),ui.dp(8),ui.dp(12),ui.dp(8));}
         footer.addView(actions,new LinearLayout.LayoutParams(-1,-2));

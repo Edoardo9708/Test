@@ -22,6 +22,7 @@ final class ImageScreen {
         android.graphics.drawable.Drawable settingsIcon=ui.activity.getDrawable(R.drawable.trial_settings).mutate();settingsIcon.setTint(ui.accent);settingsIcon.setBounds(0,0,ui.dp(24),ui.dp(24));settings.setCompoundDrawables(settingsIcon,null,null,null);
         sections=new ImageSteps(ui,page,saved);
         LinearLayout files=sections.card(page,FILES),importsPanel=ImageSteps.group(ui,files),actions=ui.row(importsPanel);
+        actions.setBaselineAligned(false);
         select=ui.halfButton(actions,"Aggiungi\nfile",true);importFolder=ui.halfButton(actions,"Leggi\ncartella",true);clear=ui.halfButton(actions,"Svuota",false);
         LinearLayout photoPanel=ImageSteps.group(ui,files);
         selectionSummary=ui.text(photoPanel,"",14);
@@ -29,7 +30,7 @@ final class ImageScreen {
         metadata=selectedItem.details;remove=selectedItem.remove;
         details=ui.text(selectedItem.detailsBody,"Seleziona una foto per leggere i metadati.",15);details.setTextIsSelectable(true);details.setVisibility(android.view.View.GONE);
         ((android.view.ViewGroup)remove.getParent()).removeView(remove);((android.view.ViewGroup)metadata.getParent()).removeView(metadata);
-        LinearLayout photoActions=ui.row(photoPanel);photoActions.addView(remove,new LinearLayout.LayoutParams(0,-2,1));
+        LinearLayout photoActions=ui.row(photoPanel);photoActions.setBaselineAligned(false);photoActions.addView(remove,new LinearLayout.LayoutParams(0,-2,1));
         reload=ui.halfButton(photoActions,"Rileggi",false);photoActions.addView(metadata,new LinearLayout.LayoutParams(0,-2,1));remove.setText("Rimuovi");metadata.setText("Dettagli");
         ((android.view.ViewGroup)selectedItem.detailsBody.getParent()).removeView(selectedItem.detailsBody);photoPanel.addView(selectedItem.detailsBody);
         status=ui.text(photoPanel,"Scegli le foto. Gli originali restano invariati.",14);
