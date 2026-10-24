@@ -12,6 +12,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
@@ -42,7 +44,7 @@ internal fun PhotoWorkspace(host: PhotoComposeHost) {
         CompositionLocalProvider(LocalPhotoGlass provides glass) {
             Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)
                 .windowInsetsPadding(WindowInsets.safeDrawing).imePadding().semantics { testTag = "photo-workspace" }) {
-                PhotoBackdropCompose(Modifier.matchParentSize().hazeSource(background), dark,
+                PhotoBackdropCompose(Modifier.matchParentSize().hazeSource(background).hazeSource(content, zIndex = 0f), dark,
                     host.active && !state.busy && ValueAnimator.areAnimatorsEnabled())
                 var titleHeight by remember { mutableIntStateOf(0) }
                 var dockHeight by remember { mutableIntStateOf(0) }
@@ -51,7 +53,7 @@ internal fun PhotoWorkspace(host: PhotoComposeHost) {
                     targetState = state.step,
                     transitionSpec = { (fadeIn(tween(200)) + slideInVertically(tween(220)) { it / 30 }) togetherWith fadeOut(tween(110)) },
                     label = "photo-step",
-                    modifier = Modifier.fillMaxSize().hazeSource(content)
+                    modifier = Modifier.fillMaxSize().hazeSource(content, zIndex = 1f)
                 ) { step ->
                     key(step) {
                         val scroll = rememberScrollState()
@@ -92,8 +94,9 @@ private fun PhotoTitle(host: PhotoComposeHost, modifier: Modifier) {
                 modifier = Modifier.semantics { heading() })
             Text("Meno spazio, più ricordi.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        FilledTonalIconButton(onClick = { host.command(PhotoCommand.SETTINGS) }, modifier = Modifier.size(48.dp)) {
-            Icon(painterResource(R.drawable.trial_settings), "Impostazioni immagini", Modifier.size(23.dp))
+        FilledTonalIconButton(onClick = { host.command(PhotoCommand.SETTINGS) }, modifier = Modifier.size(48.dp),
+            colors = IconButtonDefaults.filledTonalIconButtonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = .65f), contentColor = MaterialTheme.colorScheme.primary)) {
+            Icon(Icons.Rounded.Settings, "Impostazioni immagini", Modifier.size(23.dp))
         }
     }
 }
@@ -102,12 +105,12 @@ private fun PhotoTitle(host: PhotoComposeHost, modifier: Modifier) {
 private fun PhotoDock(state: PhotoUiState, host: PhotoComposeHost, modifier: Modifier) {
     Column(modifier.widthIn(max = 440.dp).fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            PhotoButton("Indietro", { host.command(PhotoCommand.BACK) }, Modifier.weight(1f).heightIn(min = 50.dp).photoGlass(RoundedCornerShape(28.dp), chrome = true),
+        Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            PhotoButton("Indietro", { host.command(PhotoCommand.BACK) }, Modifier.weight(1f).fillMaxHeight().photoGlass(RoundedCornerShape(28.dp), chrome = true),
                 icon = R.drawable.trial_back, tag = "photo-back", compact = true)
             if (state.step == ImageScreen.FILES || state.step == ImageScreen.COMPRESSION) {
                 PhotoButton(if (state.step == ImageScreen.FILES) "Procedi al punto 2" else "Procedi al punto 3",
-                    { host.command(PhotoCommand.NEXT) }, Modifier.weight(1f), icon = R.drawable.trial_next,
+                    { host.command(PhotoCommand.NEXT) }, Modifier.weight(1f).fillMaxHeight(), icon = R.drawable.trial_next,
                     primary = true, tag = "photo-next", compact = true)
             }
         }

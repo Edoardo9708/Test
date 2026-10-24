@@ -4,7 +4,7 @@ import androidx.compose.runtime.Immutable
 
 /** Bounded presentation snapshot. No photo bytes, provider calls or codec handles. */
 @Immutable
-internal data class PhotoItem(val uri: String, val name: String, val selected: Boolean)
+internal data class PhotoItem(val uri: String, val name: String, val selected: Boolean, val revision: Int)
 
 @Immutable
 internal data class PhotoUiState(
@@ -35,8 +35,7 @@ internal data class PhotoUiState(
     val smaller: Boolean,
     val quality: Int,
     val preset: String,
-    val tune: String,
-    val thumbnailRevision: Int = 0
+    val tune: String
 )
 
 internal enum class PhotoCommand {

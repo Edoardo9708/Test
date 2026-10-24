@@ -47,7 +47,8 @@ class PhotoComposeRenderTest {
     fun floatingDark() = capture(ImageScreen.FILES, "image-floating-dark.png")
     @Test fun savingAndPermissions() {
         open(ImageScreen.FILES)
-        compose.onNodeWithTag("photo-permissions").performScrollTo()
+        compose.waitUntil(5_000) { compose.activity.images.screen.destinations.originRows.childCount > 1 }
+        compose.onNodeWithTag("photo-scroll").performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.ScrollBy) { it(0f, 100_000f) }
         save("image-files.png")
     }
     @Test @Config(qualifiers = "w360dp-h800dp-night-xhdpi")

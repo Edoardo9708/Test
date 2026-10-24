@@ -47,7 +47,7 @@ final class ImageSteps extends AppSections {
     }
     @Override void setCardExpanded(String title,boolean expanded){if(expanded)focusCard(title);}
     @Override void focusCard(String title){
-        current=panels.containsKey(title)?title:null;render();if(current!=null&&android.animation.ValueAnimator.areAnimatorsEnabled()){LinearLayout panel=panels.get(current);panel.setAlpha(0);panel.animate().alpha(1).setDuration(180).start();}changed.run();
+        current=panels.containsKey(title)?title:null;render();if(current!=null&&panels.get(current).isAttachedToWindow()&&android.animation.ValueAnimator.areAnimatorsEnabled()){LinearLayout panel=panels.get(current);panel.setAlpha(0);panel.animate().alpha(1).setDuration(180).start();}changed.run();
     }
     void home(){current=null;render();changed.run();}
     String current(){return current;}

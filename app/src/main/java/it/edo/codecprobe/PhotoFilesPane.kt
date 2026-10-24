@@ -73,8 +73,8 @@ private fun PhotoCarousel(state: PhotoUiState, host: PhotoComposeHost) {
         .semantics { testTag = "photo-carousel" }) {
         itemsIndexed(state.items, key = { _, item -> item.uri }) { index, item ->
             val placeholder = minions[Math.floorMod(item.uri.hashCode(), minions.size)]
-            val request = remember(item.uri, state.thumbnailRevision) {
-                ImageRequest.Builder(context).data(item.uri).size(192).memoryCacheKey("${item.uri}:${state.thumbnailRevision}")
+            val request = remember(item.uri, item.revision) {
+                ImageRequest.Builder(context).data(item.uri).size(192).memoryCacheKey("${item.uri}:${item.revision}")
                     .placeholder(placeholder).error(placeholder).crossfade(false).build()
             }
             val tile = Modifier.padding(vertical = 4.dp).size(64.dp).clip(RoundedCornerShape(14.dp))

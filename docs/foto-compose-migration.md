@@ -8,7 +8,7 @@ La schermata Foto installata nell'Activity usa Kotlin, Jetpack Compose, Material
 - Importazione, carosello con pressione lunga, rimozione con conferma e dettagli espandibili.
 - Destinazione generale, eccezioni della selezione, contatori e opzione solo se più piccolo.
 - Qualità con slider Material 3, preset e opzioni avanzate.
-- Superfici Haze con sorgenti distinte: sfondo per i pannelli, contenuto scorrevole per titolo e barra. Non ci sono acquisizioni bitmap artigianali nell'interfaccia Compose.
+- Superfici Haze con sorgenti distinte: sfondo per i pannelli, sfondo e contenuto scorrevole per titolo e barra. Non ci sono acquisizioni bitmap artigianali nell'interfaccia Compose.
 
 Permessi cartelle, avanzamento, report e diagnostica sono ancora controlli Java reali inseriti con `AndroidView`; impostazioni e le altre sezioni restano da migrare. L'Activity è ora `ComponentActivity` per fornire lifecycle e stato salvato a Compose. La navigazione indietro passa dal suo dispatcher.
 
@@ -18,7 +18,7 @@ Permessi cartelle, avanzamento, report e diagnostica sono ancora controlli Java 
 
 I comandi richiamano i binding esistenti, mantenendo conferme, URI delle richieste pendenti, permessi e recupero. Durante questa fase vengono ancora costruiti i widget Java di binding, ma la loro vecchia pagina è scollegata e non viene disegnata. La loro rimozione è un passaggio successivo, dopo aver separato completamente lo stato di presentazione dai widget. Questo compromesso non viene presentato come un'ottimizzazione delle allocazioni iniziali.
 
-Coil carica solo le miniature composte dalla `LazyRow`, con richiesta da 192 px, cache RAM limitata a 2 MiB e nessuna cache disco. Fetch e decodifica passano da un dispatcher con parallelismo uno; uscendo dalla pagina le richieste delle miniature vengono cancellate. Le tessere restano da 64 dp. La rilettura invalida la cache. Il movimento decorativo si ferma dopo 36 secondi, si sospende fuori pagina/durante elaborazioni e rispetta le animazioni di sistema. Nessuna animazione decorativa deve competere con la conversione.
+Coil carica solo le miniature composte dalla `LazyRow`, con richiesta da 192 px, cache RAM limitata a 2 MiB e nessuna cache disco. Fetch e decodifica passano da un dispatcher con parallelismo uno; uscendo dalla pagina le richieste delle miniature vengono cancellate. Le tessere restano da 64 dp. La rilettura invalida solo le immagini richieste, conservando le altre miniature in cache. Il movimento decorativo si ferma dopo 36 secondi, si sospende fuori pagina/durante elaborazioni e rispetta le animazioni di sistema. Nessuna animazione decorativa deve competere con la conversione.
 
 ## Dipendenze
 

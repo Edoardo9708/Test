@@ -96,6 +96,20 @@ class PhotoComposeTest {
         }
     }
 
+    @Test fun scrollingToTheEndKeepsPermissionsAboveFloatingButtons() {
+        addPhotos(1)
+        compose.onNodeWithTag("photo-new").performClick()
+        compose.waitUntil(5_000) { compose.activity.images.screen.destinations.originRows.childCount > 1 }
+        compose.onNodeWithTag("photo-scroll").performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.ScrollBy) {
+            it(0f, 100_000f)
+        }
+        compose.mainClock.advanceTimeBy(500)
+        compose.waitForIdle()
+        val permissions = compose.onNodeWithTag("photo-permissions").fetchSemanticsNode().boundsInRoot
+        val back = compose.onNodeWithTag("photo-back").fetchSemanticsNode().boundsInRoot
+        assertTrue("Last row is covered: $permissions / $back", permissions.bottom <= back.top)
+    }
+
     private fun addPhotos(count: Int) {
         repeat(count) {
             val file = File.createTempFile("compose-photo-", ".jpg")

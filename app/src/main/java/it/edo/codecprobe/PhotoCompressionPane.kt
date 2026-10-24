@@ -22,7 +22,7 @@ internal fun PhotoCompressionPane(state: PhotoUiState, host: PhotoComposeHost) {
         var quality by remember(state.quality) { mutableFloatStateOf(state.quality.toFloat()) }
         Text("Qualità · ${quality.roundToInt()}/100", style = MaterialTheme.typography.titleMedium)
         Slider(value = quality, onValueChange = { quality = it }, onValueChangeFinished = { host.quality(quality.roundToInt()) },
-            valueRange = 40f..95f, steps = 54, enabled = !state.busy, modifier = Modifier.semantics { testTag = "photo-quality" })
+            valueRange = 40f..95f, enabled = !state.busy, modifier = Modifier.semantics { testTag = "photo-quality" })
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             listOf(50, 55, 60).forEach { value ->
                 PhotoButton(value.toString(), { host.quality(value) }, Modifier.weight(1f), selected = state.quality == value, enabled = !state.busy)

@@ -17,7 +17,7 @@ import coil.memory.MemoryCache
 internal class PhotoComposeHost(private val images: ImageController) {
     private val screen get() = images.screen
     private val destinations get() = screen.destinations as PhotoDestinationsView
-    private var thumbnailRevision = 0
+    private val thumbnailRevisions = mutableMapOf<String, Int>()
     var state by mutableStateOf(snapshot())
         private set
     var active by mutableStateOf(false)
@@ -54,9 +54,12 @@ internal class PhotoComposeHost(private val images: ImageController) {
     fun refresh() { state = snapshot() }
 
     fun command(command: PhotoCommand) {
-        if (command == PhotoCommand.REREAD && !state.busy) {
-            thumbnailRevision++
-            imageLoader.memoryCache?.clear()
+        if (command == PhotoCommand.REREAD && screen.reload.isEnabled) {
+            val targets = images.selectionIndices().map { images.state.inputs[it] }.toSet()
+            targets.forEach { uri -> thumbnailRevisions[uri] = (thumbnailRevisions[uri] ?: 0) + 1 }
+            // Other visible images keep their cached bitmap; only the requested sources are invalidated.
+            val cache = imageLoader.memoryCache
+            cache?.keys?.filter { key -> targets.any { uri -> key.key.startsWith("$uri:") } }?.forEach { cache.remove(it) }
         }
         val button: Button = when (command) {
             PhotoCommand.NEW -> screen.sections.newWork
@@ -112,9 +115,10 @@ internal class PhotoComposeHost(private val images: ImageController) {
         val data = images.state
         val selected = images.selectedPhotos
         val first = data.inputs.take(ImageQueueStore.VISIBLE)
+        thumbnailRevisions.keys.retainAll(first.toSet())
         val items = first.mapIndexed { index, uri ->
             PhotoItem(uri, data.names.getOrElse(index) { "Foto ${index + 1}" },
-                if (selected.isEmpty()) index == data.selected else uri in selected)
+                if (selected.isEmpty()) index == data.selected else uri in selected, thumbnailRevisions[uri] ?: 0)
         }
         return PhotoUiState(
             step = screen.sections.current(), busy = images.busy(), total = data.inputs.size, items = items,
@@ -128,8 +132,7 @@ internal class PhotoComposeHost(private val images: ImageController) {
             editorVisible = destinations.editor.visibility == View.VISIBLE,
             origin = destinations.originChoice.isSelected, destination = destinations.targetChoice.isSelected,
             folder = destinations.folderLabel.text.toString(), chooseVisible = destinations.pickFolder.visibility == View.VISIBLE,
-            smaller = data.options.onlySmaller, quality = data.options.quality, preset = data.options.preset, tune = data.options.tune,
-            thumbnailRevision = thumbnailRevision
+            smaller = data.options.onlySmaller, quality = data.options.quality, preset = data.options.preset, tune = data.options.tune
         )
     }
 
