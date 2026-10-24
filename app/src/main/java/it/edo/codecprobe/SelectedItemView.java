@@ -50,11 +50,11 @@ final class SelectedItemView {
         preview = new LinearLayout(ui.activity);
         preview.setOrientation(LinearLayout.VERTICAL);
         parent.addView(preview, new LinearLayout.LayoutParams(-1, -2));
-        name = ui.text(preview, empty, 23);
-        name.setTypeface(null, Typeface.BOLD);
-        name.setMaxLines(3);
+        name = ui.text(preview, empty, photos?13:23);
+        name.setTypeface(null, photos?Typeface.NORMAL:Typeface.BOLD);
+        name.setMaxLines(photos?2:3);
         name.setEllipsize(android.text.TextUtils.TruncateAt.END);
-        summary = ui.text(preview, "", 15);
+        summary = ui.text(preview, "", photos?12:15);
         summary.setLineSpacing(ui.dp(3), 1);
         details = ui.button(preview, "▸ " + detailsLabel);
         detailsBody = new LinearLayout(ui.activity);
@@ -65,7 +65,7 @@ final class SelectedItemView {
         remove=ui.button(preview,"Rimuovi "+item.toLowerCase(java.util.Locale.ITALY));
         if(photos){
             showAll=ui.button(detailsBody,"Mostra tutto");
-            showAll.setOnClickListener(v->{allMetadata=!allMetadata;metadataDetails.setVisibility(allMetadata?View.VISIBLE:View.GONE);showAll.setText(allMetadata?"Mostra meno":"Mostra tutto");});
+            showAll.setOnClickListener(v->{allMetadata=!allMetadata;PhotoStyle.visibility(metadataDetails,allMetadata);showAll.setText(allMetadata?"Mostra meno":"Mostra tutto");});
             metadataDetails.setVisibility(View.GONE);
         }
         thumbnails=photos?new PhotoThumbnails(ui,this):null;
@@ -116,11 +116,11 @@ final class SelectedItemView {
             int previous=this.current;boolean all=updateNeeded||lastEnabled!=enabled;
             this.current=current;lastEnabled=enabled;updateNeeded=false;
             UiText.set(number,total==0?empty:item+" "+(current+1)+" di "+total);
-            number.setVisibility(total==0?View.GONE:View.VISIBLE);
+            number.setVisibility(photos||total==0?View.GONE:View.VISIBLE);
             carousel.setVisibility(total==0?View.GONE:View.VISIBLE);
             details.setVisibility(total==0?View.GONE:View.VISIBLE);remove.setVisibility(total==0?View.GONE:View.VISIBLE);remove.setEnabled(enabled);
             hint.setVisibility(total>(photos?0:1)?View.VISIBLE:View.GONE);
-            UiText.set(hint,(total>renderedLimit?"Mostrate le prime "+renderedLimit+" foto; tutte le "+total+" foto sono in coda.":"Scorri la barra e tocca un elemento per mostrarne i dettagli.")+(photos?"\nTieni premuto per selezionare più foto. Minions = anteprima non disponibile.":""));
+            UiText.set(hint,photos?"Tieni premuto per selezionare più foto.":(total>renderedLimit?"Mostrate le prime "+renderedLimit+" foto; tutte le "+total+" foto sono in coda.":"Scorri la barra e tocca un elemento per mostrarne i dettagli."));
             for(int n=0;n<chips.size();n++){
                 if(!all&&n!=previous&&n!=current)continue;
                 Button chip=chips.get(n);boolean active=selection.isEmpty()?n==current:selection.contains(n);
@@ -151,8 +151,9 @@ final class SelectedItemView {
     }
 
     void setExpanded(boolean expanded) {
-        detailsBody.setVisibility(expanded ? View.VISIBLE : View.GONE);
-        details.setText((expanded ? "▾ " : "▸ ") + detailsLabel);
+        if(photos)PhotoStyle.visibility(detailsBody,expanded);else detailsBody.setVisibility(expanded ? View.VISIBLE : View.GONE);
+        details.setText(photos?"Dettagli":(expanded ? "▾ " : "▸ ") + detailsLabel);
+        details.setSelected(expanded);
     }
 
     void transition(Runnable apply) {

@@ -20,7 +20,7 @@ final class ImageController {
     private final android.os.Handler main=new android.os.Handler(android.os.Looper.getMainLooper());
     private final Runnable tick=new Runnable(){public void run(){if(!visible||destroyed)return;if(screen.dashboard.cpu.isShown())screen.dashboard.monitor.sample(android.os.SystemClock.elapsedRealtime());refresh();main.postDelayed(this,500);}};
     ImageController(ImageActivity activity,Bundle saved){
-        this.activity=activity;state=ImageDraftStore.load(activity);screen=new ImageScreen(new AppUi(activity),saved);report=new ImageWorkReport(this);selection=new ImageSelection(this,saved);
+        this.activity=activity;state=ImageDraftStore.load(activity);screen=new ImageScreen(new AppUi(activity,true),saved);report=new ImageWorkReport(this);selection=new ImageSelection(this,saved);
         destinations=new MediaDestinationsController(new MediaDestinationsController.Host(){
             public AppUi ui(){return screen.ui;}public java.util.List<String> inputs(){return state.inputs;}public java.util.List<String> names(){return state.names;}public int selected(){return state.selected;}
             public java.util.List<Integer> selectedIndices(){return selectionIndices();}
@@ -82,7 +82,7 @@ final class ImageController {
                 state.inputs.clear();state.inputs.addAll(combined.keySet());state.names.clear();state.names.addAll(combined.values());state.clamp();state.bulk=true;state.selectionLabel=state.inputs.size()+" · "+label;
                 state.destinations.sync(state.inputs,state.options.folder);
                 HashMap<String,Integer> indices=new HashMap<>();for(int i=0;i<state.inputs.size();i++)indices.put(state.inputs.get(i),i);
-                for(int i=0;i<result.inputs.size();i++)if(!existing.contains(result.inputs.get(i))&&!result.folders.get(i).isEmpty())state.destinations.plan.setFolder(indices.get(result.inputs.get(i)),result.folders.get(i));
+                for(int i=0;i<result.inputs.size();i++)if(label.startsWith("Foto fallite")&&!existing.contains(result.inputs.get(i))&&!result.folders.get(i).isEmpty())state.destinations.plan.setFolder(indices.get(result.inputs.get(i)),result.folders.get(i));
                 open();
             });
         });
@@ -121,10 +121,10 @@ final class ImageController {
         if(applying)return;ImageOptions old=state.options;state.options=new ImageOptions(old.quality,old.preset,old.tune,old.folder,old.onlySmaller,checked,old.revision);persist();render();
     }
     void optionsEdited(){if(applying||busy())return;ImageOptions old=state.options;state.options=new ImageOptions(screen.quality.value(),screen.quality.preset(),screen.quality.tune(),old.folder,screen.smaller.isChecked(),screen.screenOn.isChecked(),old.revision);persist();render();}
-    void setFolder(String folder){state.destinations.defaults(state.inputs,folder);ImageOptions o=state.options;state.options=new ImageOptions(o.quality,o.preset,o.tune,folder,o.onlySmaller,o.keepScreenOn,o.revision);persist();render();}
+    void setFolder(String folder){state.destinations.sync(state.inputs,state.options.folder);state.destinations.plan.enableExceptions();state.destinations.plan.all.origin=folder==null||folder.isEmpty();state.destinations.plan.all.folder=folder==null?"":folder;ImageOptions o=state.options;state.options=new ImageOptions(o.quality,o.preset,o.tune,folder,o.onlySmaller,o.keepScreenOn,o.revision);persist();render();}
     void showOptions(){applying=true;try{screen.quality.set(state.options);screen.smaller.setChecked(state.options.onlySmaller);screen.screenOn.setChecked(state.options.keepScreenOn);}finally{applying=false;}}
-    void resume(){visible=true;screen.selectedItem.thumbnails.active(ImageScreen.FILES.equals(screen.sections.current()));screen.dashboard.monitor.reset();destinations.refresh();main.removeCallbacks(tick);tick.run();}
-    void pause(){visible=false;screen.selectedItem.thumbnails.active(false);main.removeCallbacks(tick);activity.getWindow().clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);}
+    void resume(){visible=true;screen.layout.backdrop.active(true);screen.selectedItem.thumbnails.active(ImageScreen.FILES.equals(screen.sections.current()));screen.dashboard.monitor.reset();destinations.refresh();main.removeCallbacks(tick);tick.run();}
+    void pause(){visible=false;screen.layout.backdrop.active(false);screen.selectedItem.thumbnails.active(false);main.removeCallbacks(tick);activity.getWindow().clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);}
     void refresh(){ImageRunState run=ImageConversionService.snapshot();if(state.starting&&state.startingAt>0&&(run.startedAt!=state.previousRun||android.os.SystemClock.elapsedRealtime()-state.startingAt>5000)){state.starting=false;if(run.startedAt==state.previousRun)state.notice=run.message.isEmpty()?"La conversione non è partita: riprova.":run.message;}
         ImageOptions defaults=ImageOptions.load(activity);if(!busy()&&state.options.revision!=defaults.revision){state.options=defaults;showOptions();persist();render();return;}
         // Progress ticks must not rebuild the selection, metadata or destination plan.
@@ -173,7 +173,7 @@ final class ImageController {
     void render(){
         state.clamp();if(!selectedPhotos.isEmpty())selectedPhotos.retainAll(new HashSet<>(state.inputs));int count=state.inputs.size();boolean any=count>0,busy=busy();renderedBusy=busy;
         screen.importFolder.setEnabled(!busy);screen.retryFailures.setEnabled(!busy&&activity.getDatabasePath(ImageProgressJournal.DATABASE).isFile());
-        screen.selectionSummary.setText(state.selectionLabel);screen.selectionSummary.setVisibility(state.selectionLabel.isEmpty()?android.view.View.GONE:android.view.View.VISIBLE);
+        screen.selectionSummary.setText("File selezionati · "+count+" foto");
         screen.select.setEnabled(!busy);screen.clear.setEnabled(any&&!busy);screen.remove.setEnabled(any&&!busy);
         screen.selectedItem.render(state.names,Collections.emptyList(),state.selected,!busy,this::select,ImageQueueStore.VISIBLE);
         screen.selectedItem.selectedIndices(new HashSet<>(selectionIndicesForHighlight()));
@@ -183,9 +183,10 @@ final class ImageController {
         screen.reload.setVisibility(any?android.view.View.VISIBLE:android.view.View.GONE);screen.reload.setEnabled(any&&!busy&&!state.reading);
         screen.metadata.setVisibility(any?android.view.View.VISIBLE:android.view.View.GONE);screen.name.setText(state.name.isEmpty()?(any?state.names.get(state.selected):"Nessuna foto selezionata"):state.name);
         screen.export.setEnabled(state.info!=null&&!state.reading&&!busy);
-        screen.metadata.setEnabled(state.info!=null);screen.quality.enabled(!busy);screen.smaller.setEnabled(!busy);screen.exportLog.setEnabled(logExport.available(ImageConversionService.LOG));screen.clearLog.setEnabled(!busy&&new File(activity.getFilesDir(),ImageConversionService.LOG).isFile());
+        screen.metadata.setEnabled(any&&!state.reading);screen.quality.enabled(!busy);screen.smaller.setEnabled(!busy);screen.exportLog.setEnabled(logExport.available(ImageConversionService.LOG));screen.clearLog.setEnabled(!busy&&new File(activity.getFilesDir(),ImageConversionService.LOG).isFile());
         screen.exportErrors.setEnabled(logExport.available(ImageFailureStore.FILE));
         destinations.render();
+        screen.layout.backdrop.contentChanged();
         ImageRunPresenter.render(this,ImageConversionService.snapshot());
         if(selectedPhotos.size()>1){
             ArrayList<String> selectedNames=new ArrayList<>();for(int index:selectionIndices())selectedNames.add(state.names.get(index));selectedNames.sort(String.CASE_INSENSITIVE_ORDER);

@@ -7,6 +7,7 @@ import android.widget.*;
 /** One scrolling surface with inset-aware floating navigation. No nested vertical scroller. */
 final class ImageWorkspaceLayout {
     final FrameLayout root;
+    final PhotoBackdrop backdrop;
     final ScrollView scroll;
     final LinearLayout footer,actions;
     final Button back,forward;
@@ -15,29 +16,28 @@ final class ImageWorkspaceLayout {
     ImageWorkspaceLayout(AppUi ui,LinearLayout page,AppNavigation navigation,ImageSteps steps){
         this.steps=steps;
         root=new FrameLayout(ui.activity);root.setBackgroundColor(ui.bg);
-        // A static gradient gives the translucent panels a backdrop without idle animation work.
-        root.setBackground(new android.graphics.drawable.GradientDrawable(
-            android.graphics.drawable.GradientDrawable.Orientation.TL_BR,
-            ui.dark?new int[]{0xFF172135,0xFF26384D,0xFF172135}:new int[]{0xFFF7F8FC,0xFFD9E7FD,0xFFFFF2DC}));
+        backdrop=new PhotoBackdrop(ui);root.addView(backdrop,new FrameLayout.LayoutParams(-1,-1));
         View title=page.getChildAt(0);page.removeView(title);
-        title.setBackground(ui.shape(ui.dark?0xED172135:0xEDF4F7FC,22));
-        title.setPadding(ui.dp(16),ui.dp(8),ui.dp(16),ui.dp(8));
+        title.setBackground(PhotoStyle.glass(ui,title,0,true,false));
+        title.setPadding(ui.dp(22),ui.dp(14),ui.dp(22),ui.dp(14));
         scroll=new ScrollView(ui.activity);scroll.setFillViewport(true);scroll.setClipToPadding(false);
         FrameLayout widthHost=new FrameLayout(ui.activity);scroll.addView(widthHost,new ScrollView.LayoutParams(-1,-2));
         widthHost.addView(page,new FrameLayout.LayoutParams(-1,-2,Gravity.TOP|Gravity.CENTER_HORIZONTAL));
-        root.addView(scroll,new FrameLayout.LayoutParams(-1,-1));
-        FrameLayout.LayoutParams top=new FrameLayout.LayoutParams(-1,-2,Gravity.TOP);top.setMargins(ui.dp(12),0,ui.dp(12),0);root.addView(title,top);
+        root.addView(scroll,new FrameLayout.LayoutParams(-1,-1));backdrop.content(scroll);
+        FrameLayout.LayoutParams top=new FrameLayout.LayoutParams(-1,-2,Gravity.TOP);top.setMargins(0,0,0,0);root.addView(title,top);
         footer=new LinearLayout(ui.activity);footer.setOrientation(LinearLayout.VERTICAL);
-        footer.setPadding(ui.dp(16),ui.dp(6),ui.dp(16),ui.dp(8));
+        footer.setPadding(ui.dp(8),ui.dp(6),ui.dp(8),ui.dp(6));
+        footer.setBackground(PhotoStyle.glass(ui,footer,28,true,false));footer.setClickable(true);
         actions=new LinearLayout(ui.activity);actions.setBaselineAligned(false);actions.setGravity(Gravity.CENTER_VERTICAL);
         back=ui.halfButton(actions,"Indietro",false);forward=ui.halfButton(actions,"Procedi al punto 2",true);
-        for(Button b:new Button[]{back,forward}){b.setMinHeight(ui.dp(52));b.setMinimumHeight(ui.dp(52));b.setPadding(ui.dp(12),ui.dp(8),ui.dp(12),ui.dp(8));}
+        for(Button b:new Button[]{back,forward}){b.setTextSize(12);b.setMinHeight(ui.dp(50));b.setMinimumHeight(ui.dp(50));b.setPadding(ui.dp(8),ui.dp(8),ui.dp(8),ui.dp(8));}
         footer.addView(actions,new LinearLayout.LayoutParams(-1,-2));
         navigation.setPadding(ui.dp(5),ui.dp(5),ui.dp(5),ui.dp(5));
-        navigation.setBackground(ui.shape(ui.dark?0xF0263549:0xF0E9EEF8,28));
+        navigation.setBackground(PhotoStyle.glass(ui,navigation,28,true,true));
         footer.addView(navigation,new LinearLayout.LayoutParams(-1,ui.dp(56)));
-        root.addView(footer,new FrameLayout.LayoutParams(-1,-2,Gravity.BOTTOM));
-        Runnable padding=()->scroll.setPadding(0,title.getHeight()+ui.dp(4),0,footer.getHeight()+ui.dp(8));
+        FrameLayout.LayoutParams dock=new FrameLayout.LayoutParams(-1,-2,Gravity.BOTTOM|Gravity.CENTER_HORIZONTAL);dock.setMargins(ui.dp(10),0,ui.dp(10),ui.dp(6));root.addView(footer,dock);
+        root.addOnLayoutChangeListener((v,l,t,r,b,ol,ot,or,ob)->{int width=Math.min(ui.dp(440),r-l-ui.dp(20));if(footer.getLayoutParams().width!=width){footer.getLayoutParams().width=width;footer.requestLayout();}});
+        Runnable padding=()->scroll.setPadding(0,title.getHeight()+ui.dp(4),0,footer.getHeight()+ui.dp(24));
         title.addOnLayoutChangeListener((v,l,t,r,b,ol,ot,or,ob)->padding.run());
         footer.addOnLayoutChangeListener((v,l,t,r,b,ol,ot,or,ob)->padding.run());
         root.setOnApplyWindowInsetsListener((v,insets)->{
@@ -48,7 +48,7 @@ final class ImageWorkspaceLayout {
         TrialIcons.set(ui,back,R.drawable.trial_back,false);TrialIcons.set(ui,forward,R.drawable.trial_next,true);
         back.setOnClickListener(v->back());
         forward.setOnClickListener(v->steps.focusCard(ImageScreen.FILES.equals(steps.current())?ImageScreen.COMPRESSION:ImageScreen.HEIC));
-        steps.changed=()->{refresh();scroll.scrollTo(0,0);};refresh();
+        steps.changed=()->{refresh();scroll.scrollTo(0,0);backdrop.contentChanged();};refresh();
         ui.activity.setContentView(root);root.requestApplyInsets();ui.applySystemBars();
     }
     boolean back(){

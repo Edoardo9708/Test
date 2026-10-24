@@ -28,9 +28,9 @@ public class ImageDestinationFlowTest {
         File one=File.createTempFile("photo-one-",".jpg"),two=File.createTempFile("photo-two-",".jpg");Files.write(one.toPath(),ImageWorkspaceTest.fixture());Files.write(two.toPath(),ImageWorkspaceTest.fixture());
         var controller=Robolectric.buildActivity(ImageActivity.class).setup();
         try{
-            ImageController images=controller.get().images;assertEquals(View.GONE,images.screen.destinations.body.getVisibility());assertFalse(images.screen.convert.isEnabled());
+            ImageController images=controller.get().images;assertEquals(View.VISIBLE,images.screen.destinations.body.getVisibility());assertFalse(images.screen.convert.isEnabled());
             images.state.inputs.add(Uri.fromFile(one).toString());images.state.inputs.add(Uri.fromFile(two).toString());images.setFolder(MediaDestinationsTest.A);MediaDestinationsTest.grant(controller.get(),MediaDestinationsTest.A);images.open();ready(images);
-            assertTrue(images.screen.convert.isEnabled());images.state.selected=1;images.open();ready(images);images.screen.destinations.pickFolder.performClick();assertFalse(images.screen.convert.isEnabled());
+            assertTrue(images.screen.convert.isEnabled());images.state.selected=1;images.open();ready(images);((PhotoDestinationsView)images.screen.destinations).currentScope.performClick();((PhotoDestinationsView)images.screen.destinations).exception.performClick();images.screen.destinations.pickFolder.performClick();assertFalse(images.screen.convert.isEnabled());
             controller.recreate();images=controller.get().images;assertTrue(images.destinations.choosing());
             controller.get().onActivityResult(MediaDestinationsController.FILE,Activity.RESULT_OK,new Intent().setData(Uri.parse(MediaDestinationsTest.B)).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_WRITE_URI_PERMISSION));ready(images);
             assertEquals(java.util.Arrays.asList(MediaDestinationsTest.A,MediaDestinationsTest.B),images.destinations.snapshot());

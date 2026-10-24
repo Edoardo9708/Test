@@ -96,10 +96,10 @@ public class ImageUiTrialTest {
         var activity=Robolectric.buildActivity(ImageActivity.class).setup();
         try{
             var images=activity.get().images;for(int n=0;n<3;n++)images.state.inputs.add(photo("destination"+n));images.state.clamp();images.setFolder(MediaDestinationsTest.A);images.open();settle(images);
-            images.toggleSelection(0);images.toggleSelection(2);images.screen.destinations.pickFolder.performClick();activity.recreate();images=activity.get().images;
+            images.toggleSelection(0);images.toggleSelection(2);((PhotoDestinationsView)images.screen.destinations).exception.performClick();images.screen.destinations.pickFolder.performClick();activity.recreate();images=activity.get().images;
             images.selection.result(MediaDestinationsController.FILE,Activity.RESULT_OK,new Intent().setData(Uri.parse(MediaDestinationsTest.B)).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_WRITE_URI_PERMISSION));
             assertEquals(MediaDestinationsTest.B,images.state.destinations.plan.files.get(0).folder);
-            assertEquals(MediaDestinationsTest.A,images.state.destinations.plan.files.get(1).folder);
+            assertEquals(MediaDestinationsTest.A,images.state.destinations.plan.effective(1).folder);
             assertEquals(MediaDestinationsTest.B,images.state.destinations.plan.files.get(2).folder);
         }finally{activity.pause().stop().destroy();}
     }

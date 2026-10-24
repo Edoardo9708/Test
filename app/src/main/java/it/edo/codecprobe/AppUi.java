@@ -27,12 +27,19 @@ final class AppUi {
     final int accent;
     final int border;
 
-    AppUi(Activity activity) {
+    final boolean photos;
+    PhotoBackdrop backdrop;
+    AppUi(Activity activity) { this(activity,false); }
+    AppUi(Activity activity,boolean photos) {
+        this.photos=photos;
         this.activity = activity;
         dark = (activity.getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES;
-        bg=activity.getColor(R.color.ui_background);surface=activity.getColor(R.color.ui_surface);
-        ink=activity.getColor(R.color.ui_ink);muted=activity.getColor(R.color.ui_muted);
-        accent=activity.getColor(R.color.ui_accent);border=activity.getColor(R.color.ui_border);
+        bg=photos?(dark?0xFF151820:0xFFF8F8FB):activity.getColor(R.color.ui_background);
+        surface=photos?(dark?0xFF232D42:0xFFE8EEFC):activity.getColor(R.color.ui_surface);
+        ink=photos?(dark?0xFFE7ECF7:0xFF292C32):activity.getColor(R.color.ui_ink);
+        muted=photos?(dark?0xFFB5BFD1:0xFF565B66):activity.getColor(R.color.ui_muted);
+        accent=photos?(dark?0xFFA8C5FF:0xFF3977E9):activity.getColor(R.color.ui_accent);
+        border=photos?(dark?0xFF465064:0xFFC8CBD3):activity.getColor(R.color.ui_border);
     }
 
     int dp(int value) {
@@ -106,8 +113,8 @@ final class AppUi {
     void styleButton(Button button, boolean primary) {
         button.setStateListAnimator(null); button.setElevation(0); button.setTranslationZ(0);
         button.setAllCaps(false);
-        button.setTextSize(15);
-        button.setTypeface(null, Typeface.BOLD);
+        button.setTextSize(photos?13:15);
+        button.setTypeface(null, photos?Typeface.NORMAL:Typeface.BOLD);
         button.setMinWidth(0);
         button.setMinimumWidth(0);
         button.setMinHeight(dp(52));
@@ -276,7 +283,7 @@ final class AppUi {
     void renderInfoSections(LinearLayout parent, Map<String, String> sections) {
         parent.removeAllViews();
         for (Map.Entry<String, String> section : sections.entrySet()) {
-            LinearLayout group = panel(parent);
+            LinearLayout group = photos?plainGroup(parent):panel(parent);
             TextView title = text(group, section.getKey(), 13);
             title.setTextColor(accent);
             title.setTypeface(null, Typeface.BOLD);
@@ -285,6 +292,10 @@ final class AppUi {
             body.setLineSpacing(dp(3), 1);
             body.setTextIsSelectable(true);
         }
+    }
+
+    private LinearLayout plainGroup(LinearLayout parent){
+        LinearLayout row=new LinearLayout(activity);row.setOrientation(LinearLayout.VERTICAL);parent.addView(row,new LinearLayout.LayoutParams(-1,-2));return row;
     }
 
     private static final class Page extends LinearLayout {

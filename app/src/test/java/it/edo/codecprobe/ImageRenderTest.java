@@ -25,13 +25,15 @@ public class ImageRenderTest {
             File dir=new File("build/reports/ui");assertTrue(dir.isDirectory()||dir.mkdirs());try(FileOutputStream out=new FileOutputStream(new File(dir,filename))){assertTrue(bitmap.compress(Bitmap.CompressFormat.PNG,100,out));}finally{bitmap.recycle();}
         }finally{controller.pause().stop().destroy();field.set(null,previous);context.getSharedPreferences("image-workspace",0).edit().clear().commit();context.getSharedPreferences("image-settings",0).edit().clear().commit();}
     }
-    @Test public void floatingWorkspaceFrame()throws Exception{
+    @Test public void floatingWorkspaceFrame()throws Exception{floatingFrame("image-floating-workspace.png");}
+    @Test @Config(qualifiers="w360dp-h800dp-night-xhdpi") public void floatingDark()throws Exception{floatingFrame("image-floating-dark.png");}
+    private void floatingFrame(String filename)throws Exception{
         var controller=Robolectric.buildActivity(ImageActivity.class).setup();
         try{
-            ImageController images=controller.get().images;images.state.inputs.add("content://preview/photo/1");images.state.names.add("Una foto simpatica.jpg");images.state.info=JpegInventory.read(new ByteArrayInputStream(ImageWorkspaceTest.fixture()));images.render();images.screen.sections.newWork.performClick();
+            ImageController images=controller.get().images;images.state.inputs.add("content://preview/photo/1");images.state.names.add("Una foto simpatica.jpg");images.state.info=JpegInventory.read(new ByteArrayInputStream(ImageWorkspaceTest.fixture()));images.render();images.screen.sections.newWork.performClick();org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idleFor(java.time.Duration.ofMillis(250));
             View root=images.screen.layout.root;int w=images.screen.ui.dp(360),h=images.screen.ui.dp(800);root.measure(View.MeasureSpec.makeMeasureSpec(w,View.MeasureSpec.EXACTLY),View.MeasureSpec.makeMeasureSpec(h,View.MeasureSpec.EXACTLY));root.layout(0,0,w,h);
             float density=controller.get().getResources().getDisplayMetrics().density;Bitmap bitmap=Bitmap.createBitmap(360,800,Bitmap.Config.ARGB_8888);Canvas canvas=new Canvas(bitmap);canvas.scale(1/density,1/density);root.draw(canvas);
-            File dir=new File("build/reports/ui");assertTrue(dir.isDirectory()||dir.mkdirs());try(FileOutputStream out=new FileOutputStream(new File(dir,"image-floating-workspace.png"))){assertTrue(bitmap.compress(Bitmap.CompressFormat.PNG,100,out));}finally{bitmap.recycle();}
+            File dir=new File("build/reports/ui");assertTrue(dir.isDirectory()||dir.mkdirs());try(FileOutputStream out=new FileOutputStream(new File(dir,filename))){assertTrue(bitmap.compress(Bitmap.CompressFormat.PNG,100,out));}finally{bitmap.recycle();}
         }finally{controller.pause().stop().destroy();}
     }
     @Test public void files()throws Exception{render(ImageScreen.FILES,"image-files.png");}

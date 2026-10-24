@@ -51,7 +51,7 @@ final class MediaDestinationsController {
             }
             public void error(String message){host.toast("Cartella: "+message);}
         },host.ui(),kind);
-        view.pickFolder.setOnClickListener(v->{if(!host.inputs().isEmpty())pick(FILE,host.inputs().get(host.selected()));});
+        view.pickFolder.setOnClickListener(v->{if(view instanceof PhotoDestinationsView&&((PhotoDestinationsView)view).general)pick(ALL,null);else if(!host.inputs().isEmpty())pick(FILE,host.inputs().get(host.selected()));});
         view.pickAllFolder.setOnClickListener(v->pick(ALL,null));
         view.videoOrigin.setOnCheckedChangeListener((v,value)->{
             if(view.updating||host.busy()||choosing||host.inputs().isEmpty())return;
@@ -60,11 +60,12 @@ final class MediaDestinationsController {
         view.applyAllDestinations.setOnCheckedChangeListener((v,value)->{
             if(view.updating||host.busy()||choosing)return;plan().applyAll=value;edited();
         });
+        if(view instanceof PhotoDestinationsView){PhotoDestinationsView photo=(PhotoDestinationsView)view;photo.changed=host::changed;photo.exceptionEdited=value->{if(host.busy()||choosing)return;DestinationPlan plan=plan();for(int n:host.selectedIndices())plan.exception(n,value);edited();};photo.originEdited=value->{if(host.busy()||choosing)return;DestinationPlan plan=plan();if(photo.general)plan.all.origin=value;else for(int n:host.selectedIndices()){plan.exception(n,true);plan.files.get(n).origin=value;}edited();};}
         view.allOrigin.setOnCheckedChangeListener((v,value)->{
             if(view.updating||host.busy()||choosing)return;plan().all.origin=value;edited();
         });
     }
-    private DestinationPlan plan(){host.draft().sync(host.inputs(),host.defaultFolder());return host.draft().plan;}
+    private DestinationPlan plan(){host.draft().sync(host.inputs(),host.defaultFolder());DestinationPlan plan=host.draft().plan;if(view instanceof PhotoDestinationsView)plan.enableExceptions();return plan;}
     boolean choosing(){return choosing;}
     boolean ready(){return ready&&!choosing&&!host.inputs().isEmpty()&&resolved.size()==host.inputs().size();}
     ArrayList<String> snapshot(){if(!ready())throw new IllegalStateException("Attendi la verifica di tutte le cartelle");return new ArrayList<>(resolved);}
@@ -75,9 +76,10 @@ final class MediaDestinationsController {
     void render(){
         if(closed)return;
         DestinationPlan plan=plan();
-        view.render(plan,host.inputs().size(),host.selected(),host.busy(),choosing);
+        if(view instanceof PhotoDestinationsView)((PhotoDestinationsView)view).renderGroup(plan,host.inputs().size(),host.selected(),host.selectedIndices(),host.busy(),choosing);
+        else view.render(plan,host.inputs().size(),host.selected(),host.busy(),choosing);
         int groupSize=host.selectedIndices().size();
-        if(groupSize>1){view.videoDestinationTitle.setText("DESTINAZIONE · "+groupSize+" FILE CORRENTI");view.videoDestinationHelp.setText(plan.applyAll?"È attiva la regola di tutta la coda. Disattivala per gestire il gruppo.":"La cartella scelta verrà applicata a tutti i file selezionati.");}panel.setBusy(host.busy()||choosing);
+        if(groupSize>1&&!(view instanceof PhotoDestinationsView)){view.videoDestinationTitle.setText("DESTINAZIONE · "+groupSize+" FILE CORRENTI");view.videoDestinationHelp.setText(plan.applyAll?"È attiva la regola di tutta la coda. Disattivala per gestire il gruppo.":"La cartella scelta verrà applicata a tutti i file selezionati.");}panel.setBusy(host.busy()||choosing);
         if(panelPlan==null||!panelInputs.equals(host.inputs())||!panelNames.equals(host.names())||!panelPlan.matches(plan)){
             panelInputs=new ArrayList<>(host.inputs());panelNames=new ArrayList<>(host.names());panelPlan=new DestinationPlan.Snapshot(plan);
             panel.setInputs(panelInputs,panelNames,plan.effectiveOrigins(),plan.effectiveFolders());
@@ -94,7 +96,7 @@ final class MediaDestinationsController {
     }
     private void authorizeFolder(String parent,String source,boolean origin,String folder){
         if(host.busy()||choosing)return;
-        if(!origin&&(folder==null||folder.isEmpty())){pick(plan().applyAll?ALL:FILE,source);return;}
+        if(!origin&&(folder==null||folder.isEmpty())){int index=host.inputs().indexOf(source);pick(plan().applyAll||plan().exceptionsMode&&(index<0||!plan().files.get(index).exception)?ALL:FILE,source);return;}
         this.parent=parent;this.source=source;this.requested=folder;this.origin=origin;
         if(origin&&parent==null){
             dialog=new AlertDialog.Builder(host.ui().activity).setTitle("Origine non rilevata")
