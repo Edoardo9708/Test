@@ -89,7 +89,7 @@ final class MediaDestinationsController {
     private void edited(){ready=false;host.persist();render();host.changed();}
     private void pick(int code,String source){
         if(closed||host.busy()||choosing)return;
-        if(code==FILE){targets.clear();for(int index:host.selectedIndices())targets.add(host.inputs().get(index));}
+        if(code==FILE){targets.clear();for(int index:host.selectedIndices())targets.add(host.inputs().get(index));if(source!=null&&!targets.contains(source)){targets.clear();targets.add(source);}}
         this.source=source;choosing=true;host.changed();
         try{host.ui().activity.startActivityForResult(new Intent(host.ui().activity,FolderPickerActivity.class),code);}
         catch(RuntimeException error){choosing=false;host.changed();host.toast("Selettore cartelle non avviato: "+error.getMessage());}

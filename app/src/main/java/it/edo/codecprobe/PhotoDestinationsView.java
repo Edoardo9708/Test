@@ -33,7 +33,7 @@ final class PhotoDestinationsView extends MediaDestinationsView {
         // Existing controller contracts are retained for other workspaces and saved picker requests.
         pickAllFolder=new Button(ui.activity);videoOrigin=new CheckBox(ui.activity);allOrigin=new CheckBox(ui.activity);applyAllDestinations=new CheckBox(ui.activity);
         videoDestinationTitle=new TextView(ui.activity);videoDestinationHelp=new TextView(ui.activity);allFolderLabel=new TextView(ui.activity);
-        policies=PhotoStyle.group(ui,body,4);
+        policies=PhotoStyle.group(ui,body,4);PhotoStyle.joined(ui,scope,0,true);PhotoStyle.joined(ui,where,1,true);PhotoStyle.joined(ui,policies,2,true);
         PhotoStyle.heading(ui,body,"Autorizzazioni cartelle",R.drawable.trial_folder);
         originRows=new LinearLayout(ui.activity);originRows.setOrientation(LinearLayout.VERTICAL);body.addView(originRows);
     }
@@ -42,7 +42,7 @@ final class PhotoDestinationsView extends MediaDestinationsView {
         updating=true;
         try{
             int exceptions=plan.exceptionCount(),own=0;for(int n:indices)if(plan.files.get(n).exception)own++;
-            currentScope.setText((indices.size()>1?"File correnti · "+indices.size():"File corrente")+" · "+exceptions+" eccezioni");allScope.setText("Tutti · "+(count-exceptions));
+            currentScope.setText(indices.size()>1?"File correnti · "+indices.size():"File corrente");allScope.setText("Tutti · "+(count-exceptions));
             currentScope.setSelected(!general);allScope.setSelected(general);
             allocation.setText(exceptions+" file con destinazione propria · "+(count-exceptions)+" con destinazione generale");
             exception.setChecked(!indices.isEmpty()&&own==indices.size());exception.setText(own>0&&own<indices.size()?"Eccezioni miste · attiva per tutti i selezionati":"Gestisci come eccezione");

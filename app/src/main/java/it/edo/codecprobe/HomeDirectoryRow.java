@@ -19,6 +19,7 @@ final class HomeDirectoryRow {
         GradientDrawable background = ui.shape(ui.bg, 14);
         background.setStroke(ui.dp(1), color);
         tile.setBackground(ui.photos?PhotoStyle.glass(ui,tile,24,false,true):background);
+        if(ui.photos){LinearLayout.LayoutParams lp=(LinearLayout.LayoutParams)tile.getLayoutParams();lp.setMargins(0,ui.dp(4),0,0);tile.setLayoutParams(lp);tile.setPadding(ui.dp(16),ui.dp(12),ui.dp(16),ui.dp(12));}
         TextView status = ui.text(tile, allowed ? "\u2713 Accesso verificato" : "! Da autorizzare", 13);
         status.setTextColor(color);
         status.setTypeface(null, Typeface.BOLD);

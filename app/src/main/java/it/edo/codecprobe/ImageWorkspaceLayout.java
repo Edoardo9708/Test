@@ -31,6 +31,8 @@ final class ImageWorkspaceLayout {
         actions=new LinearLayout(ui.activity);actions.setBaselineAligned(false);actions.setGravity(Gravity.CENTER_VERTICAL);
         back=ui.halfButton(actions,"Indietro",false);forward=ui.halfButton(actions,"Procedi al punto 2",true);
         for(Button b:new Button[]{back,forward}){b.setTextSize(12);b.setMinHeight(ui.dp(50));b.setMinimumHeight(ui.dp(50));b.setPadding(ui.dp(8),ui.dp(8),ui.dp(8),ui.dp(8));}
+        back.setBackground(new android.graphics.drawable.RippleDrawable(android.content.res.ColorStateList.valueOf(ui.border),PhotoStyle.glass(ui,back,28,true,true),null));
+        forward.setBackground(new android.graphics.drawable.RippleDrawable(android.content.res.ColorStateList.valueOf(ui.border),ui.shape(ui.accent,28),null));
         footer.addView(actions,new LinearLayout.LayoutParams(-1,-2));
         navigation.setPadding(ui.dp(5),ui.dp(5),ui.dp(5),ui.dp(5));
         navigation.setBackground(PhotoStyle.glass(ui,navigation,28,true,true));

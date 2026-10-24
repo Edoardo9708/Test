@@ -131,7 +131,7 @@ final class ImageController {
         if(renderedBusy!=busy())render();else ImageRunPresenter.renderLive(this,run);
     }
     void persist(){ImageDraftStore.save(activity,state);}
-    void save(Bundle out){out.putStringArrayList("selectedPhotos",new ArrayList<>(selectedPhotos));persist();screen.sections.save(out);selection.save(out);logExport.save(out);destinations.save(out);}
+    void save(Bundle out){out.putBoolean("photoGeneralScope",((PhotoDestinationsView)screen.destinations).general);out.putStringArrayList("selectedPhotos",new ArrayList<>(selectedPhotos));persist();screen.sections.save(out);selection.save(out);logExport.save(out);destinations.save(out);}
     void open(){
         int current=++generation;if(analysis!=null)analysis.cancel(true);
         state.clamp();state.info=null;state.notice="";state.name="";state.reading=!state.inputs.isEmpty();persist();render();if(!state.reading)return;

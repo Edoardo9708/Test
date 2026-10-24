@@ -10,6 +10,6 @@ final class ConversionOptionsView {
         smaller=option(ui,parent,"Salva solo se più piccolo",onlySmaller,"Confronta il file completo, inclusi tutti i metadati conservati, dopo codifica e verifica. Se è uguale o più grande non viene salvato. Gli originali restano conservati.");
     }
     private static CheckBox option(AppUi ui,LinearLayout parent,String title,boolean value,String help){
-        LinearLayout row=ui.row(parent);CheckBox check=SettingsPage.check(ui,row,title,value);check.setLayoutParams(new LinearLayout.LayoutParams(0,-2,1));ui.infoButton(row,title,help);return check;
+        LinearLayout row=ui.row(parent);CheckBox check;if(ui.photos){check=new PhotoSwitch(ui);check.setText(title);check.setChecked(value);row.addView(check);}else check=SettingsPage.check(ui,row,title,value);check.setLayoutParams(new LinearLayout.LayoutParams(0,-2,1));ui.infoButton(row,title,help);return check;
     }
 }

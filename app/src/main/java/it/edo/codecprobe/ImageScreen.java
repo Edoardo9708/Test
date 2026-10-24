@@ -37,10 +37,10 @@ final class ImageScreen {
         LinearLayout photoActions=ui.row(photoPanel);photoActions.setBaselineAligned(false);photoActions.addView(remove,new LinearLayout.LayoutParams(0,-2,1));
         reload=ui.halfButton(photoActions,"Rileggi",false);photoActions.addView(metadata,new LinearLayout.LayoutParams(0,-2,1));remove.setText("Rimuovi");metadata.setText("Dettagli");
         ((android.view.ViewGroup)selectedItem.detailsBody.getParent()).removeView(selectedItem.detailsBody);photoPanel.addView(selectedItem.detailsBody);
-        status=ui.text(photoPanel,"Scegli le foto. Gli originali restano invariati.",12);
+        status=ui.text(photoPanel,"Scegli le foto. Gli originali restano invariati.",12);status.setMaxLines(2);status.setEllipsize(android.text.TextUtils.TruncateAt.END);
         PhotoStyle.heading(ui,files,"Salvataggio",R.drawable.trial_folder);
         LinearLayout savingPanel=new LinearLayout(ui.activity);savingPanel.setOrientation(LinearLayout.VERTICAL);files.addView(savingPanel,new LinearLayout.LayoutParams(-1,-2));
-        destinations=new PhotoDestinationsView(ui,savingPanel);chooseFolder=destinations.pickFolder;folder=destinations.folderLabel;
+        destinations=new PhotoDestinationsView(ui,savingPanel);if(saved!=null)((PhotoDestinationsView)destinations).general=saved.getBoolean("photoGeneralScope",true);chooseFolder=destinations.pickFolder;folder=destinations.folderLabel;
         ui.text(((PhotoDestinationsView)destinations).policies,"Il nome originale viene mantenuto con estensione .heic. In caso di omonimi viene aggiunto un numero; gli originali sono conservati.",13);
         ConversionOptionsView options=new ConversionOptionsView(ui,((PhotoDestinationsView)destinations).policies,false,true);smaller=options.smaller;screenOn=options.screenOn;
         android.view.View screenRow=(android.view.View)screenOn.getParent();((android.view.ViewGroup)screenRow.getParent()).removeView(screenRow);

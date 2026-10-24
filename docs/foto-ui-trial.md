@@ -10,7 +10,9 @@ La bozza interattiva è in [foto-ui-reference.html](foto-ui-reference.html); è 
 
 - Scelta iniziale Nuovo lavoro / Riprendi sessione; la seconda porta ai controlli di recupero esistenti e richiede ancora il comando esplicito di ripresa. Il recupero non modifica la bozza nuova.
 - Tre passaggi senza intestazioni richiudibili; indietro e avanti sempre sovrapposti alla pagina, barra inferiore di 56dp, spazio di scorrimento calcolato dall’altezza reale dei controlli e dagli inset di sistema.
-- Pannelli azzurri con bordo 1dp e colore semitrasparente; titolo e barra semitrasparenti su sfondo statico. Il motore rimane collegato ai controlli reali.
+- Palette e gruppi della bozza: titolo Foto senza cornice, intestazioni fuori dai pannelli, importazione a tre pulsanti contigui e autorizzazioni separate. Bordi 1dp, angoli esterni ampi e interni piccoli. Nome foto 13sp e anteprime sempre 64dp.
+- Sfondo decorato con movimento limitato a 36 secondi a circa 15 fps, sospeso quando la pagina è nascosta, durante la conversione e con animazioni di sistema disattivate. Su Android 12+ con rendering hardware: blur 5dp per le superfici e 9dp del contenuto sotto titolo e comandi. Display list condivise, nessuna acquisizione bitmap per pannello; Android 10/11 e rendering software usano la sola trasparenza.
+- La destinazione generale lascia intatte le eccezioni esplicite dei singoli file o del gruppo selezionato. I contatori derivano dal piano effettivo e le scelte restano associate agli URI anche cambiando ordine. Le nuove importazioni seguono la regola generale.
 - Importazione file e cartella cumulativa, deduplicata per URI; nessuna sostituzione delle destinazioni preesistenti.
 - Svuota e Rimuovi richiedono conferma, senza cancellare le foto originali.
 - Anteprime 64dp con immagini richieste a 192px, decodifica seriale fuori dal thread UI, cache 2 MiB, richieste limitate alla zona visibile con un piccolo margine. Nessuna lettura di tutte le immagini per riempire le anteprime. Resta il limite preesistente di 100 elementi nel carosello.
@@ -20,7 +22,7 @@ La bozza interattiva è in [foto-ui-reference.html](foto-ui-reference.html); è 
 
 ## Passaggi ancora da implementare
 
-Questa prova non implementa ancora tutta la specifica: editor unificato della destinazione generale con eccezioni e contatori, prefisso/suffisso, sovrascrittura verificata, copia dell’originale se non conviene convertire, virtualizzazione dell’intero carosello oltre 100 foto, blur reale del contenuto sottostante, animazioni di trasformazione Morphe, indicatore ondulato e tre grafici risorse. La destinazione usa ancora la regola esistente: quando è attiva “Applica a tutta la coda”, essa prevale sulle scelte individuali, che restano memorizzate. Evitare di presentarla come il modello definitivo delle eccezioni.
+Questa prova non implementa ancora tutta la specifica: prefisso/suffisso, sovrascrittura verificata, copia dell’originale se non conviene convertire, virtualizzazione dell’intero carosello oltre 100 foto, animazioni di trasformazione Morphe, indicatore ondulato e tre grafici risorse.
 
 ## Verifica
 

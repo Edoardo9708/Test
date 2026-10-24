@@ -230,9 +230,9 @@ final class AppUi {
     }
 
     CheckBox destinationCheck(LinearLayout parent, String title) {
-        CheckBox b = new CheckBox(activity);
+        CheckBox b = photos?new PhotoSwitch(this):new CheckBox(activity);
         b.setText(title);
-        b.setTextSize(16);
+        b.setTextSize(photos?13:16);
         b.setTextColor(ink);
         b.setButtonTintList(new ColorStateList(new int[][]{{-android.R.attr.state_enabled}, {}}, new int[]{border, accent}));
         b.setTextColor(new ColorStateList(new int[][]{{-android.R.attr.state_enabled}, {}}, new int[]{muted, ink}));
