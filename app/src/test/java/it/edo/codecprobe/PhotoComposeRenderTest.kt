@@ -60,14 +60,25 @@ class PhotoComposeRenderTest {
     @Test @Config(qualifiers = "w360dp-h800dp-night-xhdpi")
     fun qualityDark() = capture(ImageScreen.COMPRESSION, "image-quality-dark.png")
     @Test fun basicDetailsCard() {
-        open(ImageScreen.FILES)
-        compose.runOnIdle { compose.activity.images.compose.onVisible(true) }
-        compose.waitUntil(5_000) { !compose.activity.images.compose.state.previewLoading }
-        compose.runOnIdle { compose.activity.images.compose.onVisible(false) }
-        compose.onNodeWithTag("photo-details").performClick()
-        compose.onNodeWithTag("photo-details-panel").performScrollTo()
-        compose.onNodeWithTag("photo-scroll").performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.ScrollBy) { it(0f, 240f) }
-        save("image-details-card.png")
+        val photo = File.createTempFile("preview-card-", ".jpg")
+        photo.writeBytes(PhotoBasicDetailsTest.fixture())
+        try {
+            compose.runOnIdle {
+                val images = compose.activity.images
+                images.state.inputs.clear(); images.state.names.clear()
+                images.state.inputs.add(android.net.Uri.fromFile(photo).toString())
+                images.state.names.add("Una foto simpatica.jpg")
+                images.open()
+            }
+            open(ImageScreen.FILES)
+            compose.runOnIdle { compose.activity.images.compose.onVisible(true) }
+            compose.waitUntil(5_000) { !compose.activity.images.compose.state.previewLoading && !compose.activity.images.state.reading }
+            compose.runOnIdle { compose.activity.images.compose.onVisible(false) }
+            compose.onNodeWithTag("photo-details").performClick()
+            compose.onNodeWithTag("photo-details-panel").performScrollTo()
+            compose.onNodeWithTag("photo-scroll").performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.ScrollBy) { it(0f, 240f) }
+            save("image-details-card.png")
+        } finally { photo.delete() }
     }
     @Test fun progressInterop() = capture(ImageScreen.HEIC, "image-conversion.png")
 

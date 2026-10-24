@@ -57,6 +57,7 @@ internal data class PhotoBasicDetails(
                 val source = context.contentResolver.openInputStream(uri) ?: throw IOException("Foto non accessibile")
                 HeaderStream(source).use { input ->
                     val exif = ExifInterface(input)
+                    if (input.exceeded) throw IOException("Intestazione oltre 1 MiB; consulta l’analisi completa")
                     width = exif.getAttributeInt(ExifInterface.TAG_IMAGE_WIDTH, 0)
                     height = exif.getAttributeInt(ExifInterface.TAG_IMAGE_LENGTH, 0)
                     val make = exif.getAttribute(ExifInterface.TAG_MAKE).orEmpty().trim().take(128)
@@ -86,9 +87,11 @@ internal data class PhotoBasicDetails(
 /** Cap metadata preview IO. A large/malformed header never causes an entire photo scan. */
 private class HeaderStream(source: InputStream) : FilterInputStream(source) {
     private var remaining = 1024L * 1024L
+    var exceeded = false
+        private set
     private fun check() {
         if (Thread.currentThread().isInterrupted) throw InterruptedIOException("Lettura annullata")
-        if (remaining <= 0) throw IOException("Intestazione oltre 1 MiB; usa Mostra tutto per l’analisi completa")
+        if (remaining <= 0) { exceeded = true; throw IOException("Intestazione oltre 1 MiB; usa Mostra tutto per l’analisi completa") }
     }
     override fun read(): Int { check(); val value = `in`.read(); if (value >= 0) remaining--; return value }
     override fun read(buffer: ByteArray, offset: Int, length: Int): Int {

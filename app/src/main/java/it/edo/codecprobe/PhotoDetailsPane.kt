@@ -15,6 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.semantics.*
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.style.TextOverflow
 
 /** Basic, labelled fields stay in their own card, with a stable loading layout. */
 @Composable
@@ -43,7 +44,8 @@ internal fun PhotoDetailsPane(state: PhotoUiState) {
                                 Row(Modifier.fillMaxWidth().heightIn(min = 36.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                                     Text(label, Modifier.weight(1f), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                     Text(if (state.previewLoading) "••••••••" else value,
-                                        Modifier.weight(1.35f), style = MaterialTheme.typography.bodySmall)
+                                        Modifier.weight(1.35f), minLines = 2, maxLines = 2, overflow = TextOverflow.Ellipsis,
+                                        style = MaterialTheme.typography.bodySmall)
                                 }
                             }
                         }
