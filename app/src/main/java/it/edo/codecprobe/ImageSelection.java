@@ -45,6 +45,8 @@ final class ImageSelection {
         LinkedHashSet<String> combined=new LinkedHashSet<>(images.state.inputs);combined.addAll(values);
         int limit=images.state.bulk?ImageQueueStore.BULK_LIMIT:ImageQueueStore.LIMIT;
         if(combined.size()>limit){images.toast("La coda può contenere al massimo "+limit+" foto.");return;}
+        java.util.HashSet<String> existing=new java.util.HashSet<>(images.state.inputs);values.removeAll(existing);
+        if(values.isEmpty()){images.toast("Le foto scelte sono già nella selezione.");return;}
         images.acceptSelection(new java.util.ArrayList<>(combined),new java.util.ArrayList<>(values));
     }
 }

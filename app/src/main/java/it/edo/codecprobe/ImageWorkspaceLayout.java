@@ -31,7 +31,7 @@ final class ImageWorkspaceLayout {
         footer.setPadding(ui.dp(16),ui.dp(6),ui.dp(16),ui.dp(8));
         actions=new LinearLayout(ui.activity);
         back=ui.halfButton(actions,"Indietro",false);forward=ui.halfButton(actions,"Procedi al punto 2",true);
-        for(Button b:new Button[]{back,forward}){b.setMinHeight(ui.dp(48));b.setMinimumHeight(ui.dp(48));b.setPadding(ui.dp(12),ui.dp(8),ui.dp(12),ui.dp(8));}
+        for(Button b:new Button[]{back,forward}){b.setMinHeight(ui.dp(52));b.setMinimumHeight(ui.dp(52));b.setPadding(ui.dp(12),ui.dp(8),ui.dp(12),ui.dp(8));}
         footer.addView(actions,new LinearLayout.LayoutParams(-1,-2));
         navigation.setPadding(ui.dp(5),ui.dp(5),ui.dp(5),ui.dp(5));
         navigation.setBackground(ui.shape(ui.dark?0xF0263549:0xF0E9EEF8,28));
@@ -64,6 +64,6 @@ final class ImageWorkspaceLayout {
         String current=steps.current();boolean next=ImageScreen.FILES.equals(current)||ImageScreen.COMPRESSION.equals(current);
         forward.setVisibility(next?View.VISIBLE:View.GONE);
         forward.setText(ImageScreen.FILES.equals(current)?"Procedi al punto 2":"Procedi al punto 3");
-        back.setText(current==null?"Indietro":ImageScreen.FILES.equals(current)?"Indietro · inizio":"Indietro");
+        back.setText("Indietro");
     }
 }

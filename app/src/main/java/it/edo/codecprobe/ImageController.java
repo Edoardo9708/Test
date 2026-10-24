@@ -15,6 +15,7 @@ final class ImageController {
     private Future<?> analysis,exportTask,namesRead,folderTask;private int namesGeneration;private int generation;private boolean destroyed,visible,applying;
     private boolean renderedBusy;
     final LinkedHashSet<String> selectedPhotos=new LinkedHashSet<>();
+    private final LinkedHashSet<String> pendingNames=new LinkedHashSet<>();
     private android.app.AlertDialog selectionConfirmation;
     private final android.os.Handler main=new android.os.Handler(android.os.Looper.getMainLooper());
     private final Runnable tick=new Runnable(){public void run(){if(!visible||destroyed)return;if(screen.dashboard.cpu.isShown())screen.dashboard.monitor.sample(android.os.SystemClock.elapsedRealtime());refresh();main.postDelayed(this,500);}};
@@ -50,10 +51,9 @@ final class ImageController {
             state.selected=index;open();screen.selectedItem.update(index,true,true);
         });
     }
+    private void stopSelectedRead(){++generation;if(analysis!=null)analysis.cancel(true);state.reading=false;}
     void stopPreviewReads(){
-        ++generation;++namesGeneration;
-        if(analysis!=null)analysis.cancel(true);if(namesRead!=null)namesRead.cancel(true);
-        state.reading=false;
+        stopSelectedRead();++namesGeneration;if(namesRead!=null)namesRead.cancel(true);
     }
     void importFolder(Uri tree){
         if(busy())return;String folder=state.options.folder==null||state.options.folder.isEmpty()?tree.toString():state.options.folder;
@@ -73,7 +73,7 @@ final class ImageController {
             activity.runOnUiThread(()->{
                 if(destroyed)return;state.importing=false;
                 if(problem!=null||result==null||result.inputs.isEmpty()){state.notice=problem==null?"Nessun JPEG o fallimento da importare.":"Importazione non riuscita: "+problem;render();return;}
-                screen.selectedItem.cancelTransition();ImageMetadataCache.memory.clear();
+                screen.selectedItem.cancelTransition();
                 LinkedHashMap<String,String> combined=new LinkedHashMap<>();
                 for(int i=0;i<state.inputs.size();i++)combined.put(state.inputs.get(i),state.names.get(i));
                 for(int i=0;i<result.inputs.size();i++)combined.putIfAbsent(result.inputs.get(i),result.names.get(i));
@@ -88,8 +88,9 @@ final class ImageController {
         });
     }
     void acceptSelection(ArrayList<String> combined,ArrayList<String> added){
-        stopPreviewReads();screen.selectedItem.cancelTransition();ImageMetadataCache.memory.clear();
-        state.names.clear();state.inputs.clear();state.inputs.addAll(combined);state.selected=0;state.clamp();state.destinations.sync(state.inputs,state.options.folder);
+        stopPreviewReads();screen.selectedItem.cancelTransition();
+        HashMap<String,String> names=new HashMap<>();for(int n=0;n<state.inputs.size();n++)names.put(state.inputs.get(n),state.names.get(n));
+        state.names.clear();state.inputs.clear();state.inputs.addAll(combined);for(String input:combined)state.names.add(names.getOrDefault(input,"Foto "+(state.names.size()+1)));state.clamp();state.destinations.sync(state.inputs,state.options.folder);
         state.importing=true;state.reading=true;state.info=null;state.name="";state.notice="Acquisizione dell’accesso alle foto…";persist();render();
         folderTask=worker.submit(()->{
             boolean temporary=false;
@@ -100,18 +101,20 @@ final class ImageController {
             }
             boolean temporaryAccess=temporary;
             activity.runOnUiThread(()->{
-                if(destroyed)return;state.importing=false;open();readNames();
+                if(destroyed)return;state.importing=false;open();readNames(added);
                 if(temporaryAccess)toast("Alcune foto concedono solo accesso temporaneo: potrebbe servire riselezionarle dopo la chiusura.");
             });
         });
     }
-    void readNames(){
+    void readNames(){readNames(new ArrayList<>(state.inputs));}
+    private void readNames(List<String> requested){
         int token=++namesGeneration;if(namesRead!=null)namesRead.cancel(true);
-        ArrayList<String> inputs=new ArrayList<>(state.inputs);
+        pendingNames.addAll(requested);pendingNames.retainAll(new HashSet<>(state.inputs));
+        ArrayList<String> inputs=new ArrayList<>(state.inputs),targets=new ArrayList<>(pendingNames);
         namesRead=namesWorker.submit(()->{
-            ArrayList<String> names=new ArrayList<>();
-            for(String value:inputs){if(Thread.currentThread().isInterrupted())return;names.add(ImageFiles.name(activity,Uri.parse(value)));}
-            activity.runOnUiThread(()->{if(destroyed||token!=namesGeneration||!inputs.equals(state.inputs))return;state.names.clear();state.names.addAll(names);persist();render();});
+            HashMap<String,String> names=new HashMap<>();
+            for(String value:targets){if(Thread.currentThread().isInterrupted())return;names.put(value,ImageFiles.name(activity,Uri.parse(value)));}
+            activity.runOnUiThread(()->{if(destroyed||token!=namesGeneration||!inputs.equals(state.inputs))return;for(int n=0;n<inputs.size();n++){String name=names.get(inputs.get(n));if(name!=null)state.names.set(n,name);}pendingNames.removeAll(names.keySet());persist();render();});
         });
     }
     void screenOnEdited(boolean checked){
@@ -212,7 +215,7 @@ final class ImageController {
     private ArrayList<String> selectionSources(){ArrayList<String> result=new ArrayList<>();for(int n:selectionIndices())result.add(state.inputs.get(n));return result;}
     void toggleSelection(int index){
         if(busy()||index<0||index>=state.inputs.size())return;
-        screen.selectedItem.cancelTransition();stopPreviewReads();String input=state.inputs.get(index);
+        screen.selectedItem.cancelTransition();stopSelectedRead();String input=state.inputs.get(index);
         if(!selectedPhotos.remove(input)){selectedPhotos.add(input);state.selected=index;}
         if(selectedPhotos.size()==1)state.selected=state.inputs.indexOf(selectedPhotos.iterator().next());
         if(selectedPhotos.size()<=1)open();else render();
@@ -222,7 +225,7 @@ final class ImageController {
         ArrayList<String> targets=selectionSources();for(String input:targets)ImageMetadataCache.memory.remove(input);
         screen.selectedItem.thumbnails.invalidate(targets);
         if(targets.size()==1){open();return;}
-        stopPreviewReads();state.importing=true;state.notice="Rilettura di "+targets.size()+" foto…";render();
+        stopSelectedRead();state.importing=true;state.notice="Rilettura di "+targets.size()+" foto…";render();
         final long epoch=ImageMetadataCache.memory.epoch();
         analysis=worker.submit(()->{
             int failures=0;

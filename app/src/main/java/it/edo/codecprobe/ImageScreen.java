@@ -17,6 +17,9 @@ final class ImageScreen {
     final MediaDestinationsView destinations;
     ImageScreen(AppUi ui,Bundle saved){
         this.ui=ui;page=ui.newPage();settings=AppHeader.add(ui,page,"Converti immagini","JPEG → HEIC · x265 · v"+BuildConfig.VERSION_NAME);
+        settings.setText("");settings.setContentDescription("Impostazioni immagini");settings.setPadding(ui.dp(10),ui.dp(10),ui.dp(10),ui.dp(10));
+        settings.setLayoutParams(new LinearLayout.LayoutParams(ui.dp(48),ui.dp(48)));
+        android.graphics.drawable.Drawable settingsIcon=ui.activity.getDrawable(R.drawable.trial_settings).mutate();settingsIcon.setTint(ui.accent);settingsIcon.setBounds(0,0,ui.dp(24),ui.dp(24));settings.setCompoundDrawables(settingsIcon,null,null,null);
         sections=new ImageSteps(ui,page,saved);
         LinearLayout files=sections.card(page,FILES),importsPanel=ImageSteps.group(ui,files),actions=ui.row(importsPanel);
         select=ui.halfButton(actions,"Aggiungi\nfile",true);importFolder=ui.halfButton(actions,"Leggi\ncartella",true);clear=ui.halfButton(actions,"Svuota",false);

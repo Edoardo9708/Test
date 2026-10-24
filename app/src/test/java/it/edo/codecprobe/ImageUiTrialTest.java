@@ -79,6 +79,18 @@ public class ImageUiTrialTest {
             int before=images.state.inputs.size();images.importFolder(Uri.parse(ImageFolderImportTest.TREE));settle(images);assertEquals(before,images.state.inputs.size());
         }finally{activity.pause().stop().destroy();}
     }
+    @Test public void addingFilesKeepsFocusNamesAndExistingMetadataCache()throws Exception{
+        var activity=Robolectric.buildActivity(ImageActivity.class).setup();
+        try{
+            var images=activity.get().images;String one=photo("first"),two=photo("second"),three=photo("third");
+            images.selection.result(ImageSelection.FILES,Activity.RESULT_OK,new Intent().setData(Uri.parse(one)));settle(images);
+            images.selection.result(ImageSelection.FILES,Activity.RESULT_OK,new Intent().setData(Uri.parse(two)));settle(images);
+            images.state.selected=1;images.open();settle(images);var cached=images.state.info;String name=images.state.names.get(1);
+            images.selection.result(ImageSelection.FILES,Activity.RESULT_OK,new Intent().setData(Uri.parse(three)));settle(images);
+            assertEquals(3,images.state.inputs.size());assertEquals(1,images.state.selected);assertEquals(name,images.state.names.get(1));assertSame(cached,images.state.info);
+            images.selection.result(ImageSelection.FILES,Activity.RESULT_OK,new Intent().setData(Uri.parse(two)));assertEquals(3,images.state.inputs.size());assertSame(cached,images.state.info);
+        }finally{activity.pause().stop().destroy();}
+    }
     @Test public void folderPickerFreezesSelectedGroupAcrossRecreation()throws Exception{
         ShadowContentResolver.registerProviderInternal("destinations",new MediaDestinationsTest.Directories());
         var activity=Robolectric.buildActivity(ImageActivity.class).setup();

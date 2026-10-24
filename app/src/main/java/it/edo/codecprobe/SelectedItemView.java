@@ -119,8 +119,8 @@ final class SelectedItemView {
             number.setVisibility(total==0?View.GONE:View.VISIBLE);
             carousel.setVisibility(total==0?View.GONE:View.VISIBLE);
             details.setVisibility(total==0?View.GONE:View.VISIBLE);remove.setVisibility(total==0?View.GONE:View.VISIBLE);remove.setEnabled(enabled);
-            hint.setVisibility(total>1?View.VISIBLE:View.GONE);
-            UiText.set(hint,total>renderedLimit?"Mostrate le prime "+renderedLimit+" foto; tutte le "+total+" foto sono in coda.":"Scorri la barra e tocca un elemento per mostrarne i dettagli.");
+            hint.setVisibility(total>(photos?0:1)?View.VISIBLE:View.GONE);
+            UiText.set(hint,(total>renderedLimit?"Mostrate le prime "+renderedLimit+" foto; tutte le "+total+" foto sono in coda.":"Scorri la barra e tocca un elemento per mostrarne i dettagli.")+(photos?"\nTieni premuto per selezionare più foto. Minions = anteprima non disponibile.":""));
             for(int n=0;n<chips.size();n++){
                 if(!all&&n!=previous&&n!=current)continue;
                 Button chip=chips.get(n);boolean active=selection.isEmpty()?n==current:selection.contains(n);
