@@ -4,6 +4,11 @@ import android.animation.ValueAnimator
 import android.os.SystemClock
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -129,13 +134,24 @@ private fun PhotoDock(state: PhotoUiState, host: PhotoComposeHost, modifier: Mod
 @Composable
 private fun PhotoNavItem(text: String, icon: Int, selected: Boolean, modifier: Modifier, click: () -> Unit) {
     val colors = MaterialTheme.colorScheme
-    Surface(onClick = click, shape = RoundedCornerShape(23.dp),
-        color = if (selected) colors.primaryContainer.copy(alpha = .8f) else Color.Transparent,
-        border = if (selected) androidx.compose.foundation.BorderStroke(1.dp, colors.primary.copy(alpha = .5f)) else null,
-        modifier = modifier.fillMaxHeight().semantics { this.selected = selected; role = Role.Tab }) {
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    val scale = animateFloatAsState(if (pressed) .97f else 1f,
+        spring(dampingRatio = .8f, stiffness = 500f), label = "nav-press")
+    val fill by animateColorAsState(if (selected) colors.primaryContainer.copy(alpha = .65f) else Color.Transparent,
+        tween(220), label = "nav-fill")
+    val edge by animateColorAsState(if (selected) colors.primary.copy(alpha = .5f) else Color.Transparent,
+        tween(220), label = "nav-edge")
+    val ink by animateColorAsState(if (selected) colors.primary else colors.onSurfaceVariant,
+        tween(220), label = "nav-ink")
+    Surface(onClick = click, interactionSource = interaction, shape = RoundedCornerShape(50),
+        color = fill, contentColor = ink,
+        border = androidx.compose.foundation.BorderStroke(1.dp, edge),
+        modifier = modifier.fillMaxHeight().graphicsLayer { scaleX = scale.value; scaleY = scale.value }
+            .semantics { this.selected = selected; role = Role.Tab }) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-            Icon(painterResource(icon), null, Modifier.size(20.dp), tint = if (selected) colors.primary else colors.onSurfaceVariant)
-            Text(text, fontSize = 11.sp, lineHeight = 13.sp, color = if (selected) colors.primary else colors.onSurfaceVariant)
+            Icon(painterResource(icon), null, Modifier.size(20.dp))
+            Text(text, fontSize = 11.sp, lineHeight = 13.sp)
         }
     }
 }

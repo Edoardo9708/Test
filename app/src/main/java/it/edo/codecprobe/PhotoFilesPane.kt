@@ -24,13 +24,15 @@ import androidx.compose.ui.viewinterop.AndroidView
 @Composable
 internal fun PhotoFilesPane(state: PhotoUiState, host: PhotoComposeHost) {
     PhotoStepHeading("01", "Prepara il lavoro", "Nuovo lavoro")
-    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-        PhotoButton("Aggiungi\nfile", { host.command(PhotoCommand.ADD_FILES) }, Modifier.weight(1f).height(86.dp),
-            R.drawable.trial_add, enabled = !state.busy, vertical = true, shape = photoJoined(0, false), tag = "photo-add")
-        PhotoButton("Leggi\ncartella", { host.command(PhotoCommand.ADD_FOLDER) }, Modifier.weight(1f).height(86.dp),
-            R.drawable.trial_folder, enabled = !state.busy, vertical = true, shape = photoJoined(1, false), tag = "photo-folder")
-        PhotoButton("Svuota", { host.command(PhotoCommand.CLEAR) }, Modifier.weight(1f).height(86.dp),
-            R.drawable.trial_bin, enabled = !state.busy && state.total > 0, vertical = true, shape = photoJoined(2, false), tag = "photo-clear")
+    PhotoButtonGroup(3) { index, button ->
+        when (index) {
+            0 -> PhotoButton("Aggiungi\nfile", { host.command(PhotoCommand.ADD_FILES) }, button.height(86.dp),
+                R.drawable.trial_add, enabled = !state.busy, vertical = true, shape = photoJoined(0, false), tag = "photo-add")
+            1 -> PhotoButton("Leggi\ncartella", { host.command(PhotoCommand.ADD_FOLDER) }, button.height(86.dp),
+                R.drawable.trial_folder, enabled = !state.busy, vertical = true, shape = photoJoined(1, false), tag = "photo-folder")
+            2 -> PhotoButton("Svuota", { host.command(PhotoCommand.CLEAR) }, button.height(86.dp),
+                R.drawable.trial_bin, enabled = !state.busy && state.total > 0, vertical = true, shape = photoJoined(2, false), tag = "photo-clear", destructive = true)
+        }
     }
     PhotoHeading("File selezionati · ${state.total} foto", R.drawable.trial_photo)
     PhotoPanel {
@@ -40,13 +42,15 @@ internal fun PhotoFilesPane(state: PhotoUiState, host: PhotoComposeHost) {
             Text("Tieni premuto per selezionare più foto.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Text(state.name, style = MaterialTheme.typography.bodySmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
             if (state.summary.isNotEmpty()) Text(state.summary, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                PhotoButton("Rimuovi", { host.command(PhotoCommand.REMOVE) }, Modifier.weight(1f), enabled = !state.busy,
-                    shape = photoJoined(0, false), tag = "photo-remove")
-                PhotoButton("Rileggi", { host.command(PhotoCommand.REREAD) }, Modifier.weight(1f), enabled = !state.busy,
-                    shape = photoJoined(1, false), tag = "photo-reread")
-                PhotoButton("Dettagli", { host.command(PhotoCommand.DETAILS) }, Modifier.weight(1f), enabled = state.detailsEnabled,
-                    selected = state.detailsOpen, shape = photoJoined(2, false), tag = "photo-details")
+            PhotoButtonGroup(3) { index, button ->
+                when (index) {
+                    0 -> PhotoButton("Rimuovi", { host.command(PhotoCommand.REMOVE) }, button, enabled = !state.busy,
+                        shape = photoJoined(0, false), tag = "photo-remove", destructive = true)
+                    1 -> PhotoButton("Rileggi", { host.command(PhotoCommand.REREAD) }, button, enabled = !state.busy,
+                        shape = photoJoined(1, false), tag = "photo-reread")
+                    2 -> PhotoButton("Dettagli", { host.command(PhotoCommand.DETAILS) }, button, enabled = state.detailsEnabled,
+                        selected = state.detailsOpen, shape = photoJoined(2, false), tag = "photo-details")
+                }
             }
             AnimatedVisibility(state.detailsOpen, enter = expandVertically() + fadeIn(), exit = shrinkVertically() + fadeOut()) {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -94,11 +98,11 @@ private fun PhotoSaving(state: PhotoUiState, host: PhotoComposeHost) {
     PhotoHeading("Salvataggio", R.drawable.trial_folder)
     PhotoPanel(shape = photoJoined(0)) {
         Text("Cosa elaborare", style = MaterialTheme.typography.labelLarge)
-        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            PhotoButton(state.currentLabel, { host.command(PhotoCommand.CURRENT) }, Modifier.weight(1f),
-                selected = !state.general, enabled = !state.busy && state.total > 0, tag = "photo-current")
-            PhotoButton(state.allLabel, { host.command(PhotoCommand.ALL) }, Modifier.weight(1f),
-                selected = state.general, enabled = !state.busy, tag = "photo-all")
+        PhotoButtonGroup(2) { index, button ->
+            if (index == 0) PhotoButton(state.currentLabel, { host.command(PhotoCommand.CURRENT) }, button,
+                selected = !state.general, enabled = !state.busy && state.total > 0, shape = photoJoined(0, false), tag = "photo-current")
+            else PhotoButton(state.allLabel, { host.command(PhotoCommand.ALL) }, button,
+                selected = state.general, enabled = !state.busy, shape = photoJoined(2, false), tag = "photo-all")
         }
         Text(state.allocation, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
@@ -110,9 +114,11 @@ private fun PhotoSaving(state: PhotoUiState, host: PhotoComposeHost) {
         }
         AnimatedVisibility(state.editorVisible, enter = expandVertically() + fadeIn(), exit = shrinkVertically() + fadeOut()) {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    PhotoButton("Origine", { host.command(PhotoCommand.ORIGIN) }, Modifier.weight(1f), selected = state.origin, enabled = !state.busy)
-                    PhotoButton("Altra cartella", { host.command(PhotoCommand.DESTINATION) }, Modifier.weight(1f), selected = state.destination, enabled = !state.busy)
+                PhotoButtonGroup(2) { index, button ->
+                    if (index == 0) PhotoButton("Origine", { host.command(PhotoCommand.ORIGIN) }, button,
+                        selected = state.origin, enabled = !state.busy, shape = photoJoined(0, false))
+                    else PhotoButton("Altra cartella", { host.command(PhotoCommand.DESTINATION) }, button,
+                        selected = state.destination, enabled = !state.busy, shape = photoJoined(2, false))
                 }
                 AnimatedVisibility(state.chooseVisible) {
                     PhotoButton("Scegli cartella…", { host.command(PhotoCommand.CHOOSE_FOLDER) }, Modifier.fillMaxWidth(),

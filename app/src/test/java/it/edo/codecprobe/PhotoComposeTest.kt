@@ -60,6 +60,24 @@ class PhotoComposeTest {
         }
     }
 
+    @Test fun pressingAGroupedChoiceWidensItAndCancellationDoesNotChangeQuality() {
+        compose.onNodeWithTag("photo-new").performClick()
+        compose.onNodeWithTag("photo-next").performClick()
+        val choice = compose.onNodeWithText("50")
+        val resting = choice.fetchSemanticsNode().boundsInRoot.width
+        choice.performTouchInput { down(center) }
+        compose.mainClock.advanceTimeBy(400)
+        val held = choice.fetchSemanticsNode().boundsInRoot.width
+        assertTrue("A held choice should borrow width: $resting / $held", held > resting)
+        compose.runOnIdle { assertEquals(65, compose.activity.images.state.options.quality) }
+        choice.performTouchInput { cancel() }
+        compose.mainClock.advanceTimeBy(600)
+        assertEquals(resting, choice.fetchSemanticsNode().boundsInRoot.width, 1f)
+        compose.runOnIdle { assertEquals(65, compose.activity.images.state.options.quality) }
+        choice.performClick()
+        compose.runOnIdle { assertEquals(50, compose.activity.images.state.options.quality) }
+    }
+
     @Test fun longPressAndSwitchApplyExceptionsToExactlyTheSelectedFiles() {
         addPhotos(3)
         compose.onNodeWithTag("photo-new").performClick()

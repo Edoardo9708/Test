@@ -1,7 +1,9 @@
 package it.edo.codecprobe
 
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -9,6 +11,8 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CornerBasedShape
+import androidx.compose.foundation.shape.CornerSize
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -16,6 +20,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.*
 import androidx.compose.ui.text.font.FontWeight
@@ -87,23 +94,45 @@ internal fun PhotoButton(
     vertical: Boolean = false,
     shape: Shape? = null,
     tag: String = "",
-    compact: Boolean = false
+    compact: Boolean = false,
+    destructive: Boolean = false
 ) {
-    val interaction = remember { MutableInteractionSource() }
+    val groupInteraction = LocalPhotoButtonInteraction.current
+    val interaction = groupInteraction ?: remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
-    val corner by animateDpAsState(if (pressed) 18.dp else 28.dp, label = "button-shape")
+    val press by animateFloatAsState(if (enabled && pressed) 1f else 0f,
+        spring(dampingRatio = .8f, stiffness = 500f), label = "button-press")
+    val selection by animateFloatAsState(if (selected) 1f else 0f,
+        spring(dampingRatio = .8f, stiffness = 500f), label = "button-selection")
     val colors = MaterialTheme.colorScheme
-    val fill by animateColorAsState(
-        when { primary -> colors.primary; selected -> colors.primaryContainer.copy(alpha = .8f); else -> colors.surfaceVariant.copy(alpha = .7f) },
-        label = "button-fill"
-    )
-    val ink by animateColorAsState(if (primary) colors.onPrimary else if (selected) colors.onPrimaryContainer else colors.primary, label = "button-ink")
-    val actualShape = shape ?: RoundedCornerShape(corner)
+    val dark = androidx.compose.foundation.isSystemInDarkTheme()
+    val veil = if (dark) .35f else .60f
+    val targetFill = when {
+        primary -> colors.primary
+        selected -> colors.primaryContainer.copy(alpha = if (dark) .55f else .72f)
+        else -> colors.surfaceVariant.copy(alpha = veil)
+    }
+    val targetInk = when {
+        destructive -> colors.error
+        primary -> colors.onPrimary
+        selected -> colors.onPrimaryContainer
+        else -> colors.onSurfaceVariant
+    }
+    val targetEdge = when {
+        destructive -> colors.error.copy(alpha = .55f)
+        selected || primary -> colors.primary.copy(alpha = if (dark) .55f else .45f)
+        else -> colors.outline.copy(alpha = if (dark) .40f else .60f)
+    }
+    val fill by animateColorAsState(targetFill.copy(alpha = targetFill.alpha * if (enabled) 1f else .5f), tween(220), label = "button-fill")
+    val ink by animateColorAsState(targetInk.copy(alpha = if (enabled) 1f else .38f), tween(220), label = "button-ink")
+    val edge by animateColorAsState(targetEdge.copy(alpha = targetEdge.alpha * if (enabled) 1f else .5f), tween(220), label = "button-edge")
+    val base = shape ?: RoundedCornerShape(50)
+    val actualShape = remember(base, press, selection) { PhotoButtonShape(base, press, selection) }
     Surface(
         onClick = onClick, enabled = enabled, interactionSource = interaction, shape = actualShape,
-        color = fill, contentColor = if (enabled) ink else colors.onSurface.copy(alpha = .38f),
-        border = BorderStroke(1.dp, if (selected) colors.primary.copy(alpha = .5f) else colors.outline.copy(alpha = .55f)),
-        modifier = modifier.defaultMinSize(minHeight = 48.dp).semantics {
+        color = fill, contentColor = ink, border = BorderStroke(1.dp, edge),
+        modifier = modifier.defaultMinSize(minHeight = 48.dp).clip(actualShape).semantics {
+            role = Role.Button
             if (tag.isNotEmpty()) testTag = tag
             this.selected = selected
         }
@@ -116,6 +145,42 @@ internal fun PhotoButton(
             horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
             if (icon != null) { Icon(painterResource(icon), null, Modifier.size(20.dp)); Spacer(Modifier.width(8.dp)) }
             Text(text, style = if (compact) MaterialTheme.typography.labelMedium else MaterialTheme.typography.labelLarge, textAlign = TextAlign.Center)
+        }
+    }
+}
+
+/** Resolve corners against the measured button, including joined edges and percentage pills. */
+private data class PhotoButtonShape(val base: Shape, val press: Float, val selection: Float) : Shape {
+    override fun createOutline(size: Size, layoutDirection: LayoutDirection, density: Density): androidx.compose.ui.graphics.Outline {
+        val corners = base as? CornerBasedShape ?: return base.createOutline(size, layoutDirection, density)
+        val radius = size.minDimension / 2f
+        fun resolve(corner: CornerSize): CornerSize {
+            val rest = corner.toPx(size, density)
+            val rounded = rest + (radius - rest) * selection.coerceIn(0f, 1f)
+            return CornerSize((rounded * (1f - .5f * press.coerceIn(0f, 1f))).coerceAtLeast(0f))
+        }
+        return RoundedCornerShape(resolve(corners.topStart), resolve(corners.topEnd),
+            resolve(corners.bottomEnd), resolve(corners.bottomStart)).createOutline(size, layoutDirection, density)
+    }
+}
+
+private val LocalPhotoButtonInteraction = staticCompositionLocalOf<MutableInteractionSource?> { null }
+
+/** Connected choices share a little width during a press; no timers or idle animation. */
+@Composable
+internal fun PhotoButtonGroup(count: Int, modifier: Modifier = Modifier, content: @Composable (Int, Modifier) -> Unit) {
+    val sources = remember(count) { List(count) { MutableInteractionSource() } }
+    val weights = sources.map { source ->
+        val down by source.collectIsPressedAsState()
+        val weight by animateFloatAsState(if (down) 1.12f else 1f,
+            spring(dampingRatio = .8f, stiffness = 500f), label = "button-share")
+        weight
+    }
+    Row(modifier.fillMaxWidth().height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        repeat(count) { index ->
+            CompositionLocalProvider(LocalPhotoButtonInteraction provides sources[index]) {
+                content(index, Modifier.weight(weights[index]).fillMaxHeight())
+            }
         }
     }
 }

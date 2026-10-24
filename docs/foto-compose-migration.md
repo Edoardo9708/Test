@@ -36,3 +36,25 @@ Morphe usa la stessa famiglia di librerie con versioni più recenti e componenti
 I test della logica Java continuano a verificare importazioni, destinazioni, code e conservazione dei file. I nuovi test Compose interagiscono con i controlli realmente visibili. Le immagini di CI devono provenire dalla schermata Compose, non dalla pagina Java scollegata. Il blur hardware richiede anche una prova sul telefono.
 
 La migrazione non aggiunge ancora prefisso/suffisso, sovrascrittura, copia originale senza risparmio o carosello oltre 100 elementi. Dopo la verifica di Foto, i componenti condivisi possono sostituire quelli delle altre sezioni.
+
+## Rifinitura dei pulsanti dopo la prova sul telefono
+
+Confrontati direttamente i componenti Morphe `GlassButton`, `GlassButtonDefaults`,
+`ConnectedShapes`, `PressFeedback`, `ButtonGroupRow` e `FloatingPillBar`.
+Riferimento: https://github.com/MorpheApp/morphe-manager/tree/main/app/src/main/java/app/morphe/manager/ui/screen/shared.
+Il codice dell'app resta un'implementazione propria sulle API Compose già adottate.
+
+I pulsanti collegati ora animano anche gli angoli definiti esplicitamente: la
+selezione arrotonda il segmento, la pressione riduce temporaneamente la curvatura.
+Le righe di scelte e azioni condividono una piccola parte della larghezza durante
+la pressione; una cancellazione del gesto restituisce lo spazio senza attivare
+il comando. Riempimento, testo e bordo cambiano insieme, compreso lo stato
+disabilitato. I comandi distruttivi hanno testo e bordo rossi e mantengono la
+conferma esistente. I colori neutri sono più traslucidi, soprattutto in modalità
+scura. Il pulsante Avanti resta evidenziato.
+
+La barra inferiore mantiene l'altezza compatta concordata; i suoi elementi animano
+colore e pressione. Il passaggio fra Video/Audio/Foto usa ancora Activity distinte:
+non è quindi ancora il pager con indicatore scorrevole condiviso di Morphe.
+Le animazioni sono finite e guidate dagli eventi Compose; non aggiungono timer e
+seguono la scala delle animazioni del sistema. Le anteprime restano a 64 dp.
