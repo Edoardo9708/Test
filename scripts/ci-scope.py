@@ -21,8 +21,8 @@ def classify(paths, force_full=False, native_boundary=False, version_only=False)
         build = True
         if path == 'app/build.gradle' and version_only:
             continue
-        if path.startswith(JAVA) and path.endswith('.java'):
-            if path[len(JAVA):] not in NATIVE_JAVA:
+        if path.startswith(JAVA) and path.endswith(('.java', '.kt')):
+            if Path(path).stem + '.java' not in NATIVE_JAVA:
                 continue
         elif path.startswith(('app/src/main/res/', 'app/src/test/')):
             continue
@@ -66,7 +66,7 @@ def only_version_change(event):
 
 
 def native_java_changes(event, paths):
-    java = [path for path in paths if path.startswith(JAVA) and path.endswith('.java')]
+    java = [path for path in paths if path.startswith(JAVA) and path.endswith(('.java', '.kt'))]
     if not java:
         return False
     try:
@@ -74,7 +74,7 @@ def native_java_changes(event, paths):
                                event['before'], event['after'], '--', *java],
                               check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE).stdout.decode('utf-8')
         # Catch added/removed JNI declarations, native calls and library loads, including in new classes.
-        return any(re.search(r'\bnative\b|\bnative[A-Z]\w*\s*\(|System\s*\.\s*load(?:Library)?\s*\(', line[1:])
+        return any(re.search(r'\bexternal\s+fun\b|\bnative\b|\bnative[A-Z]\w*\s*\(|System\s*\.\s*load(?:Library)?\s*\(', line[1:])
                    for line in diff.splitlines() if line.startswith(('+', '-')) and not line.startswith(('+++', '---')))
     except (KeyError, subprocess.CalledProcessError, UnicodeError, OSError):
         return True

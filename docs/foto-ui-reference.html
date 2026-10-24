@@ -1,0 +1,483 @@
+<style>
+#edo-preview{color-scheme:light dark;padding:24px 10px;display:flex;justify-content:center;font-family:system-ui,-apple-system,sans-serif}
+#edo-preview .phone{--bg:light-dark(#f3f0f8,#14121b);--panel:light-dark(#fffbff,#211e2a);--inner:light-dark(#f0eaf7,#2c2737);--fg:light-dark(#24202e,#eee7f7);--muted:light-dark(#696174,#bdb2cc);--line:light-dark(#ded5e9,#443a51);--accent:light-dark(#66508d,#d1b9f6);--on:light-dark(#fff,#38254f);--soft:light-dark(#eaddfa,#453358);--danger:light-dark(#a13547,#ffb0ba);background:var(--bg);color:var(--fg);width:100%;max-width:440px;border:1px solid var(--line);border-radius:30px;overflow:hidden;box-shadow:0 16px 55px #00000016}
+#edo-preview *{box-sizing:border-box}#edo-preview button,#edo-preview input{font:inherit}#edo-preview button{color:inherit;cursor:pointer;border:0}#edo-preview button:disabled{opacity:.4;cursor:default}#edo-preview .top{padding:24px 22px 20px;background:radial-gradient(ellipse at top right, var(--soft),transparent 75%)}
+#edo-preview .eyebrow{font-size:11px;letter-spacing:1.8px;text-transform:uppercase;color:var(--muted);margin-bottom:7px}#edo-preview .heading{display:flex;align-items:center;justify-content:space-between;gap:12px}#edo-preview h2{font-size:28px;font-weight:500;letter-spacing:-1px;margin:0}#edo-preview .iconbtn{display:grid;place-items:center;background:var(--panel);border-radius:16px;min-width:44px;min-height:44px}#edo-preview .tag{font-size:12px;color:var(--muted);margin:7px 0 0}
+#edo-preview .content{padding:0 14px 16px}#edo-preview .work{border-radius:24px;background:var(--panel);border:1px solid var(--line);overflow:hidden}#edo-preview .workhead{width:100%;display:flex;gap:12px;align-items:center;background:transparent;padding:18px;text-align:left}#edo-preview .step{width:34px;height:34px;border-radius:12px;background:var(--soft);color:var(--accent);display:grid;place-items:center;font-size:12px;flex-shrink:0}#edo-preview .worktitle{font-size:16px;font-weight:500}#edo-preview .sub{display:block;font-size:12px;color:var(--muted);margin-top:3px}#edo-preview .end{margin-left:auto}#edo-preview .body{padding:0 16px 16px}#edo-preview [hidden]{display:none!important}
+#edo-preview .choose{display:grid;gap:12px}#edo-preview .big{display:flex;align-items:center;text-align:left;gap:14px;padding:23px 18px;border-radius:20px;background:var(--inner);width:100%}#edo-preview .big:first-child{background:var(--soft)}#edo-preview .big strong{font-weight:500;font-size:17px}#edo-preview .big .badgeicon{background:var(--panel);border-radius:14px;width:44px;height:44px;display:grid;place-items:center;flex-shrink:0}
+#edo-preview .pane{animation:edo-open .3s cubic-bezier(.2,.7,.2,1)}@keyframes edo-open{from{opacity:.25;transform:translateY(12px) scale(.98)}to{opacity:1;transform:none}}#edo-preview .tools{display:grid;grid-template-columns:1fr 1fr .86fr;gap:7px}#edo-preview .tool{display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px;background:var(--inner);padding:13px 5px;min-height:76px;border-radius:16px;font-size:12px;text-align:center}#edo-preview .tool.danger{color:var(--danger);background:transparent;border:1px solid var(--line)}#edo-preview .group{margin-top:25px}#edo-preview .sectionlabel{display:flex;justify-content:space-between;gap:8px;align-items:center;font-size:14px;font-weight:500;margin-bottom:12px}#edo-preview .count{font-size:12px;font-weight:400;background:var(--inner);padding:5px 9px;border-radius:12px;color:var(--muted)}
+#edo-preview .film{display:flex;gap:8px;overflow:hidden;padding:3px 2px 6px}#edo-preview .thumb{width:calc((100% - 24px)/4);flex-shrink:0;height:72px;border-radius:13px;position:relative;padding:0;overflow:hidden;background:linear-gradient(145deg,#b9d3dc,#7fa6bd 45%,#3d5a69 46%,#4f7971 72%,#243f3d);border:3px solid transparent}#edo-preview .thumb:nth-child(2){background:linear-gradient(158deg,#f4c4a3,#c18b86 47%,#604b70 48%,#343c60 72%,#252c48)}#edo-preview .thumb:nth-child(3){background:linear-gradient(135deg,#b0d0b1,#699d7e 40%,#2d6057 41%,#173c40 65%,#568176)}#edo-preview .thumb:nth-child(4){background:linear-gradient(160deg,#d8d5c9,#c4b5a2 46%,#958578 47%,#5a635b 75%,#373e35)}#edo-preview .thumb[aria-pressed=true]{border-color:var(--accent);box-shadow:0 0 0 2px var(--panel) inset}#edo-preview .thumb span{position:absolute;bottom:3px;left:5px;color:#fff;font-size:11px;text-shadow:0 1px 3px #000}#edo-preview .fileline{display:flex;gap:8px;align-items:center;margin-top:5px}#edo-preview .fileinfo{flex:1;min-width:0}#edo-preview .filename{font-size:13px;overflow-wrap:anywhere}#edo-preview .small{font-size:12px;color:var(--muted)}#edo-preview .arrow{min-height:44px;min-width:34px;background:transparent;border-radius:12px;font-size:22px}#edo-preview .actions{display:flex;gap:5px;padding:5px;background:var(--inner);border-radius:16px;margin-top:12px}#edo-preview .actions button{background:transparent;flex:1;min-height:44px;font-size:12px;display:flex;gap:5px;align-items:center;justify-content:center;border-radius:12px}#edo-preview .actions .danger{color:var(--danger)}#edo-preview .actions button[aria-expanded=true]{background:var(--panel)}
+#edo-preview .details{background:var(--inner);border-radius:16px;padding:14px;margin-top:10px;font-size:12px}#edo-preview dl{margin:0;display:grid;grid-template-columns:1fr 1fr;gap:9px}#edo-preview dt{color:var(--muted)}#edo-preview dd{margin:0;text-align:right}#edo-preview .divider{height:1px;background:var(--line);margin:24px 0 19px}#edo-preview h3{font-size:16px;font-weight:500;margin:0 0 17px}#edo-preview .field{margin:18px 0 0;padding:0;border:0;min-width:0}#edo-preview legend{padding:0;margin-bottom:9px;font-size:12px;color:var(--muted)}#edo-preview .seg{display:flex;gap:4px;padding:4px;background:var(--inner);border-radius:15px}#edo-preview .seg button{flex:1;min-height:44px;padding:7px;background:transparent;border-radius:11px;font-size:12px}#edo-preview .seg button[aria-pressed=true]{background:var(--panel);color:var(--accent);box-shadow:0 2px 5px #0000000a;font-weight:500}#edo-preview .destination{display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--inner);border-radius:14px;padding:12px;margin-top:9px;font-size:12px}#edo-preview .destination button{background:var(--panel);padding:9px;border-radius:10px;min-height:44px;color:var(--accent)}
+#edo-preview .switchrow{display:flex;gap:16px;align-items:center;justify-content:space-between;padding:16px 0;border-bottom:1px solid var(--line);font-size:13px}#edo-preview .switchrow .explain{font-size:12px;color:var(--muted);display:block;margin-top:4px}#edo-preview input[type=checkbox]{appearance:none;-webkit-appearance:none;width:44px;height:26px;border-radius:20px;background:var(--line);flex-shrink:0;position:relative;cursor:pointer;transition:background .2s;margin:0}#edo-preview input[type=checkbox]:before{content:'';width:18px;height:18px;position:absolute;left:4px;top:4px;border-radius:50%;background:var(--panel);transition:transform .2s}#edo-preview input[type=checkbox]:checked{background:var(--accent)}#edo-preview input[type=checkbox]:checked:before{transform:translateX(18px);background:var(--on)}#edo-preview .resultnote{font-size:12px;color:var(--muted);background:var(--inner);padding:12px 14px;border-radius:14px;margin-top:13px}#edo-preview .back{width:100%;min-height:46px;background:transparent;color:var(--accent);margin-top:17px;display:flex;gap:8px;align-items:center;justify-content:center;font-size:13px}#edo-preview .sessioncard{padding:18px;background:var(--inner);border-radius:18px}#edo-preview .sessioncard p{font-size:13px;margin:10px 0;color:var(--muted)}#edo-preview .sessioncard strong{font-weight:500}#edo-preview .progress{height:6px;background:var(--line);border-radius:8px;margin:18px 0 8px}#edo-preview .progress span{display:block;width:64%;height:100%;background:var(--accent);border-radius:8px}#edo-preview .resume{width:100%;background:var(--accent);color:var(--on);padding:14px;border-radius:14px;min-height:46px;margin-top:14px}#edo-preview .notice{font-size:12px;color:var(--muted);margin:12px 2px}#edo-preview .toast{background:var(--soft);color:var(--fg);padding:12px 14px;border-radius:14px;margin-top:12px;font-size:12px}#edo-preview .nav{margin:0 14px 14px;padding:7px;display:flex;gap:3px;background:var(--panel);border:1px solid var(--line);border-radius:24px}#edo-preview .nav button{display:flex;flex:1;flex-direction:column;align-items:center;justify-content:center;gap:5px;min-height:58px;border-radius:18px;background:transparent;font-size:11px;color:var(--muted)}#edo-preview .nav button[aria-pressed=true]{background:var(--soft);color:var(--accent)}#edo-preview svg{width:18px;height:18px;stroke-width:1.8}#edo-preview .big svg{width:23px;height:23px}#edo-preview .empty{text-align:center;padding:24px 8px;color:var(--muted);font-size:13px}#edo-preview .collapsehint{font-size:12px;color:var(--muted);padding:0 18px 18px} @media(prefers-reduced-motion:reduce){#edo-preview *{animation:none!important;transition:none!important}}@media(max-width:360px){#edo-preview{padding:12px 0}#edo-preview .body{padding-left:12px;padding-right:12px}#edo-preview .phone{border-radius:23px}#edo-preview .actions button{gap:3px}}
+#edo-preview .back.independent{border:1px solid var(--line);background:var(--panel);border-radius:16px;min-height:50px;margin-top:14px}
+#edo-preview .permissions{margin-top:22px;padding:18px 14px;background:var(--inner);border-radius:18px}
+#edo-preview .permissions h3{margin-bottom:6px}
+#edo-preview .permissionrow{display:flex;gap:10px;align-items:center;justify-content:space-between;padding:14px 0;border-bottom:1px solid var(--line);font-size:12px}
+#edo-preview .permissionrow:last-child{border-bottom:0;padding-bottom:0}
+#edo-preview .permissioninfo{min-width:0;overflow-wrap:anywhere}
+#edo-preview .permstatus{display:block;margin-top:5px;color:var(--accent)}
+#edo-preview .permstatus.missing{color:var(--danger)}
+#edo-preview .permissionrow button{min-height:44px;padding:8px 10px;background:var(--panel);color:var(--accent);border-radius:12px;flex-shrink:0;font-size:12px}
+#edo-preview #edo-inherited{padding-top:12px}
+#edo-preview #edo-global-summary{overflow-wrap:anywhere;margin:0 0 8px}
+#edo-preview #edo-path{overflow-wrap:anywhere}
+#edo-preview .destination>span{min-width:0}
+#edo-preview .compression-body{padding:0 18px 20px}
+#edo-preview .formatline{display:flex;justify-content:space-between;align-items:center;background:var(--inner);border-radius:16px;padding:14px;font-size:13px;margin-bottom:24px}
+#edo-preview .formatline strong{font-weight:500;color:var(--accent)}
+#edo-preview .setting-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:6px}
+#edo-preview .setting-head label{font-size:15px;font-weight:500}
+#edo-preview output{background:var(--soft);color:var(--accent);padding:7px 11px;border-radius:12px;font-size:14px;font-variant-numeric:tabular-nums}
+#edo-preview .range{width:100%;accent-color:var(--accent);min-height:44px;margin:7px 0 0}
+#edo-preview .range-labels{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-bottom:13px}
+#edo-preview .shortcuts{display:flex;gap:8px}
+#edo-preview .shortcuts button{flex:1;min-height:44px;background:var(--inner);border-radius:14px;color:var(--fg);font-size:13px}
+#edo-preview .shortcuts button[aria-pressed=true]{background:var(--soft);color:var(--accent)}
+#edo-preview .compression-body .small{line-height:1.5}
+#edo-preview .preset-choice{min-height:63px!important}
+#edo-preview .preset-choice span{display:block;font-size:11px;margin-top:3px;color:var(--muted)}
+#edo-preview .advanced{margin-top:24px;background:var(--inner);border-radius:16px;padding:0 14px}
+#edo-preview .advanced summary{min-height:52px;display:flex;align-items:center;justify-content:space-between;font-size:13px;cursor:pointer;list-style:none}
+#edo-preview .advanced summary::-webkit-details-marker{display:none}
+#edo-preview .advanced[open] summary .chevron{transform:rotate(180deg)}
+#edo-preview .advanced-body{padding:2px 0 16px}
+#edo-preview .advanced select{background:var(--panel);color:var(--fg);border:1px solid var(--line);border-radius:12px;min-height:46px;width:100%;padding:9px 12px;font-size:14px;margin-top:8px}
+#edo-preview .advanced label{font-size:13px}
+#edo-preview .advanced .tech{font-size:12px;color:var(--muted);border-top:1px solid var(--line);padding-top:12px;margin:14px 0 0}
+#edo-preview .reviewline{font-size:12px;color:var(--muted);padding-top:16px;margin-top:20px;border-top:1px solid var(--line)}
+#edo-preview .stage-message{padding:12px 14px;margin:12px 0 0;background:var(--inner);border-radius:14px;font-size:12px;color:var(--fg)}
+#edo-preview .runbody{padding:0 18px 20px}
+#edo-preview .runsummary{background:var(--inner);border-radius:16px;padding:14px}
+#edo-preview .runsummary summary{cursor:pointer;font-size:13px;min-height:28px}
+#edo-preview .runsummary dl{font-size:12px;margin-top:14px;grid-template-columns:80px 1fr}
+#edo-preview .runsummary dd{overflow-wrap:anywhere}
+#edo-preview .runhead{display:flex;justify-content:space-between;gap:12px;align-items:center;margin:24px 0 12px;font-size:15px}
+#edo-preview .runhead strong{font-weight:500}
+#edo-preview .runbar{height:9px;background:var(--line);border-radius:12px;overflow:hidden}
+#edo-preview .runbar span{display:block;height:100%;width:0;background:var(--accent);border-radius:12px;transition:width .3s ease}
+#edo-preview .runfile{font-size:12px;overflow-wrap:anywhere;color:var(--muted);margin:12px 0 18px;min-height:32px}
+#edo-preview .runbuttons{display:flex;gap:8px}
+#edo-preview .runbuttons button{min-height:48px;flex:1;border-radius:15px;background:var(--inner);font-size:13px}
+#edo-preview .runbuttons .start{background:var(--accent);color:var(--on)}
+#edo-preview .runbuttons .stop{color:var(--danger);border:1px solid var(--line);background:transparent}
+#edo-preview .runcounts{display:grid;grid-template-columns:1fr 1fr;gap:10px 18px;margin:20px 0;font-size:12px;color:var(--muted)}
+#edo-preview .runcounts span{display:flex;justify-content:space-between;gap:8px}
+#edo-preview .runcounts strong{font-weight:500;font-variant-numeric:tabular-nums;color:var(--fg)}
+#edo-preview .runresults{margin-top:16px}
+#edo-preview .runresults h3{margin-bottom:4px}
+#edo-preview .resultrow{padding:12px 0;border-bottom:1px solid var(--line);font-size:12px}
+#edo-preview .resultrow span{display:block;color:var(--muted);margin-top:4px}
+#edo-preview .resultrow.error span{color:var(--danger)}
+#edo-preview .runmessage{background:var(--inner);padding:13px;border-radius:14px;font-size:12px;margin-top:16px}
+#edo-preview .runlog{margin-top:18px}
+#edo-preview .runlog summary{font-size:13px;min-height:44px;display:flex;align-items:center;cursor:pointer}
+#edo-preview .runlog textarea{width:100%;min-height:120px;resize:vertical;border:1px solid var(--line);border-radius:12px;background:var(--inner);color:var(--fg);padding:10px;font-size:12px}
+#edo-preview .phone{--bg:light-dark(#f8f8fb,#151820);--panel:light-dark(#e8eefc,#232d42);--inner:light-dark(#dce7fc,#2c3a54);--fg:light-dark(#292c32,#e7ecf7);--muted:light-dark(#565b66,#b5bfd1);--line:light-dark(#c8cbd3,#465064);--accent:light-dark(#3977e9,#a8c5ff);--on:light-dark(#fff,#112c58);--soft:light-dark(#d5e3ff,#344d76);--danger:light-dark(#a93649,#ffb1be);position:relative;isolation:isolate;border-radius:28px;background:var(--bg);box-shadow:0 12px 40px #00000012}
+#edo-preview .phone::before{content:'';position:absolute;inset:0;z-index:-1;pointer-events:none;background:radial-gradient(circle at 88% 6%,light-dark(#f9d99b99,#8c703b33) 0 58px,transparent 59px),radial-gradient(circle at 7% 32%,light-dark(#c9dafb88,#42618c33) 0 80px,transparent 81px),radial-gradient(circle at 92% 59%,light-dark(#f9d99b88,#8c703b33) 0 75px,transparent 76px),radial-gradient(circle at 9% 82%,light-dark(#c9dafb88,#42618c33) 0 100px,transparent 101px)}
+#edo-preview .backdrop{position:absolute;inset:0;pointer-events:none;z-index:-1;overflow:hidden;border-radius:inherit;color:light-dark(#7891b77a,#7f9ec54d)}
+#edo-preview .backdrop svg{position:absolute;width:32px;height:32px}#edo-preview .backdrop :nth-child(1){top:240px;right:9px;transform:rotate(15deg)}#edo-preview .backdrop :nth-child(2){top:690px;left:8px;transform:rotate(-20deg)}#edo-preview .backdrop :nth-child(3){top:1110px;right:12px;transform:rotate(12deg)}
+#edo-preview .top{background:transparent;padding:28px 22px 24px}#edo-preview h2{font-size:32px;letter-spacing:-.7px}#edo-preview .eyebrow{font-size:11px;letter-spacing:1.4px}#edo-preview .iconbtn{background:light-dark(#e5e7ecbb,#374050bb);border-radius:50%;color:var(--muted)}
+#edo-preview .work{border:0;border-radius:0;overflow:visible;background:transparent}#edo-preview .workhead{padding:7px 6px 22px;gap:11px;background:transparent}#edo-preview .step{background:transparent;color:var(--accent);font-size:16px;width:30px;font-weight:500}#edo-preview .worktitle{font-size:16px;color:var(--muted)}#edo-preview .body,#edo-preview .compression-body,#edo-preview .runbody{padding:0}#edo-preview .content{padding:0 16px 16px}
+#edo-preview .tools{gap:4px}#edo-preview .tool{background:var(--panel);border:1px solid var(--line);border-radius:5px;min-height:86px;font-size:12px}#edo-preview .tool:first-child{border-radius:22px 5px 5px 22px}#edo-preview .tool:last-child{border-radius:5px 22px 22px 5px}#edo-preview .tool.danger{background:var(--panel);border:1px solid var(--line)}#edo-preview .tool svg{color:var(--accent);width:23px;height:23px}#edo-preview .tool.danger svg{color:var(--danger)}
+#edo-preview .group{margin-top:32px}#edo-preview .sectionlabel{padding:0 8px;color:var(--muted);font-size:14px;margin-bottom:14px}#edo-preview .count{background:transparent;color:var(--muted);padding:0}#edo-preview #edo-files{background:var(--panel);border:1px solid var(--line);border-radius:24px;padding:14px 12px}#edo-preview .thumb{height:80px;border-radius:13px}
+#edo-preview .actions{background:transparent;padding:0;margin-top:12px;gap:4px}#edo-preview .actions button{background:var(--inner);border-radius:5px;min-height:48px}#edo-preview .actions button:first-child{border-radius:16px 5px 5px 16px}#edo-preview .actions button:last-child{border-radius:5px 16px 16px 5px}#edo-preview .details{background:var(--inner);border-radius:5px 5px 18px 18px;margin-top:4px}
+#edo-preview .divider{height:0;background:transparent;margin:32px 0 0}#edo-preview h3{font-size:14px;color:var(--muted);margin:0 8px 14px}#edo-preview .field{background:var(--panel);border:1px solid var(--line);border-radius:5px;margin:4px 0 0;padding:16px;min-width:0}#edo-preview .field:first-of-type{border-radius:24px 24px 5px 5px}#edo-preview legend{float:left;width:100%;font-size:13px;margin:0 0 12px;color:var(--fg)}#edo-preview .field>*:nth-child(2){clear:both}
+#edo-preview .seg{background:var(--inner);border-radius:18px;gap:3px;padding:4px}#edo-preview .seg button{border-radius:15px;min-height:46px}#edo-preview .seg button[aria-pressed=true]{background:var(--soft);box-shadow:inset 0 0 0 1px var(--accent)}#edo-preview .destination{background:var(--inner);border-radius:14px}#edo-preview .destination button{background:var(--soft);color:var(--accent);border:1px solid var(--accent);border-radius:24px;padding:8px 14px}
+#edo-preview .switchrow{background:var(--panel);padding:18px 16px;border:1px solid var(--line);border-radius:5px;margin-top:4px;min-height:72px}#edo-preview .switchrow input{width:46px;height:28px}#edo-preview .switchrow input:before{width:20px;height:20px}#edo-preview .resultnote{background:var(--panel);border:1px solid var(--line);border-radius:5px 5px 24px 24px;margin-top:4px;padding:15px 16px}
+#edo-preview .permissions{background:transparent;margin-top:32px;padding:0}#edo-preview .permissions>p{margin:0 8px 12px}#edo-preview .permissionrow{padding:17px 16px;background:var(--panel);border:1px solid var(--line);margin-top:4px;border-radius:5px}#edo-preview .permissionrow:first-child{border-radius:24px 24px 5px 5px}#edo-preview .permissionrow:last-child{border-radius:5px 5px 24px 24px;border-bottom:1px solid var(--line);padding-bottom:17px}#edo-preview .permissionrow:only-child{border-radius:24px}#edo-preview .permissionrow button{border:1px solid var(--accent);border-radius:24px;background:var(--soft);padding:8px 13px}
+#edo-preview .back.independent{border-radius:28px;background:var(--panel);border:1px solid var(--line);min-height:52px;margin-top:12px}#edo-preview #edo-proceed,#edo-preview #edo-stepthree{margin-top:26px}#edo-preview .big{background:var(--panel);border:1px solid var(--line);border-radius:6px;min-height:114px}#edo-preview .big:first-child{background:var(--panel);border-radius:26px 26px 6px 6px}#edo-preview .big:last-child{border-radius:6px 6px 26px 26px}#edo-preview .choose{gap:4px}#edo-preview .big .badgeicon{background:transparent;color:var(--accent)}#edo-preview .big>.end{color:var(--accent)}
+#edo-preview .nav{background:light-dark(#e1e4ebd9,#293244e8);backdrop-filter:blur(12px);border:1px solid light-dark(#b1b6c2,#58647a);border-radius:40px;margin:14px 27px 15px;gap:0;padding:5px;box-shadow:0 5px 20px #0000000a}#edo-preview .nav button{border-radius:32px;min-height:64px;font-size:11px}#edo-preview .nav button[aria-pressed=true]{background:var(--soft);box-shadow:inset 0 0 0 1px light-dark(#92b2ed,#789ddc)}#edo-preview .nav svg{width:22px;height:22px}
+#edo-preview .formatline,#edo-preview .qualityblock,#edo-preview .presetblock,#edo-preview .advanced,#edo-preview .runsummary,#edo-preview .runblock,#edo-preview .runresults{background:var(--panel);border:1px solid var(--line);border-radius:24px}#edo-preview .formatline{padding:18px;margin:0 0 28px}#edo-preview .qualityblock{padding:18px 16px;margin-bottom:28px}#edo-preview .presetblock{padding:18px 16px}#edo-preview .presetblock .divider{display:none}#edo-preview .shortcuts button{border-radius:24px;border:1px solid var(--line);background:transparent}#edo-preview .shortcuts button[aria-pressed=true]{background:var(--soft);border-color:var(--accent)}#edo-preview .advanced{margin-top:28px;padding:0 16px}#edo-preview .advanced summary{min-height:62px}#edo-preview .advanced select{background:var(--inner)}#edo-preview .reviewline{background:var(--panel);border:1px solid var(--line);border-radius:24px;padding:15px;margin-top:28px}
+#edo-preview .runsummary{padding:18px;margin-bottom:28px}#edo-preview .runbody>.switchrow{border-radius:24px;margin-bottom:28px}#edo-preview .runblock{padding:18px 16px}#edo-preview .runhead{margin-top:0}#edo-preview .runbuttons button{border-radius:26px}#edo-preview .runmessage{background:var(--inner);border-radius:15px}#edo-preview .runresults{margin-top:28px;padding:18px 16px}#edo-preview .runresults>.divider{display:none}#edo-preview .runresults h3{margin-left:0}#edo-preview .sessioncard{background:var(--panel);border:1px solid var(--line);border-radius:24px}#edo-preview .resume{border-radius:26px}#edo-preview .empty{background:var(--panel);border-radius:24px;border:1px solid var(--line)}
+@media(max-width:360px){#edo-preview .content{padding-left:12px;padding-right:12px}#edo-preview .body{padding:0}#edo-preview .nav{margin-left:17px;margin-right:17px}#edo-preview .field{padding:14px 12px}}
+
+#edo-preview .step-navigation{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;margin-top:26px;align-items:stretch}
+#edo-preview .step-navigation .back.independent{width:100%;margin:0;min-height:54px;padding:10px 12px;gap:7px;min-width:0;line-height:1.35}
+#edo-preview .step-navigation .back svg{flex-shrink:0}
+#edo-preview .step-navigation #edo-proceed,#edo-preview .step-navigation #edo-stepthree{margin:0}
+#edo-preview .phone::before{animation:edo-drift 18s ease-in-out 2 alternate;transform-origin:center}
+@keyframes edo-drift{from{transform:translate3d(-8px,-10px,0) scale(1.02)}to{transform:translate3d(9px,18px,0) scale(1.04)}}
+#edo-preview.is-running .phone::before,#edo-preview.outofview .phone::before{animation-play-state:paused}
+#edo-preview .phone{--glass:light-dark(#e8eefcde,#232d42ec)}
+#edo-preview #edo-files,#edo-preview .field,#edo-preview .switchrow,#edo-preview .permissionrow,#edo-preview .qualityblock,#edo-preview .presetblock,#edo-preview .advanced,#edo-preview .runsummary,#edo-preview .runblock,#edo-preview .runresults{background:var(--glass);backdrop-filter:blur(5px)}
+#edo-preview.is-running #edo-files,#edo-preview.is-running .field,#edo-preview.is-running .runblock{backdrop-filter:none;background:var(--panel)}
+#edo-preview .film{overflow-x:auto;overflow-y:hidden;gap:10px;scroll-snap-type:x proximity;scrollbar-width:thin;scrollbar-color:var(--line) transparent;overscroll-behavior-x:contain;padding:5px 3px 12px;max-width:100%;touch-action:pan-x pan-y}
+#edo-preview .film .thumb{flex:0 0 94px;width:94px;height:88px;scroll-snap-align:center;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;position:relative}
+#edo-preview .thumb.scene0{background:linear-gradient(145deg,#b9d3dc,#7fa6bd 45%,#3d5a69 46%,#4f7971 72%,#243f3d)}
+#edo-preview .thumb.scene1{background:linear-gradient(158deg,#f4c4a3,#c18b86 47%,#604b70 48%,#343c60 72%,#252c48)}
+#edo-preview .thumb.scene2{background:linear-gradient(135deg,#b0d0b1,#699d7e 40%,#2d6057 41%,#173c40 65%,#568176)}
+#edo-preview .thumb.scene3{background:linear-gradient(160deg,#d8d5c9,#c4b5a2 46%,#958578 47%,#5a635b 75%,#373e35)}
+#edo-preview .thumb.multi-selected::after{content:'✓';position:absolute;top:4px;right:4px;width:22px;height:22px;display:grid;place-items:center;border-radius:50%;background:var(--accent);color:var(--on);font-size:14px}
+#edo-preview .thumb-tail{flex:0 0 70px;display:grid;place-content:center;text-align:center;white-space:pre-line;font-size:13px;color:var(--muted);background:var(--inner);border-radius:14px}
+#edo-preview .fileline{padding:6px 4px 0}#edo-preview .selectionbar{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:11px;color:var(--muted);padding:3px 3px 8px;min-height:40px}
+#edo-preview .selectionbar button{min-height:44px;border-radius:22px;background:var(--soft);color:var(--accent);padding:7px 12px;font-size:12px;flex-shrink:0}
+#edo-preview .metadata-title{margin:14px 0 12px;font-size:13px;font-weight:500}
+#edo-preview .details{overflow-wrap:anywhere}
+#edo-preview .details-more{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;min-height:46px;margin-top:15px;border-radius:23px;background:var(--soft);color:var(--accent);font-size:13px}
+#edo-preview #edo-selected-names{padding-left:24px;margin:0;font-size:12px;line-height:1.7}
+#edo-preview #edo-selected-names li{padding:5px 0;border-bottom:1px solid var(--line)}
+#edo-preview #edo-selected-names li:last-child{border-bottom:0}
+#edo-preview .allocation{clear:both;color:var(--muted);font-size:12px;line-height:1.5;margin:12px 2px 0}
+#edo-preview .exception-inline{background:transparent!important;border:0!important;backdrop-filter:none!important;border-radius:0;margin-top:8px;padding:12px 0;min-height:60px}
+#edo-preview .exception-inline svg{color:var(--accent);vertical-align:middle;margin-right:7px;width:18px;height:18px}
+#edo-preview .inputlabel{display:block;font-size:12px;color:var(--muted);margin:12px 0 7px;clear:both}
+#edo-preview .textinput{display:block;width:100%;min-height:46px;font:inherit;font-size:16px;border:1px solid var(--line);border-radius:13px;background:var(--inner);color:var(--fg);padding:10px 12px}
+#edo-preview #edo-nameposition{margin-top:10px}
+#edo-preview #edo-namepreview{overflow-wrap:anywhere;padding:3px 2px}
+#edo-preview select.textinput{font-size:13px}
+#edo-preview .step-navigation #edo-proceed,#edo-preview .step-navigation #edo-stepthree{background:var(--accent);color:var(--on);border-color:transparent}
+#edo-preview .head-icon{display:inline-block;vertical-align:middle;color:var(--accent);margin-right:8px;width:20px;height:20px;flex-shrink:0}
+#edo-preview .toast{margin:0 16px 18px;background:var(--soft);border:1px solid var(--line)}
+#edo-preview .phone dialog{background:var(--panel);color:var(--fg);border:1px solid var(--line);border-radius:26px;padding:24px;max-width:min(360px,calc(100% - 32px));box-shadow:0 20px 60px #00000033}
+#edo-preview .phone dialog::backdrop{background:#00000066;backdrop-filter:blur(3px)}
+#edo-preview .phone dialog h3{margin:0 0 12px;color:var(--fg);font-size:18px}
+#edo-preview .phone dialog p{font-size:14px;line-height:1.5;margin:0 0 20px}
+#edo-preview .confirm-actions{display:flex;gap:10px;justify-content:flex-end}
+#edo-preview .confirm-actions button{min-height:46px;border-radius:24px;padding:10px 18px;font-size:13px;background:var(--inner);color:var(--fg)}
+#edo-preview .confirm-actions .confirm-danger{background:var(--danger);color:light-dark(#fff,#45101d)}
+@media(prefers-reduced-motion:reduce){#edo-preview .phone::before{animation:none;transform:none}}
+@supports not (backdrop-filter:blur(5px)){#edo-preview #edo-files,#edo-preview .field,#edo-preview .switchrow,#edo-preview .permissionrow,#edo-preview .qualityblock,#edo-preview .presetblock,#edo-preview .advanced,#edo-preview .runsummary,#edo-preview .runblock,#edo-preview .runresults{background:var(--panel)}}
+
+#edo-preview .phone{height:820px;display:flex;flex-direction:column;--glass:light-dark(#e8eefcad,#232d42bd)}
+#edo-preview .top{flex-shrink:0;padding:22px 22px 16px}
+#edo-preview .phone::before{background:radial-gradient(circle at 85% 8%,light-dark(#f5ce83bb,#ba914b55) 0 76px,transparent 77px),radial-gradient(circle at 8% 38%,light-dark(#91b5f7aa,#5282bd66) 0 110px,transparent 111px),radial-gradient(circle at 90% 65%,light-dark(#f5ce83cc,#ba914b55) 0 108px,transparent 109px),radial-gradient(circle at 15% 93%,light-dark(#a9c6f9aa,#5282bd66) 0 100px,transparent 101px)}
+#edo-preview .screen-scroll{flex:1;min-height:0;overflow-y:auto;overscroll-behavior-y:contain;scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+#edo-preview .screen-dock{flex-shrink:0;padding:12px 16px 0;background:light-dark(#f8f8fb9e,#151820b8);backdrop-filter:blur(9px)}
+#edo-preview .screen-dock .step-navigation{margin:0;gap:12px}
+#edo-preview .screen-dock .step-navigation button{min-height:50px}
+#edo-preview .nav{flex-shrink:0;margin:12px 27px 10px}
+#edo-preview .nav button{min-height:58px}
+#edo-preview #edo-live{flex-shrink:0;font-size:11px;padding-bottom:10px!important}
+#edo-preview #edo-collapse{cursor:default}
+#edo-preview .film .thumb{flex-basis:72px;width:72px;height:64px;border-radius:11px;border-width:2px}
+#edo-preview .thumb.multi-selected::after{width:18px;height:18px;top:3px;right:3px;font-size:12px}
+#edo-preview .film{gap:8px;padding-bottom:9px}
+#edo-preview .selectionbar{font-size:11px;line-height:1.45}
+#edo-preview .field{padding:18px 16px}
+#edo-preview .field-title{display:block;margin:0 0 16px;font-size:14px;font-weight:500;color:var(--fg);float:none;width:auto}
+#edo-preview .heading-text{display:inline-flex;align-items:center;gap:10px;vertical-align:middle;min-width:0}
+#edo-preview .heading-text .head-icon{display:block;flex:0 0 20px;width:20px;height:20px;margin:0;stroke-width:1.8;color:var(--accent)}
+#edo-preview .heading-text>span{display:block;line-height:1.4}
+#edo-preview h3 .heading-text{display:flex}
+#edo-preview .sectionlabel{gap:12px}
+#edo-preview .field .inputlabel{margin:18px 0 8px;font-size:12px}
+#edo-preview .field-title+.inputlabel{margin-top:0}
+#edo-preview .field #edo-nameposition{margin-top:14px}
+#edo-preview .field #edo-collision{margin-top:2px}
+#edo-preview .name-example{padding:13px 14px;margin:16px 0 22px;border-radius:13px;background:var(--inner)}
+#edo-preview .name-example .inputlabel{margin:0 0 7px;font-size:11px}
+#edo-preview .name-example #edo-namepreview{font-family:ui-monospace,monospace;font-size:12px;line-height:1.5;margin:0;padding:0;color:var(--fg);overflow-wrap:anywhere}
+#edo-preview #edo-overwrite-note{line-height:1.5;margin:12px 2px 0}
+#edo-preview .exception-inline>span>svg{display:none}
+#edo-preview .exception-inline .explain{line-height:1.5;margin-top:6px}
+#edo-preview #edo-current-exceptions{font-size:12px;line-height:1.5;margin:5px 0 12px;color:var(--muted)}
+#edo-preview #edo-current-exceptions:empty{display:none}
+#edo-preview input:indeterminate:before{transform:translateX(9px)}
+#edo-preview .allocation{line-height:1.6;margin-top:13px}
+#edo-preview .toast{flex-shrink:0;padding:10px 14px;margin-bottom:10px}
+#edo-preview .permissionrow{background:var(--glass);backdrop-filter:blur(5px)}
+@media(max-width:360px){#edo-preview .phone{height:780px}#edo-preview .top{padding-top:18px}#edo-preview .screen-dock{padding:10px 12px 0}#edo-preview .field{padding:16px 12px}}
+
+#edo-preview .phone{height:auto;min-height:0;max-height:none;display:block}
+#edo-preview .screen-scroll{height:auto;min-height:0;max-height:none;overflow:visible;overscroll-behavior:auto}
+#edo-preview .screen-dock{position:static;padding-top:12px}
+#edo-preview .nav{box-sizing:border-box;height:56px;min-height:56px;max-height:56px;width:calc(100% - 36px);max-width:396px;margin:6px auto 10px;padding:5px;border-radius:28px;gap:0;background:light-dark(#e2e5ecb8,#293244b8);border:1px solid light-dark(#8d919bb3,#78859980);backdrop-filter:blur(10px);box-shadow:none}
+#edo-preview .nav button{box-sizing:border-box;height:44px;min-height:44px;max-height:44px;border-radius:22px;padding:3px 4px;gap:0;border:1px solid transparent;background:transparent;font-size:11px;line-height:1.2}
+#edo-preview .nav button[aria-pressed=true]{background:light-dark(#d6e4ffb8,#344d768c);color:light-dark(#33588c,#bbd1f5);border:1px solid light-dark(#7da3e2a6,#8bb3ef8c);box-shadow:none}
+#edo-preview .nav svg{width:22px;height:22px;flex-shrink:0;stroke-width:1.8}
+#edo-preview .screen-dock{padding-bottom:2px}
+#edo-preview .nav{border-width:1px;border-style:solid;border-color:light-dark(#8d919bb3,#78859980)}
+#edo-preview .nav button{border-width:1px;border-style:solid;border-color:transparent}
+#edo-preview .nav button[aria-pressed=true]{border-width:1px;border-style:solid;border-color:light-dark(#7da3e2a6,#8bb3ef8c)}
+</style>
+<div id="edo-preview" class="viz-dotted-background">
+<div class="phone">
+<div class="backdrop" aria-hidden="true"><i data-lucide="sparkles"></i><i data-lucide="image"></i><i data-lucide="sparkles"></i></div>
+<header class="top"><div class="eyebrow">CodecProbe · Anteprima</div><div class="heading"><h2 id="edo-title">Foto</h2><button class="iconbtn" id="edo-settings" aria-label="Impostazioni"><i data-lucide="settings-2"></i></button></div><p class="tag">Meno spazio, più ricordi.</p></header>
+<main class="content" id="edo-stepone"><section class="work"><div class="workhead" id="edo-collapse"><span class="step">01</span><span><span class="worktitle">Prepara il lavoro</span><span class="sub" id="edo-subtitle">Nuovo lavoro</span></span></div>
+<div id="edo-body" class="body">
+<div class="choose pane" id="edo-choice" hidden><button class="big" id="edo-new"><span class="badgeicon"><i data-lucide="file-plus-2"></i></span><span><strong>Nuovo lavoro</strong><span class="sub" id="edo-draft">123 foto nella preparazione</span></span><i class="end" data-lucide="arrow-up-right"></i></button><button class="big" id="edo-old"><span class="badgeicon"><i data-lucide="history"></i></span><span><strong>Riprendi sessione</strong><span class="sub">Una sessione interrotta</span></span><i class="end" data-lucide="arrow-up-right"></i></button></div>
+<div id="edo-newpane" class="pane">
+<div class="tools"><button class="tool" id="edo-add"><i data-lucide="file-plus-2"></i>Aggiungi file</button><button class="tool" id="edo-folder"><i data-lucide="folder-open"></i>Leggi cartella</button><button class="tool danger" id="edo-clear"><i data-lucide="trash-2"></i>Svuota selezione</button></div>
+<div class="group"><div class="sectionlabel">File selezionati <span class="count" id="edo-count">123 foto</span></div>
+<div id="edo-files"><div class="film" id="edo-film"><button class="thumb" aria-label="Seleziona foto 1" aria-pressed="false"><span>01</span></button><button class="thumb" aria-label="Seleziona foto 2" aria-pressed="true"><span>02</span></button><button class="thumb" aria-label="Seleziona foto 3" aria-pressed="false"><span>03</span></button><button class="thumb" aria-label="Seleziona foto 4" aria-pressed="false"><span>04</span></button></div>
+<div class="selectionbar"><span id="edo-selectioninfo">Tieni premuto per selezionare più foto</span><button id="edo-selectionend" hidden>Fine selezione</button></div>
+<div class="fileline"><div class="fileinfo"><div class="filename" id="edo-name">IMG_20261018_183042.jpg</div><div class="small" id="edo-filemeta">File 2 di 123 · 3,8 MB</div></div></div>
+<div class="actions"><button class="danger" id="edo-remove"><i data-lucide="minus-circle"></i>Rimuovi</button><button id="edo-reread"><i data-lucide="refresh-cw"></i>Rileggi</button><button id="edo-detail" aria-expanded="false" aria-controls="edo-details"><i data-lucide="info"></i>Dettagli</button></div>
+<div class="details" id="edo-details" hidden><div id="edo-single-details"><dl><dt>Dimensioni</dt><dd>4000 × 3000 px</dd><dt>Formato</dt><dd>JPEG</dd><dt>Dimensione file</dt><dd id="edo-size">3,8 MB</dd><dt>Fotocamera</dt><dd>Samsung Galaxy S23+</dd><dt>Cartella</dt><dd>DCIM / Camera</dd></dl><div id="edo-full-details" hidden><div class="metadata-title">Metadati completi · esempio</div><dl><dt>Orientamento</dt><dd>1 · Normale</dd><dt>Data scatto</dt><dd>18/10/2026 18:30:42</dd><dt>Obiettivo</dt><dd>5,4 mm · ƒ/1,8</dd><dt>Esposizione</dt><dd>1/125 s · ISO 100</dd><dt>Profilo colore</dt><dd>ICC · sRGB</dd><dt>XMP</dt><dd>Presente</dd><dt>EXIF</dt><dd>Presente</dd><dt>Thumbnail EXIF</dt><dd>512 × 384 px</dd><dt>Dati Samsung</dt><dd>SEF · presenti</dd></dl></div><button class="details-more" id="edo-showall" aria-expanded="false"><i data-lucide="list-tree" aria-hidden="true"></i>Mostra tutto</button></div><div id="edo-multi-details" hidden><div class="metadata-title" id="edo-list-title">File selezionati</div><ol id="edo-selected-names"></ol></div></div></div><div class="empty" id="edo-empty" hidden>Nessun file selezionato.<br>Aggiungi foto per preparare il lavoro.</div></div>
+<div class="divider"></div><section><h3>Salvataggio</h3>
+<section class="field"><div class="field-title">Cosa elaborare</div><div class="seg" id="edo-scope"><button aria-pressed="false" data-value="one" id="edo-current-scope">File corrente · 1</button><button aria-pressed="true" data-value="all" id="edo-all">Tutti · 123</button></div><p class="allocation" id="edo-exception-summary" aria-live="polite">0 file con eccezione · 123 con destinazione generale</p></section>
+<section class="field"><div class="field-title">Dove salvare</div>
+<p class="small" id="edo-global-summary">Destinazione generale: Pictures / Foto ottimizzate</p>
+<label class="switchrow exception-inline" id="edo-exceptionrow" hidden><span><i data-lucide="split" aria-hidden="true"></i>Gestisci come eccezione<span class="explain" id="edo-exception-hint">Destinazione diversa per il file corrente</span></span><input id="edo-exception" type="checkbox" aria-label="Gestisci come eccezione"></label>
+<div class="small" id="edo-current-exceptions" aria-live="polite"></div><div class="small" id="edo-inherited" hidden>Questo file usa la destinazione generale.</div>
+<div id="edo-desteditor"><div class="seg" id="edo-dest"><button aria-pressed="false" data-value="source">Cartella di origine</button><button aria-pressed="true" data-value="target">Altra cartella</button></div><div class="destination" id="edo-target"><span><span class="small" id="edo-pathlabel">Destinazione generale</span><br><span id="edo-path">Pictures / Foto ottimizzate</span></span><button id="edo-change">Scegli</button></div></div>
+</section>
+<section class="field"><div class="field-title">Nome dei file convertiti</div><label class="inputlabel" for="edo-affix">Testo da aggiungere</label><input id="edo-affix" class="textinput" type="text" value="_ridotta" maxlength="40" placeholder="Facoltativo"><div class="seg" id="edo-nameposition"><button data-position="before" aria-pressed="false">Prima del nome</button><button data-position="after" aria-pressed="true">Dopo il nome</button></div><div class="name-example"><span class="inputlabel">Anteprima del nome</span><p class="small" id="edo-namepreview">IMG_0002_ridotta.heic</p></div><div class="inputlabel">Se il nome esiste già</div><div class="seg" id="edo-collision"><button data-collision="rename" aria-pressed="true">Nome libero</button><button data-collision="overwrite" aria-pressed="false">Sovrascrivi</button></div><p class="small" id="edo-overwrite-note">Un numero distingue i risultati con lo stesso nome.</p></section>
+<label class="switchrow"><span>Conserva la conversione<br>solo se più piccola</span><input id="edo-smaller" type="checkbox" role="switch" checked aria-label="Conserva la conversione solo se più piccola"></label>
+<label class="switchrow pane" id="edo-copyrow"><span>Copia gli originali non ridotti<span class="explain">Nella destinazione prevista per ciascun file</span></span><input id="edo-copy" type="checkbox" role="switch" checked aria-label="Copia gli originali non ridotti"></label>
+<div class="resultnote" id="edo-note">Se la conversione non riduce le dimensioni, viene copiato l’originale.</div>
+</section>
+<section class="permissions"><h3>Autorizzazioni cartelle</h3><p class="small">Stati dimostrativi · accesso in scrittura</p><div id="edo-permissions"></div></section>
+</div>
+<div id="edo-oldpane" class="pane" hidden><div class="sessioncard"><strong>Sessione foto interrotta</strong><p>Camera · 20 ottobre 2026</p><div class="progress"><span></span></div><div class="small">80 di 125 file completati</div><button class="resume" id="edo-resume">Riprendi lavoro</button></div><p class="notice">La preparazione del nuovo lavoro resta conservata.</p></div>
+<div class="toast" id="edo-toast" role="status" hidden></div>
+</div><div class="collapsehint" id="edo-summary" hidden>123 foto nella preparazione</div></section><button class="back independent" id="edo-proceed">Procedi al punto 2<i data-lucide="arrow-right"></i></button><button class="back independent" id="edo-back"><i data-lucide="arrow-left"></i>Indietro</button></main>
+<main class="content" id="edo-steptwo" hidden>
+<section class="work pane">
+<div class="workhead"><span class="step">02</span><span><span class="worktitle">Impostazioni di conversione</span><span class="sub">Foto · Nuovo lavoro</span></span></div>
+<div class="compression-body">
+<div class="formatline"><span>Formato di uscita</span><span><strong>HEIC</strong><span class="small"> · H.265</span></span></div>
+<div class="setting-head"><label for="edo-quality">Qualità</label><output id="edo-qualityvalue" for="edo-quality">65</output></div>
+<p class="small">Un valore maggiore conserva generalmente più dettagli e produce file più grandi.</p>
+<input class="range" id="edo-quality" type="range" min="40" max="95" value="65" step="1" aria-label="Qualità della conversione">
+<div class="range-labels"><span>40 · Più compressione</span><span>95 · Più dettagli</span></div>
+<div class="shortcuts" aria-label="Scorciatoie qualità"><button data-quality="50" aria-pressed="false">50</button><button data-quality="55" aria-pressed="false">55</button><button data-quality="60" aria-pressed="false">60</button></div>
+<div class="divider"></div>
+<div class="setting-head"><label>Preset di compressione</label></div>
+<div class="seg" id="edo-preset"><button class="preset-choice" data-preset="fast" aria-pressed="false">Veloce<span>fast</span></button><button class="preset-choice" data-preset="medium" aria-pressed="false">Medio<span>medium</span></button><button class="preset-choice" data-preset="slow" aria-pressed="true">Lento<span>slow</span></button></div>
+<p class="small" id="edo-presetnote">Prova più alternative di codifica e richiede più tempo.</p>
+<details class="advanced"><summary>Regolazioni avanzate<i class="chevron" data-lucide="chevron-down" aria-hidden="true"></i></summary><div class="advanced-body"><label for="edo-tune">Tune</label><select id="edo-tune"><option value="standard">Standard</option><option value="ssim">SSIM</option><option value="psnr">PSNR</option></select><p class="small" id="edo-tunenote">Comportamento psicovisivo predefinito dell’encoder.</p><p class="tech" id="edo-tech">Qualità 65 · CRF 17,5<br>Dimensioni originali · 8 bit · YCbCr 4:2:0</p></div></details>
+<div class="reviewline" id="edo-settings-summary" aria-live="polite">Qualità 65 · preset slow · tune standard</div>
+</div></section>
+<button class="back independent" id="edo-stepthree">Procedi al punto 3<i data-lucide="arrow-right" aria-hidden="true"></i></button>
+<button class="back independent" id="edo-backone"><i data-lucide="arrow-left" aria-hidden="true"></i>Indietro al punto 1</button>
+<div class="stage-message" id="edo-stage-message" role="status" hidden></div>
+</main>
+<main class="content" id="edo-stepthreemain" hidden>
+<section class="work pane"><div class="workhead"><span class="step">03</span><span><span class="worktitle">Conversione e risultati</span><span class="sub">Foto · Nuovo lavoro</span></span></div>
+<div class="runbody">
+<details class="runsummary" open><summary>Riepilogo del lavoro</summary><dl><dt>File</dt><dd id="edo-run-total">123 foto</dd><dt>Formato</dt><dd>HEIC · H.265</dd><dt>Impostazioni</dt><dd id="edo-run-settings">Qualità 65 · slow · standard</dd><dt>Destinazione</dt><dd id="edo-run-dest">Pictures / Foto ottimizzate</dd><dt>Se non ridotta</dt><dd id="edo-run-copy">Copia l’originale</dd></dl></details>
+<label class="switchrow"><span>Mantieni schermo acceso</span><input id="edo-screenon" type="checkbox" role="switch" aria-label="Mantieni schermo acceso"></label>
+<div class="runhead"><strong id="edo-run-status">Pronto per iniziare</strong><span class="small" id="edo-run-percent">0%</span></div>
+<div class="runbar" id="edo-run-progress" role="progressbar" aria-label="Avanzamento complessivo" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span id="edo-run-fill"></span></div>
+<div class="runfile" id="edo-run-current">0 di 123 file elaborati</div>
+<div class="runbuttons"><button class="start" id="edo-run-start">Avvia conversione</button><button id="edo-run-pause" hidden>Pausa</button><button class="stop" id="edo-run-stop" hidden>Interrompi</button></div>
+<div class="runcounts" id="edo-run-counts" hidden><span>Convertite<strong id="edo-run-converted">0</strong></span><span>Originali copiati<strong id="edo-run-copied">0</strong></span><span>Non convertite<strong id="edo-run-skipped">0</strong></span><span>Errori<strong id="edo-run-failed">0</strong></span></div>
+<div class="runmessage" id="edo-run-message" role="status">Anteprima interattiva: nessun file viene letto o modificato.</div>
+<section class="runresults" id="edo-run-results" hidden><div class="divider"></div><h3>Risultati recenti</h3><div class="small">Ultimi 5 esiti della simulazione</div><div id="edo-run-rows"></div></section>
+<details class="runlog" id="edo-run-logpanel" hidden><summary>Dettagli degli errori</summary><textarea id="edo-run-errorlog" readonly aria-label="Dettagli copiabili degli errori simulati"></textarea><button class="back independent" id="edo-run-copyerrors">Copia dettagli</button></details>
+</div></section><button class="back independent" id="edo-backtwo"><i data-lucide="arrow-left" aria-hidden="true"></i>Indietro al punto 2</button>
+</main>
+<nav class="nav" aria-label="Sezioni"><button data-page="Video" aria-pressed="false"><i data-lucide="video"></i>Video</button><button data-page="Audio" aria-pressed="false"><i data-lucide="music-2"></i>Audio</button><button data-page="Foto" aria-pressed="true"><i data-lucide="images"></i>Foto</button><button data-page="Altro" aria-pressed="false"><i data-lucide="grid-2x2"></i>Altro</button></nav>
+<div class="small" aria-live="polite" id="edo-live" style="padding:0 22px 16px">Dati e miniature illustrativi · nessun file viene modificato</div>
+<dialog id="edo-confirm"><form method="dialog"><h3 id="edo-confirm-title">Conferma</h3><p id="edo-confirm-body"></p><div class="confirm-actions"><button value="cancel">Annulla</button><button class="confirm-danger" value="confirm" id="edo-confirm-yes">Conferma</button></div></form></dialog>
+</div></div>
+<script>
+
+(()=>{
+const root=document.getElementById('edo-preview');
+const q=id=>root.querySelector('#edo-'+id);
+function footer(previous,next){const row=document.createElement('div');row.className='step-navigation';previous.before(row);row.append(previous);if(next)row.append(next);}
+footer(q('back'),q('proceed'));
+footer(q('backone'),q('stepthree'));
+footer(q('backtwo'),null);
+const phone=root.querySelector('.phone'),scrollArea=document.createElement('div'),dock=document.createElement('div');
+scrollArea.className='screen-scroll';dock.className='screen-dock';root.querySelector('.top').after(scrollArea);scrollArea.after(dock);
+const stages=[q('stepone'),q('steptwo'),q('stepthreemain')];
+const footers=stages.map(stage=>stage.querySelector('.step-navigation'));
+stages.forEach(stage=>scrollArea.append(stage));footers.forEach(row=>dock.append(row));
+function syncDock(){footers.forEach((row,i)=>{row.hidden=stages[i].hidden||Array.from(row.querySelectorAll('button')).every(b=>b.hidden)});}
+const stageObserver=new MutationObserver(()=>{syncDock();scrollArea.scrollTop=0;});
+stages.forEach(stage=>stageObserver.observe(stage,{attributes:true,attributeFilter:['hidden']}));
+function wrapGroup(first,last,className){const box=document.createElement('div');box.className=className;first.before(box);let node=first;while(node){const next=node.nextSibling;box.append(node);if(node===last)break;node=next;}return box;}
+const compressionBody=root.querySelector('.compression-body');
+wrapGroup(compressionBody.querySelector('.setting-head'),compressionBody.querySelector('.shortcuts'),'qualityblock');
+wrapGroup(q('preset').previousElementSibling,q('presetnote'),'presetblock');
+wrapGroup(root.querySelector('.runhead'),q('run-message'),'runblock');
+let nextId=123;
+let files=Array.from({length:123},(_,id)=>({id}));
+let index=1,mode='new',collapsed=false,scope='all',toastTimer,multi=false,ready=false;
+const selected=new Set(),thumbNodes=new Map();
+const general={dest:'target',path:'Pictures / Foto ottimizzate'};
+const exceptions=new Map();
+const grants=new Map([['DCIM / Camera',false],['Pictures / Foto ottimizzate',true],['Download / Foto convertite',false]]);
+let namePosition='after',collisionMode='rename';
+function current(){return files[index]}
+function fileName(f){return 'IMG_'+String(f.id+1).padStart(4,'0')+'.jpg'}
+function convertedName(f){const base=fileName(f).slice(0,-4),text=q('affix').value;return(namePosition==='before'?text+base:base+text)+'.heic';}
+function targets(){return multi?files.filter(f=>selected.has(f.id)):current()?[current()]:[]}
+function actualPath(c){return c.dest==='source'?'DCIM / Camera':c.path}
+function config(){return scope==='one'&&targets().length?(exceptions.get(targets()[0].id)||general):general}
+function reveal(el,show){
+ if(el._shown===show)return;
+ el._shown=show;if(el._animation)el._animation.cancel();
+ if(!ready||matchMedia('(prefers-reduced-motion: reduce)').matches||!el.animate){el.hidden=!show;el.style.height='';el.style.opacity='';return;}
+ const old=el.hidden?0:el.getBoundingClientRect().height;el.hidden=false;el.style.overflow='hidden';
+ const end=show?el.scrollHeight:0;
+ const a=el.animate([{height:old+'px',opacity:show?.3:1},{height:end+'px',opacity:show?1:0}],{duration:220,easing:'cubic-bezier(.2,.7,.2,1)'});el._animation=a;
+ a.onfinish=()=>{if(el._shown===show)el.hidden=!show;el.style.overflow='';el._animation=null};
+}
+function toast(s){q('toast').textContent=s;reveal(q('toast'),true);clearTimeout(toastTimer);toastTimer=setTimeout(()=>reveal(q('toast'),false),4200)}
+root.querySelector('.top').after(q('toast'));
+let confirmAction=null;
+q('confirm').addEventListener('close',()=>{if(q('confirm').returnValue==='confirm'&&confirmAction)confirmAction();confirmAction=null;});
+function confirm(title,text,action,label){q('confirm-title').textContent=title;q('confirm-body').textContent=text;q('confirm-yes').textContent=label;confirmAction=action;q('confirm').returnValue='';q('confirm').showModal();}
+function permissions(){
+ const paths=new Set(files.map(f=>actualPath(exceptions.get(f.id)||general)));q('permissions').replaceChildren();
+ if(!paths.size){const p=document.createElement('p');p.className='small';p.textContent='Le cartelle compariranno dopo la selezione dei file.';q('permissions').append(p);}
+ paths.forEach(path=>{const ok=grants.get(path)===true;const row=document.createElement('div');row.className='permissionrow';const info=document.createElement('div');info.className='permissioninfo';const title=document.createElement('div');title.textContent=path;const status=document.createElement('span');status.className=ok?'permstatus':'permstatus missing';status.textContent=ok?'✓ Scrittura consentita':'! Autorizzazione mancante';info.append(title,status);row.append(info);if(!ok){const b=document.createElement('button');b.textContent='Autorizza';b.onclick=()=>{grants.set(path,true);permissions();toast('Simulazione: scrittura autorizzata per '+path)};row.append(b)}q('permissions').append(row)});
+}
+function updateNaming(){
+ const affix=q('affix').value.replace(/[\\/:*?"<>|]/g,'');if(affix!==q('affix').value)q('affix').value=affix;
+ q('namepreview').textContent=convertedName(current()||{id:0});
+ q('overwrite-note').textContent=collisionMode==='rename'?'Un numero distingue i risultati con lo stesso nome.':'Sostituisce il file omonimo nella destinazione, dopo aver verificato il nuovo risultato.';
+}
+function note(){
+ const list=targets(),one=scope==='one',overridden=list.filter(f=>exceptions.has(f.id)).length;
+ const allOver=list.length>0&&overridden===list.length;
+ reveal(q('exceptionrow'),one);
+ q('exception').checked=allOver;q('exception').indeterminate=overridden>0&&!allOver;q('exception').disabled=!list.length;
+ q('exception').setAttribute('aria-checked',q('exception').indeterminate?'mixed':String(allOver));
+ q('current-exceptions').textContent=one?(overridden+' di '+list.length+' '+(list.length===1?'file corrente con eccezione':'file selezionati con eccezione')):'';
+ q('exception-hint').textContent=list.length>1?'Destinazione propria per i '+list.length+' file selezionati':'Destinazione propria per il file corrente';
+ reveal(q('inherited'),one&&!overridden);
+ q('inherited').textContent=list.length>1?'I file selezionati seguono la destinazione generale.':'Questo file segue la destinazione generale.';
+ reveal(q('desteditor'),!one||overridden>0);
+ const c=config();
+ q('global-summary').textContent='Destinazione generale: '+actualPath(general);
+ q('pathlabel').textContent=one?(list.length>1?'Destinazione dei '+list.length+' file':'Destinazione del file corrente'):'Destinazione generale';
+ const mixed=one&&list.some(f=>actualPath(exceptions.get(f.id)||general)!==actualPath(c));
+ q('path').textContent=mixed?'Destinazioni diverse · scegli per uniformarle':c.path;
+ q('dest').querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.value===c.dest&&!mixed)));
+ reveal(q('target'),c.dest==='target'||mixed);
+ q('exception-summary').textContent=exceptions.size+' file con eccezione · '+(files.length-exceptions.size)+' con destinazione generale';
+ const anyTarget=files.some(f=>(exceptions.get(f.id)||general).dest==='target');reveal(q('copyrow'),q('smaller').checked&&anyTarget);
+ q('note').textContent=!q('smaller').checked?'La conversione viene conservata anche se più grande dell’originale.':!anyTarget?'Se il risultato non è più piccolo, l’originale resta nella cartella di origine.':q('copy').checked?'Se la conversione non riduce le dimensioni, l’originale viene copiato nella destinazione prevista per quel file.':'Se la conversione non è più piccola, viene scartata senza copiare l’originale.';
+ permissions();updateNaming();
+}
+function paintDetails(){
+ const list=targets();const multiple=list.length>1;
+ reveal(q('single-details'),!multiple);reveal(q('multi-details'),multiple);
+ q('list-title').textContent=list.length+' file selezionati';
+ q('selected-names').replaceChildren();
+ if(multiple)list.slice().sort((a,b)=>fileName(a).localeCompare(fileName(b),'it',{numeric:true})).forEach(f=>{const li=document.createElement('li');li.textContent=fileName(f);q('selected-names').append(li)});
+ q('size').textContent=(current()?.id%2?'3,8':'4,2')+' MB';
+}
+let thumbSignature='';
+function makeThumb(f,i){
+ const b=document.createElement('button');b.className='thumb scene'+i%4;b.dataset.id=f.id;b.type='button';
+ const label=document.createElement('span');label.textContent=String(i+1).padStart(2,'0');b.append(label);
+ let pressTimer,startX,startY,suppress=0;
+ function selectLong(){multi=true;scope='one';selected.add(f.id);index=files.findIndex(x=>x.id===f.id);suppress=Date.now()+700;render();}
+ b.addEventListener('pointerdown',e=>{if(e.button!==0)return;startX=e.clientX;startY=e.clientY;clearTimeout(pressTimer);pressTimer=setTimeout(selectLong,480)});
+ b.addEventListener('pointermove',e=>{if(Math.abs(e.clientX-startX)+Math.abs(e.clientY-startY)>12)clearTimeout(pressTimer)});
+ for(const type of ['pointerup','pointercancel','pointerleave'])b.addEventListener(type,()=>clearTimeout(pressTimer));
+ b.addEventListener('contextmenu',e=>e.preventDefault());
+ b.addEventListener('keydown',e=>{if(e.key===' '){e.preventDefault();selectLong();}});
+ b.onclick=()=>{if(Date.now()<suppress)return;index=files.findIndex(x=>x.id===f.id);if(multi){if(selected.has(f.id))selected.delete(f.id);else selected.add(f.id);}render();};
+ return b;
+}
+function thumbnails(){
+ const shown=files.slice(0,100),sig=shown.map(f=>f.id).join(',')+'|'+files.length;
+ if(sig!==thumbSignature){thumbSignature=sig;q('film').replaceChildren();thumbNodes.clear();shown.forEach((f,i)=>{const b=makeThumb(f,i);thumbNodes.set(f.id,b);q('film').append(b)});if(files.length>100){const tail=document.createElement('span');tail.className='thumb-tail';tail.textContent='…\n+'+(files.length-100);q('film').append(tail)}}
+ for(const [id,b] of thumbNodes){const active=multi?selected.has(id):current()?.id===id;b.setAttribute('aria-pressed',String(active));b.classList.toggle('multi-selected',multi&&active);b.setAttribute('aria-label',fileName({id})+(active?' · selezionata':''));}
+}
+function render(){
+ const total=files.length,list=targets();
+ if(scope==='one'&&!list.length)scope='all';
+ q('count').textContent=total+' foto';q('all').textContent='Tutti · '+(total-exceptions.size);
+ q('current-scope').textContent=list.length>1?'File correnti · '+list.length:'File corrente · '+list.length;
+ q('draft').textContent=total?total+' foto nella preparazione':'Scegli file e impostazioni';q('summary').textContent=total+' foto nella preparazione';
+ reveal(q('files'),!!total);reveal(q('empty'),!total);q('clear').disabled=!total;
+ q('current-scope').disabled=!list.length;q('all').disabled=!total;
+ q('name').textContent=multi?(list.length+' foto selezionate'):current()?fileName(current()):'Nessuna foto';
+ q('filemeta').textContent=multi?'I comandi agiscono su tutte le foto selezionate.':'File '+(index+1)+' di '+total+' · '+(current()?.id%2?'3,8':'4,2')+' MB'+(current()&&exceptions.has(current().id)?' · Eccezione':'');
+ q('selectioninfo').textContent=multi?list.length+' selezionate':'Scorri le anteprime · tieni premuto per selezionare';reveal(q('selectionend'),multi);
+ for(const id of ['remove','reread','detail'])q(id).disabled=!list.length;
+ q('back').hidden=mode==='choice';q('proceed').hidden=mode!=='new';q('proceed').disabled=!total;syncDock();
+ q('scope').querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.value===scope)));
+ thumbnails();paintDetails();note();
+}
+function show(m){mode=m;reveal(q('choice'),m==='choice');reveal(q('newpane'),m==='new');reveal(q('oldpane'),m==='old');q('subtitle').textContent=m==='new'?'Nuovo lavoro':m==='old'?'Riprendi sessione':'Scegli come iniziare';reveal(q('toast'),false);render()}
+q('new').onclick=()=>show('new');q('old').onclick=()=>show('old');
+q('back').onclick=()=>show('choice');
+q('selectionend').onclick=()=>{multi=false;selected.clear();render()};
+q('detail').onclick=()=>{const open=!q('details')._shown;reveal(q('details'),open);q('detail').setAttribute('aria-expanded',String(open));};
+q('showall').onclick=()=>{const open=!q('full-details')._shown;reveal(q('full-details'),open);q('showall').lastChild.textContent=open?'Mostra meno':'Mostra tutto';q('showall').setAttribute('aria-expanded',String(open));};
+q('remove').onclick=()=>{const ids=new Set(targets().map(f=>f.id));if(!ids.size)return;confirm('Rimuovere '+ids.size+' '+(ids.size===1?'foto?':'foto?'),'Verranno tolte dalla selezione. I file originali restano sul dispositivo.',()=>{files=files.filter(f=>!ids.has(f.id));ids.forEach(id=>{exceptions.delete(id);selected.delete(id)});index=Math.min(index,Math.max(0,files.length-1));if(!selected.size)multi=false;render();toast(ids.size+' foto rimosse dalla selezione.')},'Rimuovi');};
+q('clear').onclick=()=>confirm('Svuotare la selezione?','Rimuove tutte le '+files.length+' foto e le relative eccezioni da questo nuovo lavoro. La sessione precedente e i file originali restano conservati.',()=>{files=[];exceptions.clear();selected.clear();multi=false;index=0;scope='all';render();toast('Selezione svuotata. Nessuna foto eliminata.')},'Svuota');
+function add(n,origin){for(let i=0;i<n;i++)files.push({id:nextId++,origin});render();toast('Aggiunte '+n+' foto. Le selezioni precedenti sono conservate.');}
+q('add').onclick=()=>add(3,'manual');q('folder').onclick=()=>add(24,'folder');
+q('reread').onclick=()=>toast('Simulazione: rilettura di '+targets().length+' '+(targets().length===1?'foto.':'foto.'));
+q('scope').querySelectorAll('button').forEach(b=>b.onclick=()=>{scope=b.dataset.value;render()});
+q('exception').onchange=()=>{targets().forEach(f=>{if(q('exception').checked){if(!exceptions.has(f.id))exceptions.set(f.id,{...general})}else exceptions.delete(f.id)});render()};
+function applyDestination(patch){if(scope==='all')Object.assign(general,patch);else targets().forEach(f=>exceptions.set(f.id,{...(exceptions.get(f.id)||general),...patch}));render();}
+q('dest').querySelectorAll('button').forEach(b=>b.onclick=()=>applyDestination({dest:b.dataset.value}));
+q('change').onclick=()=>{const c=config();applyDestination({dest:'target',path:c.path.includes('Pictures')?'Download / Foto convertite':'Pictures / Foto ottimizzate'});toast(scope==='one'?'Destinazione aggiornata per '+targets().length+' foto.':'Destinazione generale aggiornata; eccezioni conservate.');};
+q('smaller').onchange=note;q('copy').onchange=note;
+q('affix').oninput=updateNaming;q('collision').querySelectorAll('button').forEach(b=>b.onclick=()=>{collisionMode=b.dataset.collision;q('collision').querySelectorAll('button').forEach(v=>v.setAttribute('aria-pressed',String(v===b)));updateNaming()});
+q('nameposition').querySelectorAll('button').forEach(b=>b.onclick=()=>{namePosition=b.dataset.position;q('nameposition').querySelectorAll('button').forEach(v=>v.setAttribute('aria-pressed',String(v===b)));updateNaming()});
+q('resume').onclick=()=>toast('Anteprima: ripresa della sessione precedente. Il nuovo lavoro resta conservato.');
+q('proceed').onclick=()=>{q('stepone').hidden=true;q('steptwo').hidden=false;q('stage-message').hidden=true};
+q('backone').onclick=()=>{q('steptwo').hidden=true;q('stepone').hidden=false};
+let preset='slow';
+function compression(){const quality=Number(q('quality').value),tune=q('tune').value;q('qualityvalue').textContent=quality;q('quality').setAttribute('aria-valuetext',quality+' su 100');root.querySelectorAll('[data-quality]').forEach(b=>b.setAttribute('aria-pressed',String(Number(b.dataset.quality)===quality)));q('preset').querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.preset===preset)));q('presetnote').textContent=preset==='fast'?'Riduce il tempo di codifica provando meno alternative.':preset==='medium'?'Una scelta intermedia tra tempo e ricerca della compressione.':'Prova più alternative di codifica e richiede più tempo.';q('tunenote').textContent=tune==='standard'?'Comportamento psicovisivo predefinito dell’encoder.':tune==='ssim'?'Ottimizzazione per confronti basati sulla metrica SSIM.':'Ottimizzazione per confronti basati sulla metrica PSNR.';q('tech').replaceChildren(document.createTextNode('Qualità '+quality+' · CRF '+String((100-quality)/2).replace('.',',')),document.createElement('br'),document.createTextNode('Dimensioni originali · 8 bit · YCbCr 4:2:0'));q('settings-summary').textContent='Qualità '+quality+' · preset '+preset+' · tune '+tune;}
+q('quality').oninput=compression;root.querySelectorAll('[data-quality]').forEach(b=>b.onclick=()=>{q('quality').value=b.dataset.quality;compression()});q('preset').querySelectorAll('button').forEach(b=>b.onclick=()=>{preset=b.dataset.preset;compression()});q('tune').onchange=compression;
+q('stepthree').onclick=()=>{q('steptwo').hidden=true;q('stepthreemain').hidden=false;if(run.state==='idle'||run.state==='done'||run.state==='stopped')updateRunSummary()};
+compression();
+let run={state:'idle',done:0,total:files.length,converted:0,copied:0,skipped:0,failed:0,rows:[],errors:[],batch:[],smaller:true,copy:true},runTimer;
+function updateRunSummary(){
+ q('run-total').textContent=files.length+' foto';
+ q('run-settings').textContent='Qualità '+q('quality').value+' · '+preset+' · '+q('tune').value;
+ q('run-dest').textContent=actualPath(general)+(exceptions.size?' · '+exceptions.size+' eccezioni':'');
+ q('run-copy').textContent=!q('smaller').checked?'Conserva la conversione':q('copy').checked?'Copia l’originale nella destinazione':'Non salvare la conversione';
+ if(run.state==='idle'){run.total=files.length;q('run-current').textContent='0 di '+run.total+' file elaborati';q('run-start').disabled=!run.total}
+}
+function paintRun(){
+ const percent=run.total?Math.round(run.done/run.total*100):0;
+ const labels={idle:'Pronto per iniziare',running:'Conversione in corso',paused:'In pausa',done:'Lavoro terminato',stopped:'Lavoro interrotto'};
+ root.classList.toggle('is-running',run.state==='running');q('run-status').textContent=labels[run.state];q('run-percent').textContent=percent+'%';q('run-fill').style.width=percent+'%';q('run-progress').setAttribute('aria-valuenow',String(percent));
+ q('run-current').textContent=run.done+' di '+run.total+' file elaborati';
+ q('run-start').hidden=run.state==='running';q('run-start').textContent=run.state==='paused'?'Riprendi':run.state==='idle'?'Avvia conversione':'Avvia una nuova prova';
+ q('run-pause').hidden=run.state!=='running';q('run-stop').hidden=!['running','paused'].includes(run.state);
+ q('run-counts').hidden=run.done===0;q('run-results').hidden=run.done===0;
+ for(const key of ['converted','copied','skipped','failed'])q('run-'+key).textContent=run[key];
+ q('run-rows').replaceChildren();
+ run.rows.slice(-5).reverse().forEach(row=>{const line=document.createElement('div');line.className='resultrow'+(row.failed?' error':'');const name=document.createElement('div');name.textContent=row.name;const status=document.createElement('span');status.textContent=row.text;line.append(name,status);q('run-rows').append(line)});
+ q('run-logpanel').hidden=!run.errors.length;q('run-errorlog').value=run.errors.join('\n\n');
+}
+function scheduleRun(){clearTimeout(runTimer);if(run.state==='running')runTimer=setTimeout(tickRun,900)}
+function tickRun(){
+ if(run.state!=='running')return;
+ const end=Math.min(run.total,run.done+Math.max(1,Math.ceil(run.total/9)));
+ for(let n=run.done;n<end;n++){
+  const f=run.batch[n],name='IMG_'+String(f.id+1).padStart(4,'0')+'.jpg';let text,failed=false;
+  if((n+1)%17===0){run.failed++;failed=true;text='Errore · lettura non riuscita';run.errors.push(name+'\nErrore dimostrativo: lettura del file non riuscita.\nIl file non è stato salvato nella destinazione.');}
+  else if(run.smaller&&(n+1)%7===0){if(run.copy&&f.dest==='target'){run.copied++;text='Originale copiato · conversione non più piccola';}else{run.skipped++;text=f.dest==='source'?'Originale mantenuto nella cartella di origine':'Non salvata · conversione non più piccola';}}
+  else{run.converted++;text='Convertita e verificata · '+f.output;}
+  run.rows.push({name,text,failed});if(run.rows.length>5)run.rows.shift();
+ }
+ run.done=end;
+ if(run.done===run.total){run.state='done';q('run-message').textContent=run.failed?'Simulazione terminata con '+run.failed+' errori. I file segnalati non risultano salvati nella destinazione.':'Simulazione completata. Tutti i file del lavoro sono stati elaborati.';}
+ else q('run-message').textContent='Simulazione in corso · nessuna modifica ai file reali.';
+ paintRun();scheduleRun();
+}
+q('run-start').onclick=()=>{
+ if(run.state==='paused'){run.state='running';q('run-message').textContent='Simulazione ripresa.';paintRun();scheduleRun();return;}
+ const batch=files.map(f=>({id:f.id,output:convertedName(f),dest:(exceptions.get(f.id)||general).dest,path:actualPath(exceptions.get(f.id)||general)}));
+ if(!batch.length)return;
+ const missing=batch.find(f=>!grants.get(f.path));if(missing){q('run-message').textContent='Manca l’autorizzazione per '+missing.path+'. Torna al punto 1 e premi Autorizza.';return;}
+ run={state:'running',done:0,total:batch.length,converted:0,copied:0,skipped:0,failed:0,rows:[],errors:[],batch,smaller:q('smaller').checked,copy:q('copy').checked};
+ updateRunSummary();q('run-message').textContent='Simulazione avviata · nessun file reale viene modificato.';paintRun();scheduleRun();
+};
+function pauseRun(message){if(run.state!=='running')return;clearTimeout(runTimer);run.state='paused';q('run-message').textContent=message;paintRun();}
+q('run-pause').onclick=()=>pauseRun('Simulazione in pausa. Puoi riprendere dal punto raggiunto.');
+q('run-stop').onclick=()=>{clearTimeout(runTimer);run.state='stopped';q('run-message').textContent='Simulazione interrotta. Gli esiti già ottenuti restano consultabili.';paintRun();};
+q('backtwo').onclick=()=>{pauseRun('Anteprima in pausa durante la modifica delle impostazioni. Il lavoro avviato mantiene le impostazioni iniziali.');q('stepthreemain').hidden=true;q('steptwo').hidden=false;};
+q('run-copyerrors').onclick=async()=>{try{await navigator.clipboard.writeText(q('run-errorlog').value);q('run-message').textContent='Dettagli degli errori copiati.';}catch(e){q('run-errorlog').focus();q('run-errorlog').select();q('run-message').textContent='Seleziona e copia il testo dei dettagli.';}};
+document.addEventListener('visibilitychange',()=>{if(document.hidden)pauseRun('Anteprima in pausa perché non visibile. Premi Riprendi per continuare.');});
+updateRunSummary();paintRun();
+q('settings').onclick=()=>toast('Le altre impostazioni verranno definite nella prossima bozza.');
+root.querySelectorAll('[data-page]').forEach(b=>b.onclick=()=>toast('Questa bozza mostra la sezione Foto.'));
+function headingIcon(el,name){if(!el)return;const words=Array.from(el.childNodes).filter(n=>n.nodeType===3);const text=words.map(n=>n.textContent).join('').trim();words.forEach(n=>n.remove());const line=document.createElement('span');line.className='heading-text';const i=document.createElement('i');i.dataset.lucide=name;i.className='head-icon';i.setAttribute('aria-hidden','true');const label=document.createElement('span');label.textContent=text;line.append(i,label);el.prepend(line);}
+headingIcon(root.querySelector('.sectionlabel'),'images');
+root.querySelectorAll('h3').forEach(el=>{if(el.closest('dialog'))return;headingIcon(el,el.textContent.includes('Autorizzazioni')?'shield-check':el.textContent.includes('Salvataggio')?'save':'list');});
+root.querySelectorAll('.field-title').forEach(el=>headingIcon(el,el.textContent.includes('Dove')?'folder-open':el.textContent.includes('Nome')?'type':'files'));
+headingIcon(root.querySelector('label[for="edo-quality"]'),'sliders-horizontal');
+headingIcon(q('preset').previousElementSibling.querySelector('label'),'gauge');
+if(typeof lucide!=='undefined')lucide.createIcons({attrs:{width:18,height:18}});
+if(typeof IntersectionObserver!=='undefined')new IntersectionObserver(entries=>{root.classList.toggle('outofview',!entries[0].isIntersecting)}).observe(root);
+render();ready=true;
+})();
+</script>

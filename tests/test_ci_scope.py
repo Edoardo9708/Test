@@ -16,7 +16,7 @@ spec.loader.exec_module(scope)
 
 class ScopeTest(unittest.TestCase):
     def test_ui_naming_audio_and_java_tests_skip_native(self):
-        for path in ['app/src/main/res/values/styles.xml', scope.JAVA + 'AppUi.java',
+        for path in ['app/src/main/res/values/styles.xml', scope.JAVA + 'AppUi.java', scope.JAVA + 'PhotoWorkspace.kt',
                      scope.JAVA + 'OutputPlan.java', scope.JAVA + 'VideoConverter.java',
                      scope.JAVA + 'AudioCopy.java', 'app/src/test/java/NewTest.java',
                      'tests/OutputNameTest.java', 'scripts/emit-ui-previews.py']:
@@ -39,7 +39,7 @@ class ScopeTest(unittest.TestCase):
 
     def test_changed_jni_lines_trigger_full_even_in_otherwise_fast_java(self):
         event={'before': 'a'*40, 'after': 'b'*40}
-        for line in ['+private native void encode();', '+nativeOpen(width);', '-System.loadLibrary("x265");']:
+        for line in ['+private native void encode();', '+nativeOpen(width);', '-System.loadLibrary("x265");', '+external fun encode(): Int']:
             with patch.object(scope.subprocess, 'run', return_value=subprocess.CompletedProcess([], 0, stdout=line.encode())):
                 self.assertTrue(scope.native_java_changes(event, [scope.JAVA+'VideoConverter.java']))
         with patch.object(scope.subprocess, 'run', return_value=subprocess.CompletedProcess([], 0, stdout=b'+while (sampleExists) {')):
@@ -62,7 +62,7 @@ class ScopeTest(unittest.TestCase):
     def test_documentation_only_and_mixed_changes(self):
         self.assertEqual((False, False), self.flags(['README.md', 'docs/ui-architecture.md']))
         self.assertEqual((True, False), self.flags(['README.md', scope.JAVA + 'AppUi.java']))
-        self.assertEqual((True, True), self.flags([scope.JAVA + 'AppUi.java', 'app/build.gradle']))
+        self.assertEqual((True, True), self.flags([scope.JAVA + 'AppUi.java', scope.JAVA + 'PhotoWorkspace.kt', 'app/build.gradle']))
         self.assertEqual((True, True), self.flags([]))
         self.assertTrue(scope.classify(['README.md'], force_full=True)['native'])
 

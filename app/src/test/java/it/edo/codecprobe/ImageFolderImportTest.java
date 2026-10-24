@@ -44,7 +44,7 @@ public class ImageFolderImportTest {
             long end=System.currentTimeMillis()+15000;
             while(images.state.importing&&System.currentTimeMillis()<end){Shadows.shadowOf(Looper.getMainLooper()).idle();Thread.sleep(10);}Shadows.shadowOf(Looper.getMainLooper()).idle();
             assertFalse(images.state.importing);assertEquals(8500,images.state.inputs.size());assertTrue(images.state.bulk);assertEquals(100,images.screen.selectedItem.chips.size());assertEquals(101,images.screen.selectedItem.navigator.getChildCount());assertTrue(images.screen.selectionSummary.getText().toString().contains("8500"));
-            assertEquals(TREE,images.state.destinations.plan.effective(8499).folder);
+            assertTrue(images.state.destinations.plan.effective(8499).origin);assertEquals(0,images.state.destinations.plan.exceptionCount());
         }finally{controller.pause().stop().destroy();}
     }
 }

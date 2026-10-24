@@ -1,7 +1,7 @@
 name: Build APK
 on:
   push:
-    branches: [main]
+    branches: [main, 'ui/**']
     paths-ignore:
       - README.md
       - docs/**
@@ -22,7 +22,7 @@ permissions:
 jobs:
   scope:
     name: Select relevant checks
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       build: ${{ steps.scope.outputs.build }}
       native: ${{ steps.scope.outputs.native }}
@@ -49,7 +49,7 @@ jobs:
   build:
     needs: scope
     if: needs.scope.outputs.build == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
@@ -98,6 +98,16 @@ jobs:
         run: python3 scripts/restore-signing.py
       - name: Compile Java, run unit tests and lint before native compilation
         run: gradle --no-daemon --build-cache :app:testDebugUnitTest :app:lintDebug
+      - name: Upload Java test, lint and UI reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Application-checks
+          path: |
+            app/build/reports/tests
+            app/build/test-results
+            app/build/reports/lint-results-debug.*
+            app/build/reports/ui
       - name: Build installable APK
         run: gradle --no-daemon --build-cache :app:assembleDebug
       - name: Render synthetic Home UI previews
@@ -181,7 +191,7 @@ jobs:
     name: Audio conversion smoke
     needs: scope
     if: needs.scope.outputs.native == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
@@ -203,7 +213,7 @@ jobs:
     name: JPEG to HEIC conversion smoke
     needs: scope
     if: needs.scope.outputs.native == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
@@ -231,7 +241,7 @@ jobs:
     name: Software HEVC decoder smoke
     needs: scope
     if: needs.scope.outputs.native == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4

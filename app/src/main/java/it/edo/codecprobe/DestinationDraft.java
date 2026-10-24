@@ -13,13 +13,14 @@ final class DestinationDraft {
         if(sources.equals(inputs)&&plan.files.size()==inputs.size())return;
         Map<String,DestinationPlan.Choice> previous=new HashMap<>();
         for(int n=0;n<Math.min(sources.size(),plan.files.size());n++)previous.put(sources.get(n),plan.files.get(n));
-        boolean override=plan.applyAll,origin=plan.all.origin;String folder=plan.all.folder;
+        boolean mode=plan.exceptionsMode;boolean override=plan.applyAll,origin=plan.all.origin;String folder=plan.all.folder;
         boolean existing=!sources.isEmpty();
         plan.reset(inputs.size(),defaults);
         for(int n=0;n<inputs.size();n++){
             DestinationPlan.Choice choice=previous.get(inputs.get(n));
-            if(choice!=null){plan.files.get(n).origin=choice.origin;plan.files.get(n).folder=choice.folder;}
+            if(choice!=null){plan.files.get(n).origin=choice.origin;plan.files.get(n).folder=choice.folder;plan.files.get(n).exception=choice.exception;}
         }
+        plan.exceptionsMode=mode;
         if(existing){plan.applyAll=override;plan.all.origin=origin;plan.all.folder=folder;}
         sources.clear();sources.addAll(inputs);
     }
@@ -33,13 +34,14 @@ final class DestinationDraft {
             boolean[] origins=new boolean[rows.length()];ArrayList<String> folders=new ArrayList<>();
             for(int n=0;n<rows.length();n++){JSONObject row=rows.getJSONObject(n);if(!inputs.get(n).equals(row.getString("input")))return;origins[n]=row.getBoolean("origin");folders.add(row.getString("folder"));}
             plan.restore(origins,folders,data.getBoolean("applyAll"),data.getBoolean("allOrigin"),data.getString("allFolder"));
+            plan.exceptionsMode=data.optBoolean("exceptionsMode",false);for(int n=0;n<rows.length();n++)plan.files.get(n).exception=rows.getJSONObject(n).optBoolean("exception",false);
         }catch(JSONException ignored){/* Old drafts migrate to their previous single output folder. */}
     }
     void save(SharedPreferences.Editor prefs,List<String> inputs,String defaults){
         sync(inputs,defaults);JSONArray rows=new JSONArray();
         try{
-            for(int n=0;n<inputs.size();n++){DestinationPlan.Choice choice=plan.files.get(n);rows.put(new JSONObject().put("input",inputs.get(n)).put("origin",choice.origin).put("folder",choice.folder));}
-            prefs.putString("destinations",new JSONObject().put("files",rows).put("applyAll",plan.applyAll).put("allOrigin",plan.all.origin).put("allFolder",plan.all.folder).toString());
+            for(int n=0;n<inputs.size();n++){DestinationPlan.Choice choice=plan.files.get(n);rows.put(new JSONObject().put("input",inputs.get(n)).put("origin",choice.origin).put("folder",choice.folder).put("exception",choice.exception));}
+            prefs.putString("destinations",new JSONObject().put("exceptionsMode",plan.exceptionsMode).put("files",rows).put("applyAll",plan.applyAll).put("allOrigin",plan.all.origin).put("allFolder",plan.all.folder).toString());
         }catch(JSONException error){throw new IllegalStateException("Destinazioni non serializzabili",error);}
     }
 }

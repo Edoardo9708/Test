@@ -8,8 +8,9 @@ final class ImageRunPresenter {
     static void render(ImageController images,ImageRunState run){render(images,run,false);}
     static void renderLive(ImageController images,ImageRunState run){render(images,run,true);}
     private static void render(ImageController images,ImageRunState run,boolean visibleOnly){
-        ImageScreen s=images.screen;boolean busy=images.busy();s.checkMetadata.setEnabled(!busy&&!images.state.inputs.isEmpty());s.convert.setEnabled(!busy&&!images.state.inputs.isEmpty()&&images.destinations.ready());s.cancel.setEnabled(run.running&&!run.cancelling);s.pause.setEnabled(run.running&&!run.cancelling);UiText.set(s.pause,run.pauseRequested||run.paused?"Riprendi":"Pausa");
-        boolean recoverable=!run.running&&ImageSessionStore.exists(images.activity);s.resumeSession.setVisibility(recoverable?View.VISIBLE:View.GONE);s.discardSession.setVisibility(recoverable?View.VISIBLE:View.GONE);s.resumeSession.setEnabled(!busy);s.discardSession.setEnabled(!busy);
+        ImageScreen s=images.screen;s.layout.backdrop.working(run.running);boolean busy=images.busy();s.checkMetadata.setEnabled(!busy&&!images.state.inputs.isEmpty());s.convert.setEnabled(!busy&&!images.state.inputs.isEmpty()&&images.destinations.ready());s.cancel.setEnabled(run.running&&!run.cancelling);s.pause.setEnabled(run.running&&!run.cancelling);UiText.set(s.pause,run.pauseRequested||run.paused?"Riprendi":"Pausa");
+        boolean recoverable=!run.running&&ImageSessionStore.exists(images.activity);s.sections.previousWork.setEnabled(run.running||recoverable);UiText.set(s.sections.previousWork,run.running?"Sessione in corso":"Riprendi sessione");UiText.set(s.sections.previousHint,run.running?"La coda continua anche uscendo da questa schermata.":recoverable?"È disponibile una coda interrotta.":"Nessuna sessione da riprendere.");
+        s.resumeSession.setVisibility(recoverable?View.VISIBLE:View.GONE);s.discardSession.setVisibility(recoverable?View.VISIBLE:View.GONE);s.resumeSession.setEnabled(!busy);s.discardSession.setEnabled(!busy);
         if(!visibleOnly||s.sections.bodies.get(ImageScreen.HEIC).getVisibility()==View.VISIBLE){
         s.progress.setVisibility(View.VISIBLE);s.progress.setIndeterminate(run.running&&!run.paused||images.state.starting);if(!run.running||run.paused)s.progress.setProgress(0);UiText.set(s.dashboard.percent,"—");
         UiText.set(s.runStatus,images.state.starting?"Preparazione della coda…":ImageConversionService.displayMessage(run).isEmpty()?"Scegli foto, cartelle e qualità.":ImageConversionService.displayMessage(run));
@@ -19,7 +20,8 @@ final class ImageRunPresenter {
         UiText.set(s.parameters,(run.running&&run.options!=null?run.options:images.state.options).description());
         images.report.render(run);
         }
-        if(s.log.isShown())UiText.set(s.log,run.log.isEmpty()?"Nessun log immagini":ImageLogPreview.text(run.log));
+        // Visibility follows the selected page, including the frame before AndroidView attaches.
+        if(images.visible()&&ImageScreen.DETAILS.equals(s.sections.current())&&s.log.getVisibility()==View.VISIBLE)UiText.set(s.log,run.log.isEmpty()?"Nessun log immagini":ImageLogPreview.text(run.log));
         if(images.visible()&&run.running&&!run.paused&&images.state.options.keepScreenOn)images.activity.getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);else images.activity.getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
     }
     private ImageRunPresenter(){}

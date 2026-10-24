@@ -24,11 +24,15 @@ class MediaDestinationsView {
     LinearLayout originRows;
 
     MediaDestinationsView(AppUi ui, LinearLayout parent, MediaKind kind) {
+        this(ui,parent,kind,true);
+    }
+    MediaDestinationsView(AppUi ui,LinearLayout parent,MediaKind kind,boolean compose){
         this.kind=kind;
         LinearLayout files = new LinearLayout(ui.activity);
         files.setOrientation(LinearLayout.VERTICAL);
         parent.addView(files, new LinearLayout.LayoutParams(-1, -2));
         body = files;
+        if(!compose)return;
         ui.divider(files);
         videoDestinationTitle = ui.text(files, "DESTINAZIONE DEL FILE", 16);
         videoDestinationTitle.setTypeface(null, Typeface.BOLD);

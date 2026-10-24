@@ -14,12 +14,23 @@ final class AppNavigation extends LinearLayout {
     AppNavigation(AppUi ui,boolean audioSelected){
         this(ui,audioSelected?Workspace.AUDIO:Workspace.VIDEO);
     }
-    AppNavigation(AppUi ui,Workspace selected){
+    AppNavigation(AppUi ui,Workspace selected){this(ui,selected,false);}
+    AppNavigation(AppUi ui,Workspace selected,boolean compact){
         super(ui.activity);setOrientation(HORIZONTAL);setBackgroundColor(ui.bg);
         video=tab(ui,"Video",selected==Workspace.VIDEO,()->open(ui,selected,Workspace.VIDEO,MainActivity.class));
         audio=tab(ui,"Audio",selected==Workspace.AUDIO,()->open(ui,selected,Workspace.AUDIO,AudioActivity.class));
         images=tab(ui,"Immagini",selected==Workspace.IMAGES,()->open(ui,selected,Workspace.IMAGES,ImageActivity.class));
         analysis=tab(ui,"Analisi",selected==Workspace.ANALYSIS,()->open(ui,selected,Workspace.ANALYSIS,AnalysisActivity.class));
+        if(compact)images.setText("Foto");
+        if(compact)for(Button b:new Button[]{video,audio,images,analysis}){
+            LinearLayout column=(LinearLayout)b.getParent();column.removeViewAt(1);
+            b.setTextSize(11);b.setTypeface(null,Typeface.NORMAL);
+            int resource=b==video?R.drawable.trial_video:b==audio?R.drawable.trial_music:b==images?R.drawable.trial_photo:R.drawable.trial_grid;
+            android.graphics.drawable.Drawable icon=ui.activity.getDrawable(resource).mutate();icon.setTint(b.isSelected()?ui.accent:ui.muted);icon.setBounds(0,0,ui.dp(20),ui.dp(20));b.setCompoundDrawables(null,icon,null,null);b.setCompoundDrawablePadding(0);b.setPadding(ui.dp(2),0,ui.dp(2),0);b.setMinHeight(ui.dp(44));b.setMinimumHeight(ui.dp(44));
+            android.graphics.drawable.GradientDrawable pill=ui.shape(b.isSelected()?ui.dark?0xFF344D76:0xFFD5E3FF:android.graphics.Color.TRANSPARENT,24);pill.setStroke(ui.dp(1),b.isSelected()?ui.accent:android.graphics.Color.TRANSPARENT);
+            b.setBackground(new RippleDrawable(ColorStateList.valueOf(ui.border),pill,null));
+            column.setLayoutParams(new LinearLayout.LayoutParams(0,-1,1));
+        }
     }
     private static void open(AppUi ui,Workspace selected,Workspace target,Class<? extends Activity> screen){
         if(selected==target)return;
