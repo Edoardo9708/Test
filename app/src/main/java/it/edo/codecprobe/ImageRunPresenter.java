@@ -20,7 +20,8 @@ final class ImageRunPresenter {
         UiText.set(s.parameters,(run.running&&run.options!=null?run.options:images.state.options).description());
         images.report.render(run);
         }
-        if(s.log.isShown())UiText.set(s.log,run.log.isEmpty()?"Nessun log immagini":ImageLogPreview.text(run.log));
+        // Visibility follows the selected page, including the frame before AndroidView attaches.
+        if(images.visible()&&ImageScreen.DETAILS.equals(s.sections.current())&&s.log.getVisibility()==View.VISIBLE)UiText.set(s.log,run.log.isEmpty()?"Nessun log immagini":ImageLogPreview.text(run.log));
         if(images.visible()&&run.running&&!run.paused&&images.state.options.keepScreenOn)images.activity.getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);else images.activity.getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
     }
     private ImageRunPresenter(){}

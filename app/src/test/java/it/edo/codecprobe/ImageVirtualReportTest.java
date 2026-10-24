@@ -37,7 +37,7 @@ public class ImageVirtualReportTest {
             images.screen.sections.focusCard(ImageScreen.FILES);String original=images.screen.dashboard.summary.getText().toString();images.screen.log.setText("hidden");run.current=500;run.log="new log";images.refresh();
             assertEquals(original,images.screen.dashboard.summary.getText().toString());assertEquals("hidden",images.screen.log.getText().toString());
             images.screen.sections.focusCard(ImageScreen.HEIC);images.refresh();assertTrue(images.screen.dashboard.summary.getText().toString().contains("500 / 8500"));
-            images.screen.sections.focusCard(ImageScreen.DETAILS);images.screen.toggleLog.performClick();org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idleFor(java.time.Duration.ofMillis(500));images.refresh();assertEquals("new log",images.screen.log.getText().toString());
+            images.screen.sections.focusCard(ImageScreen.DETAILS);images.screen.toggleLog.performClick();images.refresh();assertEquals("new log",images.screen.log.getText().toString());
         }finally{field.set(null,previous);controller.pause().stop().destroy();}
     }
     @Test public void visibleLogPreviewIsBoundedAndContainsTheNewestEvent(){

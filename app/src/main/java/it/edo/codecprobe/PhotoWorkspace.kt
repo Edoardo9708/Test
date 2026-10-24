@@ -55,7 +55,7 @@ internal fun PhotoWorkspace(host: PhotoComposeHost) {
                 ) { step ->
                     key(step) {
                         val scroll = rememberScrollState()
-                        Column(Modifier.fillMaxSize().verticalScroll(scroll)
+                        Column(Modifier.fillMaxSize().verticalScroll(scroll).semantics { testTag = "photo-scroll" }
                             .padding(horizontal = 16.dp)
                             .padding(top = with(density) { titleHeight.toDp() } + 8.dp,
                                 bottom = with(density) { dockHeight.toDp() } + 20.dp)) {

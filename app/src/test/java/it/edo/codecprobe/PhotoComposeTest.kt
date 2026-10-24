@@ -65,7 +65,12 @@ class PhotoComposeTest {
         compose.onNodeWithTag("photo-new").performClick()
         compose.onNodeWithTag("photo-0").performTouchInput { longClick() }
         compose.onNodeWithTag("photo-2").performClick()
-        compose.onNodeWithTag("photo-exception").performScrollTo().performClick()
+        compose.onNodeWithTag("photo-exception").performScrollTo()
+        // ScrollTo only knows the scroll viewport, so clear the floating controls before tapping.
+        compose.onNodeWithTag("photo-scroll").performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.ScrollBy) {
+            it(0f, compose.activity.images.screen.ui.dp(160).toFloat())
+        }
+        compose.onNodeWithTag("photo-exception").assertIsDisplayed().performClick()
         compose.runOnIdle {
             val images = compose.activity.images
             assertEquals(listOf(0, 2), images.selectionIndices())
