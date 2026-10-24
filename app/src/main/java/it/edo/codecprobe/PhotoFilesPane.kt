@@ -4,6 +4,12 @@ import androidx.compose.animation.*
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.boundsInWindow
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.distinctUntilChanged
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
@@ -40,8 +46,9 @@ internal fun PhotoFilesPane(state: PhotoUiState, host: PhotoComposeHost) {
         else {
             PhotoCarousel(state, host)
             Text("Tieni premuto per selezionare più foto.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text(state.name, style = MaterialTheme.typography.bodySmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
-            if (state.summary.isNotEmpty()) Text(state.summary, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(state.name, style = MaterialTheme.typography.bodySmall, minLines = 2, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Text(state.summary.ifBlank { if (state.reading) "Lettura dei dati…" else " " }, minLines = 2, maxLines = 2,
+                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             PhotoButtonGroup(3) { index, button ->
                 when (index) {
                     0 -> PhotoButton("Rimuovi", { host.command(PhotoCommand.REMOVE) }, button, enabled = !state.busy,
@@ -53,17 +60,10 @@ internal fun PhotoFilesPane(state: PhotoUiState, host: PhotoComposeHost) {
                 }
             }
             AnimatedVisibility(state.detailsOpen, enter = expandVertically() + fadeIn(), exit = shrinkVertically() + fadeOut()) {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    var all by rememberSaveable { mutableStateOf(false) }
-                    SelectionContainer { Text(state.basicDetails, style = MaterialTheme.typography.bodySmall) }
-                    if (state.allDetails.isNotBlank() && state.allDetails != state.basicDetails) {
-                        TextButton(onClick = { all = !all }) { Text(if (all) "Mostra meno" else "Mostra tutto") }
-                        AnimatedVisibility(all) { SelectionContainer { Text(state.allDetails, style = MaterialTheme.typography.bodySmall) } }
-                    }
-                }
+                PhotoDetailsPane(state)
             }
         }
-        if (state.notice.isNotEmpty()) Text(state.notice, maxLines = 2, overflow = TextOverflow.Ellipsis,
+        Text(state.notice.ifBlank { " " }, minLines = 2, maxLines = 2, overflow = TextOverflow.Ellipsis,
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
     PhotoSaving(state, host)
@@ -73,7 +73,19 @@ internal fun PhotoFilesPane(state: PhotoUiState, host: PhotoComposeHost) {
 @Composable
 private fun PhotoCarousel(state: PhotoUiState, host: PhotoComposeHost) {
     val context = LocalContext.current
-    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth().height(72.dp)
+    val carousel = rememberLazyListState()
+    var inViewport by remember { mutableStateOf(false) }
+    LaunchedEffect(host.active, state.busy, state.items, inViewport) {
+        if (!host.active || state.busy || !inViewport) { host.visiblePhotos(emptyList()); return@LaunchedEffect }
+        snapshotFlow { carousel.layoutInfo.visibleItemsInfo.mapNotNull { state.items.getOrNull(it.index)?.uri } }
+            .distinctUntilChanged().collectLatest { uris ->
+                delay(140) // Let a fling settle instead of reading every photo it passes.
+                host.visiblePhotos(uris)
+            }
+    }
+    DisposableEffect(host) { onDispose { host.visiblePhotos(emptyList()) } }
+    LazyRow(state = carousel, horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth().height(72.dp)
+        .onGloballyPositioned { val bounds = it.boundsInWindow(); inViewport = bounds.width > 0f && bounds.height > 0f }
         .semantics { testTag = "photo-carousel" }) {
         itemsIndexed(state.items, key = { _, item -> item.uri }) { index, item ->
             val placeholder = minions[Math.floorMod(item.uri.hashCode(), minions.size)]

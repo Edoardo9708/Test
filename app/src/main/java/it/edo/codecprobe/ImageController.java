@@ -135,10 +135,11 @@ final class ImageController {
     void save(Bundle out){out.putBoolean("photoGeneralScope",((PhotoDestinationsView)screen.destinations).general);out.putStringArrayList("selectedPhotos",new ArrayList<>(selectedPhotos));persist();screen.sections.save(out);selection.save(out);logExport.save(out);destinations.save(out);}
     void open(){
         int current=++generation;if(analysis!=null)analysis.cancel(true);
-        state.clamp();state.info=null;state.notice="";state.name="";state.reading=!state.inputs.isEmpty();persist();render();if(!state.reading)return;
-        String value=state.inputs.get(state.selected);
-        ImageMetadataCache.Entry cached=ImageMetadataCache.memory.get(value);
+        state.clamp();
+        String value=state.inputs.isEmpty()?null:state.inputs.get(state.selected);
+        ImageMetadataCache.Entry cached=value==null?null:ImageMetadataCache.memory.get(value);
         if(cached!=null){showInput(cached);return;}
+        state.info=null;state.notice="";state.name="";state.reading=value!=null;persist();render();if(!state.reading)return;
         final long cacheEpoch=ImageMetadataCache.memory.epoch();
         analysis=worker.submit(()->{
             String name=ImageFiles.name(activity,Uri.parse(value));JpegInventory.Info info=null;String error="";

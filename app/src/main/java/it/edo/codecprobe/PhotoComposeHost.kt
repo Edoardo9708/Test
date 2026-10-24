@@ -3,7 +3,6 @@ package it.edo.codecprobe
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
-import android.widget.TextView
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -18,6 +17,10 @@ internal class PhotoComposeHost(private val images: ImageController) {
     private val screen get() = images.screen
     private val destinations get() = screen.destinations as PhotoDestinationsView
     private val thumbnailRevisions = mutableMapOf<String, Int>()
+    private var visibleUris = emptyList<String>()
+    private val previewDetails = PhotoDetailsLoader({ PhotoBasicDetails.read(images.activity, it) }) { uri ->
+        if (images.state.inputs.getOrNull(images.state.selected) == uri) refresh()
+    }
     var state by mutableStateOf(snapshot())
         private set
     var active by mutableStateOf(false)
@@ -50,12 +53,20 @@ internal class PhotoComposeHost(private val images: ImageController) {
         }
     }
 
-    fun onVisible(value: Boolean) { active = value }
-    fun refresh() { state = snapshot() }
+    fun onVisible(value: Boolean) { active = value; scheduleDetails() }
+    fun refresh() { state = snapshot(); scheduleDetails() }
+    fun visiblePhotos(uris: List<String>) { visibleUris = uris; scheduleDetails() }
+    private fun scheduleDetails() {
+        val ready = active && !state.busy && state.step == ImageScreen.FILES
+        val selected = images.state.inputs.getOrNull(images.state.selected)
+        val visible = visibleUris.filter { it in images.state.inputs.take(ImageQueueStore.VISIBLE) }
+        previewDetails.update(if (ready) listOfNotNull(selected) + visible else emptyList())
+    }
 
     fun command(command: PhotoCommand) {
         if (command == PhotoCommand.REREAD && screen.reload.isEnabled) {
             val targets = images.selectionIndices().map { images.state.inputs[it] }.toSet()
+            previewDetails.invalidate(targets)
             targets.forEach { uri -> thumbnailRevisions[uri] = (thumbnailRevisions[uri] ?: 0) + 1 }
             // Other visible images keep their cached bitmap; only the requested sources are invalidated.
             val cache = imageLoader.memoryCache
@@ -82,7 +93,9 @@ internal class PhotoComposeHost(private val images: ImageController) {
             PhotoCommand.AUDIO -> screen.navigation.audio
             PhotoCommand.ANALYSIS -> screen.navigation.analysis
         }
-        if (button.isEnabled) button.performClick()
+        if (command == PhotoCommand.DETAILS && images.state.inputs.isNotEmpty()) {
+            screen.selectedItem.setExpanded(!state.detailsOpen)
+        } else if (button.isEnabled) button.performClick()
         refresh()
     }
 
@@ -91,6 +104,7 @@ internal class PhotoComposeHost(private val images: ImageController) {
             // The detached legacy preview does not need a ViewPropertyAnimator to change selection.
             if (images.busy() || index !in images.state.inputs.indices) return
             if (images.selectedPhotos.isNotEmpty()) images.toggleSelection(index) else {
+                if (images.state.selected == index) return
                 images.state.selected = index
                 images.open()
             }
@@ -109,7 +123,7 @@ internal class PhotoComposeHost(private val images: ImageController) {
     fun legacyProgress(): View = detach(screen.sections.bodies[ImageScreen.HEIC]!!)
     fun legacyDiagnostics(): View = detach(screen.sections.bodies[ImageScreen.DETAILS]!!)
     private fun detach(view: View): View { (view.parent as? ViewGroup)?.removeView(view); return view }
-    fun close() { imageLoader.shutdown(); view.disposeComposition() }
+    fun close() { previewDetails.close(); imageLoader.shutdown(); view.disposeComposition() }
 
     private fun snapshot(): PhotoUiState {
         val data = images.state
@@ -120,11 +134,17 @@ internal class PhotoComposeHost(private val images: ImageController) {
             PhotoItem(uri, data.names.getOrElse(index) { "Foto ${index + 1}" },
                 if (selected.isEmpty()) index == data.selected else uri in selected, thumbnailRevisions[uri] ?: 0)
         }
+        val uri = data.inputs.getOrNull(data.selected).orEmpty()
+        val preview = previewDetails.get(uri)
+        val names = if (selected.size > 1) images.selectionIndices().map { data.names[it] }.sortedWith(String.CASE_INSENSITIVE_ORDER) else emptyList()
         return PhotoUiState(
             step = screen.sections.current(), busy = images.busy(), total = data.inputs.size, items = items,
             name = screen.name.text.toString(), summary = screen.summary.text.toString(), notice = screen.status.text.toString(),
-            detailsEnabled = screen.metadata.isEnabled, detailsOpen = screen.selectedItem.detailsBody.visibility == View.VISIBLE,
-            basicDetails = textOf(screen.selectedItem.metadataSummary), allDetails = if (selected.size > 1) "" else screen.details.text.toString(),
+            detailsEnabled = data.inputs.isNotEmpty(), detailsOpen = screen.selectedItem.detailsBody.visibility == View.VISIBLE,
+            currentUri = uri, reading = data.reading, previewLoading = uri.isNotEmpty() && preview == null,
+            detailRows = (preview ?: PhotoBasicDetails()).rows(if (names.isEmpty()) data.info else null),
+            detailError = preview?.error.orEmpty(), selectedNames = names,
+            allDetails = if (names.isNotEmpty() || data.reading) "" else screen.details.text.toString(),
             previousEnabled = screen.sections.previousWork.isEnabled, previousHint = screen.sections.previousHint.text.toString(),
             general = destinations.general, currentLabel = destinations.currentScope.text.toString(),
             allLabel = destinations.allScope.text.toString(), allocation = destinations.allocation.text.toString(),
@@ -136,9 +156,4 @@ internal class PhotoComposeHost(private val images: ImageController) {
         )
     }
 
-    private fun textOf(view: View): String = when (view) {
-        is TextView -> view.text.toString()
-        is ViewGroup -> (0 until view.childCount).map { textOf(view.getChildAt(it)) }.filter { it.isNotEmpty() }.joinToString("\n")
-        else -> ""
-    }
 }

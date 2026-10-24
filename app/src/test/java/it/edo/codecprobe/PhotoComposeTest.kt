@@ -78,6 +78,48 @@ class PhotoComposeTest {
         compose.runOnIdle { assertEquals(50, compose.activity.images.state.options.quality) }
     }
 
+    @Test fun detailsKeepFiveFieldsAndASeparateCardWhileLoadingAndAfterSelection() {
+        addPhotos(2)
+        compose.onNodeWithTag("photo-new").performClick()
+        compose.onNodeWithTag("photo-details").performClick()
+        compose.onNodeWithTag("photo-details-panel").assertExists()
+        compose.onNodeWithTag("photo-details-loading").assertExists()
+        compose.runOnIdle { compose.activity.images.compose.onVisible(true) }
+        compose.waitUntil(5_000) { !compose.activity.images.compose.state.previewLoading }
+        compose.onNodeWithText("Dimensioni").assertExists()
+        compose.onNodeWithText("Formato", substring = false).assertExists()
+        compose.onNodeWithText("Dimensione file").assertExists()
+        compose.onNodeWithText("Fotocamera").assertExists()
+        compose.onNodeWithText("Cartella", substring = false).assertExists()
+        compose.onNodeWithTag("photo-details-loading").assertDoesNotExist()
+        compose.waitUntil(5_000) { !compose.activity.images.state.reading }
+        compose.onNodeWithTag("photo-1").performClick()
+        compose.onNodeWithTag("photo-details-panel").assertExists()
+        compose.waitUntil(5_000) { !compose.activity.images.compose.state.previewLoading && !compose.activity.images.state.reading }
+        compose.onNodeWithTag("photo-0").performClick()
+        compose.runOnIdle {
+            assertFalse("Cached details should appear immediately", compose.activity.images.compose.state.previewLoading)
+            assertFalse("Cached inventory must not enter a blank reading state", compose.activity.images.state.reading)
+        }
+    }
+
+    @Test fun multiSelectionDetailsListNamesAndDoNotShowThePreviousPhotoMetadata() {
+        addPhotos(3)
+        compose.onNodeWithTag("photo-new").performClick()
+        compose.onNodeWithTag("photo-2").performTouchInput { longClick() }
+        compose.onNodeWithTag("photo-0").performClick()
+        compose.onNodeWithTag("photo-details").performClick()
+        compose.onNodeWithTag("photo-details-panel").assertExists()
+        compose.onNodeWithText("File selezionati · 2").assertExists()
+        compose.onNodeWithText(files[0].name).assertExists()
+        compose.onNodeWithText(files[2].name).assertExists()
+        compose.onNodeWithText("Fotocamera").assertDoesNotExist()
+        compose.runOnIdle {
+            assertEquals(listOf(files[0].name, files[2].name).sortedWith(String.CASE_INSENSITIVE_ORDER),
+                compose.activity.images.compose.state.selectedNames)
+        }
+    }
+
     @Test fun longPressAndSwitchApplyExceptionsToExactlyTheSelectedFiles() {
         addPhotos(3)
         compose.onNodeWithTag("photo-new").performClick()

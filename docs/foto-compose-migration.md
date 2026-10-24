@@ -58,3 +58,31 @@ colore e pressione. Il passaggio fra Video/Audio/Foto usa ancora Activity distin
 non è quindi ancora il pager con indicatore scorrevole condiviso di Morphe.
 Le animazioni sono finite e guidate dagli eventi Compose; non aggiungono timer e
 seguono la scala delle animazioni del sistema. Le anteprime restano a 64 dp.
+
+## Dettagli delle foto e cache della finestra visibile
+
+Dettagli apre una scheda separata con i cinque campi della specifica: dimensioni,
+formato, dimensione file, fotocamera e cartella. I valori assenti sono indicati
+esplicitamente; con più foto viene mostrato l'elenco ordinato dei nomi. Mostra
+tutto conserva la diagnostica integrale esistente. La scheda resta disponibile
+anche durante la lettura, con righe segnaposto sfocate e un messaggio leggibile.
+Nome, riepilogo e stato riservano due righe per evitare salti al cambio foto;
+non si mostrano metadati della foto precedente come se appartenessero alla nuova.
+
+`PhotoDetailsLoader` legge una foto alla volta, in un worker cancellabile:
+foto selezionata prima, poi solo gli elementi realmente visibili della LazyRow,
+con 140 ms di attesa per evitare letture attraversando rapidamente il carosello.
+Una LRU di massimo 32 schede / 128 KiB conserva solo numeri e stringhe. Pausa,
+cambio pagina, elaborazione e finestra non più visibile interrompono il prefetch.
+Rileggi invalida le schede delle sorgenti richieste. Il risultato tardivo di una
+lettura annullata non può aggiornare la scheda corrente.
+
+Per le anteprime si riusa AndroidX ExifInterface 1.3.7 (la stessa famiglia usata
+da Coil), con un massimo di 1 MiB letto/saltato nell'intestazione e senza decodifica
+pixel, hash o scansione completa del JPEG. Le dimensioni del file arrivano dal
+provider. Gli errori sono leggibili e copiabili nella scheda. Un URI opaco non
+viene presentato come percorso di cartella.
+
+La cache completa degli inventari JPEG resta separata; il controller ora la
+consulta prima di svuotare lo stato visibile, eliminando il passaggio temporaneo
+vuoto quando si torna su una foto già analizzata.
