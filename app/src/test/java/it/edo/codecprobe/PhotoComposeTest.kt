@@ -1,0 +1,100 @@
+package it.edo.codecprobe
+
+import android.content.DialogInterface
+import android.net.Uri
+import androidx.compose.ui.test.*
+import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import org.junit.*
+import org.junit.Assert.*
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
+import org.robolectric.annotation.LooperMode
+import org.robolectric.shadows.ShadowAlertDialog
+import java.io.File
+
+/** Interactions on actual Compose nodes, not the retained Java command widgets. */
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [34], qualifiers = "w360dp-h800dp-xhdpi")
+@LooperMode(LooperMode.Mode.PAUSED)
+class PhotoComposeTest {
+    @get:Rule val compose = createAndroidComposeRule<ImageActivity>()
+    private val files = mutableListOf<File>()
+
+    @Before fun reset() {
+        compose.runOnIdle {
+            val images = compose.activity.images
+            images.compose.onVisible(false)
+            images.stopPreviewReads()
+            images.state.inputs.clear(); images.state.names.clear(); images.selectedPhotos.clear()
+            images.state.options = ImageOptions(65, "slow", "standard", null, true, false, 0)
+            images.state.destinations.reset(emptyList(), null)
+            images.showOptions(); images.render(); images.screen.sections.home()
+        }
+    }
+
+    @After fun cleanup() {
+        files.forEach { it.delete() }
+        compose.runOnIdle { compose.activity.getSharedPreferences("image-workspace", 0).edit().clear().commit() }
+    }
+
+    @Test fun composeIsInstalledAndBackPreservesQuality() {
+        compose.onNodeWithTag("photo-new").assertIsDisplayed().performClick()
+        compose.onNodeWithTag("photo-next").performClick()
+        compose.onNodeWithText("55", useUnmergedTree = true).performClick()
+        compose.runOnIdle { assertEquals(55, compose.activity.images.state.options.quality) }
+        compose.onNodeWithTag("photo-back").performClick()
+        compose.onNodeWithTag("photo-back").performClick()
+        compose.onNodeWithTag("photo-new").assertIsDisplayed().performClick()
+        compose.runOnIdle {
+            val images = compose.activity.images
+            assertTrue(images.compose.view.isShown)
+            assertFalse(images.screen.layout.root.isShown)
+            assertEquals(55, images.state.options.quality)
+        }
+    }
+
+    @Test fun longPressAndSwitchApplyExceptionsToExactlyTheSelectedFiles() {
+        addPhotos(3)
+        compose.onNodeWithTag("photo-new").performClick()
+        compose.onNodeWithTag("photo-0").performTouchInput { longClick() }
+        compose.onNodeWithTag("photo-2").performClick()
+        compose.onNodeWithTag("photo-exception").performScrollTo().performClick()
+        compose.runOnIdle {
+            val images = compose.activity.images
+            assertEquals(listOf(0, 2), images.selectionIndices())
+            assertEquals(2, images.state.destinations.plan.exceptionCount())
+            assertFalse(images.state.destinations.plan.files[1].exception)
+        }
+        compose.onNodeWithTag("photo-back").assertIsDisplayed()
+    }
+
+    @Test fun clearUsesExistingConfirmationAndNeverDeletesOriginals() {
+        addPhotos(2)
+        compose.onNodeWithTag("photo-new").performClick()
+        compose.onNodeWithTag("photo-clear").performClick()
+        compose.runOnIdle {
+            assertEquals(2, compose.activity.images.state.inputs.size)
+            ShadowAlertDialog.getLatestAlertDialog().getButton(DialogInterface.BUTTON_NEGATIVE).performClick()
+        }
+        compose.onNodeWithTag("photo-clear").performClick()
+        compose.runOnIdle {
+            ShadowAlertDialog.getLatestAlertDialog().getButton(DialogInterface.BUTTON_POSITIVE).performClick()
+            assertTrue(compose.activity.images.state.inputs.isEmpty())
+            assertTrue(files.all { it.exists() })
+        }
+    }
+
+    private fun addPhotos(count: Int) {
+        repeat(count) {
+            val file = File.createTempFile("compose-photo-", ".jpg")
+            file.writeBytes(ImageWorkspaceTest.fixture()); files += file
+        }
+        compose.runOnIdle {
+            val images = compose.activity.images
+            images.state.inputs.addAll(files.map { Uri.fromFile(it).toString() })
+            images.state.names.addAll(files.map { it.name })
+            images.state.clamp(); images.open()
+        }
+    }
+}

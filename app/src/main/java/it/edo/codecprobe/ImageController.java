@@ -14,6 +14,7 @@ final class ImageController {
     private final ExecutorService namesWorker=Executors.newSingleThreadExecutor();
     private Future<?> analysis,exportTask,namesRead,folderTask;private int namesGeneration;private int generation;private boolean destroyed,visible,applying;
     private boolean renderedBusy;
+    PhotoComposeHost compose;
     final LinkedHashSet<String> selectedPhotos=new LinkedHashSet<>();
     private final LinkedHashSet<String> pendingNames=new LinkedHashSet<>();
     private android.app.AlertDialog selectionConfirmation;
@@ -123,8 +124,8 @@ final class ImageController {
     void optionsEdited(){if(applying||busy())return;ImageOptions old=state.options;state.options=new ImageOptions(screen.quality.value(),screen.quality.preset(),screen.quality.tune(),old.folder,screen.smaller.isChecked(),screen.screenOn.isChecked(),old.revision);persist();render();}
     void setFolder(String folder){state.destinations.sync(state.inputs,state.options.folder);state.destinations.plan.enableExceptions();state.destinations.plan.all.origin=folder==null||folder.isEmpty();state.destinations.plan.all.folder=folder==null?"":folder;ImageOptions o=state.options;state.options=new ImageOptions(o.quality,o.preset,o.tune,folder,o.onlySmaller,o.keepScreenOn,o.revision);persist();render();}
     void showOptions(){applying=true;try{screen.quality.set(state.options);screen.smaller.setChecked(state.options.onlySmaller);screen.screenOn.setChecked(state.options.keepScreenOn);}finally{applying=false;}}
-    void resume(){visible=true;screen.layout.backdrop.active(true);screen.selectedItem.thumbnails.active(ImageScreen.FILES.equals(screen.sections.current()));screen.dashboard.monitor.reset();destinations.refresh();main.removeCallbacks(tick);tick.run();}
-    void pause(){visible=false;screen.layout.backdrop.active(false);screen.selectedItem.thumbnails.active(false);main.removeCallbacks(tick);activity.getWindow().clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);}
+    void resume(){visible=true;if(compose!=null)compose.onVisible(true);screen.layout.backdrop.active(compose==null);screen.selectedItem.thumbnails.active(ImageScreen.FILES.equals(screen.sections.current()));screen.dashboard.monitor.reset();destinations.refresh();main.removeCallbacks(tick);tick.run();}
+    void pause(){visible=false;if(compose!=null)compose.onVisible(false);screen.layout.backdrop.active(false);screen.selectedItem.thumbnails.active(false);main.removeCallbacks(tick);activity.getWindow().clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);}
     void refresh(){ImageRunState run=ImageConversionService.snapshot();if(state.starting&&state.startingAt>0&&(run.startedAt!=state.previousRun||android.os.SystemClock.elapsedRealtime()-state.startingAt>5000)){state.starting=false;if(run.startedAt==state.previousRun)state.notice=run.message.isEmpty()?"La conversione non è partita: riprova.":run.message;}
         ImageOptions defaults=ImageOptions.load(activity);if(!busy()&&state.options.revision!=defaults.revision){state.options=defaults;showOptions();persist();render();return;}
         // Progress ticks must not rebuild the selection, metadata or destination plan.
@@ -170,7 +171,7 @@ final class ImageController {
             String notice=result;activity.runOnUiThread(()->{if(destroyed)return;state.exporting=false;state.notice=notice;render();toast(notice);});
         });
     }
-    void render(){
+    void render(){try{
         state.clamp();if(!selectedPhotos.isEmpty())selectedPhotos.retainAll(new HashSet<>(state.inputs));int count=state.inputs.size();boolean any=count>0,busy=busy();renderedBusy=busy;
         screen.importFolder.setEnabled(!busy);screen.retryFailures.setEnabled(!busy&&activity.getDatabasePath(ImageProgressJournal.DATABASE).isFile());
         screen.selectionSummary.setText("File selezionati · "+count+" foto");
@@ -206,6 +207,7 @@ final class ImageController {
         if(info.count("ICC")>0)detail.append(info.iccComplete?"\nSequenza dei blocchi ICC completa (profilo non validato).":"\nAttenzione: sequenza ICC incompleta o duplicata.");
         if(info.trailingBytes>0)detail.append("\nAttenzione: ").append(info.trailingBytes).append(" byte dopo la fine JPEG. Potrebbero contenere altre immagini o dati Motion Photo: tipo da verificare. Il report contiene conteggio e hash, non questi byte.");
         detail.append("\n\nSHA-256 originale\n").append(info.sha256);screen.details.setText(detail);screen.selectedItem.showMetadata(Collections.singletonMap("IMMAGINE",screen.summary.getText().toString()),Collections.singletonMap("METADATI ORIGINALI",detail.toString()));
+    }finally{if(compose!=null)compose.refresh();}
     }
     ArrayList<Integer> selectionIndices(){
         ArrayList<Integer> result=new ArrayList<>();
@@ -256,6 +258,6 @@ final class ImageController {
             }).create();selectionConfirmation.show();
     }
     void toast(String value){Toast.makeText(activity,value,Toast.LENGTH_LONG).show();}
-    void destroy(){pause();if(selectionConfirmation!=null)selectionConfirmation.dismiss();destroyed=true;++generation;if(analysis!=null)analysis.cancel(true);if(exportTask!=null)exportTask.cancel(true);if(namesRead!=null)namesRead.cancel(true);if(folderTask!=null)folderTask.cancel(true);screen.selectedItem.close();worker.shutdownNow();namesWorker.shutdownNow();screen.dashboard.monitor.close();destinations.close();report.close();actions.close();logExport.close();screen.sections.closed=true;}
+    void destroy(){pause();if(compose!=null)compose.close();if(selectionConfirmation!=null)selectionConfirmation.dismiss();destroyed=true;++generation;if(analysis!=null)analysis.cancel(true);if(exportTask!=null)exportTask.cancel(true);if(namesRead!=null)namesRead.cancel(true);if(folderTask!=null)folderTask.cancel(true);screen.selectedItem.close();worker.shutdownNow();namesWorker.shutdownNow();screen.dashboard.monitor.close();destinations.close();report.close();actions.close();logExport.close();screen.sections.closed=true;}
     private static String message(Exception e){return e.getMessage()==null?e.getClass().getSimpleName():e.getMessage();}
 }

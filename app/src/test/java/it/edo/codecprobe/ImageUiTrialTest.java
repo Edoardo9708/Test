@@ -110,7 +110,7 @@ public class ImageUiTrialTest {
             var layout=images.screen.layout;int w=images.screen.ui.dp(360),h=images.screen.ui.dp(800);
             layout.root.measure(View.MeasureSpec.makeMeasureSpec(w,View.MeasureSpec.EXACTLY),View.MeasureSpec.makeMeasureSpec(h,View.MeasureSpec.EXACTLY));layout.root.layout(0,0,w,h);
             assertEquals(images.screen.ui.dp(64),images.screen.selectedItem.chips.get(0).getLayoutParams().width);
-            assertTrue(layout.scroll.getPaddingBottom()>=layout.footer.getMeasuredHeight());assertTrue(layout.forward.isShown());assertTrue(layout.back.isShown());
+            assertTrue(layout.scroll.getPaddingBottom()>=layout.footer.getMeasuredHeight());assertTrue(images.compose.getView().isShown());assertFalse(layout.root.isShown());
         }finally{activity.pause().stop().destroy();}
     }
 }
