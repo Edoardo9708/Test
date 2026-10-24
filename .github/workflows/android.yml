@@ -1,7 +1,7 @@
 name: Build APK
 on:
   push:
-    branches: [main]
+    branches: [main, 'ui/**']
     paths-ignore:
       - README.md
       - docs/**
@@ -98,6 +98,16 @@ jobs:
         run: python3 scripts/restore-signing.py
       - name: Compile Java, run unit tests and lint before native compilation
         run: gradle --no-daemon --build-cache :app:testDebugUnitTest :app:lintDebug
+      - name: Upload Java test, lint and UI reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Application-checks
+          path: |
+            app/build/reports/tests
+            app/build/test-results
+            app/build/reports/lint-results-debug.*
+            app/build/reports/ui
       - name: Build installable APK
         run: gradle --no-daemon --build-cache :app:assembleDebug
       - name: Render synthetic Home UI previews

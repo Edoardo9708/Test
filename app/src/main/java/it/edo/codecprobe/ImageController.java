@@ -14,19 +14,24 @@ final class ImageController {
     private final ExecutorService namesWorker=Executors.newSingleThreadExecutor();
     private Future<?> analysis,exportTask,namesRead,folderTask;private int namesGeneration;private int generation;private boolean destroyed,visible,applying;
     private boolean renderedBusy;
+    final LinkedHashSet<String> selectedPhotos=new LinkedHashSet<>();
+    private android.app.AlertDialog selectionConfirmation;
     private final android.os.Handler main=new android.os.Handler(android.os.Looper.getMainLooper());
     private final Runnable tick=new Runnable(){public void run(){if(!visible||destroyed)return;if(screen.dashboard.cpu.isShown())screen.dashboard.monitor.sample(android.os.SystemClock.elapsedRealtime());refresh();main.postDelayed(this,500);}};
     ImageController(ImageActivity activity,Bundle saved){
         this.activity=activity;state=ImageDraftStore.load(activity);screen=new ImageScreen(new AppUi(activity),saved);report=new ImageWorkReport(this);selection=new ImageSelection(this,saved);
         destinations=new MediaDestinationsController(new MediaDestinationsController.Host(){
             public AppUi ui(){return screen.ui;}public java.util.List<String> inputs(){return state.inputs;}public java.util.List<String> names(){return state.names;}public int selected(){return state.selected;}
+            public java.util.List<Integer> selectedIndices(){return selectionIndices();}
             public DestinationDraft draft(){return state.destinations;}public String defaultFolder(){return state.options.folder;}public boolean busy(){return ImageController.this.busy();}
             public void persist(){ImageController.this.persist();}public void changed(){render();}public void toast(String text){ImageController.this.toast(text);}
         },screen.destinations,MediaKind.IMAGE,saved);actions=new ImageActions(this);logExport=new ImageLogExport(this,saved);showOptions();
         screen.importFolder.setOnClickListener(v->selection.sourceFolder());screen.retryFailures.setOnClickListener(v->loadFailures());
-        screen.select.setOnClickListener(v->selection.pick());screen.clear.setOnClickListener(v->{if(busy())return;screen.selectedItem.cancelTransition();ImageMetadataCache.memory.clear();state.inputs.clear();state.names.clear();state.selected=0;state.bulk=false;state.selectionLabel="";ImageConversionService.clear();open();});
-        screen.reload.setOnClickListener(v->{if(busy()||state.inputs.isEmpty())return;ImageMetadataCache.memory.clear();open();});
-        screen.remove.setOnClickListener(v->{if(busy()||state.inputs.isEmpty())return;screen.selectedItem.cancelTransition();ImageMetadataCache.memory.remove(state.inputs.remove(state.selected));state.names.remove(state.selected);state.clamp();open();});
+        screen.select.setOnClickListener(v->selection.pick());screen.clear.setOnClickListener(v->confirmRemoval(true));
+        screen.remove.setOnClickListener(v->confirmRemoval(false));
+        screen.selectedItem.longSelected=this::toggleSelection;
+        if(saved!=null){ArrayList<String> selected=saved.getStringArrayList("selectedPhotos");if(selected!=null)selectedPhotos.addAll(selected);}
+        screen.reload.setOnClickListener(v->reloadSelection());
         screen.export.setOnClickListener(v->selection.export());screen.exportLog.setOnClickListener(v->selection.log());screen.exportErrors.setOnClickListener(v->selection.errors());screen.clearLog.setOnClickListener(v->actions.clearLog());
         screen.checkMetadata.setOnClickListener(v->actions.start(true));
         screen.convert.setOnClickListener(v->actions.start());screen.cancel.setOnClickListener(v->actions.cancel());screen.pause.setOnClickListener(v->actions.pause());screen.resumeSession.setOnClickListener(v->actions.resumeSession());screen.discardSession.setOnClickListener(v->actions.discardSession());
@@ -37,6 +42,7 @@ final class ImageController {
     boolean visible(){return visible;}
     void select(int index){
         if(busy()||index<0||index>=state.inputs.size())return;
+        if(!selectedPhotos.isEmpty()){toggleSelection(index);return;}
         if(index==state.selected){screen.selectedItem.cancelTransition();return;}
         String uri=state.inputs.get(index);
         screen.selectedItem.transition(()->{
@@ -68,9 +74,15 @@ final class ImageController {
                 if(destroyed)return;state.importing=false;
                 if(problem!=null||result==null||result.inputs.isEmpty()){state.notice=problem==null?"Nessun JPEG o fallimento da importare.":"Importazione non riuscita: "+problem;render();return;}
                 screen.selectedItem.cancelTransition();ImageMetadataCache.memory.clear();
-                state.inputs.clear();state.inputs.addAll(result.inputs);state.names.clear();state.names.addAll(result.names);state.selected=0;state.bulk=true;state.selectionLabel=result.inputs.size()+" · "+label;
-                state.destinations.reset(state.inputs,state.options.folder);
-                for(int i=0;i<result.inputs.size();i++)if(!result.folders.get(i).isEmpty())state.destinations.plan.setFolder(i,result.folders.get(i));
+                LinkedHashMap<String,String> combined=new LinkedHashMap<>();
+                for(int i=0;i<state.inputs.size();i++)combined.put(state.inputs.get(i),state.names.get(i));
+                for(int i=0;i<result.inputs.size();i++)combined.putIfAbsent(result.inputs.get(i),result.names.get(i));
+                if(combined.size()>ImageQueueStore.BULK_LIMIT){state.notice="La coda può contenere al massimo "+ImageQueueStore.BULK_LIMIT+" foto.";render();return;}
+                HashSet<String> existing=new HashSet<>(state.inputs);
+                state.inputs.clear();state.inputs.addAll(combined.keySet());state.names.clear();state.names.addAll(combined.values());state.clamp();state.bulk=true;state.selectionLabel=state.inputs.size()+" · "+label;
+                state.destinations.sync(state.inputs,state.options.folder);
+                HashMap<String,Integer> indices=new HashMap<>();for(int i=0;i<state.inputs.size();i++)indices.put(state.inputs.get(i),i);
+                for(int i=0;i<result.inputs.size();i++)if(!existing.contains(result.inputs.get(i))&&!result.folders.get(i).isEmpty())state.destinations.plan.setFolder(indices.get(result.inputs.get(i)),result.folders.get(i));
                 open();
             });
         });
@@ -108,15 +120,15 @@ final class ImageController {
     void optionsEdited(){if(applying||busy())return;ImageOptions old=state.options;state.options=new ImageOptions(screen.quality.value(),screen.quality.preset(),screen.quality.tune(),old.folder,screen.smaller.isChecked(),screen.screenOn.isChecked(),old.revision);persist();render();}
     void setFolder(String folder){state.destinations.defaults(state.inputs,folder);ImageOptions o=state.options;state.options=new ImageOptions(o.quality,o.preset,o.tune,folder,o.onlySmaller,o.keepScreenOn,o.revision);persist();render();}
     void showOptions(){applying=true;try{screen.quality.set(state.options);screen.smaller.setChecked(state.options.onlySmaller);screen.screenOn.setChecked(state.options.keepScreenOn);}finally{applying=false;}}
-    void resume(){visible=true;screen.dashboard.monitor.reset();destinations.refresh();main.removeCallbacks(tick);tick.run();}
-    void pause(){visible=false;main.removeCallbacks(tick);activity.getWindow().clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);}
+    void resume(){visible=true;screen.selectedItem.thumbnails.active(ImageScreen.FILES.equals(screen.sections.current()));screen.dashboard.monitor.reset();destinations.refresh();main.removeCallbacks(tick);tick.run();}
+    void pause(){visible=false;screen.selectedItem.thumbnails.active(false);main.removeCallbacks(tick);activity.getWindow().clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);}
     void refresh(){ImageRunState run=ImageConversionService.snapshot();if(state.starting&&state.startingAt>0&&(run.startedAt!=state.previousRun||android.os.SystemClock.elapsedRealtime()-state.startingAt>5000)){state.starting=false;if(run.startedAt==state.previousRun)state.notice=run.message.isEmpty()?"La conversione non è partita: riprova.":run.message;}
         ImageOptions defaults=ImageOptions.load(activity);if(!busy()&&state.options.revision!=defaults.revision){state.options=defaults;showOptions();persist();render();return;}
         // Progress ticks must not rebuild the selection, metadata or destination plan.
         if(renderedBusy!=busy())render();else ImageRunPresenter.renderLive(this,run);
     }
     void persist(){ImageDraftStore.save(activity,state);}
-    void save(Bundle out){persist();screen.sections.save(out);selection.save(out);logExport.save(out);destinations.save(out);}
+    void save(Bundle out){out.putStringArrayList("selectedPhotos",new ArrayList<>(selectedPhotos));persist();screen.sections.save(out);selection.save(out);logExport.save(out);destinations.save(out);}
     void open(){
         int current=++generation;if(analysis!=null)analysis.cancel(true);
         state.clamp();state.info=null;state.notice="";state.name="";state.reading=!state.inputs.isEmpty();persist();render();if(!state.reading)return;
@@ -156,11 +168,13 @@ final class ImageController {
         });
     }
     void render(){
-        state.clamp();int count=state.inputs.size();boolean any=count>0,busy=busy();renderedBusy=busy;
+        state.clamp();selectedPhotos.retainAll(state.inputs);int count=state.inputs.size();boolean any=count>0,busy=busy();renderedBusy=busy;
         screen.importFolder.setEnabled(!busy);screen.retryFailures.setEnabled(!busy&&activity.getDatabasePath(ImageProgressJournal.DATABASE).isFile());
         screen.selectionSummary.setText(state.selectionLabel);screen.selectionSummary.setVisibility(state.selectionLabel.isEmpty()?android.view.View.GONE:android.view.View.VISIBLE);
         screen.select.setEnabled(!busy);screen.clear.setEnabled(any&&!busy);screen.remove.setEnabled(any&&!busy);
         screen.selectedItem.render(state.names,Collections.emptyList(),state.selected,!busy,this::select,ImageQueueStore.VISIBLE);
+        screen.selectedItem.selectedIndices(new HashSet<>(selectionIndicesForHighlight()));
+        screen.selectedItem.thumbnails.bind(state.inputs);
         if(!any)screen.selectedItem.setExpanded(false);
         screen.remove.setVisibility(any?android.view.View.VISIBLE:android.view.View.GONE);
         screen.reload.setVisibility(any?android.view.View.VISIBLE:android.view.View.GONE);screen.reload.setEnabled(any&&!busy&&!state.reading);
@@ -170,6 +184,12 @@ final class ImageController {
         screen.exportErrors.setEnabled(logExport.available(ImageFailureStore.FILE));
         destinations.render();
         ImageRunPresenter.render(this,ImageConversionService.snapshot());
+        if(selectedPhotos.size()>1){
+            ArrayList<String> selectedNames=new ArrayList<>();for(int index:selectionIndices())selectedNames.add(state.names.get(index));selectedNames.sort(String.CASE_INSENSITIVE_ORDER);
+            screen.name.setText(selectedPhotos.size()+" foto selezionate");screen.summary.setText("Rimuovi, rileggi e destinazione agiscono sulla selezione.");screen.metadata.setEnabled(true);
+            screen.selectedItem.showMetadata(Collections.singletonMap("FILE SELEZIONATI",String.join("\n",selectedNames)),Collections.emptyMap());
+            screen.selectedItem.number.setText(selectedPhotos.size()+" selezionate · "+count+" in coda");return;
+        }
         JpegInventory.Info info=state.info;
         screen.summary.setText(info==null?"":String.format(Locale.ITALY,"%d × %d · %.2f MB · JPEG %d bit · %d componenti",info.width,info.height,info.bytes/1000000.0,info.precision,info.components));
         screen.status.setText(state.importing?state.notice:state.reading?"Analisi della foto…":!state.notice.isEmpty()?state.notice:info!=null?"JPEG analizzato. La compatibilità completa verrà controllata prima della codifica.":"Scegli le foto. Gli originali restano invariati.");
@@ -183,7 +203,55 @@ final class ImageController {
         if(info.trailingBytes>0)detail.append("\nAttenzione: ").append(info.trailingBytes).append(" byte dopo la fine JPEG. Potrebbero contenere altre immagini o dati Motion Photo: tipo da verificare. Il report contiene conteggio e hash, non questi byte.");
         detail.append("\n\nSHA-256 originale\n").append(info.sha256);screen.details.setText(detail);screen.selectedItem.showMetadata(Collections.singletonMap("IMMAGINE",screen.summary.getText().toString()),Collections.singletonMap("METADATI ORIGINALI",detail.toString()));
     }
+    ArrayList<Integer> selectionIndices(){
+        ArrayList<Integer> result=new ArrayList<>();
+        if(selectedPhotos.isEmpty()){if(!state.inputs.isEmpty())result.add(state.selected);return result;}
+        for(int n=0;n<state.inputs.size();n++)if(selectedPhotos.contains(state.inputs.get(n)))result.add(n);return result;
+    }
+    private ArrayList<Integer> selectionIndicesForHighlight(){return selectedPhotos.isEmpty()?new ArrayList<>():selectionIndices();}
+    private ArrayList<String> selectionSources(){ArrayList<String> result=new ArrayList<>();for(int n:selectionIndices())result.add(state.inputs.get(n));return result;}
+    void toggleSelection(int index){
+        if(busy()||index<0||index>=state.inputs.size())return;
+        screen.selectedItem.cancelTransition();String input=state.inputs.get(index);
+        if(!selectedPhotos.remove(input)){selectedPhotos.add(input);state.selected=index;}
+        if(selectedPhotos.size()==1)state.selected=state.inputs.indexOf(selectedPhotos.iterator().next());
+        if(selectedPhotos.size()<=1)open();else render();
+    }
+    private void reloadSelection(){
+        if(busy()||state.inputs.isEmpty())return;
+        ArrayList<String> targets=selectionSources();for(String input:targets)ImageMetadataCache.memory.remove(input);
+        screen.selectedItem.thumbnails.invalidate(targets);
+        if(targets.size()==1){open();return;}
+        stopPreviewReads();state.importing=true;state.notice="Rilettura di "+targets.size()+" foto…";render();
+        final long epoch=ImageMetadataCache.memory.epoch();
+        analysis=worker.submit(()->{
+            int failures=0;
+            for(String input:targets){
+                if(Thread.currentThread().isInterrupted())return;
+                String name=ImageFiles.name(activity,Uri.parse(input));JpegInventory.Info info=null;String error="";
+                try(InputStream in=activity.getContentResolver().openInputStream(Uri.parse(input))){if(in==null)throw new IOException("Foto non accessibile");info=JpegInventory.read(in);}
+                catch(IOException|RuntimeException e){error=message(e);failures++;}
+                ImageMetadataCache.Entry entry=new ImageMetadataCache.Entry(name,info,error);ImageMetadataCache.memory.put(input,entry,entry.weight(),epoch);
+            }
+            int failed=failures;activity.runOnUiThread(()->{if(destroyed)return;state.importing=false;open();if(failed>0){state.notice=failed+" foto non lette. Apri i dettagli dei singoli file per l’errore.";render();}});
+        });
+    }
+    private void confirmRemoval(boolean all){
+        if(busy()||state.inputs.isEmpty())return;
+        ArrayList<String> targets=all?new ArrayList<>(state.inputs):selectionSources();
+        selectionConfirmation=new android.app.AlertDialog.Builder(activity)
+            .setTitle(all?"Svuotare la selezione?":"Rimuovere "+targets.size()+" foto dalla selezione?")
+            .setMessage("Le foto originali restano sul dispositivo.")
+            .setNegativeButton("Annulla",null).setPositiveButton(all?"Svuota":"Rimuovi",(d,w)->{
+                if(busy())return;screen.selectedItem.cancelTransition();stopPreviewReads();
+                HashSet<String> removed=new HashSet<>(targets);
+                for(int n=state.inputs.size()-1;n>=0;n--)if(removed.contains(state.inputs.get(n))){ImageMetadataCache.memory.remove(state.inputs.remove(n));state.names.remove(n);}
+                selectedPhotos.removeAll(removed);screen.selectedItem.thumbnails.invalidate(targets);
+                if(all){ImageMetadataCache.memory.clear();state.bulk=false;state.selectionLabel="";ImageConversionService.clear();}
+                state.clamp();open();
+            }).create();selectionConfirmation.show();
+    }
     void toast(String value){Toast.makeText(activity,value,Toast.LENGTH_LONG).show();}
-    void destroy(){pause();destroyed=true;++generation;if(analysis!=null)analysis.cancel(true);if(exportTask!=null)exportTask.cancel(true);if(namesRead!=null)namesRead.cancel(true);if(folderTask!=null)folderTask.cancel(true);screen.selectedItem.close();worker.shutdownNow();namesWorker.shutdownNow();screen.dashboard.monitor.close();destinations.close();report.close();actions.close();logExport.close();screen.sections.closed=true;}
+    void destroy(){pause();if(selectionConfirmation!=null)selectionConfirmation.dismiss();destroyed=true;++generation;if(analysis!=null)analysis.cancel(true);if(exportTask!=null)exportTask.cancel(true);if(namesRead!=null)namesRead.cancel(true);if(folderTask!=null)folderTask.cancel(true);screen.selectedItem.close();worker.shutdownNow();namesWorker.shutdownNow();screen.dashboard.monitor.close();destinations.close();report.close();actions.close();logExport.close();screen.sections.closed=true;}
     private static String message(Exception e){return e.getMessage()==null?e.getClass().getSimpleName():e.getMessage();}
 }

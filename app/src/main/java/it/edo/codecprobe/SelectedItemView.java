@@ -16,6 +16,12 @@ final class SelectedItemView {
     private Map<String,String> lastSummary=Collections.emptyMap(),lastDetails=Collections.emptyMap();
     final Button details,remove;
     private final String detailsLabel;
+    final boolean photos;
+    final PhotoThumbnails thumbnails;
+    java.util.function.IntConsumer longSelected;
+    java.util.Set<Integer> selection=java.util.Collections.emptySet();
+    private Button showAll;
+    private boolean allMetadata;
     final ArrayList<Button> chips = new ArrayList<>();
     private final AppUi ui;
     private final String item, empty;
@@ -28,6 +34,10 @@ final class SelectedItemView {
     private boolean updateNeeded=true,lastEnabled;
 
     SelectedItemView(AppUi ui, LinearLayout parent, String item, String empty, String detailsLabel) {
+        this(ui,parent,item,empty,detailsLabel,false);
+    }
+    SelectedItemView(AppUi ui, LinearLayout parent, String item, String empty, String detailsLabel,boolean photos) {
+        this.photos=photos;
         this.ui = ui; this.item = item; this.empty = empty; this.detailsLabel = detailsLabel;
         number = ui.text(parent, empty, 15);
         carousel = new HorizontalScrollView(ui.activity);
@@ -53,6 +63,12 @@ final class SelectedItemView {
         metadataSummary=new LinearLayout(ui.activity);metadataSummary.setOrientation(LinearLayout.VERTICAL);detailsBody.addView(metadataSummary);
         metadataDetails=new LinearLayout(ui.activity);metadataDetails.setOrientation(LinearLayout.VERTICAL);detailsBody.addView(metadataDetails);
         remove=ui.button(preview,"Rimuovi "+item.toLowerCase(java.util.Locale.ITALY));
+        if(photos){
+            showAll=ui.button(detailsBody,"Mostra tutto");
+            showAll.setOnClickListener(v->{allMetadata=!allMetadata;metadataDetails.setVisibility(allMetadata?View.VISIBLE:View.GONE);showAll.setText(allMetadata?"Mostra meno":"Mostra tutto");});
+            metadataDetails.setVisibility(View.GONE);
+        }
+        thumbnails=photos?new PhotoThumbnails(ui,this):null;
         setExpanded(false);
         details.setOnClickListener(v -> setExpanded(detailsBody.getVisibility() != View.VISIBLE));
     }
@@ -82,7 +98,11 @@ final class SelectedItemView {
                 chip.setText((n + 1) + " · " + shortName + (error ? " !" : ""));
                 chip.setContentDescription(item + " " + (n + 1) + " di " + names.size() + ": " + label + (error ? ", lettura incompleta" : ""));
                 chip.setOnClickListener(v -> this.selected.accept(index));
-                LinearLayout.LayoutParams layout = new LinearLayout.LayoutParams(-2, -2);
+                if(photos){
+                    chip.setText("");chip.setPadding(0,0,0,0);chip.setBackground(new PhotoThumbnails.Tile(ui,chip));
+                    chip.setOnLongClickListener(v->{if(longSelected==null)return false;longSelected.accept(index);return true;});
+                }
+                LinearLayout.LayoutParams layout = new LinearLayout.LayoutParams(photos?ui.dp(64):-2, photos?ui.dp(64):-2);
                 layout.setMargins(0, ui.dp(6), ui.dp(8), ui.dp(6));
                 navigator.addView(chip, layout); chips.add(chip);
             }
@@ -103,9 +123,10 @@ final class SelectedItemView {
             UiText.set(hint,total>renderedLimit?"Mostrate le prime "+renderedLimit+" foto; tutte le "+total+" foto sono in coda.":"Scorri la barra e tocca un elemento per mostrarne i dettagli.");
             for(int n=0;n<chips.size();n++){
                 if(!all&&n!=previous&&n!=current)continue;
-                Button chip=chips.get(n);boolean active=n==current;
+                Button chip=chips.get(n);boolean active=selection.isEmpty()?n==current:selection.contains(n);
                 chip.setEnabled(enabled);chip.setSelected(active);chip.setTextColor(active?ui.bg:ui.accent);
-                chip.setBackground(new RippleDrawable(ColorStateList.valueOf(ui.border),ui.shape(active?ui.accent:ui.surface,14),null));
+                if(!photos)chip.setBackground(new RippleDrawable(ColorStateList.valueOf(ui.border),ui.shape(active?ui.accent:ui.surface,14),null));
+                else chip.getBackground().invalidateSelf();
             }
         }
         if (reveal) carousel.post(() -> {
@@ -117,11 +138,16 @@ final class SelectedItemView {
         });
     }
 
+    void selectedIndices(java.util.Set<Integer> indices){
+        if(selection.equals(indices))return;selection=new java.util.HashSet<>(indices);updateNeeded=true;update(current,lastEnabled,false);
+    }
+
     void showMetadata(Map<String,String> summary,Map<String,String> details) {
         if(lastSummary.equals(summary)&&lastDetails.equals(details))return;
         lastSummary=new LinkedHashMap<>(summary);lastDetails=new LinkedHashMap<>(details);
         metadataSummary.removeAllViews();metadataDetails.removeAllViews();
         ui.renderInfoSections(metadataSummary,summary);ui.renderInfoSections(metadataDetails,details);
+        if(photos){metadataDetails.setVisibility(allMetadata?View.VISIBLE:View.GONE);showAll.setVisibility(details.isEmpty()?View.GONE:View.VISIBLE);}
     }
 
     void setExpanded(boolean expanded) {
@@ -140,5 +166,5 @@ final class SelectedItemView {
     }
 
     void cancelTransition() { ++transition; preview.animate().cancel(); preview.setAlpha(1); }
-    void close() { closed = true; cancelTransition(); }
+    void close() { if(thumbnails!=null)thumbnails.close();closed = true; cancelTransition(); }
 }

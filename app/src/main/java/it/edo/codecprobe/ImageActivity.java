@@ -13,5 +13,5 @@ public final class ImageActivity extends Activity {
     @Override protected void onResume(){super.onResume();images.resume();}
     @Override protected void onPause(){images.pause();images.persist();super.onPause();}
     @Override protected void onDestroy(){images.destroy();super.onDestroy();}
-    @Override public void onBackPressed(){super.onBackPressed();AppNavigation.fade(this);}
+    @Override public void onBackPressed(){images.screen.layout.back();}
 }

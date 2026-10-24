@@ -1,0 +1,186 @@
+{
+  "description": "20 segnaposto Minions statici con sfondo bianco, raccolta per la prova grafica dell’app",
+  "image_bytes_total": 60984,
+  "images": [
+    {
+      "file": "minion_01.webp",
+      "width": 192,
+      "height": 192,
+      "bytes": 2796,
+      "sha256": "76430f2ecb3565d89dd8c6d89099ed7798b5ea70c8396662211322dc8831bb1c",
+      "source_image": "https://pngimg.com/uploads/minions/small/minions_PNG6.png",
+      "source_page": "https://pngimg.com/images/cartoons/minions"
+    },
+    {
+      "file": "minion_02.webp",
+      "width": 192,
+      "height": 192,
+      "bytes": 3518,
+      "sha256": "a170549dbf61bde562af61676838487dc14397c69f4caf9905e5dc3b1d9a1d0e",
+      "source_image": "https://pngimg.com/uploads/minions/small/minions_PNG8.png",
+      "source_page": "https://pngimg.com/images/cartoons/minions"
+    },
+    {
+      "file": "minion_03.webp",
+      "width": 192,
+      "height": 192,
+      "bytes": 2808,
+      "sha256": "23a10eec973cd7a67e5ed378ea92c4e2250a9814d74dd837c90579b511e10a13",
+      "source_image": "https://pngimg.com/uploads/minions/small/minions_PNG11.png",
+      "source_page": "https://pngimg.com/images/cartoons/minions"
+    },
+    {
+      "file": "minion_04.webp",
+      "width": 192,
+      "height": 192,
+      "bytes": 3484,
+      "sha256": "70ca14ca2a2c42d0732b4a1a02485d5e3544a26f3ac8f03399e49d7064664511",
+      "source_image": "https://pngimg.com/uploads/minions/small/minions_PNG12.png",
+      "source_page": "https://pngimg.com/images/cartoons/minions"
+    },
+    {
+      "file": "minion_05.webp",
+      "width": 192,
+      "height": 192,
+      "bytes": 3506,
+      "sha256": "5038d7349e605788ea0159ababacbc87f3a93546722dea53299e3944bd4455b4",
+      "source_image": "https://pngimg.com/uploads/minions/small/minions_PNG16.png",
+      "source_page": "https://pngimg.com/images/cartoons/minions"
+    },
+    {
+      "file": "minion_06.webp",
+      "width": 192,
+      "height": 192,
+      "bytes": 3084,
+      "sha256": "beb670266e36154246b53223ce3aef2b44b43c91ef5543eaf421d29f4ed523c5",
+      "source_image": "https://pngimg.com/uploads/minions/small/minions_PNG19.png",
+      "source_page": "https://pngimg.com/images/cartoons/minions"
+    },
+    {
+      "file": "minion_07.webp",
+      "width": 192,
+      "height": 192,
+      "bytes": 3528,
+      "sha256": "2b640a0e7566bf8fde29b757da3b584018abd60b00bd3fe6715f37f05e834137",
+      "source_image": "https://pngimg.com/uploads/minions/small/minions_PNG22.png",
+      "source_page": "https://pngimg.com/images/cartoons/minions"
+    },
+    {
+      "file": "minion_08.webp",
+      "width": 192,
+      "height": 192,
+      "bytes": 2540,
+      "sha256": "21507e9a86592f191e46c5bb0e39bb0fb0bfa42e0e0a1d84ba3cc8329859243c",
+      "source_image": "https://pngimg.com/uploads/minions/small/minions_PNG23.png",
+      "source_page": "https://pngimg.com/images/cartoons/minions"
+    },
+    {
+      "file": "minion_09.webp",
+      "width": 192,
+      "height": 192,
+      "bytes": 2930,
+      "sha256": "ae43cb20c35931b298d8b6a2ac0c2ffd7ff8bbab598412d26985d02f5126e5e2",
+      "source_image": "https://pngimg.com/uploads/minions/small/minions_PNG24.png",
+      "source_page": "https://pngimg.com/images/cartoons/minions"
+    },
+    {
+      "file": "minion_10.webp",
+      "width": 192,
+      "height": 192,
+      "bytes": 3110,
+      "sha256": "6288a063e074d0829135cfa19722a81e577cb3cfae531a7e4439e689bd7756e5",
+      "source_image": "https://pngimg.com/uploads/minions/small/minions_PNG25.png",
+      "source_page": "https://pngimg.com/images/cartoons/minions"
+    },
+    {
+      "file": "minion_11.webp",
+      "width": 192,
+      "height": 192,
+      "bytes": 2776,
+      "sha256": "9129fb2d7da5427ad5177508eba1df0293f32cf138f57549ecd409e1710cc754",
+      "source_image": "https://pngimg.com/uploads/minions/small/minions_PNG28.png",
+      "source_page": "https://pngimg.com/images/cartoons/minions"
+    },
+    {
+      "file": "minion_12.webp",
+      "width": 192,
+      "height": 192,
+      "bytes": 3104,
+      "sha256": "f4e41c406c9fcbd07ef7462cf1069e4ab7cd256892287f228e0bb38ca421d86d",
+      "source_image": "https://pngimg.com/uploads/minions/small/minions_PNG30.png",
+      "source_page": "https://pngimg.com/images/cartoons/minions"
+    },
+    {
+      "file": "minion_13.webp",
+      "width": 192,
+      "height": 192,
+      "bytes": 2754,
+      "sha256": "c360b6ff26c749b0561c431172943bfb47172768c20c1742a5311d707232764e",
+      "source_image": "https://pngimg.com/uploads/minions/small/minions_PNG34.png",
+      "source_page": "https://pngimg.com/images/cartoons/minions"
+    },
+    {
+      "file": "minion_14.webp",
+      "width": 192,
+      "height": 192,
+      "bytes": 2906,
+      "sha256": "edd141c5437d0664c099ed582cdbef3382dda83228e5e89ccea732a06b2c6ddf",
+      "source_image": "https://pngimg.com/uploads/minions/small/minions_PNG36.png",
+      "source_page": "https://pngimg.com/images/cartoons/minions"
+    },
+    {
+      "file": "minion_15.webp",
+      "width": 192,
+      "height": 192,
+      "bytes": 2684,
+      "sha256": "62ce68ef56716f535d092b31549129f509d45fa9648b51fccd14b248449c898f",
+      "source_image": "https://pngimg.com/uploads/minions/small/minions_PNG39.png",
+      "source_page": "https://pngimg.com/images/cartoons/minions"
+    },
+    {
+      "file": "minion_16.webp",
+      "width": 192,
+      "height": 192,
+      "bytes": 2824,
+      "sha256": "606e86d130abe7333c803e1ec69ba380d238790d8ee8864af81b47ba884b9df2",
+      "source_image": "https://pngimg.com/uploads/minions/small/minions_PNG47.png",
+      "source_page": "https://pngimg.com/images/cartoons/minions"
+    },
+    {
+      "file": "minion_17.webp",
+      "width": 192,
+      "height": 192,
+      "bytes": 2702,
+      "sha256": "13994353956f578fa38c73c3ac85d117e49bc790aa8a0363a192f18810c90d04",
+      "source_image": "https://pngimg.com/uploads/minions/small/minions_PNG53.png",
+      "source_page": "https://pngimg.com/images/cartoons/minions"
+    },
+    {
+      "file": "minion_18.webp",
+      "width": 192,
+      "height": 192,
+      "bytes": 3946,
+      "sha256": "efdca37f6d43ec19ba065d220ff543c9b08374c4b3b90b3a17d56e547e41a62f",
+      "source_image": "https://pngimg.com/uploads/minions/small/minions_PNG60.png",
+      "source_page": "https://pngimg.com/images/cartoons/minions"
+    },
+    {
+      "file": "minion_19.webp",
+      "width": 192,
+      "height": 192,
+      "bytes": 3308,
+      "sha256": "303c93ac62e5bb11abb10de7bbc49756a2ad02f56af3be5ae628a0c2ed56df57",
+      "source_image": "https://pngimg.com/uploads/minions/small/minions_PNG61.png",
+      "source_page": "https://pngimg.com/images/cartoons/minions"
+    },
+    {
+      "file": "minion_20.webp",
+      "width": 192,
+      "height": 192,
+      "bytes": 2676,
+      "sha256": "129b1ac142d1ab60eeb520427ec6ca97bb84064e4eca3c29c548d21b505fec6b",
+      "source_image": "https://pngimg.com/uploads/minions/small/minions_PNG62.png",
+      "source_page": "https://pngimg.com/images/cartoons/minions"
+    }
+  ]
+}
