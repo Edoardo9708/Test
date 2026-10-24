@@ -6,6 +6,7 @@ import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -102,17 +103,17 @@ private fun PhotoDock(state: PhotoUiState, host: PhotoComposeHost, modifier: Mod
     Column(modifier.widthIn(max = 440.dp).fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            PhotoButton("Indietro", { host.command(PhotoCommand.BACK) }, Modifier.weight(1f),
-                icon = R.drawable.trial_back, tag = "photo-back")
+            PhotoButton("Indietro", { host.command(PhotoCommand.BACK) }, Modifier.weight(1f).heightIn(min = 50.dp).photoGlass(RoundedCornerShape(28.dp), chrome = true),
+                icon = R.drawable.trial_back, tag = "photo-back", compact = true)
             if (state.step == ImageScreen.FILES || state.step == ImageScreen.COMPRESSION) {
                 PhotoButton(if (state.step == ImageScreen.FILES) "Procedi al punto 2" else "Procedi al punto 3",
                     { host.command(PhotoCommand.NEXT) }, Modifier.weight(1f), icon = R.drawable.trial_next,
-                    primary = true, tag = "photo-next")
+                    primary = true, tag = "photo-next", compact = true)
             }
         }
         val shape = RoundedCornerShape(28.dp)
         Row(Modifier.fillMaxWidth().height(56.dp).photoGlass(shape, chrome = true)
-            .then(Modifier.background(Color.Transparent, shape))
+            .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = .6f), shape)
             .padding(5.dp), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
             PhotoNavItem("Video", R.drawable.trial_video, false, Modifier.weight(1f)) { host.command(PhotoCommand.VIDEO) }
             PhotoNavItem("Audio", R.drawable.trial_music, false, Modifier.weight(1f)) { host.command(PhotoCommand.AUDIO) }

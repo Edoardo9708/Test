@@ -8,6 +8,7 @@ import org.junit.*
 import org.junit.Assert.*
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.GraphicsMode
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.LooperMode
 import org.robolectric.shadows.ShadowAlertDialog
@@ -17,6 +18,7 @@ import java.io.File
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34], qualifiers = "w360dp-h800dp-xhdpi")
 @LooperMode(LooperMode.Mode.PAUSED)
+@GraphicsMode(GraphicsMode.Mode.NATIVE)
 class PhotoComposeTest {
     @get:Rule val compose = createAndroidComposeRule<ImageActivity>()
     private val files = mutableListOf<File>()
@@ -40,12 +42,16 @@ class PhotoComposeTest {
 
     @Test fun composeIsInstalledAndBackPreservesQuality() {
         compose.onNodeWithTag("photo-new").assertIsDisplayed().performClick()
+        val tree = compose.onRoot().printToString()
+        compose.runOnIdle { assertEquals(tree, ImageScreen.FILES, compose.activity.images.screen.sections.current()) }
         compose.onNodeWithTag("photo-next").performClick()
         compose.onNodeWithText("55", useUnmergedTree = true).performClick()
         compose.runOnIdle { assertEquals(55, compose.activity.images.state.options.quality) }
         compose.onNodeWithTag("photo-back").performClick()
         compose.onNodeWithTag("photo-back").performClick()
         compose.onNodeWithTag("photo-new").assertIsDisplayed().performClick()
+        val tree = compose.onRoot().printToString()
+        compose.runOnIdle { assertEquals(tree, ImageScreen.FILES, compose.activity.images.screen.sections.current()) }
         compose.runOnIdle {
             val images = compose.activity.images
             assertTrue(images.compose.view.isShown)

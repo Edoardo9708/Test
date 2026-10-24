@@ -86,7 +86,8 @@ internal fun PhotoButton(
     enabled: Boolean = true,
     vertical: Boolean = false,
     shape: Shape? = null,
-    tag: String = ""
+    tag: String = "",
+    compact: Boolean = false
 ) {
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
@@ -114,7 +115,7 @@ internal fun PhotoButton(
         } else Row(Modifier.padding(horizontal = 12.dp, vertical = 12.dp),
             horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
             if (icon != null) { Icon(painterResource(icon), null, Modifier.size(20.dp)); Spacer(Modifier.width(8.dp)) }
-            Text(text, style = MaterialTheme.typography.labelLarge, textAlign = TextAlign.Center)
+            Text(text, style = if (compact) MaterialTheme.typography.labelMedium else MaterialTheme.typography.labelLarge, textAlign = TextAlign.Center)
         }
     }
 }
@@ -129,7 +130,7 @@ internal fun PhotoToggle(text: String, checked: Boolean, enabled: Boolean, chang
 
 @Composable
 internal fun PhotoTheme(dark: Boolean, content: @Composable () -> Unit) {
-    val scheme = if (dark) darkColorScheme(
+    val scheme = remember(dark) { if (dark) darkColorScheme(
         primary = Color(0xFFA8C5FF), onPrimary = Color(0xFF112C58), primaryContainer = Color(0xFF344D76), onPrimaryContainer = Color(0xFFE7ECF7),
         background = Color(0xFF151820), surface = Color(0xFF232D42), surfaceVariant = Color(0xFF2C3A54),
         onSurface = Color(0xFFE7ECF7), onSurfaceVariant = Color(0xFFB5BFD1), outline = Color(0xFF788599)
@@ -138,5 +139,8 @@ internal fun PhotoTheme(dark: Boolean, content: @Composable () -> Unit) {
         background = Color(0xFFF8F8FB), surface = Color(0xFFE8EEFC), surfaceVariant = Color(0xFFDCE7FC),
         onSurface = Color(0xFF292C32), onSurfaceVariant = Color(0xFF565B66), outline = Color(0xFF8D919B)
     )
-    MaterialTheme(colorScheme = scheme, typography = Typography(), content = content)
+    }
+    MaterialTheme(colorScheme = scheme, typography = Typography()) {
+        CompositionLocalProvider(LocalContentColor provides scheme.onSurface, content = content)
+    }
 }

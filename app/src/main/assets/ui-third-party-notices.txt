@@ -1,0 +1,21 @@
+Photo user interface dependencies
+
+AndroidX Jetpack Compose / Material 3 / Activity
+Copyright The Android Open Source Project
+https://developer.android.com/jetpack/androidx
+License: Apache-2.0
+
+Haze 1.5.2
+Copyright Christopher Banes and the Haze project contributors
+https://github.com/chrisbanes/haze/tree/1.5.2
+License: Apache-2.0
+
+Coil 2.7.0
+Copyright Coil Contributors
+https://github.com/coil-kt/coil/tree/2.7.0
+License: Apache-2.0
+
+Apache License 2.0: https://www.apache.org/licenses/LICENSE-2.0
+
+Morphe Manager is a visual/architectural reference, not a bundled dependency.
+No Morphe Manager source files are included in this implementation.
