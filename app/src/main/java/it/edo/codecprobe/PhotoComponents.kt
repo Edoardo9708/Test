@@ -1,6 +1,7 @@
 package it.edo.codecprobe
 
-import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.*
+import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -31,23 +32,24 @@ import androidx.compose.ui.unit.dp
 import dev.chrisbanes.haze.*
 
 /** Shared Compose surfaces. Uses Material 3 interactions and Haze, not custom Android drawing. */
-internal data class PhotoGlass(val background: HazeState, val content: HazeState, val enabled: Boolean)
+internal data class PhotoGlass(val content: HazeState, val enabled: Boolean)
 internal val LocalPhotoGlass = staticCompositionLocalOf<PhotoGlass> { error("Photo glass host missing") }
 
 @Composable
-internal fun Modifier.photoGlass(shape: Shape, chrome: Boolean = false): Modifier {
+/** Glass belongs to fixed floating chrome; resizing cards use an opaque fill. */
+internal fun Modifier.photoGlass(shape: Shape): Modifier {
     val glass = LocalPhotoGlass.current
     val colors = MaterialTheme.colorScheme
-    val style = remember(colors, chrome) {
+    val style = remember(colors) {
         HazeStyle(
             backgroundColor = colors.background,
-            tint = HazeTint(colors.surface.copy(alpha = if (chrome) .58f else .68f)),
-            blurRadius = if (chrome) 10.dp else 5.dp,
+            tint = HazeTint(colors.surface.copy(alpha = .58f)),
+            blurRadius = 10.dp,
             noiseFactor = 0f,
             fallbackTint = HazeTint(colors.surface.copy(alpha = .88f))
         )
     }
-    return clip(shape).hazeEffect(if (chrome) glass.content else glass.background, style) {
+    return clip(shape).hazeEffect(glass.content, style) {
         blurEnabled = glass.enabled && HazeDefaults.blurEnabled()
     }
 }
@@ -67,9 +69,22 @@ internal fun PhotoPanel(
     shape: Shape = RoundedCornerShape(24.dp),
     content: @Composable ColumnScope.() -> Unit
 ) {
-    Column(modifier.fillMaxWidth().photoGlass(shape)
+    Column(modifier.fillMaxWidth().clip(shape).background(MaterialTheme.colorScheme.surface, shape)
         .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = .6f), shape)
         .padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp), content = content)
+}
+
+/** Shared expanding/fading motion, with the explicit 220 ms curve used by Morphe's folds. */
+@Composable
+internal fun PhotoFold(visible: Boolean, content: @Composable AnimatedVisibilityScope.() -> Unit) {
+    AnimatedVisibility(
+        visible = visible,
+        enter = expandVertically(tween(220, easing = LinearOutSlowInEasing)) +
+            fadeIn(tween(220, easing = LinearOutSlowInEasing)),
+        exit = shrinkVertically(tween(220, easing = LinearOutSlowInEasing)) +
+            fadeOut(tween(220, easing = LinearOutSlowInEasing)),
+        content = content
+    )
 }
 
 @Composable
@@ -133,7 +148,7 @@ internal fun PhotoButton(
         onClick = onClick, enabled = enabled, interactionSource = interaction, shape = actualShape,
         color = fill, contentColor = ink, border = BorderStroke(1.dp, edge),
         modifier = modifier.defaultMinSize(minHeight = 48.dp).clip(actualShape)
-            .then(if (chrome) Modifier.photoGlass(actualShape, chrome = true) else Modifier).semantics {
+            .then(if (chrome) Modifier.photoGlass(actualShape) else Modifier).semantics {
             role = Role.Button
             if (tag.isNotEmpty()) testTag = tag
             this.selected = selected

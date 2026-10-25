@@ -8,7 +8,7 @@ La schermata Foto installata nell'Activity usa Kotlin, Jetpack Compose, Material
 - Importazione, carosello con pressione lunga, rimozione con conferma e dettagli espandibili.
 - Destinazione generale, eccezioni della selezione, contatori e opzione solo se più piccolo.
 - Qualità con slider Material 3, preset e opzioni avanzate.
-- Superfici Haze con sorgenti distinte: sfondo per i pannelli, sfondo e contenuto scorrevole per titolo e barra. Non ci sono acquisizioni bitmap artigianali nell'interfaccia Compose.
+- Schede Compose opache; Haze riservato al titolo e alla barra flottante, con sfondo e contenuto scorrevole come sorgenti. Non ci sono acquisizioni bitmap artigianali nell'interfaccia Compose.
 
 Permessi cartelle, avanzamento, report e diagnostica sono ancora controlli Java reali inseriti con `AndroidView`; impostazioni e le altre sezioni restano da migrare. L'Activity è ora `ComponentActivity` per fornire lifecycle e stato salvato a Compose. La navigazione indietro passa dal suo dispatcher.
 
@@ -86,3 +86,22 @@ viene presentato come percorso di cartella.
 La cache completa degli inventari JPEG resta separata; il controller ora la
 consulta prima di svuotare lo stato visibile, eliminando il passaggio temporaneo
 vuoto quando si torna su una foto già analizzata.
+
+## Prova con schede opache e stessa espansione
+
+Dopo il confronto con `SurfaceCard`, `FoldingVisibility` e `glassFill` di Morphe,
+le schede Compose usano un riempimento opaco: il grande riquadro Foto e la scheda
+Dettagli non applicano più Haze mentre cambiano altezza. Il titolo, la barra di
+navigazione e Indietro conservano il vetro sui contenuti sottostanti. È stata
+rimossa anche la sorgente Haze separata dello sfondo, che serviva soltanto ai
+pannelli ora opachi.
+
+L'effetto resta espansione + dissolvenza, con durata esplicita 220 ms e curva
+`LinearOutSlowInEasing`, condivise da Dettagli, Mostra tutto, destinazione e opzioni
+avanzate. Si usano le normali API Compose; non viene introdotta un'animazione
+alternativa né aggiornata la versione delle librerie in questa prova.
+
+La sfocatura dei segnaposto durante la lettura resta un effetto distinto dal
+vetro dello sfondo. Il confronto sul telefono con la build precedente deve
+stabilire se le superfici Haze ridimensionate contribuivano agli scatti: i test
+funzionali e i rendering non sono misure della durata dei fotogrammi sul telefono.

@@ -21,7 +21,7 @@ import androidx.compose.ui.text.style.TextOverflow
 @Composable
 internal fun PhotoDetailsPane(state: PhotoUiState) {
     Surface(shape = RoundedCornerShape(18.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = .25f),
+        color = MaterialTheme.colorScheme.surfaceVariant,
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = .5f)),
         modifier = Modifier.fillMaxWidth().semantics { testTag = "photo-details-panel" }) {
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -62,7 +62,7 @@ internal fun PhotoDetailsPane(state: PhotoUiState) {
                     modifier = Modifier.fillMaxWidth().semantics { testTag = "photo-details-all" }) {
                     Text(if (state.reading) "Analisi completa in corso…" else if (all) "Mostra meno" else "Mostra tutto")
                 }
-                AnimatedVisibility(all && !state.reading, enter = expandVertically() + fadeIn(), exit = shrinkVertically() + fadeOut()) {
+                PhotoFold(all && !state.reading) {
                     SelectionContainer { Text(state.allDetails, style = MaterialTheme.typography.bodySmall) }
                 }
             }

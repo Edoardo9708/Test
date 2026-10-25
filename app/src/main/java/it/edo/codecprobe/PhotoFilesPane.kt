@@ -59,7 +59,7 @@ internal fun PhotoFilesPane(state: PhotoUiState, host: PhotoComposeHost) {
                         selected = state.detailsOpen, shape = photoJoined(2, false), tag = "photo-details")
                 }
             }
-            AnimatedVisibility(state.detailsOpen, enter = expandVertically() + fadeIn(), exit = shrinkVertically() + fadeOut()) {
+            PhotoFold(state.detailsOpen) {
                 PhotoDetailsPane(state)
             }
         }
@@ -121,10 +121,10 @@ private fun PhotoSaving(state: PhotoUiState, host: PhotoComposeHost) {
     Spacer(Modifier.height(4.dp))
     PhotoPanel(shape = photoJoined(1)) {
         Text("Dove salvare", style = MaterialTheme.typography.labelLarge)
-        AnimatedVisibility(!state.general, enter = expandVertically() + fadeIn(), exit = shrinkVertically() + fadeOut()) {
+        PhotoFold(!state.general) {
             PhotoToggle(state.exceptionLabel, state.exception, !state.busy && state.total > 0, host::exception, "photo-exception")
         }
-        AnimatedVisibility(state.editorVisible, enter = expandVertically() + fadeIn(), exit = shrinkVertically() + fadeOut()) {
+        PhotoFold(state.editorVisible) {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 PhotoButtonGroup(2) { index, button ->
                     if (index == 0) PhotoButton("Origine", { host.command(PhotoCommand.ORIGIN) }, button,
@@ -132,14 +132,14 @@ private fun PhotoSaving(state: PhotoUiState, host: PhotoComposeHost) {
                     else PhotoButton("Altra cartella", { host.command(PhotoCommand.DESTINATION) }, button,
                         selected = state.destination, enabled = !state.busy, shape = photoJoined(2, false))
                 }
-                AnimatedVisibility(state.chooseVisible) {
+                PhotoFold(state.chooseVisible) {
                     PhotoButton("Scegli cartella…", { host.command(PhotoCommand.CHOOSE_FOLDER) }, Modifier.fillMaxWidth(),
                         icon = R.drawable.trial_folder, enabled = !state.busy, tag = "photo-choose")
                 }
                 SelectionContainer { Text(state.folder, style = MaterialTheme.typography.bodySmall) }
             }
         }
-        AnimatedVisibility(!state.editorVisible) { Text("Segue la destinazione generale.", style = MaterialTheme.typography.bodySmall) }
+        PhotoFold(!state.editorVisible) { Text("Segue la destinazione generale.", style = MaterialTheme.typography.bodySmall) }
     }
     Spacer(Modifier.height(4.dp))
     PhotoPanel(shape = photoJoined(2)) {

@@ -44,7 +44,7 @@ internal fun PhotoCompressionPane(state: PhotoUiState, host: PhotoComposeHost) {
     PhotoPanel {
         var expanded by rememberSaveable { mutableStateOf(false) }
         TextButton(onClick = { expanded = !expanded }, modifier = Modifier.fillMaxWidth()) { Text("Opzioni avanzate") }
-        AnimatedVisibility(expanded, enter = expandVertically() + fadeIn(), exit = shrinkVertically() + fadeOut()) {
+        PhotoFold(expanded) {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text("Tune", style = MaterialTheme.typography.titleSmall)
                 PhotoButtonGroup(3) { index, button ->

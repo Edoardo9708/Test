@@ -43,13 +43,12 @@ internal fun PhotoWorkspace(host: PhotoComposeHost) {
     val state = host.state
     val dark = androidx.compose.foundation.isSystemInDarkTheme()
     PhotoTheme(dark) {
-        val background = remember { HazeState() }
         val content = remember { HazeState() }
-        val glass = PhotoGlass(background, content, host.active && !state.busy)
+        val glass = PhotoGlass(content, host.active && !state.busy)
         CompositionLocalProvider(LocalPhotoGlass provides glass) {
             Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)
                 .windowInsetsPadding(WindowInsets.safeDrawing).imePadding().semantics { testTag = "photo-workspace" }) {
-                PhotoBackdropCompose(Modifier.matchParentSize().hazeSource(background).hazeSource(content, zIndex = 0f), dark,
+                PhotoBackdropCompose(Modifier.matchParentSize().hazeSource(content, zIndex = 0f), dark,
                     host.active && !state.busy && ValueAnimator.areAnimatorsEnabled())
                 var titleHeight by remember { mutableIntStateOf(0) }
                 var dockHeight by remember { mutableIntStateOf(0) }
@@ -91,7 +90,7 @@ internal fun PhotoWorkspace(host: PhotoComposeHost) {
 
 @Composable
 private fun PhotoTitle(host: PhotoComposeHost, modifier: Modifier) {
-    Row(modifier.fillMaxWidth().photoGlass(RoundedCornerShape(0.dp), chrome = true)
+    Row(modifier.fillMaxWidth().photoGlass(RoundedCornerShape(0.dp))
         .padding(horizontal = 22.dp, vertical = 18.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
         Column {
@@ -120,7 +119,7 @@ private fun PhotoDock(state: PhotoUiState, host: PhotoComposeHost, modifier: Mod
             }
         }
         val shape = RoundedCornerShape(28.dp)
-        Row(Modifier.fillMaxWidth().height(56.dp).photoGlass(shape, chrome = true)
+        Row(Modifier.fillMaxWidth().height(56.dp).photoGlass(shape)
             .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = .6f), shape)
             .padding(5.dp), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
             PhotoNavItem("Video", R.drawable.trial_video, false, Modifier.weight(1f)) { host.command(PhotoCommand.VIDEO) }
