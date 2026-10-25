@@ -33,6 +33,26 @@ public class ImageProgressJournalTest {
             Files.write(output.toPath(),new byte[]{9,2,3,4});assertNull(journal.reusable(context,input,"foto.jpg",copy,()->false));
         }finally{original.delete();output.delete();}
     }
+    @Test public void savedHeicSurvivesFallbackToggleAndLegacyKeys()throws Exception{
+        File original=File.createTempFile("journal-original-",".jpg"),output=File.createTempFile("journal-output-",".heic");
+        try(ImageProgressJournal journal=new ImageProgressJournal(context)){
+            Files.write(original.toPath(),new byte[]{1,2,3,4});Files.write(output.toPath(),new byte[]{5,6});
+            String input=Uri.fromFile(original).toString();
+            ImageOptions copy=new ImageOptions(65,"slow","standard",options().folder,true,false,true,0);
+            journal.record(input,options().folder,options(),saved(original,output));
+            assertEquals(ImageRunState.Outcome.ALREADY_DONE,journal.reusable(context,input,"foto.jpg",copy,()->false).outcome);
+            // v1.06 and v1.07 wrote this suffix when the checkbox was checked.
+            android.content.ContentValues legacy=new android.content.ContentValues();legacy.put("settings",ImageProgressJournal.settings(options())+"|copy-original");
+            journal.getWritableDatabase().update("progress",legacy,"uri=?",new String[]{input});
+            assertEquals(ImageRunState.Outcome.ALREADY_DONE,journal.reusable(context,input,"foto.jpg",copy,()->false).outcome);
+            assertEquals(ImageRunState.Outcome.ALREADY_DONE,journal.reusable(context,input,"foto.jpg",options(),()->false).outcome);
+            ImageOptions otherQuality=new ImageOptions(70,"slow","standard",copy.folder,true,false,true,0);
+            assertNull(journal.reusable(context,input,"foto.jpg",otherQuality,()->false));
+            assertNull(journal.reusable(context,input,"foto.jpg",copy.withFolder("content://another"),()->false));
+            Files.write(output.toPath(),new byte[]{9,6});
+            assertNull(journal.reusable(context,input,"foto.jpg",copy,()->false));
+        }finally{original.delete();output.delete();}
+    }
     @Test public void reuseChecksBothFileContentsAndSettingsEvenWhenSizeDoesNotChange()throws Exception{
         File original=File.createTempFile("journal-original-",".jpg"),output=File.createTempFile("journal-output-",".heic");
         try(ImageProgressJournal journal=new ImageProgressJournal(context)){
