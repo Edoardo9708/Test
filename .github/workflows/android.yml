@@ -28,6 +28,8 @@ jobs:
       native: ${{ steps.scope.outputs.native }}
     steps:
       - uses: actions/checkout@v4
+      - name: Select compatible host CMake for pinned x265
+        run: bash scripts/prepare-host-cmake.sh
         with:
           fetch-depth: 0
       - name: Verify test selection rules
@@ -207,6 +209,8 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
+      - name: Select compatible host CMake for pinned x265
+        run: bash scripts/prepare-host-cmake.sh
       - name: Configure bounded Ubuntu package downloads
         run: bash scripts/prepare-ci-apt.sh
       - name: Install fixture and comparison tools

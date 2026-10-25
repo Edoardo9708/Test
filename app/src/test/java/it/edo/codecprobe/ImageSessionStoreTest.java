@@ -46,4 +46,11 @@ public class ImageSessionStoreTest {
         assertEquals(100,restored.run.outputSavedBytes);assertTrue(restored.run.options.copyOriginalWhenLarger);
         assertTrue(ImageOptions.from(restored.request(context)).copyOriginalWhenLarger);
     }
+    @Test public void sessionsFromBeforeOriginalCopyOptionRemainReadable()throws Exception{
+        ImageRunState run=sample();ImageSessionStore.save(context,id,run);
+        File checkpoint=new File(context.getFilesDir(),"image-session.json");
+        org.json.JSONObject legacy=new org.json.JSONObject(java.nio.file.Files.readString(checkpoint.toPath()));
+        legacy.remove("copied");legacy.remove("copyOriginalWhenLarger");java.nio.file.Files.writeString(checkpoint.toPath(),legacy.toString());
+        var restored=ImageSessionStore.load(context);assertNotNull(restored);assertEquals(0,restored.run.copied);assertFalse(restored.run.options.copyOriginalWhenLarger);assertEquals(125,restored.run.total);
+    }
 }
