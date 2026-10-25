@@ -10,23 +10,28 @@ namespace {
 Handle encodePrimary(heif_context* context,const Source& source,heif_encoder* encoder,
                      const heif_encoding_options* options,const Stage& stage){
     heif_image_handle* raw=nullptr;
-    if(int64_t((source.width+1)&~1)*((source.height+1)&~1)<=maxSingleHevcPixels){
+    int columns=(source.width+maxHevcTileSide-1)/maxHevcTileSide;
+    int rows=(source.height+maxHevcTileSide-1)/maxHevcTileSide;
+    bool single=columns==1&&rows==1;
+    if(single&&int64_t((source.width+1)&~1)*((source.height+1)&~1)<=maxSingleHevcPixels){
         check(heif_context_encode_image(context,source.image.get(),encoder,options,&raw),"Codifica HEIC");
         return Handle(raw);
     }
     // Equal, even tile sizes preserve chroma alignment. The grid stores the exact
     // original extent, so padding on the right/bottom is never displayed.
-    int tileWidth=((source.width+3)/4)*2,tileHeight=((source.height+3)/4)*2;
+    if(single){columns=2;rows=2;}
+    int tileWidth=(((source.width+columns-1)/columns)+1)&~1;
+    int tileHeight=(((source.height+rows-1)/rows)+1)&~1;
     // Unlike encode_image(), add_grid_image() does not infer the output NCLX
     // profile from the source. Supply it explicitly for the grid and its tiles.
     heif_color_profile_nclx* rawProfile=nullptr;
     check(heif_image_get_nclx_color_profile(source.image.get(),&rawProfile),"Colore griglia HEIC");
     auto profile=std::unique_ptr<heif_color_profile_nclx,void(*)(heif_color_profile_nclx*)>(rawProfile,heif_nclx_color_profile_free);
     heif_encoding_options gridOptions=*options;gridOptions.output_nclx_profile=profile.get();
-    check(heif_context_add_grid_image(context,source.width,source.height,2,2,&gridOptions,&raw),"Crea griglia HEIC");
+    check(heif_context_add_grid_image(context,source.width,source.height,columns,rows,&gridOptions,&raw),"Crea griglia HEIC");
     Handle grid(raw);
-    for(int y=0;y<2;y++)for(int x=0;x<2;x++){
-        stage("Codifica HEIC · riquadro "+std::to_string(y*2+x+1)+"/4");
+    for(int y=0;y<rows;y++)for(int x=0;x<columns;x++){
+        stage("Codifica HEIC · riquadro "+std::to_string(y*columns+x+1)+"/"+std::to_string(rows*columns));
         heif_image* rawTile=nullptr;
         check(heif_image_extract_area(source.image.get(),x*tileWidth,y*tileHeight,tileWidth,tileHeight,
                                      heif_get_global_security_limits(),&rawTile),"Estrai riquadro HEIC");

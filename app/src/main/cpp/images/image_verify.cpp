@@ -24,7 +24,7 @@ void verifyColor(const heif_image_handle* handle,const Source& source){
 void verify(const std::string& path,const Source& source,const Stage& stage){
     verifyArchivedTail(path,source.metadata.tail,source.metadata.motion,source.metadata.externalTail);
     verifyMotionVideo(path,source.metadata.tail,source.metadata.motion);
-    Context context(heif_context_alloc());if(!context)throw std::bad_alloc();heif_context_set_maximum_image_size_limit(context.get(),maxPrimarySide);
+    Context context(heif_context_alloc());if(!context)throw std::bad_alloc();heif_context_get_security_limits(context.get())->max_image_size_pixels=maxPrimaryPixels;
     check(heif_context_read_from_file(context.get(),path.c_str(),nullptr),"Riapertura HEIC");
     require(heif_context_get_number_of_top_level_images(context.get())==1,"Numero immagini HEIC diverso da uno");
     heif_image_handle* raw=nullptr;check(heif_context_get_primary_image_handle(context.get(),&raw),"Immagine principale");Handle handle(raw);
@@ -55,7 +55,7 @@ void verify(const std::string& path,const Source& source,const Stage& stage){
     if(expected){
         heif_item_id id;require(heif_image_handle_get_list_of_thumbnail_IDs(raw,&id,1)==1,"Riferimento miniatura assente");
         heif_image_handle* rawThumbnail=nullptr;check(heif_image_handle_get_thumbnail(raw,id,&rawThumbnail),"Rilettura miniatura HEIF");Handle thumbnail(rawThumbnail);
-        int tw=(source.width*thumbnailEdge/edge)&~1,th=(source.height*thumbnailEdge/edge)&~1;if(source.metadata.orientation>=5)std::swap(tw,th);
+        int tw=std::max(2,(source.width*thumbnailEdge/edge)&~1),th=std::max(2,(source.height*thumbnailEdge/edge)&~1);if(source.metadata.orientation>=5)std::swap(tw,th);
         require(heif_image_handle_get_width(rawThumbnail)==tw&&heif_image_handle_get_height(rawThumbnail)==th,"Dimensioni miniatura HEIF diverse");
         verifyColor(rawThumbnail,source);verifyPixels(rawThumbnail,tw,th,options.get());
     }

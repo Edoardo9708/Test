@@ -13,7 +13,9 @@ engine = root / 'image-host-build/image_smoke'
 directory = root / 'image-large-fixtures'
 directory.mkdir(exist_ok=True)
 cases = {'50mp': (8160, 6120, 1), '200mp': (16000, 12500, 6),
-         'grid-odd': (16319, 8751, 8)}
+         'grid-odd': (16319, 8751, 8),
+         'panorama': (23728, 3744, 1), 'panorama-portrait': (3744, 23728, 6),
+         'panorama-thin': (65500, 64, 8)}
 colors = [(192, 48, 32), (48, 176, 80), (48, 80, 192), (192, 160, 48)]
 for name in sys.argv[1:] or cases:
     width, height, orientation = cases[name]

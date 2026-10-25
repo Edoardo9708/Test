@@ -30,7 +30,7 @@ void reducePlane(const heif_image* input,heif_image* output,heif_channel channel
 }
 void addThumbnail(heif_context* context,const Source& source,const heif_image_handle* primary,const heif_encoding_options* options){
     int edge=std::max(source.width,source.height);if(edge<=thumbnailEdge)return;
-    int w=(source.width*thumbnailEdge/edge)&~1,h=(source.height*thumbnailEdge/edge)&~1;
+    int w=std::max(2,(source.width*thumbnailEdge/edge)&~1),h=std::max(2,(source.height*thumbnailEdge/edge)&~1);
     heif_image* rawImage=nullptr;check(heif_image_create(w,h,heif_colorspace_YCbCr,heif_chroma_420,&rawImage),"Crea miniatura HEIF");Image image(rawImage);
     for(auto channel:{heif_channel_Y,heif_channel_Cb,heif_channel_Cr}){
         check(heif_image_add_plane(rawImage,channel,channel==heif_channel_Y?w:w/2,channel==heif_channel_Y?h:h/2,8),"Piano miniatura HEIF");

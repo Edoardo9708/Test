@@ -496,7 +496,15 @@ for name, width, height, accepted in [
         ('200mp-camera', 16320, 12240, True),
         ('200mp-exact', 16000, 12500, True),
         ('over-200mp', 16000, 12501, False),
-        ('over-side', 16385, 128, False)]:
+        ('panorama', 23728, 3744, True),
+        ('panorama-16416', 16416, 3520, True),
+        ('panorama-19840', 19840, 3744, True),
+        ('panorama-17296', 17296, 3760, True),
+        ('panorama-22480', 22480, 3600, True),
+        ('portrait-panorama', 3744, 23728, True),
+        ('jpeg-side-max', 65535, 64, True),
+        ('long-over-200mp', 65535, 3052, False),
+        ('too-small-side', 63, 128, False)]:
     data = bytearray(small)
     data[sof + 5:sof + 9] = struct.pack('>HH', height, width)
     path = directory / ('dimension-boundary-' + name + '.bin')
@@ -508,4 +516,4 @@ for name, width, height, accepted in [
         converted = subprocess.run([engine, str(path), str(path.with_suffix('.heic'))], capture_output=True, text=True)
         assert converted.returncode != 0 and converted.stderr == checked.stderr, converted.stderr
         assert not path.with_suffix('.heic').exists()
-print('OK JPEG dimensions: 50 MP and 200 MP headers accepted; area/side excess rejected before pixel decoding')
+print('OK JPEG dimensions: 50/200 MP, five reported panoramas and long-axis headers accepted; area/minimum-side violations rejected before pixel decoding')

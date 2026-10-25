@@ -1,3 +1,9 @@
+# v1.07 · panoramiche entro 200 MP
+
+Ammessi lati JPEG da 64 a 65.535 pixel, mantenendo l’area massima di 200.000.000 pixel e il limite di 64 MiB sul file compresso. La griglia HEIF si adatta a larghezza e altezza: ciascun riquadro resta entro 16.384 pixel per lato e viene codificato in sequenza, senza ridimensionare l’immagine principale. Conservati proporzioni, orientamento, colori, miniatura e metadati. Anche le miniature delle immagini estremamente sottili hanno almeno due pixel per lato, come richiesto dal formato YUV420.
+
+Corretto il test di recupero delle sessioni precedenti: usa le funzioni di lettura/scrittura disponibili nell’API Android di compilazione. La checkbox per copiare gli originali è inclusa.
+
 # v1.06 · copia originale quando l’HEIC non conviene
 
 Nelle immagini, la nuova checkbox «Copia l’originale se l’HEIC non è più piccolo» funziona con «Salva solo se più piccolo». È disattivata per impostazione predefinita e viene conservata nelle impostazioni, nella selezione corrente e nelle code recuperabili. Quando l’HEIC verificato è uguale o più grande, viene pubblicata una copia byte per byte del JPEG originale, con nome/estensione JPEG e MIME corretto, senza sovrascrivere omonimi. Il salvataggio viene riletto e verificato con SHA-256; in caso di errore o annullamento il nuovo file parziale viene rimosso.
