@@ -2,6 +2,8 @@
 
 Queste regole valgono per tutta l'app: Video, Audio, Foto e la futura sezione Analisi.
 
+Prima di iniziare il lavoro, leggere `PROJECT_CONTEXT.md`; quando si lavora sulla grafica, leggere anche `docs/design-references/README.md`.
+
 ## 1. Efficienza
 
 L'efficienza riguarda il lavoro effettivo eseguito sul SoC e il consumo di risorse, non la brevità del codice. Limitare calcoli, letture, scritture, allocazioni e aggiornamenti grafici inutili. Valutare frequenza di esecuzione e quantità di file elaborati. Non aggiungere elaborazioni inutili soltanto per rendere il codice più elegante.
