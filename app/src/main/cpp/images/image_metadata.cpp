@@ -61,6 +61,7 @@ Metadata readJpegMetadata(const Bytes& input){
     if(icc.size()!=size_t(iccParts))bad("Profilo ICC incompleto");for(const auto& part:icc)m.icc.insert(m.icc.end(),part.second.begin(),part.second.end());
     if(!m.icc.empty()&&(m.icc.size()<128||memcmp(m.icc.data()+36,"acsp",4)))bad("Header profilo ICC non valido");
     m.orientation=exifOrientation(m.exif);if(m.orientation==0){m.orientationWasZero=true;m.orientation=1;}
+    m.width=width;m.height=height;
     m.jpegEnd=at;m.tail.assign(input.begin()+at,input.end());JpegTailInfo tailInfo;
     if(!mpf.empty())m.gainMap=inspectAppleGainMap(mpf,tiffBase,at,m.tail,width,height);else tailInfo=inspectJpegTail(m.tail);
     m.tailKind=tailInfo.kind;m.motion=tailInfo.motion;m.archivedPanorama=tailInfo.archivedPanorama;m.sefZeroPrefix=tailInfo.zeroPrefix;

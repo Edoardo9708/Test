@@ -1,9 +1,41 @@
 #include "image_core.h"
+#include "image_limits.h"
+#include <libheif/heif_tiling.h>
 #include <cstdio>
 #include <fstream>
 #include <mutex>
 #include <stdexcept>
 namespace photo {
+namespace {
+Handle encodePrimary(heif_context* context,const Source& source,heif_encoder* encoder,
+                     const heif_encoding_options* options,const Stage& stage){
+    heif_image_handle* raw=nullptr;
+    if(int64_t((source.width+1)&~1)*((source.height+1)&~1)<=maxSingleHevcPixels){
+        check(heif_context_encode_image(context,source.image.get(),encoder,options,&raw),"Codifica HEIC");
+        return Handle(raw);
+    }
+    // Equal, even tile sizes preserve chroma alignment. The grid stores the exact
+    // original extent, so padding on the right/bottom is never displayed.
+    int tileWidth=((source.width+3)/4)*2,tileHeight=((source.height+3)/4)*2;
+    // Unlike encode_image(), add_grid_image() does not infer the output NCLX
+    // profile from the source. Supply it explicitly for the grid and its tiles.
+    heif_color_profile_nclx* rawProfile=nullptr;
+    check(heif_image_get_nclx_color_profile(source.image.get(),&rawProfile),"Colore griglia HEIC");
+    auto profile=std::unique_ptr<heif_color_profile_nclx,void(*)(heif_color_profile_nclx*)>(rawProfile,heif_nclx_color_profile_free);
+    heif_encoding_options gridOptions=*options;gridOptions.output_nclx_profile=profile.get();
+    check(heif_context_add_grid_image(context,source.width,source.height,2,2,&gridOptions,&raw),"Crea griglia HEIC");
+    Handle grid(raw);
+    for(int y=0;y<2;y++)for(int x=0;x<2;x++){
+        stage("Codifica HEIC · riquadro "+std::to_string(y*2+x+1)+"/4");
+        heif_image* rawTile=nullptr;
+        check(heif_image_extract_area(source.image.get(),x*tileWidth,y*tileHeight,tileWidth,tileHeight,
+                                     heif_get_global_security_limits(),&rawTile),"Estrai riquadro HEIC");
+        Image tile(rawTile);
+        check(heif_context_add_image_tile(context,grid.get(),x,y,tile.get(),encoder),"Codifica riquadro HEIC");
+    }
+    return grid;
+}
+}
 void attach(heif_context* context,heif_image_handle* handle,const Metadata& m){
     if(!m.exif.empty())check(heif_context_add_exif_metadata(context,handle,m.exif.data(),m.exif.size()),"Copia EXIF");
     if(!m.xmp.empty())check(heif_context_add_XMP_metadata(context,handle,m.xmp.data(),m.xmp.size()),"Copia XMP");
@@ -27,7 +59,7 @@ std::string convert(const std::string& input,const std::string& output,int quali
         check(heif_encoder_set_logging_level(encoder.get(),0),"Log encoder");
         auto options=std::unique_ptr<heif_encoding_options,void(*)(heif_encoding_options*)>(heif_encoding_options_alloc(),heif_encoding_options_free);if(!options)throw std::bad_alloc();
         options->image_orientation=static_cast<heif_orientation>(source.metadata.orientation);options->save_two_colr_boxes_when_ICC_and_nclx_available=1;
-        heif_image_handle* rawHandle=nullptr;check(heif_context_encode_image(context.get(),source.image.get(),encoder.get(),options.get(),&rawHandle),"Codifica HEIC");Handle handle(rawHandle);
+        Handle handle=encodePrimary(context.get(),source,encoder.get(),options.get(),stage);
         if(source.gainMap){stage("Copia lossless mappa HDR Apple");encodeGainMap(context.get(),handle.get(),source,options.get());}
         stage("Generazione miniatura HEIF");addThumbnail(context.get(),source,handle.get(),options.get());
         stage("Copia metadati HEIC");attach(context.get(),handle.get(),source.metadata);check(heif_context_write_to_file(context.get(),output.c_str()),"Scrittura HEIC");

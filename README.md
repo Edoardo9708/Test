@@ -1,3 +1,9 @@
+# v1.05 · foto fino a 200 MP
+
+JPEG fino a 200.000.000 pixel, con lati da 64 a 16384 pixel. Le dimensioni vengono controllate prima della decodifica, con un errore che riporta risoluzione e limite. Oltre il limite di 142.606.336 pixel del singolo frame x265 si usa una griglia HEIF 2×2: quattro riquadri codificati in sequenza, un'unica immagine principale alla risoluzione originale. Orientamento, profilo colore, miniatura e metadati restano associati alla foto completa. Il limite di 64 MiB sul file JPEG compresso resta distinto da quello sui pixel.
+
+La suite ordinaria controlla i limiti sulle intestazioni senza allocare immagini grandi. Per la prova completa ad alta risoluzione, dopo la build host eseguire `python3 scripts/image-large-fixtures.py`: genera JPEG sintetici da 50 e 200 MP e un caso a griglia con lati dispari, converte, verifica metadati/miniatura e controlla i quadranti RGB dopo le rotazioni EXIF. È una prova aggiuntiva che richiede RAM e tempo; i campioni generati non vengono versionati.
+
 # v1.03 · code foto recuperabili e meno lavoro ripetuto
 
 - Punto di ripresa atomico per le immagini: conserva coda, opzioni, posizione e totali in caso di errore o chiusura del processo. «Riprendi coda interrotta» continua dall’ultimo punto salvato; «Scarta coda interrotta» elimina solo il recupero. Annulla resta un’interruzione definitiva della coda.

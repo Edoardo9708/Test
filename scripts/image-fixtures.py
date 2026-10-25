@@ -486,3 +486,26 @@ for name, note in [('missing-eoi-sef', 'marcatore finale da ricostruire'),
         assert checked.returncode != 0 and 'Archivio APP/COM/SEF diverso' in checked.stderr, checked.stderr
 print('OK bounded opaque padded tails: all original bytes and zero area preserved, altered archive rejected; short/unbounded/embedded-image/video/SEF patterns rejected')
 print('OK missing EOI before fully indexed supported SEF: exact same converted pixels as EOI reference, full tail archived; ordinary EOF, partial markers, malformed/unknown SEF and damaged entropy rejected')
+
+# Header-only boundary checks do not allocate hundreds of MB or claim that
+# changing SOF dimensions makes the small entropy payload a valid large image.
+small = (directory / 'orientation-1.jpg').read_bytes()
+sof = small.index(b'\xff\xc0')
+for name, width, height, accepted in [
+        ('50mp', 8160, 6120, True),
+        ('200mp-camera', 16320, 12240, True),
+        ('200mp-exact', 16000, 12500, True),
+        ('over-200mp', 16000, 12501, False),
+        ('over-side', 16385, 128, False)]:
+    data = bytearray(small)
+    data[sof + 5:sof + 9] = struct.pack('>HH', height, width)
+    path = directory / ('dimension-boundary-' + name + '.bin')
+    path.write_bytes(data)
+    checked = subprocess.run([engine, 'inspect', str(path)], capture_output=True, text=True)
+    assert (checked.returncode == 0) == accepted, (name, checked.stderr)
+    if not accepted:
+        assert 'massimo 200 megapixel' in checked.stderr, checked.stderr
+        converted = subprocess.run([engine, str(path), str(path.with_suffix('.heic'))], capture_output=True, text=True)
+        assert converted.returncode != 0 and converted.stderr == checked.stderr, converted.stderr
+        assert not path.with_suffix('.heic').exists()
+print('OK JPEG dimensions: 50 MP and 200 MP headers accepted; area/side excess rejected before pixel decoding')

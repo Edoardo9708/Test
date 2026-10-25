@@ -11,6 +11,7 @@ struct Metadata {
     std::vector<Block> blocks;
     Bytes exif,xmp,icc,tail,bundle;
     int orientation=1;
+    int width=0,height=0;
     size_t jpegEnd=0;
     bool missingEoi=false,orientationWasZero=false,archivedPanorama=false,externalTail=false,c2pa=false;
     size_t sefZeroPrefix=0;

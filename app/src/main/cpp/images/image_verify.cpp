@@ -1,4 +1,5 @@
 #include "image_core.h"
+#include "image_limits.h"
 #include <libheif/heif_properties.h>
 #include <algorithm>
 #include <cstring>
@@ -23,7 +24,7 @@ void verifyColor(const heif_image_handle* handle,const Source& source){
 void verify(const std::string& path,const Source& source,const Stage& stage){
     verifyArchivedTail(path,source.metadata.tail,source.metadata.motion,source.metadata.externalTail);
     verifyMotionVideo(path,source.metadata.tail,source.metadata.motion);
-    Context context(heif_context_alloc());if(!context)throw std::bad_alloc();heif_context_set_maximum_image_size_limit(context.get(),16384);
+    Context context(heif_context_alloc());if(!context)throw std::bad_alloc();heif_context_set_maximum_image_size_limit(context.get(),maxPrimarySide);
     check(heif_context_read_from_file(context.get(),path.c_str(),nullptr),"Riapertura HEIC");
     require(heif_context_get_number_of_top_level_images(context.get())==1,"Numero immagini HEIC diverso da uno");
     heif_image_handle* raw=nullptr;check(heif_context_get_primary_image_handle(context.get(),&raw),"Immagine principale");Handle handle(raw);

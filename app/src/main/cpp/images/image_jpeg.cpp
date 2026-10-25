@@ -1,4 +1,5 @@
 #include "image_core.h"
+#include "image_limits.h"
 extern "C" {
 #include <libavcodec/avcodec.h>
 #include <libavutil/error.h>
@@ -24,6 +25,7 @@ void check(heif_error error,const char* action){if(error.code)bad(std::string(ac
 std::string inspectJpeg(const std::string& path){
     // Same metadata parser as conversion, with no FFmpeg, libheif or x265 calls.
     Bytes input=readFile(path,64*1024*1024);Metadata m=readJpegMetadata(input);
+    if(m.width>0&&m.height>0)validatePrimaryDimensions(m.width,m.height);
     std::string headline="Metadati compatibili";
     if(m.gainMap.width)headline+=" · mappa HDR Apple";
     if(m.c2pa)headline+=" · C2PA originale archiviato";
@@ -40,20 +42,23 @@ std::string inspectJpeg(const std::string& path){
 }
 Source loadJpeg(const std::string& path){
     Bytes input=readFile(path,64*1024*1024);Source source;source.metadata=readJpegMetadata(input);
+    validatePrimaryDimensions(source.metadata.width,source.metadata.height);
     input.resize(source.metadata.jpegEnd);input.shrink_to_fit();
     if(source.metadata.missingEoi){input.push_back(255);input.push_back(217);}
     const AVCodec* codec=avcodec_find_decoder(AV_CODEC_ID_MJPEG);if(!codec)bad("Decoder JPEG incluso assente");
     auto ctx=std::unique_ptr<AVCodecContext,void(*)(AVCodecContext*)>(avcodec_alloc_context3(codec),[](AVCodecContext* p){avcodec_free_context(&p);});
     auto frame=std::unique_ptr<AVFrame,void(*)(AVFrame*)>(av_frame_alloc(),[](AVFrame* p){av_frame_free(&p);});
     auto packet=std::unique_ptr<AVPacket,void(*)(AVPacket*)>(av_packet_alloc(),[](AVPacket* p){av_packet_free(&p);});
-    if(!ctx||!frame||!packet)throw std::bad_alloc();ctx->thread_count=2;ctx->max_pixels=48000000;ctx->err_recognition=AV_EF_EXPLODE|AV_EF_CAREFUL;
+    // The true area was checked above. Allow FFmpeg's internal row alignment
+    // without rejecting an image exactly at the public 200 MP boundary.
+    if(!ctx||!frame||!packet)throw std::bad_alloc();ctx->thread_count=2;ctx->max_pixels=maxPrimaryPixels+int64_t(maxPrimarySide)*64;ctx->err_recognition=AV_EF_EXPLODE|AV_EF_CAREFUL;
     checkJpegDecoder(avcodec_open2(ctx.get(),codec,nullptr),"Apertura decoder JPEG fallita",input.size());
     checkJpegDecoder(av_new_packet(packet.get(),input.size()),"Allocazione pacchetto JPEG fallita",input.size());
     memcpy(packet->data,input.data(),input.size());
     checkJpegDecoder(avcodec_send_packet(ctx.get(),packet.get()),"Decodifica JPEG fallita (invio dati)",input.size());
     checkJpegDecoder(avcodec_receive_frame(ctx.get(),frame.get()),"Decodifica JPEG fallita (ricezione immagine)",input.size());
     if(frame->decode_error_flags||frame->flags&AV_FRAME_FLAG_CORRUPT)bad("JPEG con errori di decodifica o pixel ricostruiti dal decoder");
-    source.width=frame->width;source.height=frame->height;if(source.width<64||source.height<64||source.width>16384||source.height>16384||int64_t(source.width)*source.height>48000000)bad("JPEG supportati: lati da 64 a 16384 pixel, massimo 48 megapixel");
+    source.width=frame->width;source.height=frame->height;validatePrimaryDimensions(source.width,source.height);
     int sx=0,sy=0;heif_chroma chroma;
     switch(frame->format){case AV_PIX_FMT_YUVJ420P:case AV_PIX_FMT_YUV420P:chroma=heif_chroma_420;sx=sy=1;break;
         case AV_PIX_FMT_YUVJ422P:case AV_PIX_FMT_YUV422P:chroma=heif_chroma_422;sx=1;break;
