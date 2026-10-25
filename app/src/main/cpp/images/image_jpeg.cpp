@@ -1,6 +1,7 @@
 #include "image_core.h"
 extern "C" {
 #include <libavcodec/avcodec.h>
+#include <libavutil/error.h>
 #include <libavutil/pixdesc.h>
 }
 #include <algorithm>
@@ -10,6 +11,13 @@ extern "C" {
 namespace photo {
 namespace {
 [[noreturn]] void bad(const std::string& message){throw std::runtime_error(message);}
+void checkJpegDecoder(int result,const char* action,size_t inputBytes){
+    if(result>=0)return;
+    char reason[AV_ERROR_MAX_STRING_SIZE]={};
+    av_strerror(result,reason,sizeof(reason));
+    bad(std::string(action)+": "+reason+"; codice="+std::to_string(result)+
+        "; byte JPEG="+std::to_string(inputBytes)+"; FFmpeg="+av_version_info());
+}
 }
 Bytes readFile(const std::string& path,size_t limit){std::ifstream file(path,std::ios::binary|std::ios::ate);if(!file)bad("File non leggibile");auto size=file.tellg();if(size<=0||uint64_t(size)>limit)bad("Dimensione file oltre il limite");Bytes bytes(static_cast<size_t>(size));file.seekg(0);if(!file.read(reinterpret_cast<char*>(bytes.data()),bytes.size()))bad("Lettura file incompleta");return bytes;}
 void check(heif_error error,const char* action){if(error.code)bad(std::string(action)+": "+error.message);}
@@ -39,8 +47,11 @@ Source loadJpeg(const std::string& path){
     auto frame=std::unique_ptr<AVFrame,void(*)(AVFrame*)>(av_frame_alloc(),[](AVFrame* p){av_frame_free(&p);});
     auto packet=std::unique_ptr<AVPacket,void(*)(AVPacket*)>(av_packet_alloc(),[](AVPacket* p){av_packet_free(&p);});
     if(!ctx||!frame||!packet)throw std::bad_alloc();ctx->thread_count=2;ctx->max_pixels=48000000;ctx->err_recognition=AV_EF_EXPLODE|AV_EF_CAREFUL;
-    if(avcodec_open2(ctx.get(),codec,nullptr)<0||av_new_packet(packet.get(),input.size())<0)bad("Apertura decoder JPEG fallita");
-    memcpy(packet->data,input.data(),input.size());if(avcodec_send_packet(ctx.get(),packet.get())<0||avcodec_receive_frame(ctx.get(),frame.get())<0)bad("Decodifica JPEG fallita");
+    checkJpegDecoder(avcodec_open2(ctx.get(),codec,nullptr),"Apertura decoder JPEG fallita",input.size());
+    checkJpegDecoder(av_new_packet(packet.get(),input.size()),"Allocazione pacchetto JPEG fallita",input.size());
+    memcpy(packet->data,input.data(),input.size());
+    checkJpegDecoder(avcodec_send_packet(ctx.get(),packet.get()),"Decodifica JPEG fallita (invio dati)",input.size());
+    checkJpegDecoder(avcodec_receive_frame(ctx.get(),frame.get()),"Decodifica JPEG fallita (ricezione immagine)",input.size());
     if(frame->decode_error_flags||frame->flags&AV_FRAME_FLAG_CORRUPT)bad("JPEG con errori di decodifica o pixel ricostruiti dal decoder");
     source.width=frame->width;source.height=frame->height;if(source.width<64||source.height<64||source.width>16384||source.height>16384||int64_t(source.width)*source.height>48000000)bad("JPEG supportati: lati da 64 a 16384 pixel, massimo 48 megapixel");
     int sx=0,sy=0;heif_chroma chroma;
