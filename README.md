@@ -1,3 +1,9 @@
+# v1.06 · copia originale quando l’HEIC non conviene
+
+Nelle immagini, la nuova checkbox «Copia l’originale se l’HEIC non è più piccolo» funziona con «Salva solo se più piccolo». È disattivata per impostazione predefinita e viene conservata nelle impostazioni, nella selezione corrente e nelle code recuperabili. Quando l’HEIC verificato è uguale o più grande, viene pubblicata una copia byte per byte del JPEG originale, con nome/estensione JPEG e MIME corretto, senza sovrascrivere omonimi. Il salvataggio viene riletto e verificato con SHA-256; in caso di errore o annullamento il nuovo file parziale viene rimosso.
+
+Report e totali distinguono originali copiati, HEIC salvati e file senza risparmio; la copia dell’originale conta zero risparmio. Il registro riconosce l’opzione e ricontrolla originale e copia prima di riutilizzare un esito. Le foto che falliscono la conversione non vengono copiate automaticamente.
+
 # v1.05 · foto fino a 200 MP
 
 JPEG fino a 200.000.000 pixel, con lati da 64 a 16384 pixel. Le dimensioni vengono controllate prima della decodifica, con un errore che riporta risoluzione e limite. Oltre il limite di 142.606.336 pixel del singolo frame x265 si usa una griglia HEIF 2×2: quattro riquadri codificati in sequenza, un'unica immagine principale alla risoluzione originale. Orientamento, profilo colore, miniatura e metadati restano associati alla foto completa. Il limite di 64 MiB sul file JPEG compresso resta distinto da quello sui pixel.

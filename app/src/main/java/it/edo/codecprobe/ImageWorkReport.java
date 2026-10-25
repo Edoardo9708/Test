@@ -38,8 +38,9 @@ final class ImageWorkReport {
             if(previous!=null&&previous.result==result&&previous.metadataOnly==run.metadataOnly){items.add(previous);continue;}
             String status;
             switch(result.outcome){
+                case COPIED_ORIGINAL:status="Originale copiato · "+CompressionSummary.size(result.outputBytes)+" · HEIC non più piccolo";break;
                 case SAVED:status=CompressionSummary.size(result.inputBytes)+" → "+CompressionSummary.size(result.outputBytes)+" · "+CompressionSummary.change(result.inputBytes,result.outputBytes);break;
-                case ALREADY_DONE:status="Già convertita · originale e HEIC verificati · nessuna ricodifica";break;
+                case ALREADY_DONE:status=result.message+" · nessuna ricodifica";break;
                 case CHECKED:status=result.message;break;
                 case FAILED:status=run.metadataOnly?"Da verificare · "+result.message:"Conversione fallita · nessun nuovo file completato";break;
                 case NOT_SMALLER:status="Nessun risparmio · risultato non salvato";break;
@@ -47,24 +48,24 @@ final class ImageWorkReport {
             }
             String title="Foto "+(n+1)+" · "+result.name.replace('\n',' ').replace('\r',' ');
             items.add(new ImageResultList.Item(n,result.name,"",title+"\n"+status,result,run.metadataOnly,
-                (result.outcome==ImageRunState.Outcome.SAVED||result.outcome==ImageRunState.Outcome.ALREADY_DONE)&&result.uri!=null?()->open(result.uri):null,
+                (result.outcome==ImageRunState.Outcome.SAVED||result.outcome==ImageRunState.Outcome.COPIED_ORIGINAL||result.outcome==ImageRunState.Outcome.ALREADY_DONE)&&result.uri!=null?()->open(result.uri,result.mime):null,
                 (result.outcome==ImageRunState.Outcome.FAILED||result.outcome==ImageRunState.Outcome.CHECKED)?()->show(result,run.metadataOnly):null,result.outcome==ImageRunState.Outcome.CHECKED));
         }
         results.submit(items,run.current-1);
         long before=run.inputSavedBytes,after=run.outputSavedBytes;
         UiText.set(view.summary,run.metadataOnly?"Compatibili: "+run.checked+" · da verificare: "+run.failed+" · annullate: "+run.cancelledCount+"\nNessuna decodifica o codifica. Esito limitato ai metadati; integrità dei pixel e formato colore saranno verificati in conversione. Il primo blocco non supportato viene segnalato per ciascuna foto.\nDettagli completi nel log; problemi conservati nell’archivio errori. Righe mostrate: massimo 100.":run.completed==0?"Nessuna conversione eseguita.":
-            "Salvate "+run.saved+" · fallite "+run.failed+" · senza risparmio "+run.skipped+" · annullate "+run.cancelledCount+(run.alreadyDone>0?" · già presenti "+run.alreadyDone:"")
-            +(run.saved+run.alreadyDone==0?"":"\n"+CompressionSummary.size(before)+" → "+CompressionSummary.size(after)+" · "+CompressionSummary.change(before,after)
+            "Salvate "+run.saved+" · fallite "+run.failed+" · senza risparmio "+run.skipped+" · annullate "+run.cancelledCount+(run.copied>0?" · originali copiati "+run.copied:"")+(run.alreadyDone>0?" · già presenti "+run.alreadyDone:"")
+            +(run.saved+run.copied+run.alreadyDone==0?"":"\n"+CompressionSummary.size(before)+" → "+CompressionSummary.size(after)+" · "+CompressionSummary.change(before,after)
             +"\n"+(before>=after?"Spazio risparmiato: ":"Spazio aggiuntivo: ")+CompressionSummary.size(Math.abs(before-after)))
             +"\nTotale sulle foto salvate e su quelle già presenti verificate, compresi i risultati usciti dalla finestra. MB = 1.000.000 byte."
             +(large?"\nRighe "+(start+1)+"–"+end+" di "+run.total+". Dettagli completi nel log; tutti i fallimenti nell’archivio errori.":""));
     }
 
-    private void open(String uri) {
+    private void open(String uri,String mime) {
         try {
-            images.activity.startActivity(new Intent(Intent.ACTION_VIEW).setDataAndType(Uri.parse(uri), "image/heic")
+            images.activity.startActivity(new Intent(Intent.ACTION_VIEW).setDataAndType(Uri.parse(uri), mime)
                 .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION));
-        } catch (ActivityNotFoundException error) { images.toast("Non è installato un visualizzatore per questo file HEIC");
+        } catch (ActivityNotFoundException error) { images.toast("Non è installato un visualizzatore per questa immagine");
         } catch (SecurityException error) { images.toast("Accesso al file non più disponibile"); }
     }
 

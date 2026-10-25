@@ -22,18 +22,18 @@ final class ImageProgressJournal extends SQLiteOpenHelper {
         if(result.outcome==ImageRunState.Outcome.FAILED){ContentValues row=new ContentValues();row.put("uri",uri);row.put("name",result.name);row.put("updated",System.currentTimeMillis());getWritableDatabase().replaceOrThrow("inspection_failures",null,row);}
         else getWritableDatabase().delete("inspection_failures","uri=?",new String[]{uri});
     }
-    static String settings(ImageOptions options){return "heic-v1|"+options.quality+"|"+options.preset+"|"+options.tune+"|"+options.onlySmaller+"|"+options.folder;}
+    static String settings(ImageOptions options){return "heic-v1|"+options.quality+"|"+options.preset+"|"+options.tune+"|"+options.onlySmaller+"|"+options.folder+(options.copyOriginalWhenLarger?"|copy-original":"");}
     void record(String uri,String folder,ImageOptions options,ImageRunState.Result result){
         if(result.outcome==ImageRunState.Outcome.CHECKED||result.outcome==ImageRunState.Outcome.CANCELLED||result.outcome==ImageRunState.Outcome.ALREADY_DONE)return;
         ContentValues row=new ContentValues();row.put("uri",uri);row.put("name",result.name);row.put("folder",folder);row.put("settings",settings(options));row.put("status",result.outcome.name());row.put("source_sha",result.sourceSha);row.put("output_uri",result.uri==null?"":result.uri);row.put("output_sha",result.outputSha);row.put("input_bytes",result.inputBytes);row.put("output_bytes",result.outputBytes);row.put("updated",System.currentTimeMillis());
         getWritableDatabase().replaceOrThrow("progress",null,row);
-        if(result.outcome==ImageRunState.Outcome.SAVED||result.outcome==ImageRunState.Outcome.NOT_SMALLER)getWritableDatabase().delete("inspection_failures","uri=?",new String[]{uri});
+        if(result.outcome==ImageRunState.Outcome.SAVED||result.outcome==ImageRunState.Outcome.COPIED_ORIGINAL||result.outcome==ImageRunState.Outcome.NOT_SMALLER)getWritableDatabase().delete("inspection_failures","uri=?",new String[]{uri});
     }
     ImageRunState.Result reusable(Context c,String input,String name,ImageOptions options,BooleanSupplier cancelled)throws IOException{
         String status,sourceSha,outputUri,outputSha;long before,after;
         try(Cursor row=getReadableDatabase().query("progress",null,"uri=? AND settings=?",new String[]{input,settings(options)},null,null,null)){
             if(!row.moveToFirst())return null;status=row.getString(row.getColumnIndexOrThrow("status"));
-            if(!status.equals("SAVED")&&!status.equals("NOT_SMALLER"))return null;
+            if(!status.equals("SAVED")&&!status.equals("COPIED_ORIGINAL")&&!status.equals("NOT_SMALLER"))return null;
             sourceSha=row.getString(row.getColumnIndexOrThrow("source_sha"));outputUri=row.getString(row.getColumnIndexOrThrow("output_uri"));outputSha=row.getString(row.getColumnIndexOrThrow("output_sha"));before=row.getLong(row.getColumnIndexOrThrow("input_bytes"));after=row.getLong(row.getColumnIndexOrThrow("output_bytes"));
         }
         if(sourceSha.length()!=64)return null;
@@ -41,7 +41,7 @@ final class ImageProgressJournal extends SQLiteOpenHelper {
             if(!sourceSha.equals(ImageFingerprint.uri(c,input,before,cancelled)))return null;
             if(status.equals("NOT_SMALLER"))return new ImageRunState.Result(name,before,after,null,"Già verificata: nessun risparmio",ImageRunState.Outcome.NOT_SMALLER,"Originale invariato e impostazioni uguali al registro.",sourceSha,"");
             if(outputUri.isEmpty()||outputSha.length()!=64||!outputSha.equals(ImageFingerprint.uri(c,outputUri,after,cancelled)))return null;
-            return new ImageRunState.Result(name,before,after,outputUri,"Già convertita e verificata",ImageRunState.Outcome.ALREADY_DONE,"SHA-256 dell’originale e dell’HEIC confrontati con il registro; nessuna ricodifica.",sourceSha,outputSha);
+            return new ImageRunState.Result(name,before,after,outputUri,status.equals("COPIED_ORIGINAL")?"Originale copiato già verificato":"Già convertita e verificata",ImageRunState.Outcome.ALREADY_DONE,"SHA-256 dell’originale e del file salvato confrontati con il registro; nessuna ricodifica.",sourceSha,outputSha,status.equals("COPIED_ORIGINAL")?"image/jpeg":"image/heic");
         }catch(InterruptedIOException cancelledRead){throw cancelledRead;}catch(IOException|RuntimeException changed){return null;}
     }
     ImageQueueStore.Queue failures(){

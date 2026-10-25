@@ -8,7 +8,7 @@ final class ImageScreen {
     static final String FILES="01  FOTO E DESTINAZIONE",COMPRESSION="02  COMPRESSIONE IMMAGINI",HEIC="03  AVANZAMENTO IMMAGINI",DETAILS="DIAGNOSTICA";
     final AppUi ui;final LinearLayout page;final AppSections sections;final AppNavigation navigation;final ImageQualityControls quality;
     final Button settings,select,importFolder,retryFailures,clear,reload,remove,export,chooseFolder,checkMetadata,convert,cancel,pause,resumeSession,discardSession,metadata,exportLog,exportErrors,clearLog,toggleLog;
-    final CheckBox smaller,screenOn;final ProgressBar progress;
+    final CheckBox smaller,screenOn,copyOriginal;final ProgressBar progress;
     final TextView position,name,summary,selectionSummary,details,status,folder,parameters,runStatus,log;
     final WorkReportView workReport;
     final ConversionDashboard dashboard;
@@ -33,7 +33,8 @@ final class ImageScreen {
         LinearLayout recovery=ui.row(output);resumeSession=ui.halfButton(recovery,"Riprendi coda interrotta",true);discardSession=ui.halfButton(recovery,"Scarta coda interrotta",false);
         ui.text(output,"Pausa completa la foto in corso, poi attende. Riprendi continua dalla foto successiva, senza ricreare la coda.",13);
         ConversionOptionsView options=new ConversionOptionsView(ui,output,false,true);smaller=options.smaller;screenOn=options.screenOn;
-        dashboard=new ConversionDashboard(ui,output,new String[]{},new String[]{"Solo se più piccolo","Qualità","CRF","Preset","Tune","Formato","Dimensioni"});progress=dashboard.progress;runStatus=dashboard.status;
+        copyOriginal=ConversionOptionsView.option(ui,output,"Copia l’originale se l’HEIC non è più piccolo",false,"Con Salva solo se più piccolo attivo, copia il JPEG originale nella cartella di destinazione quando l’HEIC è uguale o più grande. Mantiene tutti i byte e l’estensione JPEG; in caso di omonimi aggiunge un numero. Non copia le foto che falliscono la conversione.");
+        dashboard=new ConversionDashboard(ui,output,new String[]{},new String[]{"Solo se più piccolo","Copia originale","Qualità","CRF","Preset","Tune","Formato","Dimensioni"});progress=dashboard.progress;runStatus=dashboard.status;
         parameters=ui.text(output,"",14);parameters.setVisibility(android.view.View.GONE);workReport=new WorkReportView(ui,output);
         LinearLayout diagnostic=sections.card(page,DETAILS),exports=ui.row(diagnostic);exportLog=ui.halfButton(exports,"Esporta log",false);export=ui.halfButton(exports,"Metadati foto · JSON",false);
         exportErrors=ui.button(diagnostic,"Esporta archivio errori");

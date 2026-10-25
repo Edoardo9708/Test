@@ -17,7 +17,8 @@ import static org.junit.Assert.*;
 @LooperMode(LooperMode.Mode.PAUSED)
 public class ImageOutputTest {
     public static class Documents extends AudioMetadataFlowTest.Documents {
-        boolean corrupt;int listings;
+        boolean corrupt;int listings;String lastMime;
+        @Override public android.os.Bundle call(String method,String arg,android.os.Bundle extras){if("android:createDocument".equals(method))lastMime=extras.getString(android.provider.DocumentsContract.Document.COLUMN_MIME_TYPE);return super.call(method,arg,extras);}
         @Override public android.database.Cursor query(Uri uri,String[] projection,String selection,String[] args,String sort){if("children".equals(uri.getLastPathSegment()))listings++;return super.query(uri,projection,selection,args,sort);}
         @Override public ParcelFileDescriptor openFile(Uri uri,String mode)throws FileNotFoundException{
             if(corrupt&&mode.equals("r"))try(RandomAccessFile out=new RandomAccessFile(files.get(uri.getLastPathSegment()),"rw")){out.seek(0);out.write(99);}catch(IOException e){throw new FileNotFoundException(e.toString());}
@@ -51,4 +52,28 @@ public class ImageOutputTest {
     }
     @Test public void sameLengthCorruptionRollsBackTheNewDocument(){provider.corrupt=true;assertThrows(IOException.class,()->ImageOutput.save(context,AudioMetadataFlowTest.TREE,encoded,"Photo.jpg",()->false));assertTrue(provider.files.isEmpty());assertTrue(provider.names.isEmpty());}
     @Test public void cancellationPublishesNothing(){assertThrows(IOException.class,()->ImageOutput.save(context,AudioMetadataFlowTest.TREE,encoded,"Photo.jpg",()->true));assertTrue(provider.files.isEmpty());}
+    private ImageRunState.Result publishOriginal(int size,boolean smaller,boolean copy)throws Exception{
+        File original=new File(provider.directory,"original.jpeg");byte[] bytes=new byte[size];for(int i=0;i<size;i++)bytes[i]=(byte)(i+10);Files.write(original.toPath(),bytes);
+        ImageOptions options=new ImageOptions(65,"slow","standard",AudioMetadataFlowTest.TREE.toString(),smaller,false,copy,0);
+        return ImageConverter.publish(context,original,encoded,"Photo.JPEG",options,"HEIC verified",ImageFingerprint.file(original,()->false),()->false,s->{},new ImageOutput.Names());
+    }
+    @Test public void largerHeicCopiesExactOriginalWithJpegNameAndZeroSaving()throws Exception{
+        var result=publishOriginal(8,true,true);assertEquals(ImageRunState.Outcome.COPIED_ORIGINAL,result.outcome);assertEquals(8,result.outputBytes);assertEquals(result.sourceSha,result.outputSha);assertEquals("image/jpeg",result.mime);assertEquals("image/jpeg",provider.lastMime);
+        assertEquals(java.util.List.of("Photo.JPEG"),new java.util.ArrayList<>(provider.names.values()));
+        assertArrayEquals(Files.readAllBytes(new File(provider.directory,"original.jpeg").toPath()),Files.readAllBytes(provider.files.values().iterator().next().toPath()));
+        var run=new ImageRunState();run.add(result);assertEquals(1,run.copied);assertEquals(0,run.saved);assertEquals(run.inputSavedBytes,run.outputSavedBytes);
+        publishOriginal(8,true,true);assertEquals(java.util.List.of("Photo.JPEG","Photo (2).JPEG"),new java.util.ArrayList<>(provider.names.values()));
+    }
+    @Test public void disabledFallbackSkipsButDisabledSizeFilterSavesHeic()throws Exception{
+        assertEquals(ImageRunState.Outcome.NOT_SMALLER,publishOriginal(8,true,false).outcome);assertTrue(provider.files.isEmpty());
+        assertEquals(ImageRunState.Outcome.SAVED,publishOriginal(8,false,true).outcome);assertEquals(java.util.List.of("Photo.heic"),new java.util.ArrayList<>(provider.names.values()));
+    }
+    @Test public void equalSizeCopiesOriginalAndSmallerHeicStillWins()throws Exception{
+        assertEquals(ImageRunState.Outcome.COPIED_ORIGINAL,publishOriginal(16,true,true).outcome);
+        assertEquals(ImageRunState.Outcome.SAVED,publishOriginal(64,true,true).outcome);assertEquals(java.util.List.of("Photo.JPEG","Photo.heic"),new java.util.ArrayList<>(provider.names.values()));
+    }
+    @Test public void originalCopyReadbackFailureRollsBackWithoutChangingSource()throws Exception{
+        provider.corrupt=true;assertThrows(IOException.class,()->publishOriginal(8,true,true));assertTrue(provider.files.isEmpty());
+        assertArrayEquals(new byte[]{10,11,12,13,14,15,16,17},Files.readAllBytes(new File(provider.directory,"original.jpeg").toPath()));
+    }
 }

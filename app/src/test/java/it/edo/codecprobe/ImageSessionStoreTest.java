@@ -38,4 +38,12 @@ public class ImageSessionStoreTest {
         ImageRunState run=sample();ImageSessionStore.save(context,id,run);ImageQueueStore.discard(context,id);
         assertThrows(IOException.class,()->ImageSessionStore.load(context));assertTrue(ImageSessionStore.exists(context));
     }
+    @Test public void copiedCountAndOptionSurviveQueueRecovery()throws Exception{
+        ImageRunState run=sample();run.options=new ImageOptions(50,"medium","ssim",run.options.folder,true,true,true,0);
+        run.add(new ImageRunState.Result("foto.jpg",100,100,"content://out/copy","Copied",ImageRunState.Outcome.COPIED_ORIGINAL,""));
+        ImageSessionStore.save(context,id,run);var restored=ImageSessionStore.load(context);
+        assertEquals(1,restored.run.copied);assertEquals(0,restored.run.saved);assertEquals(1,restored.run.completed);
+        assertEquals(100,restored.run.outputSavedBytes);assertTrue(restored.run.options.copyOriginalWhenLarger);
+        assertTrue(ImageOptions.from(restored.request(context)).copyOriginalWhenLarger);
+    }
 }

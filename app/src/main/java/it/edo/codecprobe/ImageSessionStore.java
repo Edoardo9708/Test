@@ -97,9 +97,9 @@ final class ImageSessionStore {
             .put("metadataOnly",run.metadataOnly)
             .put("quality",options.quality).put("preset",options.preset).put("tune",options.tune)
             .put("folder",options.folder==null?JSONObject.NULL:options.folder)
-            .put("onlySmaller",options.onlySmaller).put("screenOn",options.keepScreenOn)
+            .put("onlySmaller",options.onlySmaller).put("screenOn",options.keepScreenOn).put("copyOriginalWhenLarger",options.copyOriginalWhenLarger)
             .put("completed",run.completed).put("total",run.total)
-            .put("saved",run.saved).put("failed",run.failed).put("skipped",run.skipped)
+            .put("saved",run.saved).put("copied",run.copied).put("failed",run.failed).put("skipped",run.skipped)
             .put("cancelled",run.cancelledCount).put("alreadyDone",run.alreadyDone).put("checked",run.checked)
             .put("inputBytes",run.inputSavedBytes).put("outputBytes",run.outputSavedBytes).put("elapsed",elapsed);
     }
@@ -108,18 +108,18 @@ final class ImageSessionStore {
         ImageRunState run=new ImageRunState();
         run.metadataOnly=json.getBoolean("metadataOnly");
         run.options=new ImageOptions(json.getInt("quality"),json.getString("preset"),json.getString("tune"),
-            json.isNull("folder")?null:json.getString("folder"),json.getBoolean("onlySmaller"),json.getBoolean("screenOn"),0);
+            json.isNull("folder")?null:json.getString("folder"),json.getBoolean("onlySmaller"),json.getBoolean("screenOn"),json.optBoolean("copyOriginalWhenLarger",false),0);
         run.completed=json.getInt("completed");run.total=json.getInt("total");run.current=run.completed;
-        run.saved=json.getInt("saved");run.failed=json.getInt("failed");run.skipped=json.getInt("skipped");
+        run.saved=json.getInt("saved");run.copied=json.optInt("copied",0);run.failed=json.getInt("failed");run.skipped=json.getInt("skipped");
         run.cancelledCount=json.getInt("cancelled");run.alreadyDone=json.getInt("alreadyDone");run.checked=json.getInt("checked");
         run.inputSavedBytes=json.getLong("inputBytes");run.outputSavedBytes=json.getLong("outputBytes");run.elapsedBefore=json.getLong("elapsed");
         return run;
     }
 
     private static void validate(ImageRunState run)throws IOException{
-        long outcomes=(long)run.saved+run.failed+run.skipped+run.cancelledCount+run.alreadyDone+run.checked;
+        long outcomes=(long)run.saved+run.copied+run.failed+run.skipped+run.cancelledCount+run.alreadyDone+run.checked;
         boolean valid=run.total>=1&&run.total<=ImageQueueStore.BULK_LIMIT&&run.completed>=0&&run.completed<=run.total
-            &&run.saved>=0&&run.failed>=0&&run.skipped>=0&&run.cancelledCount>=0&&run.alreadyDone>=0&&run.checked>=0
+            &&run.saved>=0&&run.copied>=0&&run.failed>=0&&run.skipped>=0&&run.cancelledCount>=0&&run.alreadyDone>=0&&run.checked>=0
             &&run.inputSavedBytes>=0&&run.outputSavedBytes>=0&&run.elapsedBefore>=0&&outcomes==run.completed;
         if(!valid)throw new IOException("Contatori sessione immagini non validi");
     }

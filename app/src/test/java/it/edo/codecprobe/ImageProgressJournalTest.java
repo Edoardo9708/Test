@@ -20,6 +20,19 @@ public class ImageProgressJournalTest {
     private ImageRunState.Result saved(File original,File output)throws Exception{
         return new ImageRunState.Result("foto.jpg",original.length(),output.length(),Uri.fromFile(output).toString(),"Salvato",ImageRunState.Outcome.SAVED,"OK",ImageFingerprint.file(original,()->false),ImageFingerprint.file(output,()->false));
     }
+    @Test public void copyingOptionInvalidatesSkippedResultAndCopiedFileMustStillMatch()throws Exception{
+        File original=File.createTempFile("journal-original-",".jpg"),output=File.createTempFile("journal-copy-",".jpg");
+        try(ImageProgressJournal journal=new ImageProgressJournal(context)){
+            Files.write(original.toPath(),new byte[]{1,2,3,4});Files.copy(original.toPath(),output.toPath(),java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+            String input=Uri.fromFile(original).toString(),sha=ImageFingerprint.file(original,()->false);
+            ImageOptions copy=new ImageOptions(65,"slow","standard",options().folder,true,false,true,0);
+            journal.record(input,options().folder,options(),new ImageRunState.Result("foto.jpg",4,8,null,"Skip",ImageRunState.Outcome.NOT_SMALLER,"",sha,""));
+            assertNull(journal.reusable(context,input,"foto.jpg",copy,()->false));
+            journal.record(input,copy.folder,copy,new ImageRunState.Result("foto.jpg",4,4,Uri.fromFile(output).toString(),"Copied",ImageRunState.Outcome.COPIED_ORIGINAL,"",sha,sha));
+            assertEquals("Originale copiato già verificato",journal.reusable(context,input,"foto.jpg",copy,()->false).message);
+            Files.write(output.toPath(),new byte[]{9,2,3,4});assertNull(journal.reusable(context,input,"foto.jpg",copy,()->false));
+        }finally{original.delete();output.delete();}
+    }
     @Test public void reuseChecksBothFileContentsAndSettingsEvenWhenSizeDoesNotChange()throws Exception{
         File original=File.createTempFile("journal-original-",".jpg"),output=File.createTempFile("journal-output-",".heic");
         try(ImageProgressJournal journal=new ImageProgressJournal(context)){

@@ -14,6 +14,16 @@ import static org.junit.Assert.*;
 @Config(sdk=34)
 @LooperMode(LooperMode.Mode.PAUSED)
 public class ImageWorkReportTest {
+    @Test public void copiedOriginalHasOwnCountAndOpensAsJpeg(){
+        var controller=Robolectric.buildActivity(ImageActivity.class).setup();try{
+            ImageController images=controller.get().images;ImageRunState run=new ImageRunState();
+            run.add(new ImageRunState.Result("Originale.jpg",3000000,3000000,"content://saved/original","Originale copiato",ImageRunState.Outcome.COPIED_ORIGINAL,"","a".repeat(64),"a".repeat(64),"image/jpeg"));
+            images.report.render(run);assertEquals(0,run.saved);assertEquals(1,run.copied);
+            String summary=images.screen.workReport.summary.getText().toString();assertTrue(summary,summary.contains("originali copiati 1"));assertTrue(summary,summary.contains("Spazio risparmiato: "+CompressionSummary.size(0)));
+            find(ImageVirtualReportTest.row(images,0,null),"Apri risultato:").performClick();
+            Intent opened=Shadows.shadowOf(controller.get()).getNextStartedActivity();assertEquals("image/jpeg",opened.getType());assertEquals("content://saved/original",opened.getDataString());
+        }finally{controller.pause().stop().destroy();}
+    }
     @Test public void savedOutputOpensWithReadPermissionAndFailuresHaveCopyableDetails() {
         var controller = Robolectric.buildActivity(ImageActivity.class).setup();
         try {

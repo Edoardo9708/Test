@@ -52,5 +52,18 @@ public class ImageSettingsTest {
             images.pause();assertEquals(0,controller.get().getWindow().getAttributes().flags&android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         }finally{controller.pause().stop().destroy();}
     }
+    @Test public void originalCopyChoiceSurvivesDraftSettingsRecreationAndFolderChanges(){
+        var home=Robolectric.buildActivity(ImageActivity.class).setup();try{
+            ImageController images=home.get().images;assertFalse(images.screen.copyOriginal.isChecked());assertTrue(images.screen.copyOriginal.isEnabled());
+            images.screen.copyOriginal.setChecked(true);images.setFolder("content://dirs/tree/chosen");
+            assertTrue(ImageDraftStore.load(context).options.copyOriginalWhenLarger);
+            images.screen.smaller.setChecked(false);assertFalse(images.screen.copyOriginal.isEnabled());assertTrue(images.screen.copyOriginal.isChecked());
+            images.screen.smaller.setChecked(true);images.screen.settings.performClick();Intent open=Shadows.shadowOf(home.get()).getNextStartedActivity();assertTrue(ImageOptions.from(open).copyOriginalWhenLarger);
+            var settings=Robolectric.buildActivity(ImageSettingsActivity.class,open).setup();try{
+                settings.get().screen.copy.performClick();assertTrue(settings.get().screen.copyOriginal.isChecked());
+                settings.recreate();assertTrue(settings.get().screen.copyOriginal.isChecked());settings.get().screen.save.performClick();assertTrue(ImageOptions.load(context).copyOriginalWhenLarger);
+            }finally{settings.pause().stop().destroy();}
+        }finally{home.pause().stop().destroy();}
+    }
 
 }
