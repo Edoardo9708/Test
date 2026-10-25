@@ -1,0 +1,98 @@
+// Opt-in init script: leaves APK configuration, distribution and native cache keys untouched.
+import groovy.json.JsonSlurper
+import groovy.json.JsonOutput
+import org.gradle.api.tasks.compile.JavaCompile
+import org.gradle.api.tasks.testing.Test
+import java.security.MessageDigest
+import java.util.concurrent.atomic.AtomicInteger
+
+gradle.projectsEvaluated {
+    def app = gradle.rootProject.project(':app')
+    def manifest = new JsonSlurper().parse(new File(gradle.rootProject.projectDir, 'scripts/local-test-suites.json'))
+    def fastNames = manifest.fast.values().collectMany { it.tests }.unique()
+    def sourceNames = manifest.fast.values().collectMany { it.sources }.unique()
+    def prefix = 'it/edo/codecprobe/'
+    def junit = app.configurations.create('localFastJUnit') { canBeConsumed = false; canBeResolved = true }
+    app.dependencies.add(junit.name, 'junit:junit:4.13.2')
+    def compile = app.tasks.register('compileLocalFastTests', JavaCompile) {
+        dependsOn app.tasks.named('generateDebugBuildConfig')
+        source sourceNames.collect { app.file("src/main/java/${prefix}${it}.java") }
+        source fastNames.collect { app.file("src/test/java/${prefix}${it}.java") }
+        source app.fileTree(app.layout.buildDirectory.dir('generated/source/buildConfig/debug')) { include '**/BuildConfig.java' }
+        classpath = junit
+        destinationDirectory = app.layout.buildDirectory.dir('classes/localFastTests')
+        options.release = 17
+        options.encoding = 'UTF-8'
+        options.incremental = true
+    }
+    def fast = app.tasks.register('localFastTest', Test) {
+        dependsOn compile
+        testClassesDirs = app.files(compile.flatMap { it.destinationDirectory })
+        classpath = testClassesDirs + junit
+        useJUnit()
+        maxHeapSize = '256m'
+        maxParallelForks = 1
+        jvmArgs '-XX:ActiveProcessorCount=2'
+        def groups = (app.findProperty('local.fast.groups') ?: manifest.fast.keySet().join(',')).split(',')
+        filter { groups.collectMany { manifest.fast[it].tests }.unique().each { includeTestsMatching("it.edo.codecprobe.${it}") } }
+        reports.junitXml.outputLocation = app.layout.buildDirectory.dir('test-results/localFastTest')
+        reports.html.outputLocation = app.layout.buildDirectory.dir('reports/tests/localFastTest')
+        testLogging { events = []; showStandardStreams = false }
+    }
+    app.tasks.named('testDebugUnitTest', Test) {
+        // Run these classes in the genuinely isolated JVM task, not a second time here.
+        filter {
+            fastNames.each { excludeTestsMatching("it.edo.codecprobe.${it}") }
+            def patterns = app.findProperty('local.integration.patterns')
+            if (patterns) patterns.split(',').each { includeTestsMatching("it.edo.codecprobe.${it}") }
+        }
+        maxParallelForks = 1
+        maxHeapSize = '512m'
+        jvmArgs '-XX:ActiveProcessorCount=2'
+        // Maven resolver can only read the local cache; missing Android fixtures fail, never download.
+        systemProperty 'robolectric.dependency.repo.url', new File(System.getProperty('user.home'), '.m2/repository').toURI().toString()
+        testLogging { events = []; showStandardStreams = false }
+    }
+    def configurationInputs = app.rootProject.fileTree(app.rootDir) {
+        include '**/*.gradle', '**/*.gradle.kts', '**/*.toml', '**/gradle.properties', 'local.properties', 'gradle/**', '**/*.lockfile', '**/gradle.lockfile', 'buildSrc/**', 'build-logic/**'
+        exclude '.git/**', '**/build/**', '.gradle/**', '.tools/**', 'vendor/**', 'native-smoke/**', '**/.cxx/**'
+    }
+    // Launcher/session IDs change at every Codex command, but are not inputs used by app/tests.
+    def environmentKeys = ['JAVA_HOME','JAVA_TOOL_OPTIONS','JDK_JAVA_OPTIONS','_JAVA_OPTIONS','JAVA_OPTS',
+        'GRADLE_OPTS','GRADLE_USER_HOME','ANDROID_HOME','ANDROID_SDK_ROOT','LANG','LC_ALL','TZ',
+        'PATH','TEMP','TMP','HOME','USERPROFILE','SYSTEMROOT','PROCESSOR_ARCHITECTURE','NUMBER_OF_PROCESSORS'] as Set
+    def relevantEnvironment = System.getenv().findAll { key, value ->
+        environmentKeys.contains(key.toUpperCase(Locale.ROOT)) || key.startsWith('CODECPROBE_') || key.startsWith('ROBOLECTRIC_')
+    }
+    def environmentIdentity = JsonOutput.toJson([environment: new TreeMap(relevantEnvironment),
+        properties: ['java.home','java.runtime.version','user.home','user.dir','user.language','user.country','user.timezone','os.name','os.arch'].collect { System.getProperty(it) }])
+    def environmentHash = MessageDigest.getInstance('SHA-256').digest(environmentIdentity.getBytes('UTF-8')).encodeHex().toString()
+    app.tasks.withType(Test).configureEach {
+        if (name in ['localFastTest','testDebugUnitTest']) {
+            ext.localExecutedCases = new AtomicInteger(0)
+            afterTest { descriptor, result -> localExecutedCases.incrementAndGet() }
+            inputs.property('localEnvironmentHash', environmentHash)
+            inputs.files(configurationInputs, gradle.startParameter.allInitScripts,
+                app.rootProject.file('scripts/local-test-suites.json')).withPathSensitivity(PathSensitivity.RELATIVE)
+            if (name == 'localFastTest') {
+                inputs.files(compile.get().source).withPathSensitivity(PathSensitivity.RELATIVE)
+            } else {
+                inputs.files(app.fileTree('src/main'), app.fileTree('src/test')).withPathSensitivity(PathSensitivity.RELATIVE)
+            }
+        }
+    }
+}
+
+gradle.taskGraph.whenReady { graph ->
+    def forbidden = graph.allTasks.findAll { it.name =~ /(?i)(cmake|externalnative|connected|install|uninstall)/ }
+    if (forbidden) throw new GradleException("Local JVM suites must not build native code or touch devices: ${forbidden*.path}")
+}
+
+gradle.taskGraph.afterTask { task, state ->
+    def status = gradle.startParameter.projectProperties['local.test.status']
+    if (status && task instanceof Test && task.name in ['localFastTest', 'testDebugUnitTest']) {
+        new File(status).text = JsonOutput.toJson([task: task.path, upToDate: state.upToDate,
+            skipped: state.skipped, noSource: state.noSource, failed: state.failure != null,
+            skipMessage: state.skipMessage, executedCases: task.localExecutedCases.get()])
+    }
+}

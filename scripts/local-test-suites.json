@@ -1,0 +1,18 @@
+{
+  "fast": {
+    "files": {"sources": ["OutputName", "OutputPlan"], "tests": ["OutputPlanTest", "OutputNamingSafetyTest"]},
+    "savings": {"sources": ["SavingsPolicy", "CompressionSummary"], "tests": ["SavingsPolicyTest", "CompressionSummaryTest", "SavingsBoundaryTest"]},
+    "control": {"sources": ["ConversionControl", "ConversionRunGate"], "tests": ["ConversionControlTest", "ConversionRunGateTest", "ConversionControlBoundaryTest"]},
+    "errors": {"sources": ["ConversionFailure"], "tests": ["FailureDetailsTest"]}
+  },
+  "integration": {
+    "files": ["ImageOutputTest", "ImageOutputFailureTest", "OutputCollisionTest", "AudioMetadataFlowTest", "MediaDestinationsTest"],
+    "savings": ["HomeSavingsRetryTest", "AudioFlowTest", "ImageOutputTest"],
+    "control": ["ConverterControlTest", "QueuePlaybackServiceTest", "RecoveryLifecycleTest", "ImagePauseTest", "ImageSessionServiceTest"],
+    "errors": ["FailedQueueServiceTest", "ImageWorkReportTest", "AudioConversionTest", "ImageSessionStoreTest"],
+    "photo": ["Image*Test", "Photo*Test"],
+    "audio": ["Audio*Test"],
+    "video": ["Home*Test", "Video*Test", "ConverterControlTest", "SavedSession*Test", "Recovery*Test", "OutputCollisionTest"],
+    "analysis": ["Analysis*Test", "ExifDictionaryTest"]
+  }
+}

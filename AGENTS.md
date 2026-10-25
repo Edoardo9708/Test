@@ -27,3 +27,9 @@ Usare nomi chiari per metodi, variabili e comandi. Distinguere le responsabilitÃ
 ## 6. Divertimento
 
 Curare animazioni piacevoli, messaggi leggeri e qualche Easter egg. Devono accompagnare l'utilizzo senza ostacolarlo o introdurre sprechi significativi sul SoC. Sospendere le animazioni quando non sono visibili e rispettare le preferenze di riduzione delle animazioni. Per errori e rischi sui file usare messaggi seri e chiari.
+
+## 7. Test locali
+
+Leggere `docs/local-testing.md`. Dopo una modifica partire dai test pertinenti: `scripts/test-local.ps1 fast --group files` (anche `savings`, `control`, `errors`); usare `integration --group ...` quando servono componenti Android simulati. `plan --files <percorsi>` mostra la selezione; `changed --files <percorsi>` la esegue. Per componenti condivisi o interventi significativi usare `full`: comprende i test JVM, non codec reali o dispositivi. Senza `--files`, `changed` confronta l'ultima suite completa riuscita, oppure Git HEAD se manca una base locale.
+
+Leggere prima riepiloghi e soli fallimenti; log/XML dettagliati sono in `.tools/test-results/`. Non ripetere prove invariate, non usare `clean`, rebuild o `--rerun-tasks` senza motivo documentato. Affidare il riuso a Gradle e dichiarare nuovi input o variabili dâ€™ambiente usati dai test. Mantenere concorrenza limitata; nei nuovi test usare sincronizzazione su eventi, non `Thread.sleep`. Test nativi e strumentati restano separati: nessuna installazione o modifica ai dati del telefono senza autorizzazione.
