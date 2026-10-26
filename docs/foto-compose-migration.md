@@ -16,6 +16,8 @@ Permessi cartelle, avanzamento, report e diagnostica sono ancora controlli Java 
 
 ## Confine temporaneo
 
+L'interoperabilità con le vecchie View descritte qui è esclusivamente un ponte di migrazione. Permessi, avanzamento/report e diagnostica ancora incorporati saranno sostituiti secondo l'[architettura finale dell'interfaccia](project-requirements.md#architettura-finale-dellinterfaccia); il mantenimento dei coordinatori Java non richiede di mantenere la loro vecchia UI.
+
 `PhotoComposeHost` pubblica un modello immutabile dopo le modifiche dei coordinatori Java. Non interroga provider o codec e non usa un timer per aggiornare la nuova interfaccia. Il modello conserva solo le prime 100 voci del carosello, come nella prova precedente; contatori e destinazioni riguardano l'intera coda.
 
 I comandi richiamano i binding esistenti, mantenendo conferme, URI delle richieste pendenti, permessi e recupero. Durante questa fase vengono ancora costruiti i widget Java di binding, ma la loro vecchia pagina è scollegata e non viene disegnata. La loro rimozione è un passaggio successivo, dopo aver separato completamente lo stato di presentazione dai widget. Questo compromesso non viene presentato come un'ottimizzazione delle allocazioni iniziali.
@@ -37,7 +39,7 @@ Morphe usa la stessa famiglia di librerie con versioni più recenti e componenti
 
 I test della logica Java continuano a verificare importazioni, destinazioni, code e conservazione dei file. I nuovi test Compose interagiscono con i controlli realmente visibili. Le immagini di CI devono provenire dalla schermata Compose, non dalla pagina Java scollegata. Il blur hardware richiede anche una prova sul telefono.
 
-La migrazione non aggiunge ancora prefisso/suffisso, sovrascrittura, copia originale senza risparmio o carosello oltre 100 elementi. Dopo la verifica di Foto, i componenti condivisi possono sostituire quelli delle altre sezioni.
+La migrazione non aggiunge ancora prefisso/suffisso, sovrascrittura, copia originale senza risparmio o carosello oltre 100 elementi. Dopo la verifica di Foto, il riuso dei componenti condivisi accompagna la migrazione delle altre sezioni verso la destinazione concordata.
 
 ## Rifinitura dei pulsanti dopo la prova sul telefono
 

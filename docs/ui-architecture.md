@@ -2,7 +2,9 @@
 
 **Tipo di fonte:** mappa descrittiva dei confini, verificata staticamente sul worktree locale; non specifica grafica né risultato di una prova sul dispositivo. I sorgenti del branch prevalgono sulle descrizioni di implementazione. Regole generali in [AGENTS.md](../AGENTS.md), requisiti in [project-requirements.md](project-requirements.md).
 
-Video, Audio, Analisi e Impostazioni usano View Android; il workspace Foto usa Compose con interop `AndroidView`. La migrazione è parziale e sperimentale: dettagli in [foto-compose-migration.md](foto-compose-migration.md). La divisione segue le responsabilità, non il numero di pulsanti.
+**Stato attuale, temporaneo:** Video, Audio, Analisi e Impostazioni usano View Android; il workspace Foto usa Compose con interop `AndroidView`. La migrazione è parziale e sperimentale: dettagli in [foto-compose-migration.md](foto-compose-migration.md). Le sezioni seguenti descrivono questi confini attuali, non l'architettura finale.
+
+**Destinazione concordata:** definita in [Architettura finale dell'interfaccia](project-requirements.md#architettura-finale-dellinterfaccia). La sostituzione della presentazione legacy non implica riscrivere coordinatori, servizi o motori.
 
 ## Video — componenti View
 
@@ -27,7 +29,7 @@ Video, Audio, Analisi e Impostazioni usano View Android; il workspace Foto usa C
 
 ## Regole per le prossime modifiche
 
-- Nei componenti View un pulsante viene costruito nella sua sezione; nei componenti Compose la presentazione è nei composable. In entrambi i casi le azioni sono collegate al coordinatore della funzione, senza duplicare una pagina nascosta.
+- Nella manutenzione delle View ancora presenti conservare i confini delle sezioni; per la nuova UI seguire la regola di migrazione in AGENTS.md. Le azioni restano collegate al coordinatore della funzione, senza duplicare una pagina nascosta.
 - I moduli comunicano attraverso il coordinatore; non conservano riferimenti a una precedente Activity.
 - I task annullabili hanno controlli di generazione e di distruzione. Alla chiusura si rimuovono observer e callback e si chiudono gli executor.
 - La conversione appartiene al servizio del relativo media (`ConversionService`, `AudioConversionService`, `ImageConversionService`), non alla pagina.

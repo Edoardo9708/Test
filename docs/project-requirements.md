@@ -4,6 +4,14 @@
 
 La direzione grafica è mantenuta in [design-references/README.md](design-references/README.md), senza duplicarla qui; i limiti del prototipo sono in [foto-compose-migration.md](foto-compose-migration.md). Una funzionalità richiesta ma assente resta da discutere/implementare: non esporla come disponibile e non ampliare implicitamente l'intervento.
 
+## Architettura finale dell'interfaccia
+
+L'obiettivo concordato è migrare l'intera UI a **Kotlin + Jetpack Compose + Material 3**, usando **Haze e Coil dove appropriato**. Il perimetro comprende Video, Audio, Foto, Analisi, Impostazioni, navigazione, finestre, UI dei permessi, report e ogni altro componente grafico dell'app. Le finestre e i selettori forniti dal sistema Android restano responsabilità del sistema.
+
+L'attuale interfaccia ibrida Java View / Compose è una fase **temporanea** della migrazione. A migrazione completata non devono rimanere schermate legacy costruite con View Java né `AndroidView` usati per mantenere le vecchie interfacce.
+
+Coordinatori, servizi e logica applicativa Java possono rimanere, così come motori C/C++ e JNI: il cambio della UI non richiede di riscriverli. Una loro eventuale migrazione a Kotlin è una decisione separata.
+
 ## Coerenza tra sezioni
 
 La grafica va ripensata **nel suo insieme**: niente sezioni moderne accanto a schermate palesemente incoerenti una volta conclusa la migrazione. Riutilizzare davvero componenti e comportamento di pulsanti, pannelli, popup, impostazioni, caricamento, permessi, conferme, caroselli, avanzamento e report. Uniformità **non** significa inventare azioni inesistenti: ad esempio, Pausa/Riprendi deve controllare il servizio reale, non essere un comando cosmetico.

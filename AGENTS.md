@@ -26,6 +26,8 @@ Gestire esplicitamente ogni errore prevedibile con recupero, segnalazione o inte
 
 Usare lo stesso linguaggio grafico in tutte le sezioni: componenti, pulsanti, schede, impostazioni, finestre, permessi e animazioni. Azioni equivalenti devono avere presentazione e comportamento coerenti. Le modifiche grafiche devono mantenere l'app uniforme.
 
+Durante la migrazione non introdurre nuove UI legacy in View Java o nuovi wrapper `AndroidView` per mantenerle; seguire l'[architettura finale dell'interfaccia](docs/project-requirements.md#architettura-finale-dellinterfaccia).
+
 ## 5. Chiarezza delle funzioni
 
 Usare nomi chiari per metodi, variabili e comandi. Distinguere le responsabilità nel codice. Nell'interfaccia rendere comprensibile cosa fa ogni comando, quali impostazioni usa e quale risultato produce. Rendere disponibili i dettagli tecnici quando utili, senza appesantire l'uso ordinario.
