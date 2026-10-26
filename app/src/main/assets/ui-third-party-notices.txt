@@ -5,9 +5,9 @@ Copyright The Android Open Source Project
 https://developer.android.com/jetpack/androidx
 License: Apache-2.0
 
-Haze 1.5.2
+Haze / Haze Blur 2.0.1
 Copyright Christopher Banes and the Haze project contributors
-https://github.com/chrisbanes/haze/tree/1.5.2
+https://github.com/chrisbanes/haze/tree/2.0.1
 License: Apache-2.0
 
 Coil 2.7.0

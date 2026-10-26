@@ -2,18 +2,11 @@ package it.edo.codecprobe
 
 import androidx.compose.animation.*
 import androidx.compose.animation.core.LinearOutSlowInEasing
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.shape.CornerBasedShape
-import androidx.compose.foundation.shape.CornerSize
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -21,37 +14,38 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
-import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.unit.Density
-import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.*
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import dev.chrisbanes.haze.*
+import dev.chrisbanes.haze.blur.*
 
 /** Shared Compose surfaces. Uses Material 3 interactions and Haze, not custom Android drawing. */
-internal data class PhotoGlass(val content: HazeState, val enabled: Boolean)
+internal data class PhotoGlass(val content: HazeState, val enabled: Boolean, val blurEnabled: Boolean)
 internal val LocalPhotoGlass = staticCompositionLocalOf<PhotoGlass> { error("Photo glass host missing") }
+internal fun photoSurfaceColor(dark: Boolean): Color = if (dark) Color(0xFF232D42) else Color(0xFFE8EEFC)
 
 @Composable
 /** Glass belongs to fixed floating chrome; resizing cards use an opaque fill. */
 internal fun Modifier.photoGlass(shape: Shape): Modifier {
     val glass = LocalPhotoGlass.current
     val colors = MaterialTheme.colorScheme
-    val style = remember(colors) {
-        HazeStyle(
-            backgroundColor = colors.background,
-            tint = HazeTint(colors.surface.copy(alpha = .58f)),
-            blurRadius = 10.dp,
-            noiseFactor = 0f,
-            fallbackTint = HazeTint(colors.surface.copy(alpha = .88f))
-        )
+    // Bypass both Haze consumers and its source when the user disables blur.
+    if (!glass.blurEnabled) return clip(shape).background(colors.surface.copy(alpha = .58f))
+    val style = remember(colors, glass.enabled) {
+        HazeBlurStyle {
+            backgroundColor(colors.background)
+            blurRadius(10.dp)
+            noiseFactor(0f)
+            blurEnabled(glass.enabled && HazeBlurDefaults.isBlurEnabledByDefault())
+            colorEffects(listOf(HazeColorEffect.tint(colors.surface.copy(alpha = .58f))))
+            fallbackColorEffect(HazeColorEffect.tint(colors.surface.copy(alpha = .94f)))
+        }
     }
-    return clip(shape).hazeEffect(glass.content, style) {
-        blurEnabled = glass.enabled && HazeDefaults.blurEnabled()
-    }
+    return clip(shape).hazeBlur(input = HazeInput.Sources(glass.content), style = style)
 }
 
 internal fun photoJoined(position: Int, vertical: Boolean = true): RoundedCornerShape =
@@ -67,11 +61,21 @@ internal fun photoJoined(position: Int, vertical: Boolean = true): RoundedCorner
 internal fun PhotoPanel(
     modifier: Modifier = Modifier,
     shape: Shape = RoundedCornerShape(24.dp),
+    contentSpacing: Dp = 12.dp,
+    animateSizeChanges: Boolean = false,
+    outlined: Boolean = true,
     content: @Composable ColumnScope.() -> Unit
 ) {
-    Column(modifier.fillMaxWidth().clip(shape).background(MaterialTheme.colorScheme.surface, shape)
-        .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = .6f), shape)
-        .padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp), content = content)
+    Card(
+        modifier = modifier.fillMaxWidth()
+            .then(if (animateSizeChanges) Modifier.animateContentSize(tween(220, easing = LinearOutSlowInEasing)) else Modifier),
+        shape = shape,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        border = if (outlined) BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = .6f)) else null
+    ) {
+        Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(contentSpacing), content = content)
+    }
 }
 
 /** Shared expanding/fading motion, with the explicit 220 ms curve used by Morphe's folds. */
@@ -85,6 +89,12 @@ internal fun PhotoFold(visible: Boolean, content: @Composable AnimatedVisibility
             fadeOut(tween(220, easing = LinearOutSlowInEasing)),
         content = content
     )
+}
+
+/** Immediate visibility for the Foto-page layout-animation experiment. */
+@Composable
+internal fun PhotoPopupFold(visible: Boolean, content: @Composable () -> Unit) {
+    if (visible) content()
 }
 
 @Composable
@@ -113,20 +123,11 @@ internal fun PhotoButton(
     destructive: Boolean = false,
     chrome: Boolean = false
 ) {
-    val groupInteraction = LocalPhotoButtonInteraction.current
-    val interaction = groupInteraction ?: remember { MutableInteractionSource() }
-    val pressed by interaction.collectIsPressedAsState()
-    val press by animateFloatAsState(if (enabled && pressed) 1f else 0f,
-        spring(dampingRatio = .8f, stiffness = 500f), label = "button-press")
-    val selection by animateFloatAsState(if (selected) 1f else 0f,
-        spring(dampingRatio = .8f, stiffness = 500f), label = "button-selection")
     val colors = MaterialTheme.colorScheme
-    val dark = androidx.compose.foundation.isSystemInDarkTheme()
-    val veil = if (dark) .35f else .60f
     val targetFill = when {
         primary -> colors.primary
-        selected -> colors.primaryContainer.copy(alpha = if (dark) .55f else .72f)
-        else -> colors.surfaceVariant.copy(alpha = veil)
+        selected -> colors.primaryContainer
+        else -> colors.surfaceVariant
     }
     val targetInk = when {
         destructive -> colors.error
@@ -135,20 +136,18 @@ internal fun PhotoButton(
         else -> colors.onSurfaceVariant
     }
     val targetEdge = when {
-        destructive -> colors.error.copy(alpha = .55f)
-        selected || primary -> colors.primary.copy(alpha = if (dark) .55f else .45f)
-        else -> colors.outline.copy(alpha = if (dark) .40f else .60f)
+        destructive -> colors.error
+        selected || primary -> colors.primary
+        else -> colors.outline
     }
-    val fill by animateColorAsState(targetFill.copy(alpha = targetFill.alpha * if (enabled) 1f else .5f), tween(220), label = "button-fill")
-    val ink by animateColorAsState(targetInk.copy(alpha = if (enabled) 1f else .38f), tween(220), label = "button-ink")
-    val edge by animateColorAsState(targetEdge.copy(alpha = targetEdge.alpha * if (enabled) 1f else .5f), tween(220), label = "button-edge")
     val base = shape ?: RoundedCornerShape(50)
-    val actualShape = remember(base, press, selection) { PhotoButtonShape(base, press, selection) }
     Surface(
-        onClick = onClick, enabled = enabled, interactionSource = interaction, shape = actualShape,
-        color = fill, contentColor = ink, border = BorderStroke(1.dp, edge),
-        modifier = modifier.defaultMinSize(minHeight = 48.dp).clip(actualShape)
-            .then(if (chrome) Modifier.photoGlass(actualShape) else Modifier).semantics {
+        onClick = onClick, enabled = enabled, shape = base,
+        color = targetFill,
+        contentColor = if (enabled) targetInk else colors.outline,
+        border = BorderStroke(if (selected) 2.dp else 1.dp, targetEdge),
+        modifier = modifier.defaultMinSize(minHeight = 48.dp)
+            .then(if (chrome) Modifier.photoGlass(base) else Modifier).semantics {
             role = Role.Button
             if (tag.isNotEmpty()) testTag = tag
             this.selected = selected
@@ -166,39 +165,11 @@ internal fun PhotoButton(
     }
 }
 
-/** Resolve corners against the measured button, including joined edges and percentage pills. */
-private data class PhotoButtonShape(val base: Shape, val press: Float, val selection: Float) : Shape {
-    override fun createOutline(size: Size, layoutDirection: LayoutDirection, density: Density): androidx.compose.ui.graphics.Outline {
-        val corners = base as? CornerBasedShape ?: return base.createOutline(size, layoutDirection, density)
-        val radius = size.minDimension / 2f
-        fun resolve(corner: CornerSize): CornerSize {
-            val rest = corner.toPx(size, density)
-            val rounded = rest + (radius - rest) * selection.coerceIn(0f, 1f)
-            return CornerSize((rounded * (1f - .5f * press.coerceIn(0f, 1f))).coerceAtLeast(0f))
-        }
-        return RoundedCornerShape(resolve(corners.topStart), resolve(corners.topEnd),
-            resolve(corners.bottomEnd), resolve(corners.bottomStart)).createOutline(size, layoutDirection, density)
-    }
-}
-
-private val LocalPhotoButtonInteraction = staticCompositionLocalOf<MutableInteractionSource?> { null }
-
-/** Connected choices share a little width during a press; no timers or idle animation. */
+/** Equal-width connected choices using the standard Row layout. */
 @Composable
 internal fun PhotoButtonGroup(count: Int, modifier: Modifier = Modifier, content: @Composable (Int, Modifier) -> Unit) {
-    val sources = remember(count) { List(count) { MutableInteractionSource() } }
-    val weights = sources.map { source ->
-        val down by source.collectIsPressedAsState()
-        val weight by animateFloatAsState(if (down) 1.12f else 1f,
-            spring(dampingRatio = .8f, stiffness = 500f), label = "button-share")
-        weight
-    }
-    Row(modifier.fillMaxWidth().height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-        repeat(count) { index ->
-            CompositionLocalProvider(LocalPhotoButtonInteraction provides sources[index]) {
-                content(index, Modifier.weight(weights[index]).fillMaxHeight())
-            }
-        }
+    Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        repeat(count) { index -> content(index, Modifier.weight(1f)) }
     }
 }
 
@@ -214,11 +185,11 @@ internal fun PhotoToggle(text: String, checked: Boolean, enabled: Boolean, chang
 internal fun PhotoTheme(dark: Boolean, content: @Composable () -> Unit) {
     val scheme = remember(dark) { if (dark) darkColorScheme(
         primary = Color(0xFFA8C5FF), onPrimary = Color(0xFF112C58), primaryContainer = Color(0xFF344D76), onPrimaryContainer = Color(0xFFE7ECF7),
-        background = Color(0xFF151820), surface = Color(0xFF232D42), surfaceVariant = Color(0xFF2C3A54),
+        background = Color(0xFF151820), surface = photoSurfaceColor(true), surfaceVariant = Color(0xFF2C3A54),
         onSurface = Color(0xFFE7ECF7), onSurfaceVariant = Color(0xFFB5BFD1), outline = Color(0xFF788599)
     ) else lightColorScheme(
         primary = Color(0xFF3977E9), onPrimary = Color.White, primaryContainer = Color(0xFFD5E3FF), onPrimaryContainer = Color(0xFF33588C),
-        background = Color(0xFFF8F8FB), surface = Color(0xFFE8EEFC), surfaceVariant = Color(0xFFDCE7FC),
+        background = Color(0xFFF8F8FB), surface = photoSurfaceColor(false), surfaceVariant = Color(0xFFDCE7FC),
         onSurface = Color(0xFF292C32), onSurfaceVariant = Color(0xFF565B66), outline = Color(0xFF8D919B)
     )
     }

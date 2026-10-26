@@ -16,9 +16,22 @@ import org.robolectric.shadows.ShadowContentResolver;
 import static org.junit.Assert.*;
 
 @RunWith(RobolectricTestRunner.class)
-@Config(sdk=34)
+@Config(sdk=34,shadows=SavedSessionServiceTest.AndroidAtomicFile.class)
 @LooperMode(LooperMode.Mode.PAUSED)
 public class SavedSessionServiceTest {
+    /** Android rename replaces an existing checkpoint; Windows File.renameTo does not. */
+    @Implements(android.util.AtomicFile.class)
+    public static class AndroidAtomicFile {
+        @RealObject private android.util.AtomicFile file;
+        @Implementation protected void finishWrite(java.io.FileOutputStream stream)throws java.io.IOException {
+            org.robolectric.shadow.api.Shadow.directlyOn(file,android.util.AtomicFile.class,"finishWrite",
+                org.robolectric.util.ReflectionHelpers.ClassParameter.from(java.io.FileOutputStream.class,stream));
+            java.io.File pending=new java.io.File(file.getBaseFile()+".new");
+            if(System.getProperty("os.name").startsWith("Windows")&&file.getBaseFile().isFile()&&pending.isFile())
+                java.nio.file.Files.move(pending.toPath(),file.getBaseFile().toPath(),
+                    java.nio.file.StandardCopyOption.REPLACE_EXISTING,java.nio.file.StandardCopyOption.ATOMIC_MOVE);
+        }
+    }
     public static class Directory extends ContentProvider {
         final CountDownLatch entered=new CountDownLatch(1),release=new CountDownLatch(1);
         final List<String> requested=Collections.synchronizedList(new ArrayList<>());
@@ -66,7 +79,7 @@ public class SavedSessionServiceTest {
             live.filePercent=43;live.doneFrames=101;
             directory.release.countDown();drain(service);
             SavedSession stopped=SavedSession.load(context);assertTrue(stopped.state.recoverable);assertFalse(ConversionService.snapshot().running);
-            assertEquals(0,stopped.state.filePercent);assertEquals(0,stopped.state.doneFrames);assertEquals(-1,stopped.state.totalFrames);
+            assertEquals(ConversionService.snapshot().message,0,stopped.state.filePercent);assertEquals(0,stopped.state.doneFrames);assertEquals(-1,stopped.state.totalFrames);
             assertEquals(0,stopped.state.done);assertEquals(0,stopped.state.total);assertEquals(0,stopped.state.percent);
             assertEquals(-1,stopped.state.bframeCount);assertEquals(-1,stopped.state.lookaheadCount);assertEquals(-1,stopped.state.cuTree);
             assertEquals(-1,stopped.state.aqMode);assertEquals(-1d,stopped.state.aqStrength,0);assertFalse(stopped.state.memoryProtection);

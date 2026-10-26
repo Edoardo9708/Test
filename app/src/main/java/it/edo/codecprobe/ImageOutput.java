@@ -10,8 +10,14 @@ import java.util.function.BooleanSupplier;
 
 /** Publish a new HEIC, then re-read every saved byte. Roll back a partial/changed document. */
 final class ImageOutput {
-    static String name(String original){String value=original.replace('/','_').replace('\\','_').replace('\n','_').replace('\r','_').trim();int dot=value.lastIndexOf('.');if(dot>0)value=value.substring(0,dot);if(value.isEmpty())value="Foto";if(value.length()>140)value=value.substring(0,140);return value+".heic";}
-    static String name(String original,boolean motion){String value=name(original);return motion&&!value.endsWith("MP.heic")?value.substring(0,value.length()-5)+"_MP.heic":value;}
+    static String name(String original){return name(original,false,"",false);}
+    static String name(String original,boolean motion){return name(original,motion,"",false);}
+    static String name(String original,boolean motion,String addition,boolean prefix){
+        String value=original.replace('/','_').replace('\\','_').replace('\n','_').replace('\r','_').trim();int dot=value.lastIndexOf('.');if(dot>0)value=value.substring(0,dot);if(value.isEmpty())value="Foto";
+        String extra=addition==null?"":addition.replace('/','_').replace('\\','_').replace('\n','_').replace('\r','_').trim();if(extra.length()>80)extra=extra.substring(0,80);
+        String marker=motion&&!value.endsWith("MP")?"_MP":"";int baseLimit=Math.max(1,140-extra.length()-marker.length());if(value.length()>baseLimit)value=value.substring(0,baseLimit);
+        return (prefix?extra+value:value+extra)+marker+".heic";
+    }
     static String unique(String wanted,Set<String> existing){Set<String> normalized=new HashSet<>();for(String value:existing)normalized.add(value.toLowerCase(Locale.ROOT));return choose(wanted,normalized);}
     private static String choose(String wanted,Set<String> existing){String base=wanted.substring(0,wanted.length()-5);String suffix=base.endsWith("_MP")?"_MP":base.endsWith("MP")?"MP":"";String stem=base.substring(0,base.length()-suffix.length());for(int n=1;n<100000;n++){String candidate=n==1?wanted:stem+" ("+n+")"+suffix+".heic";if(!existing.contains(candidate.toLowerCase(Locale.ROOT)))return candidate;}throw new IllegalStateException("Troppi nomi HEIC uguali");}
     /** Read only top-level headers: no pixels or video payload enter Java memory. */
@@ -43,9 +49,12 @@ final class ImageOutput {
         return save(c,tree,source,original,cancelled,new Names());
     }
     static Uri save(Context c,Uri tree,File source,String original,BooleanSupplier cancelled,Names names)throws IOException{
+        return save(c,tree,source,original,"",false,cancelled,names);
+    }
+    static Uri save(Context c,Uri tree,File source,String original,String addition,boolean prefix,BooleanSupplier cancelled,Names names)throws IOException{
         Uri document=null;
         try{
-            ImageConverter.check(cancelled);String chosen=names.reserve(c,tree,name(original,hasMotionVideo(source)));ImageConverter.check(cancelled);
+            ImageConverter.check(cancelled);String chosen=names.reserve(c,tree,name(original,hasMotionVideo(source),addition,prefix));ImageConverter.check(cancelled);
             document=DocumentsContract.createDocument(c.getContentResolver(),DocumentsContract.buildDocumentUriUsingTree(tree,OutputDocuments.id(c,tree)),"image/heic",chosen);if(document==null)throw new IOException("Creazione HEIC fallita");
             MessageDigest expected=JpegInventory.digest();long written=0;
             try(InputStream in=new FileInputStream(source);OutputStream out=c.getContentResolver().openOutputStream(document,"w")){

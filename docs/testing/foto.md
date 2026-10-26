@@ -800,17 +800,17 @@ Descrizioni statiche trasferite dall’audit: non attestano nuove esecuzioni. Le
 <a id="class-imagesettingstest"></a>
 ## ImageSettingsTest
 
-[Sorgente della classe, setup e helper](../../app/src/test/java/it/edo/codecprobe/ImageSettingsTest.java) · 5 metodi · area originaria: Foto.
+[Sorgente della classe, setup e helper](../../app/src/test/java/it/edo/codecprobe/ImageSettingsTest.java) · 6 metodi · area originaria: Foto.
 
 **Contesto applicativo della classe:** ImageController; PhotoCompose state/command; ImageSettingsActivity; ImageOptions; ImageDraftStore; ImageConversionService.
 
 **Riferimenti produttivi:** [ImageController](../../app/src/main/java/it/edo/codecprobe/ImageController.java), [ImageSettingsActivity](../../app/src/main/java/it/edo/codecprobe/ImageSettingsActivity.java), [ImageOptions](../../app/src/main/java/it/edo/codecprobe/ImageOptions.java), [ImageDraftStore](../../app/src/main/java/it/edo/codecprobe/ImageDraftStore.java), [ImageConversionService](../../app/src/main/java/it/edo/codecprobe/ImageConversionService.java).
 
-**Preparazione, file e simulazioni condivisi:** Activity/service/SharedPreferences Robolectric; run iniettate e lease condivisa acquisita a mano.
+**Preparazione, file e simulazioni condivisi:** Activity/service/SharedPreferences Robolectric; run iniettate e lease condivisa acquisita a mano. Il setup/teardown svuota anche photo-appearance per isolare le prove sul blur.
 
 **Confini comuni dell’audit:** Nessun encoder né opzioni native applicate; stale cancel ha solo controllo negativo. KeepScreenOn è flag modello finestra, non comportamento device.
 
-**Metodi:** [headerOpensDedicatedSettingsAndUnsavedEditsSurviveRecreation](#test-cfb5a3b1a2fc7678) · [savedDefaultsApplyAfterActiveQueueAndKeepSelection](#test-1e0b1f7256051833) · [imageDraftIsSeparateAndFolderCancellationKeepsChoice](#test-ed89e19b7b58fe80) · [leaseRejectsImagesBeforeNativeAndStaleCancellationCannotStopAnotherRun](#test-fdc1e71c144d0cdb) · [screenAwakeOptionRemainsLiveDuringPhotoConversionAndClearsOnPause](#test-6a180d6faec0ff56)
+**Metodi:** [headerOpensDedicatedSettingsAndUnsavedEditsSurviveRecreation](#test-cfb5a3b1a2fc7678) · [savedDefaultsApplyAfterActiveQueueAndKeepSelection](#test-1e0b1f7256051833) · [imageDraftIsSeparateAndFolderCancellationKeepsChoice](#test-ed89e19b7b58fe80) · [leaseRejectsImagesBeforeNativeAndStaleCancellationCannotStopAnotherRun](#test-fdc1e71c144d0cdb) · [screenAwakeOptionRemainsLiveDuringPhotoConversionAndClearsOnPause](#test-6a180d6faec0ff56) · [glassBlurTogglePersistsOnBackAndAppliesOnResumeWithoutChangingConversion](#test-9a8a5994b873d2f6)
 
 <!-- test: ImageSettingsTest.headerOpensDedicatedSettingsAndUnsavedEditsSurviveRecreation -->
 <a id="test-cfb5a3b1a2fc7678"></a>
@@ -998,6 +998,63 @@ Descrizioni statiche trasferite dall’audit: non attestano nuove esecuzioni. Le
 
 <!-- /test -->
 
+
+<!-- test: ImageSettingsTest.glassBlurTogglePersistsOnBackAndAppliesOnResumeWithoutChangingConversion -->
+<a id="test-9a8a5994b873d2f6"></a>
+### `ImageSettingsTest.glassBlurTogglePersistsOnBackAndAppliesOnResumeWithoutChangingConversion`
+
+**Categoria:** B. Analisi statica; esiti di esecuzione separati.
+
+**Dati e preparazione:** Activity Foto e impostazioni su Robolectric, preferenze separate svuotate nel setup; selezione sintetica di una foto e snapshot del servizio iniettato solo nella parte finale.
+
+**Sequenza delle operazioni:** Controlla il default attivo, apre le impostazioni dopo la pausa di Foto, spegne il checkbox, ricrea le impostazioni, copia i parametri e torna indietro senza Salva. Riprende e ricrea Foto; poi riattiva la preferenza con una coda simulata attiva.
+
+**Metodi applicativi e percorso:** ImageSettingsScreen.glassBlur → PhotoAppearance → PhotoComposeHost.onVisible; i parametri di ImageOptions e del servizio restano separati.
+
+**File, mock e simulazioni:** Framework, lifecycle, SharedPreferences e servizio simulati; nessun file multimediale, picker, GPU del telefono o codec JNI.
+
+**Asserzioni e risultati attesi:** Default attivo; checkbox e preferenza restano spenti dopo recreate/copy/Indietro; host legge spento al resume e dopo ricreazione; opzioni della bozza, selezione e revisione dei default restano invariate. Riattivazione letta anche con coda attiva senza cambiare il suo snapshot di opzioni.
+
+**Comportamento verificato:** La preferenza grafica è immediata e persistente, indipendente dal salvataggio dei default di compressione e dalla coda.
+
+**Limiti:** Non verifica il blur hardware né la fluidità sul dispositivo. Nessuna golden o misura dei frame; la rimozione dei modifier Haze è verificabile nel ramo del codice, non tramite confronto pixel di questa prova.
+
+<details>
+<summary>Corpo esatto del test: dati, sequenza, chiamate e asserzioni</summary>
+
+```java
+@Test public void glassBlurTogglePersistsOnBackAndAppliesOnResumeWithoutChangingConversion()throws Exception{
+        var home=Robolectric.buildActivity(ImageActivity.class).setup();
+        try{
+            ImageController images=home.get().images;
+            assertTrue(images.compose.getBlurEnabled());
+            ImageOptions options=images.state.options;
+            images.state.inputs.add("content://photo/keep-selection");images.state.clamp();
+            home.pause();
+            var settings=Robolectric.buildActivity(ImageSettingsActivity.class).setup();
+            try{
+                assertTrue(settings.get().screen.glassBlur.isChecked());
+                settings.get().screen.glassBlur.performClick();
+                assertFalse(PhotoAppearance.blurEnabled(context));
+                settings.recreate();assertFalse(settings.get().screen.glassBlur.isChecked());
+                settings.get().screen.copy.performClick();assertFalse(settings.get().screen.glassBlur.isChecked());
+                settings.get().screen.back.performClick();
+            }finally{settings.pause().stop().destroy();}
+            home.resume();assertFalse(images.compose.getBlurEnabled());
+            assertSame(options,images.state.options);assertEquals(1,images.state.inputs.size());
+            assertEquals(0,ImageOptions.load(context).revision);
+            home.recreate();images=home.get().images;assertFalse(images.compose.getBlurEnabled());
+            ImageRunState run=new ImageRunState();run.running=true;run.options=options;field.set(null,run);
+            PhotoAppearance.blurEnabled(context,true);images.pause();images.resume();
+            assertTrue(images.compose.getBlurEnabled());assertSame(options,ImageConversionService.snapshot().options);
+            assertEquals(0,ImageOptions.load(context).revision);
+        }finally{home.pause().stop().destroy();}
+    }
+```
+
+</details>
+
+<!-- /test -->
 
 <a id="class-imageuitrialtest"></a>
 ## ImageUiTrialTest

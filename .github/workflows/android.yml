@@ -65,7 +65,7 @@ jobs:
           log-accepted-android-sdk-licenses: false
       - uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: '8.11.1'
+          gradle-version: '9.6.0'
       - name: Verify YUV plane packing
         run: bash scripts/test-yuv.sh
       - name: Fingerprint native build inputs
@@ -82,7 +82,7 @@ jobs:
             app/build/intermediates/cxx
             ${{ steps.native-key.outputs.ndk }}
       - name: Install Android SDK
-        run: sdkmanager "platforms;android-35" "build-tools;35.0.0" "ndk;27.2.12479018" "cmake;3.22.1"
+        run: sdkmanager "platforms;android-37.0" "build-tools;36.0.0" "ndk;27.2.12479018" "cmake;3.22.1"
       - name: Prepare pinned x265 source and license
         run: bash scripts/prepare-x265.sh
       - name: Prepare pinned audio libraries and licenses

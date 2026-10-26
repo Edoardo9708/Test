@@ -2764,7 +2764,7 @@ Descrizioni statiche trasferite dall’audit: non attestano nuove esecuzioni. Le
 
 **Sequenza delle operazioni:** ordine del corpo integrale sotto; setup/teardown e helper nel [sorgente](../../app/src/test/java/it/edo/codecprobe/MediaDestinationsTest.java).
 
-**Metodi applicativi e percorso:** Riferimenti già censiti nell’audit: Helper `grant(…)`, `settle(…)`; percorso specificato sopra.
+**Metodi applicativi e percorso:** Harness View → MediaDestinationsController → OriginDirectoryPanel, che presenta lo snapshot di OriginDirectoryAccess; grant(…) e settle(…) preparano/attendono la verifica. Il contratto View rimane invariato dopo l’estrazione della logica condivisa.
 
 **File, mock e simulazioni:** fixture di contesto sopra, limitatamente a quanto richiamato dal metodo e dal setup; categoria B. I confini di simulazione sono quelli della classe.
 

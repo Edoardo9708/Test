@@ -88,7 +88,7 @@ public class ImagePauseTest {
         var context=RuntimeEnvironment.getApplication();ImageLogStore.reset(context);ImageLogStore.append(context,ImageConversionService.LOG,"EVENTO\n\n");
         var controller=Robolectric.buildActivity(ImageActivity.class).setup();
         try{
-            ImageController images=controller.get().images;assertFalse(images.screen.pause.isEnabled());
+            ImageController images=controller.get().images;images.screen.sections.focusCard(ImageScreen.HEIC);assertFalse(images.screen.pause.isEnabled());
             ImageRunState run=new ImageRunState();run.running=true;run.total=10;run.startedAt=12345;run.options=ImageOptions.load(context);stateField.set(null,run);images.render();
             assertTrue(images.screen.pause.isEnabled());assertEquals("Pausa",images.screen.pause.getText().toString());images.screen.pause.performClick();Intent pause=Shadows.shadowOf(controller.get()).getNextStartedService();assertEquals(ImageConversionService.PAUSE,pause.getAction());assertEquals(12345,pause.getLongExtra("startedAt",-1));
             run.pauseRequested=true;images.render();assertEquals("Riprendi",images.screen.pause.getText().toString());assertTrue(images.screen.runStatus.getText().toString().contains("Pausa richiesta"));

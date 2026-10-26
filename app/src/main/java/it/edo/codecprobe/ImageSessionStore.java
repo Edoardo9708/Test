@@ -98,6 +98,7 @@ final class ImageSessionStore {
             .put("quality",options.quality).put("preset",options.preset).put("tune",options.tune)
             .put("folder",options.folder==null?JSONObject.NULL:options.folder)
             .put("onlySmaller",options.onlySmaller).put("screenOn",options.keepScreenOn)
+            .put("nameAddition",options.nameAddition).put("namePrefix",options.namePrefix)
             .put("completed",run.completed).put("total",run.total)
             .put("saved",run.saved).put("failed",run.failed).put("skipped",run.skipped)
             .put("cancelled",run.cancelledCount).put("alreadyDone",run.alreadyDone).put("checked",run.checked)
@@ -108,7 +109,8 @@ final class ImageSessionStore {
         ImageRunState run=new ImageRunState();
         run.metadataOnly=json.getBoolean("metadataOnly");
         run.options=new ImageOptions(json.getInt("quality"),json.getString("preset"),json.getString("tune"),
-            json.isNull("folder")?null:json.getString("folder"),json.getBoolean("onlySmaller"),json.getBoolean("screenOn"),0);
+            json.isNull("folder")?null:json.getString("folder"),json.getBoolean("onlySmaller"),json.getBoolean("screenOn"),0,
+            json.optString("nameAddition",""),json.optBoolean("namePrefix",false));
         run.completed=json.getInt("completed");run.total=json.getInt("total");run.current=run.completed;
         run.saved=json.getInt("saved");run.failed=json.getInt("failed");run.skipped=json.getInt("skipped");
         run.cancelledCount=json.getInt("cancelled");run.alreadyDone=json.getInt("alreadyDone");run.checked=json.getInt("checked");

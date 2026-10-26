@@ -39,7 +39,7 @@ public class ImageLiveLogTest {
         stateField.set(null,run);ImageLogStore.append(context,ImageConversionService.LOG,"PRIMA\n\n");
         var controller=Robolectric.buildActivity(ImageActivity.class).setup();File exported=File.createTempFile("partial-export-",".txt");
         try{
-            ImageController images=controller.get().images;assertTrue(images.screen.exportLog.isEnabled());assertFalse(images.screen.clearLog.isEnabled());
+            ImageController images=controller.get().images;images.screen.sections.focusCard(ImageScreen.HEIC);assertTrue(images.screen.exportLog.isEnabled());assertFalse(images.screen.clearLog.isEnabled());
             String counts=images.screen.dashboard.summary.getText().toString();assertTrue(counts,counts.contains("Foto 600 / 8500"));assertTrue(counts,counts.contains("Riuscite: 400 · Fallite: 190"));assertTrue(counts,counts.contains("Già presenti: 1 · Senza risparmio: 8 · Annullate: 0"));assertEquals(100,run.results.size());
             images.screen.exportLog.performClick();ShadowActivity.IntentForResult picker=awaitPicker(controller.get());
             assertEquals(ImageSelection.LOG,picker.requestCode);assertEquals(Intent.ACTION_CREATE_DOCUMENT,picker.intent.getAction());assertTrue(picker.intent.getStringExtra(Intent.EXTRA_TITLE).contains("parziale"));assertFalse(images.screen.exportLog.isEnabled());

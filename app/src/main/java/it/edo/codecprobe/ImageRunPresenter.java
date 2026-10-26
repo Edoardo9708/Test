@@ -5,19 +5,17 @@ import android.view.WindowManager;
 
 /** Render the immutable service snapshot; no queue or file mutations. */
 final class ImageRunPresenter {
-    static void render(ImageController images,ImageRunState run){render(images,run,false);}
-    static void renderLive(ImageController images,ImageRunState run){render(images,run,true);}
-    private static void render(ImageController images,ImageRunState run,boolean visibleOnly){
-        ImageScreen s=images.screen;s.layout.backdrop.working(run.running);boolean busy=images.busy();s.checkMetadata.setEnabled(!busy&&!images.state.inputs.isEmpty());s.convert.setEnabled(!busy&&!images.state.inputs.isEmpty()&&images.destinations.ready());s.cancel.setEnabled(run.running&&!run.cancelling);s.pause.setEnabled(run.running&&!run.cancelling);UiText.set(s.pause,run.pauseRequested||run.paused?"Riprendi":"Pausa");
-        boolean recoverable=!run.running&&ImageSessionStore.exists(images.activity);s.sections.previousWork.setEnabled(run.running||recoverable);UiText.set(s.sections.previousWork,run.running?"Sessione in corso":"Riprendi sessione");UiText.set(s.sections.previousHint,run.running?"La coda continua anche uscendo da questa schermata.":recoverable?"È disponibile una coda interrotta.":"Nessuna sessione da riprendere.");
+    static void renderLive(ImageController images,ImageRunState run){render(images,run);}
+    static void render(ImageController images,ImageRunState run){
+        ImageScreen s=images.screen;boolean busy=images.busy();s.checkMetadata.setEnabled(!busy&&!images.state.inputs.isEmpty());s.convert.setEnabled(!busy&&!images.state.inputs.isEmpty()&&images.destinations.ready());s.cancel.setEnabled(run.running&&!run.cancelling);s.pause.setEnabled(run.running&&!run.cancelling);UiText.set(s.pause,run.pauseRequested||run.paused?"Riprendi":"Pausa");
+        boolean recoverable=!run.running&&ImageSessionStore.exists(images.activity);s.sections.previousEnabled=run.running||recoverable;s.sections.previousHint=run.running?"La coda continua anche uscendo da questa schermata.":recoverable?"È disponibile una coda interrotta.":"Nessuna sessione da riprendere.";
         s.resumeSession.setVisibility(recoverable?View.VISIBLE:View.GONE);s.discardSession.setVisibility(recoverable?View.VISIBLE:View.GONE);s.resumeSession.setEnabled(!busy);s.discardSession.setEnabled(!busy);
-        if(!visibleOnly||s.sections.bodies.get(ImageScreen.HEIC).getVisibility()==View.VISIBLE){
+        if(ImageScreen.HEIC.equals(s.sections.current())){
         s.progress.setVisibility(View.VISIBLE);s.progress.setIndeterminate(run.running&&!run.paused||images.state.starting);if(!run.running||run.paused)s.progress.setProgress(0);UiText.set(s.dashboard.percent,"—");
         UiText.set(s.runStatus,images.state.starting?"Preparazione della coda…":ImageConversionService.displayMessage(run).isEmpty()?"Scegli foto, cartelle e qualità.":ImageConversionService.displayMessage(run));
         UiText.set(s.dashboard.summary,run.metadataOnly?"VERIFICA METADATI · "+run.completed+" / "+run.total+"\nCompatibili: "+run.checked+" · Da verificare: "+run.failed+" · Annullate: "+run.cancelledCount+"\nPixel non verificati · nessuna conversione":run.total>0?"Foto "+run.current+" / "+run.total+" · completate "+run.completed+"\nRiuscite: "+run.saved+" · Fallite: "+run.failed+"\nGià presenti: "+run.alreadyDone+" · Senza risparmio: "+run.skipped+" · Annullate: "+run.cancelledCount:"Nessuna coda avviata");UiText.set(s.dashboard.current,run.name.isEmpty()?(run.metadataOnly?"Nessuna foto in verifica":"Nessun file in conversione"):run.name);UiText.set(s.dashboard.totalProgress,run.total>0?run.completed+" / "+run.total+" completate":"—");
         UiText.set(s.dashboard.elapsed,run.startedAt>0?SessionClock.duration(run.elapsedBefore+Math.max(0,(run.endedAt>0?run.endedAt:android.os.SystemClock.elapsedRealtime())-run.startedAt)):"00:00:00");
         ImageOptions used=run.metadataOnly?null:run.options;s.dashboard.parameter("Solo se più piccolo",used==null?"—":used.onlySmaller?"ON":"OFF");s.dashboard.parameter("Qualità",used==null?"—":used.quality+"/100");s.dashboard.parameter("CRF",used==null?"—":Double.toString((100-used.quality)/2.0));s.dashboard.parameter("Preset",used==null?"—":used.preset);s.dashboard.parameter("Tune",used==null?"—":used.tune);s.dashboard.parameter("Formato",used==null?"—":"HEIC · YCbCr 4:2:0 · 8 bit");s.dashboard.parameter("Dimensioni",used==null?"—":"Originali");
-        UiText.set(s.parameters,(run.running&&run.options!=null?run.options:images.state.options).description());
         images.report.render(run);
         }
         // Visibility follows the selected page, including the frame before AndroidView attaches.

@@ -47,14 +47,15 @@ class PhotoComposeRenderTest {
     fun floatingDark() = capture(ImageScreen.FILES, "image-floating-dark.png")
     @Test fun savingAndPermissions() {
         open(ImageScreen.FILES)
-        compose.waitUntil(5_000) { compose.activity.images.screen.destinations.originRows.childCount > 1 }
+        compose.waitUntil(5_000) { !compose.activity.images.compose.state.permissions.checking }
         compose.onNodeWithTag("photo-scroll").performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.ScrollBy) { it(0f, 100_000f) }
         save("image-files.png")
     }
     @Test @Config(qualifiers = "w360dp-h800dp-night-xhdpi")
     fun metadataDark() {
         open(ImageScreen.FILES)
-        compose.onNodeWithTag("photo-details").performScrollTo().performClick()
+        compose.onNodeWithTag("photo-scroll").performScrollToNode(hasTestTag("photo-details"))
+        compose.onNodeWithTag("photo-details").performClick()
         save("image-metadata-dark.png")
     }
     @Test @Config(qualifiers = "w360dp-h800dp-night-xhdpi")
@@ -75,12 +76,29 @@ class PhotoComposeRenderTest {
             compose.waitUntil(5_000) { !compose.activity.images.compose.state.previewLoading && !compose.activity.images.state.reading }
             compose.runOnIdle { compose.activity.images.compose.onVisible(false) }
             compose.onNodeWithTag("photo-details").performClick()
-            compose.onNodeWithTag("photo-details-panel").performScrollTo()
+            compose.onNodeWithTag("photo-scroll").performScrollToNode(hasTestTag("photo-details-panel"))
             compose.onNodeWithTag("photo-scroll").performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.ScrollBy) { it(0f, 240f) }
             save("image-details-card.png")
         } finally { photo.delete() }
     }
     @Test fun progressInterop() = capture(ImageScreen.HEIC, "image-conversion.png")
+
+    @Test fun floatingWorkspaceWithoutBlur() {
+        val previous = PhotoAppearance.blurEnabled(compose.activity)
+        try {
+            compose.runOnIdle {
+                PhotoAppearance.blurEnabled(compose.activity, false)
+                compose.activity.images.compose.onVisible(true)
+                compose.activity.images.compose.onVisible(false)
+                assertFalse(compose.activity.images.compose.blurEnabled)
+            }
+            capture(ImageScreen.FILES, "image-floating-no-blur.png")
+            compose.onNodeWithTag("photo-back").assertIsDisplayed()
+            compose.onNodeWithTag("photo-next").assertIsDisplayed()
+        } finally {
+            PhotoAppearance.blurEnabled(compose.activity, previous)
+        }
+    }
 
     private fun open(step: String) {
         compose.runOnIdle { compose.activity.images.screen.sections.focusCard(step) }

@@ -12,9 +12,22 @@ App Android per analisi e gestione di file multimediali: Video, Audio, Foto e An
 
 Le note seguenti conservano le versioni e le prove precedenti, incluse iterazioni locali non necessariamente pubblicate. Le affermazioni valgono nel contesto della rispettiva voce: non usarle come specifica corrente o come prova che il worktree coincida con GitHub. La cronologia preesistente è conservata integralmente.
 
-# v1.03 · code foto recuperabili e meno lavoro ripetuto
+# v1.05 · nuova base grafica Foto
 
 [Documentazione tecnica dei test: inventario, copertura e manutenzione locale](docs/testing/README.md)
+
+- Base UI allineata alle versioni Morphe verificate: Compose BOM 2026.09.00, Kotlin/compilatore Compose 2.4.21, Material 3 1.5.0-beta02, Haze e Haze Blur 2.0.1, Activity Compose 1.13.0. Material 3 è una versione beta: scelta esplicita del branch sperimentale.
+- Gradle 9.6.0 con checksum ufficiale, AGP 9.4.1 e compileSdk 37; JDK 17, targetSdk 35, NDK e motori invariati. Anche la configurazione CI usa i nuovi strumenti.
+- Pagina ricostruita con sezioni LazyColumn, stato di scorrimento per passaggio e una sola sorgente Haze sotto i controlli fissi. I gruppi di pulsanti leggono le larghezze animate in misura; colori e forme animano all'interno del singolo pulsante. Lo sfondo di questa prova è statico.
+- Versione visibile nell'intestazione Foto. Permessi, progresso e diagnostica mantengono ancora i controlli AndroidView reali; questa non è la migrazione di tutte le sezioni. La fluidità richiede conferma sul dispositivo.
+
+## v1.04 · Foto senza interfaccia Java duplicata
+
+- Foto, Compressione e navigazione Compose leggono lo stato e richiamano direttamente i coordinatori, senza pulsanti, slider, carosello e pagina Java nascosti.
+- Permessi, avanzamento e diagnostica conservano i controlli Java realmente visibili tramite AndroidView. Motore, selezione dei file e gestione della coda restano invariati.
+- Versione incrementata per distinguere la build aggiornata. Il feedback sul Samsung segnala ancora scatti: questa modifica non viene presentata come una soluzione confermata alla fluidità.
+
+## v1.03 · code foto recuperabili e meno lavoro ripetuto
 
 - Punto di ripresa atomico per le immagini: conserva coda, opzioni, posizione e totali in caso di errore o chiusura del processo. «Riprendi coda interrotta» continua dall’ultimo punto salvato; «Scarta coda interrotta» elimina solo il recupero. Annulla resta un’interruzione definitiva della coda.
 - La ripresa conserva il log su disco; i dettagli dei risultati precedenti non vengono ricaricati in RAM. Il registro SHA-256 continua a verificare i risultati riutilizzati.

@@ -1,6 +1,8 @@
 package it.edo.codecprobe
 
 import android.content.DialogInterface
+import android.content.Intent
+import android.app.Activity
 import android.net.Uri
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
@@ -12,6 +14,8 @@ import org.robolectric.annotation.GraphicsMode
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.LooperMode
 import org.robolectric.shadows.ShadowAlertDialog
+import org.robolectric.Shadows.shadowOf
+import org.robolectric.shadows.ShadowContentResolver
 import java.io.File
 
 /** Interactions on actual Compose nodes, not the retained Java command widgets. */
@@ -55,7 +59,7 @@ class PhotoComposeTest {
         compose.runOnIdle {
             val images = compose.activity.images
             assertTrue(images.compose.view.isShown)
-            assertFalse(images.screen.layout.root.isShown)
+            assertSame(images.compose.view, compose.activity.findViewById<android.view.ViewGroup>(android.R.id.content).getChildAt(0))
             assertEquals(55, images.state.options.quality)
         }
     }
@@ -120,17 +124,48 @@ class PhotoComposeTest {
         }
     }
 
+    @Test fun detailsCollapseDoesNotDropAnExternalGapAtDisposal() {
+        addPhotos(1)
+        compose.onNodeWithTag("photo-new").performClick()
+        compose.waitUntil(5_000) { !compose.activity.images.state.reading }
+        val panel = compose.onNodeWithTag("photo-selected-panel")
+        fun height() = panel.getUnclippedBoundsInRoot().let { (it.bottom - it.top).value }
+        val closedHeight = height()
+        compose.onNodeWithTag("photo-details").performClick()
+        compose.mainClock.advanceTimeBy(500)
+        assertTrue(height() > closedHeight + 100f)
+        compose.mainClock.autoAdvance = false
+        try {
+            compose.onNodeWithTag("photo-details").performClick()
+            var lastPresentHeight = height()
+            var removed = false
+            var removalJump = Float.NaN
+            repeat(24) {
+                compose.mainClock.advanceTimeByFrame()
+                val height = height()
+                val present = compose.onAllNodesWithTag("photo-details-panel").fetchSemanticsNodes().isNotEmpty()
+                if (!removed && !present) {
+                    removalJump = lastPresentHeight - height
+                    removed = true
+                }
+                if (present) lastPresentHeight = height
+            }
+            assertTrue("Details must leave composition after the exit", removed)
+            assertEquals(closedHeight, height(), 1f)
+            assertTrue("Last-frame height jump: $removalJump dp", kotlin.math.abs(removalJump) <= 2f)
+        } finally {
+            compose.mainClock.autoAdvance = true
+        }
+    }
+
     @Test fun longPressAndSwitchApplyExceptionsToExactlyTheSelectedFiles() {
         addPhotos(3)
         compose.onNodeWithTag("photo-new").performClick()
         compose.onNodeWithTag("photo-0").performTouchInput { longClick() }
         compose.onNodeWithTag("photo-2").performClick()
-        compose.onNodeWithTag("photo-exception").performScrollTo()
-        // ScrollTo only knows the scroll viewport, so clear the floating controls before tapping.
-        compose.onNodeWithTag("photo-scroll").performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.ScrollBy) {
-            it(0f, compose.activity.images.screen.ui.dp(160).toFloat())
-        }
-        compose.onNodeWithTag("photo-exception").assertIsDisplayed().performClick()
+        compose.onNodeWithTag("photo-scroll").performScrollToNode(hasTestTag("photo-exception"))
+        compose.onNodeWithTag("photo-exception").assertIsDisplayed().assertIsOff().performClick()
+        compose.onNodeWithTag("photo-exception").assertIsOn()
         compose.runOnIdle {
             val images = compose.activity.images
             assertEquals(listOf(0, 2), images.selectionIndices())
@@ -159,7 +194,8 @@ class PhotoComposeTest {
     @Test fun scrollingToTheEndKeepsPermissionsAboveFloatingButtons() {
         addPhotos(1)
         compose.onNodeWithTag("photo-new").performClick()
-        compose.waitUntil(5_000) { compose.activity.images.screen.destinations.originRows.childCount > 1 }
+        compose.onNodeWithTag("photo-permissions").assertDoesNotExist()
+        compose.waitUntil(5_000) { !compose.activity.images.compose.state.permissions.checking }
         compose.onNodeWithTag("photo-scroll").performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.ScrollBy) {
             it(0f, 100_000f)
         }
@@ -168,6 +204,114 @@ class PhotoComposeTest {
         val permissions = compose.onNodeWithTag("photo-permissions").fetchSemanticsNode().boundsInRoot
         val back = compose.onNodeWithTag("photo-back").fetchSemanticsNode().boundsInRoot
         assertTrue("Last row is covered: $permissions / $back", permissions.bottom <= back.top)
+    }
+
+    @Test fun permissionCancellationKeepsFolderAndBlocksConversion() {
+        addPhotos(1)
+        compose.runOnIdle {
+            ShadowContentResolver.registerProviderInternal("destinations", MediaDestinationsTest.Directories())
+            compose.activity.images.setFolder(MediaDestinationsTest.A)
+        }
+        compose.onNodeWithTag("photo-new").performClick()
+        compose.waitUntil(5_000) { !compose.activity.images.compose.state.permissions.checking }
+        val row = compose.activity.images.compose.state.permissions.rows.single()
+        assertFalse(row.allowed)
+        compose.runOnIdle { assertFalse(compose.activity.images.screen.convert.isEnabled) }
+        val action = "photo-authorize:${row.key}"
+        compose.onNodeWithTag("photo-scroll").performScrollToNode(hasTestTag(action))
+        compose.onNodeWithTag(action).assertIsEnabled().performClick()
+        compose.onNodeWithTag(action).assertIsNotEnabled()
+        compose.runOnIdle {
+            val request = shadowOf(compose.activity).nextStartedActivityForResult
+            assertEquals(MediaDestinationsController.AUTHORIZE, request.requestCode)
+            assertEquals(FolderPickerActivity::class.java.name, request.intent.component!!.className)
+            compose.activity.images.selection.result(request.requestCode, Activity.RESULT_CANCELED, null)
+        }
+        compose.waitUntil(5_000) { !compose.activity.images.compose.state.permissions.checking }
+        compose.onNodeWithTag(action).assertIsEnabled()
+        compose.runOnIdle {
+            val images = compose.activity.images
+            assertEquals(MediaDestinationsTest.A, images.state.destinations.plan.effective(0).folder)
+            assertFalse(images.destinations.ready())
+            assertFalse(images.screen.convert.isEnabled)
+        }
+    }
+
+    @Test fun permissionGrantSurvivesRecreationAndRevocationBlocksConversion() {
+        addPhotos(1)
+        compose.runOnIdle {
+            ShadowContentResolver.registerProviderInternal("destinations", MediaDestinationsTest.Directories())
+            compose.activity.images.setFolder(MediaDestinationsTest.A)
+        }
+        compose.onNodeWithTag("photo-new").performClick()
+        compose.waitUntil(5_000) { !compose.activity.images.compose.state.permissions.checking }
+        val row = compose.activity.images.compose.state.permissions.rows.single()
+        val action = "photo-authorize:${row.key}"
+        compose.onNodeWithTag("photo-scroll").performScrollToNode(hasTestTag(action))
+        compose.onNodeWithTag(action).performClick()
+        compose.runOnIdle { assertEquals(MediaDestinationsController.AUTHORIZE, shadowOf(compose.activity).nextStartedActivityForResult.requestCode) }
+        compose.activityRule.scenario.recreate()
+        compose.runOnIdle {
+            assertTrue(compose.activity.images.destinations.choosing())
+            compose.activity.images.selection.result(MediaDestinationsController.AUTHORIZE, Activity.RESULT_OK,
+                Intent().setData(Uri.parse(MediaDestinationsTest.A)).addFlags(
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION))
+        }
+        compose.waitUntil(5_000) { compose.activity.images.destinations.ready() }
+        compose.onNodeWithTag("photo-scroll").performScrollToNode(hasText("✓ Accesso verificato"))
+        compose.onNodeWithText("✓ Accesso verificato").assertExists()
+        compose.runOnIdle {
+            val images = compose.activity.images
+            assertEquals(listOf(MediaDestinationsTest.A), images.destinations.snapshot())
+            assertTrue(images.screen.convert.isEnabled)
+            compose.activity.contentResolver.releasePersistableUriPermission(Uri.parse(MediaDestinationsTest.A),
+                Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
+            images.destinations.refresh()
+        }
+        compose.waitUntil(5_000) { !compose.activity.images.compose.state.permissions.checking }
+        compose.onNodeWithTag("photo-scroll").performScrollToNode(hasText("! Da autorizzare"))
+        compose.onNodeWithText("! Da autorizzare").assertExists()
+        compose.runOnIdle {
+            assertFalse(compose.activity.images.destinations.ready())
+            assertFalse(compose.activity.images.screen.convert.isEnabled)
+        }
+    }
+
+    @Test fun permissionSnapshotsBoundRowsKeepAllDestinationsAndRejectStaleActions() {
+        compose.runOnIdle {
+            val images = compose.activity.images
+            repeat(105) {
+                images.state.inputs.add("content://unknown-photo/$it")
+                images.state.names.add("Foto $it.jpg")
+            }
+            images.state.clamp(); images.render()
+        }
+        compose.waitUntil(5_000) { !compose.activity.images.compose.state.permissions.checking }
+        val previous = compose.activity.images.compose.state.permissions
+        assertEquals(105, previous.total)
+        assertEquals(100, previous.rows.size)
+        assertEquals(105, previous.destinations.size)
+        assertFalse(previous.ready)
+        compose.runOnIdle {
+            ShadowContentResolver.registerProviderInternal("destinations", MediaDestinationsTest.Directories())
+            MediaDestinationsTest.grant(compose.activity, MediaDestinationsTest.A)
+            compose.activity.images.setFolder(MediaDestinationsTest.A)
+            compose.activity.images.compose.authorize(previous.rows.first())
+            assertNull(shadowOf(compose.activity).nextStartedActivity)
+        }
+        compose.waitUntil(5_000) { compose.activity.images.destinations.ready() }
+        compose.runOnIdle {
+            val current = compose.activity.images.compose.state.permissions
+            assertEquals(1, current.total)
+            assertEquals(1, current.authorized)
+            assertEquals(1, current.rows.size)
+            assertEquals(List(105) { MediaDestinationsTest.A }, current.destinations)
+            assertTrue(current.rows.single().numbers.endsWith("… (105 foto)"))
+            assertEquals(100, previous.rows.size)
+            assertEquals(105, previous.total)
+            compose.activity.images.compose.authorize(previous.rows.first())
+            assertNull(shadowOf(compose.activity).nextStartedActivity)
+        }
     }
 
     private fun addPhotos(count: Int) {

@@ -22,7 +22,7 @@ final class ImageProgressJournal extends SQLiteOpenHelper {
         if(result.outcome==ImageRunState.Outcome.FAILED){ContentValues row=new ContentValues();row.put("uri",uri);row.put("name",result.name);row.put("updated",System.currentTimeMillis());getWritableDatabase().replaceOrThrow("inspection_failures",null,row);}
         else getWritableDatabase().delete("inspection_failures","uri=?",new String[]{uri});
     }
-    static String settings(ImageOptions options){return "heic-v1|"+options.quality+"|"+options.preset+"|"+options.tune+"|"+options.onlySmaller+"|"+options.folder;}
+    static String settings(ImageOptions options){return "heic-v1|"+options.quality+"|"+options.preset+"|"+options.tune+"|"+options.onlySmaller+"|"+options.folder+"|"+options.nameAddition+"|"+options.namePrefix;}
     void record(String uri,String folder,ImageOptions options,ImageRunState.Result result){
         if(result.outcome==ImageRunState.Outcome.CHECKED||result.outcome==ImageRunState.Outcome.CANCELLED||result.outcome==ImageRunState.Outcome.ALREADY_DONE)return;
         ContentValues row=new ContentValues();row.put("uri",uri);row.put("name",result.name);row.put("folder",folder);row.put("settings",settings(options));row.put("status",result.outcome.name());row.put("source_sha",result.sourceSha);row.put("output_uri",result.uri==null?"":result.uri);row.put("output_sha",result.outputSha);row.put("input_bytes",result.inputBytes);row.put("output_bytes",result.outputBytes);row.put("updated",System.currentTimeMillis());

@@ -4,6 +4,8 @@
 
 Questa documentazione riusa l'audit esistente dei **332 metodi in 94 classi**. Descrive il codice del worktree `ui/morphe-foto-prototype`, incluse le modifiche locali presenti al momento del trasferimento. Non è una nuova esecuzione dei test, né una misura di copertura del codice.
 
+Il catalogo corrente contiene **338 metodi in 94 classi**: alla base dell’audit sono stati aggiunti tre test di `PhotoComposeTest` per autorizzazioni Compose, annullamento, ricreazione/revoca e snapshot limitati con rifiuto di azioni obsolete. Altri due test verificano preferenza della sfocatura, ritorno dalle impostazioni e rendering senza vetro sfocato. Un ulteriore test campiona il collasso dei dettagli per verificare lo scalino finale alla rimozione. Le nuove schede descrivono i contratti; gli esiti di esecuzione restano separati.
+
 **Contesto della pubblicazione:** il commit documentale esclude le modifiche applicative/UI e i relativi aggiornamenti dei test rimasti locali. Alcuni sorgenti consultabili su GitHub possono quindi differire dalla fotografia auditata: per leggere esattamente il metodo documentato usare il corpo integrale nella scheda. In particolare, nello snapshot locale `ImageUiTrialTest` contiene `navigationRetainsDraftAndQualityAcrossRecreation` e `composeIsTheOnlyWorkspaceRootAndNoHiddenPhotoPanelsAreBuilt`; nel sorgente precedentemente committato occupavano quei posti due metodi con nomi e verifiche diversi. Il totale resta 332, ma non si dichiara identità fra i due inventari. Su un clone privo delle modifiche locali il verificatore deve segnalare le differenze, non certificare falsamente l'allineamento. I link dell'indice aprono i file, senza numeri di riga che potrebbero riferirsi alla sola versione locale.
 
 | Area | Schede |

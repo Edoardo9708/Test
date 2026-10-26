@@ -34,14 +34,14 @@ public class ImageWorkspaceTest {
         try{
             ImageController images=controller.get().images;assertFalse(images.screen.export.isEnabled());
             Intent picked=new Intent().setData(Uri.fromFile(source));images.selection.result(ImageSelection.FILES,Activity.RESULT_OK,picked);settle(images);
-            assertNotNull(images.state.info);assertEquals(48,images.state.info.width);assertTrue(images.screen.export.isEnabled());assertTrue(images.screen.details.getText().toString().contains("3 byte dopo"));
+            assertNotNull(images.state.info);assertEquals(48,images.state.info.width);assertTrue(images.screen.export.isEnabled());assertTrue(images.compose.getState().getAllDetails().contains("3 byte dopo"));
             images.screen.export.performClick();Intent create=Shadows.shadowOf(controller.get()).getNextStartedActivity();assertEquals(Intent.ACTION_CREATE_DOCUMENT,create.getAction());assertEquals("application/json",create.getType());
             images.selection.result(ImageSelection.REPORT,Activity.RESULT_OK,new Intent().setData(Uri.fromFile(report)));settle(images);
             JSONObject json=new JSONObject(new String(Files.readAllBytes(report.toPath()),StandardCharsets.UTF_8));assertFalse(json.getBoolean("heicConversionApproved"));assertFalse(json.getBoolean("pixelsDecoded"));assertEquals(2,json.getJSONArray("metadataPayloads").length());
             JSONObject block=json.getJSONArray("metadataPayloads").getJSONObject(0);byte[] payload=Base64.getDecoder().decode(block.getString("base64"));assertArrayEquals(Arrays.copyOfRange(original,block.getInt("payloadOffset"),block.getInt("payloadOffset")+block.getInt("bytes")),payload);
             assertArrayEquals(original,Files.readAllBytes(source.toPath()));assertEquals(1,ImageDraftStore.load(controller.get()).inputs.size());
             assertEquals("audio-sentinel",audioPrefs.getString("selection",""));
-            images.screen.clear.performClick();org.robolectric.shadows.ShadowAlertDialog.getLatestAlertDialog().getButton(android.content.DialogInterface.BUTTON_POSITIVE).performClick();Shadows.shadowOf(Looper.getMainLooper()).idle();assertTrue(images.state.inputs.isEmpty());assertNull(images.state.info);assertFalse(images.screen.export.isEnabled());assertArrayEquals(original,Files.readAllBytes(source.toPath()));
+            images.compose.command(PhotoCommand.CLEAR);org.robolectric.shadows.ShadowAlertDialog.getLatestAlertDialog().getButton(android.content.DialogInterface.BUTTON_POSITIVE).performClick();Shadows.shadowOf(Looper.getMainLooper()).idle();assertTrue(images.state.inputs.isEmpty());assertNull(images.state.info);assertFalse(images.screen.export.isEnabled());assertArrayEquals(original,Files.readAllBytes(source.toPath()));
         }finally{controller.pause().stop().destroy();source.delete();report.delete();audioPrefs.edit().putString("selection",previous).commit();}
     }
     @Test public void cancelledSelectionKeepsDraftAndUnsupportedFileCannotExport()throws Exception{
@@ -51,8 +51,12 @@ public class ImageWorkspaceTest {
     }
     @Test public void threeTabsSelectImagesAndSwitchWithoutGrowingSecondaryBackStack(){
         var controller=Robolectric.buildActivity(ImageActivity.class).setup();try{
-            AppNavigation nav=controller.get().images.screen.navigation;assertTrue(nav.images.isSelected());assertFalse(nav.audio.isSelected());assertFalse(nav.video.isSelected());assertSame(controller.get().images.screen.layout.footer,nav.getParent());nav.images.performClick();assertNull(Shadows.shadowOf(controller.get()).getNextStartedActivity());
-            nav.audio.performClick();assertEquals(AudioActivity.class.getName(),Shadows.shadowOf(controller.get()).getNextStartedActivity().getComponent().getClassName());assertTrue(controller.get().isFinishing());
+            ImageController images=controller.get().images;
+            assertTrue(images.compose.getView().isShown());
+            assertNull(Shadows.shadowOf(controller.get()).getNextStartedActivity());
+            images.compose.command(PhotoCommand.AUDIO);
+            assertEquals(AudioActivity.class.getName(),Shadows.shadowOf(controller.get()).getNextStartedActivity().getComponent().getClassName());
+            assertTrue(controller.get().isFinishing());
         }finally{controller.pause().stop().destroy();}
     }
     @Test public void pendingExportSurvivesRecreationAndSourceCannotBeOverwritten()throws Exception{

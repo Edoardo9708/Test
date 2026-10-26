@@ -39,9 +39,9 @@ public class ImageResponsivenessTest {
             ImageController images=controller.get().images;
             for(int i=0;i<8500;i++){images.state.inputs.add("content://photos/"+i);images.state.names.add("Foto "+i);}
             ImageRunState run=new ImageRunState();run.running=true;run.total=8500;run.current=200;run.message="Codifica";field.set(null,run);images.render();
-            images.screen.sections.focusCard(ImageScreen.HEIC);ImageResultList.Item retained=images.report.results.item(198);Drawable background=images.screen.selectedItem.chips.get(0).getBackground();
-            images.screen.status.setText("untouched workspace");run.message="Verifica";images.refresh();
-            assertEquals("untouched workspace",images.screen.status.getText().toString());assertSame(background,images.screen.selectedItem.chips.get(0).getBackground());
+            images.screen.sections.focusCard(ImageScreen.HEIC);ImageResultList.Item retained=images.report.results.item(198);PhotoUiState presentation=images.compose.getState();
+            images.state.notice="untouched workspace";run.message="Verifica";images.refresh();
+            assertEquals("untouched workspace",images.state.notice);assertSame(presentation,images.compose.getState());
             assertSame(retained,images.report.results.item(198));assertTrue(images.report.results.item(199).text.contains("Verifica"));
             run.current=201;images.refresh();assertSame(retained,images.report.results.item(198));assertTrue(images.report.results.item(200).text.contains("Foto 201"));
         }finally{field.set(null,old);controller.pause().stop().destroy();}

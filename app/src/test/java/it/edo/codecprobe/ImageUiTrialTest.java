@@ -35,19 +35,19 @@ public class ImageUiTrialTest {
         while((images.state.reading||images.state.importing)&&System.currentTimeMillis()<end){Shadows.shadowOf(Looper.getMainLooper()).idle();Thread.sleep(5);}
         Shadows.shadowOf(Looper.getMainLooper()).idle();assertFalse(images.state.reading);assertFalse(images.state.importing);
     }
-    @Test public void navigationRetainsDraftAndQualityAndHeadersCannotCollapse()throws Exception{
+    @Test public void navigationRetainsDraftAndQualityAcrossRecreation()throws Exception{
         var activity=Robolectric.buildActivity(ImageActivity.class).setup();
         try{
             var images=activity.get().images;assertNull(images.screen.sections.current());
-            images.screen.sections.newWork.performClick();assertEquals(ImageScreen.FILES,images.screen.sections.current());
+            images.screen.sections.focusCard(ImageScreen.FILES);assertEquals(ImageScreen.FILES,images.screen.sections.current());
             String input=photo("draft");images.selection.result(ImageSelection.FILES,Activity.RESULT_OK,new Intent().setData(Uri.parse(input)));settle(images);
-            images.screen.layout.forward.performClick();images.screen.quality.quality.setProgress(30);
-            int quality=images.screen.quality.value();images.screen.layout.back.performClick();
-            assertEquals(ImageScreen.FILES,images.screen.sections.current());images.screen.layout.back.performClick();
+            images.next();images.quality(70);
+            int quality=images.state.options.quality;images.back();
+            assertEquals(ImageScreen.FILES,images.screen.sections.current());images.back();
             assertNull(images.screen.sections.current());assertEquals(Collections.singletonList(input),images.state.inputs);
-            images.screen.sections.newWork.performClick();images.screen.layout.forward.performClick();
-            assertEquals(quality,images.screen.quality.value());images.screen.sections.headers.get(ImageScreen.COMPRESSION).performClick();
-            assertEquals(View.VISIBLE,images.screen.sections.bodies.get(ImageScreen.COMPRESSION).getVisibility());
+            images.screen.sections.focusCard(ImageScreen.FILES);images.next();
+            assertEquals(quality,images.state.options.quality);
+            assertEquals(ImageScreen.COMPRESSION,images.compose.getState().getStep());
             activity.recreate();assertEquals(ImageScreen.COMPRESSION,activity.get().images.screen.sections.current());
         }finally{activity.pause().stop().destroy();}
     }
@@ -55,15 +55,15 @@ public class ImageUiTrialTest {
         var activity=Robolectric.buildActivity(ImageActivity.class).setup();
         try{
             var images=activity.get().images;for(int n=0;n<3;n++)images.state.inputs.add(photo("selection"+n));images.state.clamp();images.open();settle(images);
-            images.screen.selectedItem.chips.get(0).performLongClick();images.screen.selectedItem.chips.get(2).performClick();
+            images.compose.select(0,true);images.compose.select(2,false);
             assertEquals(Arrays.asList(0,2),images.selectionIndices());assertEquals(2,images.selectedPhotos.size());
-            assertTrue(images.screen.name.getText().toString().contains("2 foto"));images.screen.metadata.performClick();
-            assertEquals(View.VISIBLE,images.screen.selectedItem.detailsBody.getVisibility());
-            images.screen.remove.performClick();assertEquals(3,images.state.inputs.size());
+            assertTrue(images.compose.getState().getName().contains("2 foto"));images.compose.command(PhotoCommand.DETAILS);
+            assertTrue(images.compose.getState().getDetailsOpen());
+            images.compose.command(PhotoCommand.REMOVE);assertEquals(3,images.state.inputs.size());
             ShadowAlertDialog.getLatestAlertDialog().getButton(DialogInterface.BUTTON_NEGATIVE).performClick();assertEquals(3,images.state.inputs.size());
-            images.screen.remove.performClick();ShadowAlertDialog.getLatestAlertDialog().getButton(DialogInterface.BUTTON_POSITIVE).performClick();Shadows.shadowOf(Looper.getMainLooper()).idle();settle(images);
+            images.compose.command(PhotoCommand.REMOVE);ShadowAlertDialog.getLatestAlertDialog().getButton(DialogInterface.BUTTON_POSITIVE).performClick();Shadows.shadowOf(Looper.getMainLooper()).idle();settle(images);
             assertEquals(1,images.state.inputs.size());for(File file:files)assertTrue(file.exists());
-            images.screen.clear.performClick();assertEquals(1,images.state.inputs.size());
+            images.compose.command(PhotoCommand.CLEAR);assertEquals(1,images.state.inputs.size());
             ShadowAlertDialog.getLatestAlertDialog().getButton(DialogInterface.BUTTON_POSITIVE).performClick();Shadows.shadowOf(Looper.getMainLooper()).idle();assertTrue(images.state.inputs.isEmpty());
         }finally{activity.pause().stop().destroy();}
     }
@@ -96,21 +96,25 @@ public class ImageUiTrialTest {
         var activity=Robolectric.buildActivity(ImageActivity.class).setup();
         try{
             var images=activity.get().images;for(int n=0;n<3;n++)images.state.inputs.add(photo("destination"+n));images.state.clamp();images.setFolder(MediaDestinationsTest.A);images.open();settle(images);
-            images.toggleSelection(0);images.toggleSelection(2);((PhotoDestinationsView)images.screen.destinations).exception.performClick();images.screen.destinations.pickFolder.performClick();activity.recreate();images=activity.get().images;
+            images.toggleSelection(0);images.toggleSelection(2);images.destinations.photoException(true);images.destinations.choosePhotoFolder();activity.recreate();images=activity.get().images;
             images.selection.result(MediaDestinationsController.FILE,Activity.RESULT_OK,new Intent().setData(Uri.parse(MediaDestinationsTest.B)).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_WRITE_URI_PERMISSION));
             assertEquals(MediaDestinationsTest.B,images.state.destinations.plan.files.get(0).folder);
             assertEquals(MediaDestinationsTest.A,images.state.destinations.plan.effective(1).folder);
             assertEquals(MediaDestinationsTest.B,images.state.destinations.plan.files.get(2).folder);
         }finally{activity.pause().stop().destroy();}
     }
-    @Test public void carouselTilesHaveFixedSizeAndFooterLeavesScrollableSpace(){
+    @Test public void composeIsTheOnlyWorkspaceRootAndNoHiddenPhotoPanelsAreBuilt(){
         var activity=Robolectric.buildActivity(ImageActivity.class).setup();
         try{
-            var images=activity.get().images;images.state.inputs.add("content://preview/one");images.state.clamp();images.render();images.screen.sections.newWork.performClick();
-            var layout=images.screen.layout;int w=images.screen.ui.dp(360),h=images.screen.ui.dp(800);
-            layout.root.measure(View.MeasureSpec.makeMeasureSpec(w,View.MeasureSpec.EXACTLY),View.MeasureSpec.makeMeasureSpec(h,View.MeasureSpec.EXACTLY));layout.root.layout(0,0,w,h);
-            assertEquals(images.screen.ui.dp(64),images.screen.selectedItem.chips.get(0).getLayoutParams().width);
-            assertTrue(layout.scroll.getPaddingBottom()>=layout.footer.getMeasuredHeight());assertTrue(images.compose.getView().isShown());assertFalse(layout.root.isShown());
+            var images=activity.get().images;
+            android.view.ViewGroup content=activity.get().findViewById(android.R.id.content);
+            assertEquals(1,content.getChildCount());
+            assertSame(images.compose.getView(),content.getChildAt(0));
+            assertEquals(2,images.screen.sections.bodies.size());
+            assertFalse(images.screen.sections.bodies.containsKey(ImageScreen.FILES));
+            assertFalse(images.screen.sections.bodies.containsKey(ImageScreen.COMPRESSION));
+            assertNotNull(images.screen.sections.bodies.get(ImageScreen.HEIC));
+            assertNotNull(images.screen.sections.bodies.get(ImageScreen.DETAILS));
         }finally{activity.pause().stop().destroy();}
     }
 }

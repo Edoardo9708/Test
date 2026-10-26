@@ -16,11 +16,12 @@ class PhotoBasicDetailsTest {
         val file = File.createTempFile("basic-details-", ".jpg")
         try {
             file.writeBytes(fixture())
-            val basic = PhotoBasicDetails.read(RuntimeEnvironment.getApplication(), Uri.fromFile(file).toString())
+            // Use a standard slash-separated file URI on Windows as well as Linux.
+            val basic = PhotoBasicDetails.read(RuntimeEnvironment.getApplication(), Uri.parse(file.toURI().toString()).toString())
             assertEquals(basic.toString(), 48, basic.width); assertEquals(32, basic.height)
             assertEquals("Test Camera", basic.camera)
             assertEquals(file.length(), basic.bytes)
-            assertEquals(file.parent, basic.folder)
+            assertEquals(file.parentFile.toURI().path.trimEnd('/'), basic.folder)
             assertEquals(listOf("Dimensioni", "Formato", "Dimensione file", "Fotocamera", "Cartella"), basic.rows().map { it.first })
         } finally { file.delete() }
     }

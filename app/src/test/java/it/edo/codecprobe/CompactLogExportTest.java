@@ -53,7 +53,8 @@ public class CompactLogExportTest {
             try(java.util.zip.ZipInputStream zip=new java.util.zip.ZipInputStream(new FileInputStream(snapshot))){
                 assertEquals("CodecProbe-log.txt",zip.getNextEntry().getName());ByteArrayOutputStream decoded=new ByteArrayOutputStream();
                 byte[] buffer=new byte[1024];int n;while((n=zip.read(buffer))!=-1)decoded.write(buffer,0,n);
-                assertTrue(decoded.toString("UTF-8").contains(message));assertNull(zip.getNextEntry());
+                String exported=decoded.toString("UTF-8");
+                assertTrue(exported,exported.replace("\r\n","\n").contains(message));assertNull(zip.getNextEntry());
             }
             Intent picker=Shadows.shadowOf(controller.get()).getNextStartedActivityForResult().intent;
             assertEquals("application/zip",picker.getType());assertTrue(picker.getStringExtra(Intent.EXTRA_TITLE).endsWith(".zip"));

@@ -27,10 +27,10 @@ public class ImageCarouselCacheTest {
         Shadows.shadowOf(Looper.getMainLooper()).idle();
     }
     private static void select(ImageController images,int index) throws Exception {
-        images.screen.selectedItem.chips.get(index).performClick();
+        images.compose.select(index,false);
         Shadows.shadowOf(Looper.getMainLooper()).idleFor(Duration.ofSeconds(1));settle(images);
         assertEquals(index,images.state.selected);
-        assertTrue(images.screen.selectedItem.chips.get(index).isSelected());
+        assertTrue(images.compose.getState().getItems().get(index).getSelected());
     }
     @Test public void carouselReusesPhotoMetadataAcrossNavigationAndActivityRecreationUntilReload() throws Exception {
         File first=File.createTempFile("first-photo-",".jpg"),second=File.createTempFile("second-photo-",".jpg");
@@ -40,18 +40,18 @@ public class ImageCarouselCacheTest {
             Intent picked=new Intent();ClipData clips=ClipData.newRawUri("photos",Uri.fromFile(first));clips.addItem(new ClipData.Item(Uri.fromFile(second)));picked.setClipData(clips);
             ImageController images=controller.get().images;images.selection.result(ImageSelection.FILES,Activity.RESULT_OK,picked);settle(images);
             JpegInventory.Info original=images.state.info;assertNotNull(original);
-            images.screen.metadata.performClick();assertEquals(android.view.View.VISIBLE,images.screen.selectedItem.detailsBody.getVisibility());
-            images.screen.selectedItem.chips.get(1).performClick();images.screen.selectedItem.chips.get(0).performClick();
+            images.compose.command(PhotoCommand.DETAILS);assertTrue(images.compose.getState().getDetailsOpen());
+            images.compose.select(1,false);images.compose.select(0,false);
             Shadows.shadowOf(Looper.getMainLooper()).idleFor(Duration.ofSeconds(1));assertEquals(0,images.state.selected);
             Files.write(first.toPath(),new byte[]{1,2,3});
             select(images,1);assertNotNull(images.state.info);
             select(images,0);assertSame(original,images.state.info);
             controller.recreate();images=controller.get().images;settle(images);
-            assertSame(original,images.state.info);assertEquals(2,images.screen.selectedItem.chips.size());
-            images.screen.reload.performClick();settle(images);
+            assertSame(original,images.state.info);assertEquals(2,images.compose.getState().getItems().size());
+            images.compose.command(PhotoCommand.REREAD);settle(images);
             assertNull(images.state.info);assertTrue(images.state.notice.contains("Non è un JPEG"));
-            images.screen.clear.performClick();org.robolectric.shadows.ShadowAlertDialog.getLatestAlertDialog().getButton(android.content.DialogInterface.BUTTON_POSITIVE).performClick();Shadows.shadowOf(Looper.getMainLooper()).idle();assertEquals(0,ImageMetadataCache.memory.size());
-            assertEquals(0,images.screen.selectedItem.chips.size());assertTrue(first.exists());
+            images.compose.command(PhotoCommand.CLEAR);org.robolectric.shadows.ShadowAlertDialog.getLatestAlertDialog().getButton(android.content.DialogInterface.BUTTON_POSITIVE).performClick();Shadows.shadowOf(Looper.getMainLooper()).idle();assertEquals(0,ImageMetadataCache.memory.size());
+            assertEquals(0,images.compose.getState().getItems().size());assertTrue(first.exists());
         }finally{controller.pause().stop().destroy();first.delete();second.delete();reset();}
     }
 }

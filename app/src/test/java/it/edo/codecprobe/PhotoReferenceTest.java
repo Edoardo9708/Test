@@ -34,9 +34,9 @@ public class PhotoReferenceTest {
             var images=activity.get().images;images.state.inputs.clear();images.state.names.clear();
             images.state.inputs.addAll(Arrays.asList("content://preview/one","content://preview/two","content://preview/three"));images.state.clamp();images.setFolder("general");
             images.state.destinations.plan.setFolder(0,"own");images.toggleSelection(0);images.toggleSelection(2);
-            var view=(PhotoDestinationsView)images.screen.destinations;assertFalse(view.general);assertFalse(view.exception.isChecked());view.exception.performClick();
+            var model=images.destinations.photo;assertFalse(model.general);assertFalse(model.exception);images.destinations.photoException(true);
             assertEquals(2,images.state.destinations.plan.exceptionCount());assertEquals("own",images.state.destinations.plan.effective(0).folder);assertEquals("general",images.state.destinations.plan.effective(2).folder);
-            assertTrue(view.allScope.getText().toString().contains("1"));
+            assertTrue(model.allLabel.contains("1"));
         }finally{activity.pause().stop().destroy();RuntimeEnvironment.getApplication().getSharedPreferences("image-workspace",0).edit().clear().commit();}
     }
 }

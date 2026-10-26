@@ -39,11 +39,11 @@ public class ImageFolderImportTest {
     }
     @Test public void oneFolderPickerResultBuildsTheWholeQueueAndOnlyOneHundredChips()throws Exception{
         var controller=Robolectric.buildActivity(ImageActivity.class).setup();try{
-            var images=controller.get().images;images.screen.importFolder.performClick();Intent request=Shadows.shadowOf(controller.get()).getNextStartedActivity();assertEquals(Intent.ACTION_OPEN_DOCUMENT_TREE,request.getAction());
+            var images=controller.get().images;images.compose.command(PhotoCommand.ADD_FOLDER);Intent request=Shadows.shadowOf(controller.get()).getNextStartedActivity();assertEquals(Intent.ACTION_OPEN_DOCUMENT_TREE,request.getAction());
             images.selection.result(ImageSelection.SOURCE_FOLDER,Activity.RESULT_OK,new Intent().setData(Uri.parse(TREE)).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_WRITE_URI_PERMISSION));
             long end=System.currentTimeMillis()+15000;
             while(images.state.importing&&System.currentTimeMillis()<end){Shadows.shadowOf(Looper.getMainLooper()).idle();Thread.sleep(10);}Shadows.shadowOf(Looper.getMainLooper()).idle();
-            assertFalse(images.state.importing);assertEquals(8500,images.state.inputs.size());assertTrue(images.state.bulk);assertEquals(100,images.screen.selectedItem.chips.size());assertEquals(101,images.screen.selectedItem.navigator.getChildCount());assertTrue(images.screen.selectionSummary.getText().toString().contains("8500"));
+            assertFalse(images.state.importing);assertEquals(8500,images.state.inputs.size());assertTrue(images.state.bulk);assertEquals(100,images.compose.getState().getItems().size());assertEquals(8500,images.compose.getState().getTotal());assertEquals(images.state.inputs.get(99),images.compose.getState().getItems().get(99).getUri());
             assertTrue(images.state.destinations.plan.effective(8499).origin);assertEquals(0,images.state.destinations.plan.exceptionCount());
         }finally{controller.pause().stop().destroy();}
     }

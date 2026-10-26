@@ -171,7 +171,7 @@
     "app/src/main/java/it/edo/codecprobe/HomeSystemMonitor.java": "121095017b72394aa4e9e1fb0efa7bf275f1cb6790ef9dd82057032aed848c74",
     "app/src/main/java/it/edo/codecprobe/ImageActions.java": "e82f9c01435ea5883b73fd53993aa1c31094dda48908d98e592f5553a2006140",
     "app/src/main/java/it/edo/codecprobe/ImageActivity.java": "2bea4d5d304a09d91b43cdaf34394303afc2da2b88254eff7a24f49192b139f7",
-    "app/src/main/java/it/edo/codecprobe/ImageController.java": "ce9b7fb51c37e8b3e09357e9268aba1708f059aa020862ffff6f315178290a21",
+    "app/src/main/java/it/edo/codecprobe/ImageController.java": "323966928c93556c5e63ef5e12b78345f725c68491a8837447d2ec174d544f42",
     "app/src/main/java/it/edo/codecprobe/ImageConversionService.java": "2115ed84745c989a4a12423c99a7933cbc295d3786d7b5a0b0e2b9ba7b7e0959",
     "app/src/main/java/it/edo/codecprobe/ImageConverter.java": "23c980ec297ab4057eb1dd5b4d003d4f480fd24c629bf3259db2a901efc8245a",
     "app/src/main/java/it/edo/codecprobe/ImageDraftStore.java": "6c62190f911deb9b44ccc410e1659fb07fe06535bb8178cb3cde8a64b90b1dcc",
@@ -194,11 +194,11 @@
     "app/src/main/java/it/edo/codecprobe/ImageResultList.java": "dda79f680957c0539ca32b5a51e7a7235478fa9cc0c551b8989152c9efe00116",
     "app/src/main/java/it/edo/codecprobe/ImageRunPresenter.java": "a97b6ecba5825000ebd6239e30c640337e4db3f9891e5e3c7ba51a7de6b24ac7",
     "app/src/main/java/it/edo/codecprobe/ImageRunState.java": "1eca4e26ad8c55112fa97c00a2436cd475551cc36af65b0224bec37b2568d245",
-    "app/src/main/java/it/edo/codecprobe/ImageScreen.java": "f6892d495046b5fbc6e8f14a4ace65bb929dd52dac66231a1bda0ba7bbec5a91",
+    "app/src/main/java/it/edo/codecprobe/ImageScreen.java": "b10c460dcc6194e5b0c4d69ff00cd5893fdaf20daa821de8d4be06e280112868",
     "app/src/main/java/it/edo/codecprobe/ImageSelection.java": "28037eef620b23c82886b98ed1b294f782d47f4fc5afb797a6d50c499973f7e8",
     "app/src/main/java/it/edo/codecprobe/ImageSessionStore.java": "01a05441f5c5c9a79f7fe7dde3458917b716bdd93cfd017856759d32d8a98c8e",
     "app/src/main/java/it/edo/codecprobe/ImageSettingsActivity.java": "24083ac2124bb49d98ed9a7ce45bc394a43ed4cac1ffbb1771628aebaebc9c0b",
-    "app/src/main/java/it/edo/codecprobe/ImageSettingsScreen.java": "406e0af7b0e63a199626c4d6fca1f7e6b2967c98f6ad996b2fd79289673a92ba",
+    "app/src/main/java/it/edo/codecprobe/ImageSettingsScreen.java": "588e5c7dfdff5c44b4fbe222334825244cc089b29ed71fec5a004748d0f23ae1",
     "app/src/main/java/it/edo/codecprobe/ImageState.java": "dc1d7a7d4813d018772bfe4e9666e2fc2286425fa3a8f21ee846cca8e77da87c",
     "app/src/main/java/it/edo/codecprobe/ImageSteps.java": "3fe64e8baf482f08b2718c7c06236a1c4bb4fcd53575302c3f710b5d25573606",
     "app/src/main/java/it/edo/codecprobe/ImageWorkReport.java": "f26aa5047f15a356b74b154c32148478e46f29233effa0d00621e00fe45f4f47",
@@ -210,7 +210,7 @@
     "app/src/main/java/it/edo/codecprobe/LogPanelView.java": "70ee9e50563c13b285c6143ac992b828d679b6c63b21d358bb89c7fcd4804771",
     "app/src/main/java/it/edo/codecprobe/MainActivity.java": "a08860ecf56a2cec894c133ab461cf6d2c9eb12be2cb5219fc594492055f90a7",
     "app/src/main/java/it/edo/codecprobe/MediaConversionGate.java": "aac085f6c0869b21609e6a7cbd0c2c215b22c1e67a4ac15412153351af447c25",
-    "app/src/main/java/it/edo/codecprobe/MediaDestinationsController.java": "6e1d38c6fce946c7c1b45b669d896d8921a3200291072d0e0509b53d25a38440",
+    "app/src/main/java/it/edo/codecprobe/MediaDestinationsController.java": "ccba2ebf016de727047fc203cc53d63049686c356b32b2a8e7d25dc4ab3bb9ae",
     "app/src/main/java/it/edo/codecprobe/MediaDestinationsView.java": "bec71dc803ca3940f21f718fddbce3215f3bac9e4cb2c213c65065df4aa2c7d9",
     "app/src/main/java/it/edo/codecprobe/MediaFileSizes.java": "c26aee015778608c3ce2fabe74e59b4220dcae05b49a0e198c79a9b6b5365ab7",
     "app/src/main/java/it/edo/codecprobe/MediaKind.java": "f837966382eaab2946ba01947a57c10e82ebad25b9d2d4e78435689996027545",
@@ -221,26 +221,29 @@
     "app/src/main/java/it/edo/codecprobe/Mp4Metadata.java": "11ab23db48f2d79e299c4f81175f34f2286acf8fca582b60ff2b73e25956c0e9",
     "app/src/main/java/it/edo/codecprobe/Mp4MetadataInventory.java": "3361739b23162176914acb08c5da82800e26b719f7695aec60310e9d39587c71",
     "app/src/main/java/it/edo/codecprobe/NumberValues.java": "ea588ce1b449d104f7febe5d033a00978c5e72223551953dda12944a152a76bc",
-    "app/src/main/java/it/edo/codecprobe/OriginDirectoryPanel.java": "95ab435313d08530448a2e0e32f69afea997f5184bdba56200c73753f9f4f07f",
+    "app/src/main/java/it/edo/codecprobe/OriginDirectoryAccess.java": "d3d0aba1a5939108093f6886b78fc9c940eaacd33e7e29ceca989a4b42ecec6c",
+    "app/src/main/java/it/edo/codecprobe/OriginDirectoryPanel.java": "4220acd5ec3a7f921bfde187b380aadebc7384fed3e0e6422cf0b4e762c89eea",
     "app/src/main/java/it/edo/codecprobe/OriginalMedia.java": "acbff6c3922f21f1827f15786409c3ddc44d378ef8cfbf5518205597340475e7",
     "app/src/main/java/it/edo/codecprobe/OutputDocuments.java": "868058b4321805c1661636d3e984b9a576c7de55774d270de4ed6ab8f2b3457b",
     "app/src/main/java/it/edo/codecprobe/OutputName.java": "431854331578c15e7481ba61e47a744ccc4c0f52701098d3473e34baaa170047",
     "app/src/main/java/it/edo/codecprobe/OutputPlan.java": "ceaabaa0b6d42921a2d0442bab755227dfd0130bff1b02ee6a8d9d5ee1fc7223",
+    "app/src/main/java/it/edo/codecprobe/PhotoAppearance.java": "020effd2dad49c9762e36de3a2899b30309cefb3c829b2f00b18182dfd0d0120",
     "app/src/main/java/it/edo/codecprobe/PhotoBackdrop.java": "23502a620e645b3caef80a34da85a2f495b2c7fd6f01d6d072b87117f9ef1275",
     "app/src/main/java/it/edo/codecprobe/PhotoBasicDetails.kt": "f56cb57adf2002eef50dd7099177b025272c5a36e1dcd0feb5fb1231a2a716c6",
-    "app/src/main/java/it/edo/codecprobe/PhotoComponents.kt": "47229f287a364749b2825cd851bac84b6e63d72535cddb6321cbf1aa8df95c1d",
-    "app/src/main/java/it/edo/codecprobe/PhotoComposeHost.kt": "cb5d288cd6b81979ed46c70c895ccb6c89ccfe1b4ee81df15b659654e344d276",
+    "app/src/main/java/it/edo/codecprobe/PhotoComponents.kt": "04c15f4ca8fc585023b2b9e13b29e91b55a9170c0ca7868a1656d1c6268390ac",
+    "app/src/main/java/it/edo/codecprobe/PhotoComposeHost.kt": "0ae428bc80efbe6deb670e18757bc3efae86c6fa2e2fb3f9ab43ae75fa8647bc",
     "app/src/main/java/it/edo/codecprobe/PhotoCompressionPane.kt": "31a5483bc74d35810ec60a4573ec41cff881b80cb48480264e1d53c764314099",
     "app/src/main/java/it/edo/codecprobe/PhotoDestinationState.java": "6cf39a05c25acb2d8860f548e99e57348b40f97503cca5b10f2745c008cb9f9a",
     "app/src/main/java/it/edo/codecprobe/PhotoDetailsLoader.kt": "f6e481f09a08eb5ae7bc490057328ecc83444fbf31dc24daa2aec2c054919ba2",
     "app/src/main/java/it/edo/codecprobe/PhotoDetailsPane.kt": "cf95165bea18b45f816c0c00e1252c7df3f5607a8c50be96ac799afde9fbce1e",
-    "app/src/main/java/it/edo/codecprobe/PhotoFilesPane.kt": "6c87b7d3c9dadb5cda48d0b074bbd40466701dc75b71f65a909db72906306163",
+    "app/src/main/java/it/edo/codecprobe/PhotoFilesPane.kt": "ec2268b83f4ef01c4b6c387b8ece5d2cd2b11eb3b3d21558772927c3840eb20e",
     "app/src/main/java/it/edo/codecprobe/PhotoInventoryText.java": "f27a61a3c77a180f1fa94ee0247954f37c5586ef5a1de7f920c0b699579a8269",
+    "app/src/main/java/it/edo/codecprobe/PhotoPermissionsPane.kt": "3c72289fb8065369d5a4f0073b5fe22818bfd8b26031dcefa31cec47efe97981",
     "app/src/main/java/it/edo/codecprobe/PhotoStyle.java": "7d24be1ea1b0ddc493ec67f02f9f39b2b43ce431b083de860768871076f368eb",
     "app/src/main/java/it/edo/codecprobe/PhotoSwitch.java": "81f00f0ec15c12bf4914fb81d653caf6970baa1e42644d451b77f71ca934bc08",
     "app/src/main/java/it/edo/codecprobe/PhotoThumbnails.java": "f7f2306cd7d2c1385d7b023e6c89446f370d522fcba7e106e523155a835142c1",
-    "app/src/main/java/it/edo/codecprobe/PhotoUiState.kt": "c82f1211b6fbeed331f62d4e2ca56034dbdc8082fe516f14be01c21e0af21e69",
-    "app/src/main/java/it/edo/codecprobe/PhotoWorkspace.kt": "a782d9ca5c7db9d97f61b40b431c56e821831e29cfd42d15862ac148ed46e610",
+    "app/src/main/java/it/edo/codecprobe/PhotoUiState.kt": "433fc1c906b4b755131df266db17d1d11ae011a3b597b9620da6f7bf9eb62198",
+    "app/src/main/java/it/edo/codecprobe/PhotoWorkspace.kt": "5c5693edb08db83c58476f5f7d201a1d1d6c653b5f64b08999bfeba1a22cfbd6",
     "app/src/main/java/it/edo/codecprobe/ProcessSystemMonitor.java": "6a4f829c3f9b803e0060e56b261720529113846bef42d5059234f716a767f6b5",
     "app/src/main/java/it/edo/codecprobe/QualityButtons.java": "f47b38ebb3e834dc2a0da037b78f22fb1379e993ab6a74d7dd1934ddcd38f861",
     "app/src/main/java/it/edo/codecprobe/QueueDestinations.java": "b34d12ca2305c8d78fbee6c19cdcda3e2d05605cce875e51c21bec348217f043",
@@ -320,6 +323,34 @@
     "gradle/wrapper/gradle-wrapper.jar": "497c8c2a7e5031f6aa847f88104aa80a93532ec32ee17bdb8d1d2f67a194a9c7",
     "gradle/wrapper/gradle-wrapper.properties": "3bd25ed161cc4dd201df37990b9dcfc7173eff6ea9174ff57d5acfdd9455cb1c",
     "settings.gradle": "4328944ce01f18992ca8e8211124af224a1fcd3f12fdf7380154cc4f03d3d26a"
+  },
+  "last_application_review": {
+    "changed_paths": [
+      "app/src/main/java/it/edo/codecprobe/PhotoFilesPane.kt"
+    ],
+    "reason": "Modifica circoscritta al solo collasso esterno dei dettagli Foto: margine animato nello stesso contenuto, senza cambiare PhotoFold, Mostra tutto, destinazioni o altri pannelli. Revisionati test dei dettagli, selezione e rendering Foto; gli altri contratti mantengono dati, comandi e geometria di stato stabile.",
+    "reviewed_tests": [
+      "PhotoComposeRenderTest.basicDetailsCard",
+      "PhotoComposeRenderTest.floatingDark",
+      "PhotoComposeRenderTest.floatingWorkspaceFrame",
+      "PhotoComposeRenderTest.floatingWorkspaceWithoutBlur",
+      "PhotoComposeRenderTest.metadataDark",
+      "PhotoComposeRenderTest.progressInterop",
+      "PhotoComposeRenderTest.qualityDark",
+      "PhotoComposeRenderTest.savingAndPermissions",
+      "PhotoComposeTest.clearUsesExistingConfirmationAndNeverDeletesOriginals",
+      "PhotoComposeTest.composeIsInstalledAndBackPreservesQuality",
+      "PhotoComposeTest.detailsCollapseDoesNotDropAnExternalGapAtDisposal",
+      "PhotoComposeTest.detailsKeepFiveFieldsAndASeparateCardWhileLoadingAndAfterSelection",
+      "PhotoComposeTest.longPressAndSwitchApplyExceptionsToExactlyTheSelectedFiles",
+      "PhotoComposeTest.multiSelectionDetailsListNamesAndDoNotShowThePreviousPhotoMetadata",
+      "PhotoComposeTest.permissionCancellationKeepsFolderAndBlocksConversion",
+      "PhotoComposeTest.permissionGrantSurvivesRecreationAndRevocationBlocksConversion",
+      "PhotoComposeTest.permissionSnapshotsBoundRowsKeepAllDestinationsAndRejectStaleActions",
+      "PhotoComposeTest.pressingAGroupedChoiceWidensItAndCancellationDoesNotChangeQuality",
+      "PhotoComposeTest.scrollingToTheEndKeepsPermissionsAboveFloatingButtons"
+    ],
+    "unaffected": false
   },
   "origin": "Transfer of static audit: 332 methods / 94 classes; no new app test execution",
   "schema": 1,
@@ -1180,25 +1211,29 @@
       "card_digest": "b470b5fa3949b2ed8f4ba23bf6b52d46c48e73fac18107b2a2ddae7c3154e89a",
       "fingerprint": "d408bceee0c14aa8321f165d38149f790f439b3caff8aa5ccaa43ab06f682bd7"
     },
+    "ImageSettingsTest.glassBlurTogglePersistsOnBackAndAppliesOnResumeWithoutChangingConversion": {
+      "card_digest": "51c709640567412816c723452d6ecf682590d2c2e2e74a3e8cd9c7dec1f3457d",
+      "fingerprint": "07f02e6c3b17c74852f2b56da87640159a20a2b527d3ea0a4bf0c413f8c270e2"
+    },
     "ImageSettingsTest.headerOpensDedicatedSettingsAndUnsavedEditsSurviveRecreation": {
       "card_digest": "a780ef21c6c5fefad6ab497e1fd57088e0cca93f10861dc3ad442b4dfa30447c",
-      "fingerprint": "91fbf36b3a0e676f2de8d713d91ef3c8ffb8d5b0248898557bb01bf6c4c9ff8f"
+      "fingerprint": "ac70fc22993d427ef077883d149014e37e117d2e43ee3a7de68e22e2387892e9"
     },
     "ImageSettingsTest.imageDraftIsSeparateAndFolderCancellationKeepsChoice": {
       "card_digest": "6eaa226ebbf33f638409d6d7d79b3f5bdc00fd876771a463ad12ac66a50c30ed",
-      "fingerprint": "d42bc6128739f3b985fe347ebd2e14d03c316c0a72962342825afa30aeafca0f"
+      "fingerprint": "efb854032625d7bde002be16cd3b8137a109cc2f9d4aa704ce60835376ca2122"
     },
     "ImageSettingsTest.leaseRejectsImagesBeforeNativeAndStaleCancellationCannotStopAnotherRun": {
       "card_digest": "e70b080f7c328349837c9003d2a6c6eb200dc7162c02c98a6a2c8d280af88f95",
-      "fingerprint": "69fc3706361b2cb1728bb912313c1c2ca1e0e91e1ef03f32247d608042a3a7ca"
+      "fingerprint": "4192ddbc1517a9d3bb21d05cd609c1f5550585bbb2963560f67fe073209aadaa"
     },
     "ImageSettingsTest.savedDefaultsApplyAfterActiveQueueAndKeepSelection": {
       "card_digest": "4b28ce000274d45b9aa09765d6ef523311ccb1a9601758cf618a3d32b5860dc0",
-      "fingerprint": "1051debfac26202948c8353dcbb9284dd4a1969402f41e674cd2bf32d243650c"
+      "fingerprint": "9761eed02ddcc0d94788050611eda0e902d2b17be101be326d3ec3e07dd16e34"
     },
     "ImageSettingsTest.screenAwakeOptionRemainsLiveDuringPhotoConversionAndClearsOnPause": {
       "card_digest": "be96941e43fbdb1ca6e72c9fcfa384d22b6c4fdefa7efafa6eb4612e97d8b5ff",
-      "fingerprint": "e5d12e66e5d9ada28ba9428ae12a71883a588fc22e6cc0929ba7df4b667ff511"
+      "fingerprint": "accf02c6ecc1b52d907e285d5b5ae88d5caf1323000f0f7606da1c781ba4e822"
     },
     "ImageUiTrialTest.addingFilesKeepsFocusNamesAndExistingMetadataCache": {
       "card_digest": "65d71725923edd81ebc4f86be1d395ee84543fbd1d2ce88553f0da3cbbb83940",
@@ -1269,7 +1304,7 @@
       "fingerprint": "5e008c69db4080cc2a5a06e28b0c2058c12d050c4bc0684bfd50589897a115e8"
     },
     "MediaDestinationsRenderTest.sameDestinationComponentRendersVerifiedAndMissingAccessForEveryMedia": {
-      "card_digest": "d2399dd09a19ed07c3a7110f1617d57255cfb2c2ada5782d3406b3d9a77fcc8e",
+      "card_digest": "921926faa39a3f99ced59a7be98ce69066b2cb4bd71bb3e9ed2f7295d0ef8675",
       "fingerprint": "25db5a31d2c973135d29c6f8c2936f887512c485edefbceae25bffe89d0cc755"
     },
     "MediaDestinationsTest.choicesFollowSourceUrisAndOverrideDoesNotEraseThem": {
@@ -1277,7 +1312,7 @@
       "fingerprint": "3d2a652d58198eedf6bf51332d007796480c91a0912704ec9f09135c6076a81e"
     },
     "MediaDestinationsTest.samePanelHidesEmptySelectionVerifiesAccessAndRestoresPendingPicker": {
-      "card_digest": "cfcaaef8d18d6400797ef8253c94d85683df4f433ba69f4bf9bae20ffe4a0270",
+      "card_digest": "63f4ff868ee70030386fbab015443fa4ae220db4c41bf6e8b978954553fc0146",
       "fingerprint": "942e7874ceae6a34af202043582db19fd801e1aae122485a123820919a4a7cc9"
     },
     "MediaDestinationsTest.serviceBoundaryCopiesPerFileFoldersAndRejectsMissingEntries": {
@@ -1409,60 +1444,80 @@
       "fingerprint": "fb501fa3684ef16d299cf15effa485c8102b8f1e7aef992cc694fba5480569dd"
     },
     "PhotoComposeRenderTest.basicDetailsCard": {
-      "card_digest": "816bdeab38f70be3c76c3a5f4034361139047823e5fd548a87db4f8dd794bd87",
-      "fingerprint": "bf829e49e44857e7cd4aa2f87659aa43cfa19506a86cc747b51102859a4b343b"
+      "card_digest": "c6897c98bc5980e820455fc5e313beb5eb27bdedda79f11c3f6b05e585c5492f",
+      "fingerprint": "42c59a0eeaa46feb53267a8b515f11e21206ca5fd95209ea715dacc1a629ae37"
     },
     "PhotoComposeRenderTest.floatingDark": {
-      "card_digest": "ea6e11e93de78d784f95cb96c1622da2e0effd556317170f36f23ecdfb934b8d",
-      "fingerprint": "c0f04d50ef32d5a47e358484fdec6abe87b95b91a378d1d39f7916cfd33d1b8f"
+      "card_digest": "fab918f887f23a1d9253a30846c8a2f75c57fb3a1515950fac6ae872bfc8d9a4",
+      "fingerprint": "a46dc66654fbf0d764250c6f03690ca8d4bc5446d958734eacc6ce21c27559cd"
     },
     "PhotoComposeRenderTest.floatingWorkspaceFrame": {
-      "card_digest": "c8d8bd5744e296c16296c6602043d928ff6d760a579b26ed25376107212f6208",
-      "fingerprint": "837da025139072d69208c31f48a616d62f5a62aec0f024493511386c9f376de7"
+      "card_digest": "f6ffe242c8d48cfa2f439fd2b1fc383d20326da319984f6ad1db036b68135216",
+      "fingerprint": "c85075717104a0cd81ac5be1bb78e40fc131241528b490561f621663c5ba9088"
+    },
+    "PhotoComposeRenderTest.floatingWorkspaceWithoutBlur": {
+      "card_digest": "3613792abc41b35ac38e64aa1399b1a7302da8c9a9d98f2e660bf5940fe25a95",
+      "fingerprint": "7c6d7e4ef3d21ece9002dcb2e4cfdc803cfc6cecdcb4169a92a2a7abf564132a"
     },
     "PhotoComposeRenderTest.metadataDark": {
-      "card_digest": "34b0a72d23ea116372a079b296d53626899f635e463f8e34eb8719c502506678",
-      "fingerprint": "20a8e67b83411d5b04a7296d07b44dc4843963579fbc50ad6fd554ff51830558"
+      "card_digest": "1bf698ff4c5420243def447d18bcec89f6683e5bbf1481df0b9dded145b1a6cb",
+      "fingerprint": "716bebd48572f149f01d337ab8deef3eff20a77298d3bdaf60e56b977d275c12"
     },
     "PhotoComposeRenderTest.progressInterop": {
-      "card_digest": "f5dc61be71d86d92f481334a45be0b909e4e77a1b7dfae33ff9b602d1753fccd",
-      "fingerprint": "4d3ed11e15c49b7f6d0cde3ed67827ae654cff164b1a4c63c435753280f0f1da"
+      "card_digest": "594f8ecb421f03c8bab0ee59233b73f89531a253179848afbabe9553e3b733fc",
+      "fingerprint": "c75f882661b8535c4a0991aa21ed22a178c5196b076a76e6736330b38a47a36e"
     },
     "PhotoComposeRenderTest.qualityDark": {
-      "card_digest": "2044b580e4f431ef73206c35ae20bac80e5fadb719e76f3a0a748a8c308a07e7",
-      "fingerprint": "f7f535602460a1c35b19fbd5e1731648efa197f75c89498aa7407471f94ca227"
+      "card_digest": "b182313e30b1a03d4826175515a570da4a1bad264e0d996d68a2a1767e3bc954",
+      "fingerprint": "d5f54058e8d9a9f441195a6f5f8cdb01d8ff8d48e5314c585b2ea5bc740148b2"
     },
     "PhotoComposeRenderTest.savingAndPermissions": {
-      "card_digest": "52313218c666a25bf40672c42d5fc20dcd6ba97f65e06ff19f93d9e803c7d973",
-      "fingerprint": "54fd0f35c9d85e4fddcc91921db272229d7bd563356111ebe673fef5a515b4a0"
+      "card_digest": "f6d72ad6c595bd925075806155b171c6e01a3a096552979524e85fb513d55f10",
+      "fingerprint": "147d4025ba41ea00dc1ce146f02ea13e3a98c5e26f68f87a73fb61f81054d4b0"
     },
     "PhotoComposeTest.clearUsesExistingConfirmationAndNeverDeletesOriginals": {
       "card_digest": "7a899b1a1bed1e80972eedad5d6a7b21463b3f6cb409f91bce826dc0acc3e629",
-      "fingerprint": "7809cd8ad24236907c9668695f52e58b32062386faa19defe2998219602cbb97"
+      "fingerprint": "8942c60287b7940285d789a087b395492c2354202a61beaca83d2098034bf364"
     },
     "PhotoComposeTest.composeIsInstalledAndBackPreservesQuality": {
       "card_digest": "9ebacd8e8ae29e81e3a4ac733ec5a92d6e526d1ad2f1dbccca389d11932eefdd",
-      "fingerprint": "6bb452617b0774fa0c23bfe01ff7fef3c5e4870f90a841753ae19c44fddabf0f"
+      "fingerprint": "d8af14bced46488ea3b7322c07a5b979c08f7770b9617759b1efe2a7acf25585"
+    },
+    "PhotoComposeTest.detailsCollapseDoesNotDropAnExternalGapAtDisposal": {
+      "card_digest": "39a8e49a878a548a3829c7975fce58db264223ea1514f44775755be93e6abbde",
+      "fingerprint": "469e876a5c98e73acc65a3c37e1a81db4ca8fa13cc64206b730d4ebf7b9e5866"
     },
     "PhotoComposeTest.detailsKeepFiveFieldsAndASeparateCardWhileLoadingAndAfterSelection": {
       "card_digest": "1d5c6b5817231a82043dfc3b4bcd9e12d8699bc95b93945b84b40db7a54458ac",
-      "fingerprint": "8905e7459bf69444fd3a8e0afee7ab2e24e21e4a7468dae586768cc4fdb1d75a"
+      "fingerprint": "88503214e8e900229fa368b285875f77e79f9e2bf7d33f030406871c08a3082b"
     },
     "PhotoComposeTest.longPressAndSwitchApplyExceptionsToExactlyTheSelectedFiles": {
       "card_digest": "16e191307f142465e954f2105c6464fd39afbdfe2894af5eda4298e4ebe48539",
-      "fingerprint": "a199169f66625041ade1ff3873a125152af1015da1ac622c90a2b96d7421fc70"
+      "fingerprint": "6aeb96c15a0b012cfe7251bb2962036b0514aaf2e3c5e70da160deadfd546ecf"
     },
     "PhotoComposeTest.multiSelectionDetailsListNamesAndDoNotShowThePreviousPhotoMetadata": {
       "card_digest": "d6f77e0010648b1a6491090a5c31305ba15ea5289c3a3d25f6cfcb97d9f7616a",
-      "fingerprint": "680dc30ea63978cb4d928c1fddfa5328d97fb72aac989a01008c84818b2a814c"
+      "fingerprint": "f5e7733b00dd577eaa94ad2dedc38979f4ded60e38cf47d2bd478985140504b8"
+    },
+    "PhotoComposeTest.permissionCancellationKeepsFolderAndBlocksConversion": {
+      "card_digest": "1ef8af5f9ed3fefcb8366b6caf6c41a246f77b82017551e9a779ee9ac1ec9c07",
+      "fingerprint": "4cca89b6c3df683f2d6346909d56f6aba77d0b70808430352478a7cc20d6f75a"
+    },
+    "PhotoComposeTest.permissionGrantSurvivesRecreationAndRevocationBlocksConversion": {
+      "card_digest": "151b9264919b6ef9a6eece0173d4a6cb4ec17153b7d65301d38d2f531daa04dd",
+      "fingerprint": "b6ffe7e3a947a44f7afdee1150f818b59603bfccd2a2466321e9e8631ec3fa7d"
+    },
+    "PhotoComposeTest.permissionSnapshotsBoundRowsKeepAllDestinationsAndRejectStaleActions": {
+      "card_digest": "b9c79873e93dbfc0f553c2d25ddfa2793edd186102661c0d89341263b6f74673",
+      "fingerprint": "65599132e5c241bbf857d2b94ce77e246363b5bbfb9b4dbb0fd07a3083d48c15"
     },
     "PhotoComposeTest.pressingAGroupedChoiceWidensItAndCancellationDoesNotChangeQuality": {
       "card_digest": "0ec1ee23f1dcf83ae684536cac3abb40f94c9afa7371e505b7f48ff5c76060ed",
-      "fingerprint": "e4e28c1b16081f16a050fe38f7569a7c4c78b2fca4615b80cd9186f41124ae4e"
+      "fingerprint": "a7274313ae09e01611bfd2ea6edd2f14c50123e5d9d520a90305b80375a9915e"
     },
     "PhotoComposeTest.scrollingToTheEndKeepsPermissionsAboveFloatingButtons": {
-      "card_digest": "3aa9daa642f97469dbe7544567d987f5020f6d9237cb3f47a136b9c478e9e011",
-      "fingerprint": "2db0ffaf478136d5c4b4530d36e3e59fe968af22072c25877ed97f16caed0831"
+      "card_digest": "3ebffe9b266e124c7d190d043dbcaff1502857d6973d7586858b77ff242ab8fe",
+      "fingerprint": "59d83ae535616a17f7de20f4ae81ced98227b80ce76e215b896b5459272e5eb8"
     },
     "PhotoDetailsLoaderTest.changingViewportCancelsObsoleteWorkAndKeepsAtMost32SmallEntries": {
       "card_digest": "cc86ae5b9d2626bf9d398124c2a47c64f7b5bf7045004d5ef5bc1bf4ec4fa65a",

@@ -2785,7 +2785,7 @@ Descrizioni statiche trasferite dall’audit: non attestano nuove esecuzioni. Le
 
 **Sequenza delle operazioni:** ordine del corpo integrale sotto; setup/teardown e helper nel [sorgente](../../app/src/test/java/it/edo/codecprobe/MediaDestinationsRenderTest.java).
 
-**Metodi applicativi e percorso:** Riferimenti già censiti nell’audit: `MediaKind.values`.
+**Metodi applicativi e percorso:** Harness View → MediaDestinationsController → OriginDirectoryPanel (renderer) → OriginDirectoryAccess (verifica SAF); ciclo sui MediaKind. Il workspace Foto usa invece PhotoPermissionsPane, verificato in PhotoComposeTest.
 
 **File, mock e simulazioni:** fixture di contesto sopra, limitatamente a quanto richiamato dal metodo e dal setup; categoria B. I confini di simulazione sono quelli della classe.
 
@@ -2916,7 +2916,7 @@ Descrizioni statiche trasferite dall’audit: non attestano nuove esecuzioni. Le
 <a id="class-photocomposerendertest"></a>
 ## PhotoComposeRenderTest
 
-[Sorgente della classe, setup e helper](../../app/src/test/java/it/edo/codecprobe/PhotoComposeRenderTest.kt) · 7 metodi · area originaria: Interfaccia grafica.
+[Sorgente della classe, setup e helper](../../app/src/test/java/it/edo/codecprobe/PhotoComposeRenderTest.kt) · 8 metodi · area originaria: Interfaccia grafica.
 
 **Contesto applicativo della classe:** PhotoWorkspace/PhotoCompose; Roborazzi.captureRoboImage; PhotoBasicDetails.
 
@@ -2926,7 +2926,7 @@ Descrizioni statiche trasferite dall’audit: non attestano nuove esecuzioni. Le
 
 **Confini comuni dell’audit:** Sette capture in modalità RECORD: scrivono PNG e controllano solo file>3000byte. Nessuna golden o verifica pixel. progressInterop non simula conversione attiva.
 
-**Metodi:** [floatingWorkspaceFrame](#test-8fcf2fb286deb28a) · [floatingDark](#test-958b628869ff48d5) · [savingAndPermissions](#test-1ee3bf0835346c4d) · [metadataDark](#test-14dc6f16500aca2b) · [qualityDark](#test-8b126cd40d0165c1) · [basicDetailsCard](#test-0dcbb4255d6f2755) · [progressInterop](#test-6396c6c661b19dc7)
+**Metodi:** [floatingWorkspaceFrame](#test-8fcf2fb286deb28a) · [floatingDark](#test-958b628869ff48d5) · [savingAndPermissions](#test-1ee3bf0835346c4d) · [metadataDark](#test-14dc6f16500aca2b) · [qualityDark](#test-8b126cd40d0165c1) · [basicDetailsCard](#test-0dcbb4255d6f2755) · [progressInterop](#test-6396c6c661b19dc7) · [floatingWorkspaceWithoutBlur](#test-d16ccb8fbd22cbff)
 
 <!-- test: PhotoComposeRenderTest.floatingWorkspaceFrame -->
 <a id="test-8fcf2fb286deb28a"></a>
@@ -2946,7 +2946,7 @@ Descrizioni statiche trasferite dall’audit: non attestano nuove esecuzioni. Le
 
 **Comportamento verificato:** Screenshot workspace Foto chiaro.
 
-**Limiti:** Sette capture in modalità RECORD: scrivono PNG e controllano solo file>3000byte. Nessuna golden o verifica pixel. progressInterop non simula conversione attiva.
+**Limiti:** Otto capture in modalità RECORD: scrivono PNG e controllano solo file>3000byte. Nessuna golden o verifica pixel. progressInterop non simula conversione attiva.
 
 <details>
 <summary>Corpo esatto del test: dati, sequenza, chiamate e asserzioni</summary>
@@ -2977,7 +2977,7 @@ Descrizioni statiche trasferite dall’audit: non attestano nuove esecuzioni. Le
 
 **Comportamento verificato:** Screenshot workspace Foto scuro.
 
-**Limiti:** Sette capture in modalità RECORD: scrivono PNG e controllano solo file>3000byte. Nessuna golden o verifica pixel. progressInterop non simula conversione attiva.
+**Limiti:** Otto capture in modalità RECORD: scrivono PNG e controllano solo file>3000byte. Nessuna golden o verifica pixel. progressInterop non simula conversione attiva.
 
 <details>
 <summary>Corpo esatto del test: dati, sequenza, chiamate e asserzioni</summary>
@@ -3007,9 +3007,9 @@ Descrizioni statiche trasferite dall’audit: non attestano nuove esecuzioni. Le
 
 **Asserzioni e risultati attesi:** Valori e condizioni negli assert del corpo sotto e degli helper collegati; la sintesi del contratto è nel campo seguente. Non sono valori runtime misurati.
 
-**Comportamento verificato:** Scroll permessi/destinazioni e registra immagine.
+**Comportamento verificato:** Attende il completamento dello snapshot dei permessi, scorre destinazioni e righe Compose e registra image-files.png. Non legge più il numero di figli di un contenitore View.
 
-**Limiti:** Sette capture in modalità RECORD: scrivono PNG e controllano solo file>3000byte. Nessuna golden o verifica pixel. progressInterop non simula conversione attiva.
+**Limiti:** Otto capture in modalità RECORD: scrivono PNG e controllano solo file>3000byte. Nessuna golden o verifica pixel. progressInterop non simula conversione attiva.
 
 <details>
 <summary>Corpo esatto del test: dati, sequenza, chiamate e asserzioni</summary>
@@ -3017,7 +3017,7 @@ Descrizioni statiche trasferite dall’audit: non attestano nuove esecuzioni. Le
 ```kotlin
 @Test fun savingAndPermissions() {
         open(ImageScreen.FILES)
-        compose.waitUntil(5_000) { compose.activity.images.screen.originRows.childCount > 1 }
+        compose.waitUntil(5_000) { !compose.activity.images.compose.state.permissions.checking }
         compose.onNodeWithTag("photo-scroll").performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.ScrollBy) { it(0f, 100_000f) }
         save("image-files.png")
     }
@@ -3045,7 +3045,7 @@ Descrizioni statiche trasferite dall’audit: non attestano nuove esecuzioni. Le
 
 **Comportamento verificato:** Apre pannello dettagli in tema scuro e registra immagine.
 
-**Limiti:** Sette capture in modalità RECORD: scrivono PNG e controllano solo file>3000byte. Nessuna golden o verifica pixel. progressInterop non simula conversione attiva.
+**Limiti:** Otto capture in modalità RECORD: scrivono PNG e controllano solo file>3000byte. Nessuna golden o verifica pixel. progressInterop non simula conversione attiva.
 
 <details>
 <summary>Corpo esatto del test: dati, sequenza, chiamate e asserzioni</summary>
@@ -3082,7 +3082,7 @@ Descrizioni statiche trasferite dall’audit: non attestano nuove esecuzioni. Le
 
 **Comportamento verificato:** Screenshot compressione scura.
 
-**Limiti:** Sette capture in modalità RECORD: scrivono PNG e controllano solo file>3000byte. Nessuna golden o verifica pixel. progressInterop non simula conversione attiva.
+**Limiti:** Otto capture in modalità RECORD: scrivono PNG e controllano solo file>3000byte. Nessuna golden o verifica pixel. progressInterop non simula conversione attiva.
 
 <details>
 <summary>Corpo esatto del test: dati, sequenza, chiamate e asserzioni</summary>
@@ -3114,7 +3114,7 @@ Descrizioni statiche trasferite dall’audit: non attestano nuove esecuzioni. Le
 
 **Comportamento verificato:** JPEG48x32 valido con EXIF Test Camera: carica dettagli poi registra card, senza asserire valori nel test render.
 
-**Limiti:** Sette capture in modalità RECORD: scrivono PNG e controllano solo file>3000byte. Nessuna golden o verifica pixel. progressInterop non simula conversione attiva.
+**Limiti:** Otto capture in modalità RECORD: scrivono PNG e controllano solo file>3000byte. Nessuna golden o verifica pixel. progressInterop non simula conversione attiva.
 
 <details>
 <summary>Corpo esatto del test: dati, sequenza, chiamate e asserzioni</summary>
@@ -3165,7 +3165,7 @@ Descrizioni statiche trasferite dall’audit: non attestano nuove esecuzioni. Le
 
 **Comportamento verificato:** Screenshot step HEIC/interop, nessun avanzamento codec.
 
-**Limiti:** Sette capture in modalità RECORD: scrivono PNG e controllano solo file>3000byte. Nessuna golden o verifica pixel. progressInterop non simula conversione attiva.
+**Limiti:** Otto capture in modalità RECORD: scrivono PNG e controllano solo file>3000byte. Nessuna golden o verifica pixel. progressInterop non simula conversione attiva.
 
 <details>
 <summary>Corpo esatto del test: dati, sequenza, chiamate e asserzioni</summary>
@@ -3179,20 +3179,66 @@ Descrizioni statiche trasferite dall’audit: non attestano nuove esecuzioni. Le
 <!-- /test -->
 
 
+<!-- test: PhotoComposeRenderTest.floatingWorkspaceWithoutBlur -->
+<a id="test-d16ccb8fbd22cbff"></a>
+### `PhotoComposeRenderTest.floatingWorkspaceWithoutBlur`
+
+**Categoria:** B. Analisi statica; esiti di esecuzione separati.
+
+**Dati e preparazione:** Fixture di rendering Foto già predisposta dal setup: inventario JPEG sintetico e un URI preview. Conserva il valore precedente della preferenza grafica.
+
+**Sequenza delle operazioni:** Spegne la preferenza, simula rientro nella pagina per rileggerla e ferma le anteprime; cattura Foto con i normali helper e ripristina la preferenza in finally.
+
+**Metodi applicativi e percorso:** PhotoAppearance → PhotoComposeHost.onVisible → PhotoWorkspace/PhotoComponents.photoGlass; capture/save usano Roborazzi.
+
+**File, mock e simulazioni:** Robolectric native graphics e PNG sul PC; provider preview sintetico e anteprime sospese prima della cattura.
+
+**Asserzioni e risultati attesi:** Host con blurEnabled falso; image-floating-no-blur.png generato e maggiore di 3000 byte; nodi Indietro e Avanti visibili.
+
+**Comportamento verificato:** Il percorso senza sfocatura produce una schermata e conserva la navigazione visibile.
+
+**Limiti:** Non verifica il blur hardware né la fluidità sul dispositivo. Nessuna golden o misura dei frame; la rimozione dei modifier Haze è verificabile nel ramo del codice, non tramite confronto pixel di questa prova.
+
+<details>
+<summary>Corpo esatto del test: dati, sequenza, chiamate e asserzioni</summary>
+
+```kotlin
+@Test fun floatingWorkspaceWithoutBlur() {
+        val previous = PhotoAppearance.blurEnabled(compose.activity)
+        try {
+            compose.runOnIdle {
+                PhotoAppearance.blurEnabled(compose.activity, false)
+                compose.activity.images.compose.onVisible(true)
+                compose.activity.images.compose.onVisible(false)
+                assertFalse(compose.activity.images.compose.blurEnabled)
+            }
+            capture(ImageScreen.FILES, "image-floating-no-blur.png")
+            compose.onNodeWithTag("photo-back").assertIsDisplayed()
+            compose.onNodeWithTag("photo-next").assertIsDisplayed()
+        } finally {
+            PhotoAppearance.blurEnabled(compose.activity, previous)
+        }
+    }
+```
+
+</details>
+
+<!-- /test -->
+
 <a id="class-photocomposetest"></a>
 ## PhotoComposeTest
 
-[Sorgente della classe, setup e helper](../../app/src/test/java/it/edo/codecprobe/PhotoComposeTest.kt) · 7 metodi · area originaria: Interfaccia grafica.
+[Sorgente della classe, setup e helper](../../app/src/test/java/it/edo/codecprobe/PhotoComposeTest.kt) · 11 metodi · area originaria: Interfaccia grafica.
 
-**Contesto applicativo della classe:** PhotoWorkspace Compose; PhotoCompose bridge; ImageController; PhotoDetailsLoader; ImageDestinations.
+**Contesto applicativo della classe:** PhotoWorkspace Compose; PhotoComposeHost; ImageController; PhotoDetailsLoader; MediaDestinationsController e OriginDirectoryAccess.
 
-**Riferimenti produttivi:** [PhotoWorkspace](../../app/src/main/java/it/edo/codecprobe/PhotoWorkspace.kt), [ImageController](../../app/src/main/java/it/edo/codecprobe/ImageController.java), [PhotoDetailsLoader](../../app/src/main/java/it/edo/codecprobe/PhotoDetailsLoader.kt).
+**Riferimenti produttivi:** [OriginDirectoryAccess](../../app/src/main/java/it/edo/codecprobe/OriginDirectoryAccess.java), [PhotoPermissionsPane](../../app/src/main/java/it/edo/codecprobe/PhotoPermissionsPane.kt), [PhotoWorkspace](../../app/src/main/java/it/edo/codecprobe/PhotoWorkspace.kt), [ImageController](../../app/src/main/java/it/edo/codecprobe/ImageController.java), [PhotoDetailsLoader](../../app/src/main/java/it/edo/codecprobe/PhotoDetailsLoader.kt).
 
 **Preparazione, file e simulazioni condivisi:** createAndroidComposeRule<ImageActivity> su Robolectric; nodi semantici e gesti touch veri nel renderer host; JPEG sintetici ImageWorkspaceTest.fixture e dialog shadow.
 
 **Confini comuni dell’audit:** Non dispositivo Android. Non prova codec/pixel né jank; mainClock virtuale. waitUntil5s e testi/tag esatti; foto selezionate iniettando state anziché picker.
 
-**Metodi:** [composeIsInstalledAndBackPreservesQuality](#test-e3db067255c4dfe7) · [pressingAGroupedChoiceWidensItAndCancellationDoesNotChangeQuality](#test-532b5189e4a8ddf1) · [detailsKeepFiveFieldsAndASeparateCardWhileLoadingAndAfterSelection](#test-2b79080893f1d59f) · [multiSelectionDetailsListNamesAndDoNotShowThePreviousPhotoMetadata](#test-db7acf6363e5ad44) · [longPressAndSwitchApplyExceptionsToExactlyTheSelectedFiles](#test-37639ad17ed3bd8d) · [clearUsesExistingConfirmationAndNeverDeletesOriginals](#test-fb6f0634b77c7761) · [scrollingToTheEndKeepsPermissionsAboveFloatingButtons](#test-71c93ba1b6d8742e)
+**Metodi:** [composeIsInstalledAndBackPreservesQuality](#test-e3db067255c4dfe7) · [pressingAGroupedChoiceWidensItAndCancellationDoesNotChangeQuality](#test-532b5189e4a8ddf1) · [detailsKeepFiveFieldsAndASeparateCardWhileLoadingAndAfterSelection](#test-2b79080893f1d59f) · [multiSelectionDetailsListNamesAndDoNotShowThePreviousPhotoMetadata](#test-db7acf6363e5ad44) · [longPressAndSwitchApplyExceptionsToExactlyTheSelectedFiles](#test-37639ad17ed3bd8d) · [clearUsesExistingConfirmationAndNeverDeletesOriginals](#test-fb6f0634b77c7761) · [scrollingToTheEndKeepsPermissionsAboveFloatingButtons](#test-71c93ba1b6d8742e) · [permissionCancellationKeepsFolderAndBlocksConversion](#test-9346ca9da36c5376) · [permissionGrantSurvivesRecreationAndRevocationBlocksConversion](#test-57f18fb3e07ea6e8) · [permissionSnapshotsBoundRowsKeepAllDestinationsAndRejectStaleActions](#test-ea832d5f5705aca0) · [detailsCollapseDoesNotDropAnExternalGapAtDisposal](#test-13159caddfea9163)
 
 <!-- test: PhotoComposeTest.composeIsInstalledAndBackPreservesQuality -->
 <a id="test-e3db067255c4dfe7"></a>
@@ -3497,7 +3543,7 @@ Descrizioni statiche trasferite dall’audit: non attestano nuove esecuzioni. Le
 
 **Asserzioni e risultati attesi:** Valori e condizioni negli assert del corpo sotto e degli helper collegati; la sintesi del contratto è nel campo seguente. Non sono valori runtime misurati.
 
-**Comportamento verificato:** Scroll semantico a fine pagina lascia riga permessi sopra bottone Back: controllo geometrico, non prestazioni.
+**Comportamento verificato:** Attende lo snapshot dei permessi senza ispezionare View; dopo lo scroll semantico a fine pagina il riepilogo Compose resta sopra il pulsante Indietro. È un controllo geometrico, non una misura di prestazioni.
 
 **Limiti:** Non dispositivo Android. Non prova codec/pixel né jank; mainClock virtuale. waitUntil5s e testi/tag esatti; foto selezionate iniettando state anziché picker.
 
@@ -3509,7 +3555,7 @@ Descrizioni statiche trasferite dall’audit: non attestano nuove esecuzioni. Le
         addPhotos(1)
         compose.onNodeWithTag("photo-new").performClick()
         compose.onNodeWithTag("photo-permissions").assertDoesNotExist()
-        compose.waitUntil(5_000) { compose.activity.images.screen.originRows.childCount > 1 }
+        compose.waitUntil(5_000) { !compose.activity.images.compose.state.permissions.checking }
         compose.onNodeWithTag("photo-scroll").performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.ScrollBy) {
             it(0f, 100_000f)
         }
@@ -3525,6 +3571,264 @@ Descrizioni statiche trasferite dall’audit: non attestano nuove esecuzioni. Le
 
 <!-- /test -->
 
+
+<!-- test: PhotoComposeTest.permissionCancellationKeepsFolderAndBlocksConversion -->
+<a id="test-9346ca9da36c5376"></a>
+### `PhotoComposeTest.permissionCancellationKeepsFolderAndBlocksConversion`
+
+**Categoria:** B. Analisi statica; esiti di esecuzione separati.
+
+**Dati e preparazione:** Un JPEG temporaneo valido attraverso addPhotos; provider Directories Robolectric per la cartella A, senza grant persistente. Il setup svuota la bozza Foto e ferma le anteprime.
+
+**Sequenza delle operazioni:** Apre Foto, attende lo snapshot, trova la riga Compose e invoca Autorizza; legge la richiesta del selettore e consegna RESULT_CANCELED. Attende la nuova verifica.
+
+**Metodi applicativi e percorso:** PhotoPermissionsPane → PhotoComposeHost.authorize → MediaDestinationsController.authorizePhoto/result → OriginDirectoryAccess.
+
+**File, mock e simulazioni:** Provider e concessioni Android simulati; JPEG reale piccolo sul PC. Nessun selettore di sistema o servizio di conversione viene eseguito.
+
+**Asserzioni e risultati attesi:** Riga non autorizzata e conversione disabilitata; richiesta AUTHORIZE diretta a FolderPickerActivity; comando disabilitato durante la scelta e riabilitato dopo annullamento; destinazione A conservata e ready falso.
+
+**Comportamento verificato:** La riga Compose usa il coordinatore reale: annullare non cambia il piano e non rende avviabile una coda senza permessi.
+
+**Limiti:** Robolectric e attese su condizioni Compose; non dimostra SAF di sistema, process death, codec JNI o fluidità sul dispositivo.
+
+<details>
+<summary>Corpo esatto del test: dati, sequenza, chiamate e asserzioni</summary>
+
+```kotlin
+@Test fun permissionCancellationKeepsFolderAndBlocksConversion() {
+        addPhotos(1)
+        compose.runOnIdle {
+            ShadowContentResolver.registerProviderInternal("destinations", MediaDestinationsTest.Directories())
+            compose.activity.images.setFolder(MediaDestinationsTest.A)
+        }
+        compose.onNodeWithTag("photo-new").performClick()
+        compose.waitUntil(5_000) { !compose.activity.images.compose.state.permissions.checking }
+        val row = compose.activity.images.compose.state.permissions.rows.single()
+        assertFalse(row.allowed)
+        compose.runOnIdle { assertFalse(compose.activity.images.screen.convert.isEnabled) }
+        val action = "photo-authorize:${row.key}"
+        compose.onNodeWithTag("photo-scroll").performScrollToNode(hasTestTag(action))
+        compose.onNodeWithTag(action).assertIsEnabled().performClick()
+        compose.onNodeWithTag(action).assertIsNotEnabled()
+        compose.runOnIdle {
+            val request = shadowOf(compose.activity).nextStartedActivityForResult
+            assertEquals(MediaDestinationsController.AUTHORIZE, request.requestCode)
+            assertEquals(FolderPickerActivity::class.java.name, request.intent.component!!.className)
+            compose.activity.images.selection.result(request.requestCode, Activity.RESULT_CANCELED, null)
+        }
+        compose.waitUntil(5_000) { !compose.activity.images.compose.state.permissions.checking }
+        compose.onNodeWithTag(action).assertIsEnabled()
+        compose.runOnIdle {
+            val images = compose.activity.images
+            assertEquals(MediaDestinationsTest.A, images.state.destinations.plan.effective(0).folder)
+            assertFalse(images.destinations.ready())
+            assertFalse(images.screen.convert.isEnabled)
+        }
+    }
+```
+
+</details>
+
+<!-- /test -->
+
+<!-- test: PhotoComposeTest.permissionGrantSurvivesRecreationAndRevocationBlocksConversion -->
+<a id="test-57f18fb3e07ea6e8"></a>
+### `PhotoComposeTest.permissionGrantSurvivesRecreationAndRevocationBlocksConversion`
+
+**Categoria:** B. Analisi statica; esiti di esecuzione separati.
+
+**Dati e preparazione:** Un JPEG temporaneo e la cartella A del provider Directories, inizialmente senza grant; regola di destinazione impostata direttamente nel coordinatore.
+
+**Sequenza delle operazioni:** Invoca Autorizza sul nodo Compose, ricrea l’Activity mentre il selettore è pendente, consegna un risultato con grant lettura/scrittura, attende ready; revoca il grant e richiede refresh.
+
+**Metodi applicativi e percorso:** PhotoPermissionsPane → MediaDestinationsController.save/result → OriginDirectoryAccess.acceptFixed/refresh → SourceFolder.writable.
+
+**File, mock e simulazioni:** ActivityScenario, provider e grant simulati da Robolectric; fixture JPEG sul PC. La risposta al selettore è sintetica.
+
+**Asserzioni e risultati attesi:** La richiesta pendente resta choosing dopo recreate; destinazioni [A], stato Accesso verificato e conversione abilitata dopo il grant; Da autorizzare, ready falso e conversione disabilitata dopo revoca.
+
+**Comportamento verificato:** Una autorizzazione richiesta da Compose sopravvive alla ricreazione; la revoca impedisce nuovamente l’avvio.
+
+**Limiti:** Robolectric e attese su condizioni Compose; non dimostra SAF di sistema, process death, codec JNI o fluidità sul dispositivo.
+
+<details>
+<summary>Corpo esatto del test: dati, sequenza, chiamate e asserzioni</summary>
+
+```kotlin
+@Test fun permissionGrantSurvivesRecreationAndRevocationBlocksConversion() {
+        addPhotos(1)
+        compose.runOnIdle {
+            ShadowContentResolver.registerProviderInternal("destinations", MediaDestinationsTest.Directories())
+            compose.activity.images.setFolder(MediaDestinationsTest.A)
+        }
+        compose.onNodeWithTag("photo-new").performClick()
+        compose.waitUntil(5_000) { !compose.activity.images.compose.state.permissions.checking }
+        val row = compose.activity.images.compose.state.permissions.rows.single()
+        val action = "photo-authorize:${row.key}"
+        compose.onNodeWithTag("photo-scroll").performScrollToNode(hasTestTag(action))
+        compose.onNodeWithTag(action).performClick()
+        compose.runOnIdle { assertEquals(MediaDestinationsController.AUTHORIZE, shadowOf(compose.activity).nextStartedActivityForResult.requestCode) }
+        compose.activityRule.scenario.recreate()
+        compose.runOnIdle {
+            assertTrue(compose.activity.images.destinations.choosing())
+            compose.activity.images.selection.result(MediaDestinationsController.AUTHORIZE, Activity.RESULT_OK,
+                Intent().setData(Uri.parse(MediaDestinationsTest.A)).addFlags(
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION))
+        }
+        compose.waitUntil(5_000) { compose.activity.images.destinations.ready() }
+        compose.onNodeWithTag("photo-scroll").performScrollToNode(hasText("✓ Accesso verificato"))
+        compose.onNodeWithText("✓ Accesso verificato").assertExists()
+        compose.runOnIdle {
+            val images = compose.activity.images
+            assertEquals(listOf(MediaDestinationsTest.A), images.destinations.snapshot())
+            assertTrue(images.screen.convert.isEnabled)
+            compose.activity.contentResolver.releasePersistableUriPermission(Uri.parse(MediaDestinationsTest.A),
+                Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
+            images.destinations.refresh()
+        }
+        compose.waitUntil(5_000) { !compose.activity.images.compose.state.permissions.checking }
+        compose.onNodeWithTag("photo-scroll").performScrollToNode(hasText("! Da autorizzare"))
+        compose.onNodeWithText("! Da autorizzare").assertExists()
+        compose.runOnIdle {
+            assertFalse(compose.activity.images.destinations.ready())
+            assertFalse(compose.activity.images.screen.convert.isEnabled)
+        }
+    }
+```
+
+</details>
+
+<!-- /test -->
+
+<!-- test: PhotoComposeTest.permissionSnapshotsBoundRowsKeepAllDestinationsAndRejectStaleActions -->
+<a id="test-ea832d5f5705aca0"></a>
+### `PhotoComposeTest.permissionSnapshotsBoundRowsKeepAllDestinationsAndRejectStaleActions`
+
+**Categoria:** B. Analisi statica; esiti di esecuzione separati.
+
+**Dati e preparazione:** 105 URI sintetici con origini non rilevate e nomi distinti; poi provider Directories e grant per la destinazione generale A.
+
+**Sequenza delle operazioni:** Attende il primo snapshot, conserva una vecchia riga, imposta A per tutte le foto, invoca la vecchia azione durante e dopo la verifica; confronta vecchio e nuovo snapshot.
+
+**Metodi applicativi e percorso:** ImageController.render → MediaDestinationsController → OriginDirectoryAccess.resolve/State → PhotoComposeHost.authorize.
+
+**File, mock e simulazioni:** URI senza pixel e provider di cartelle simulato. Nessun file multimediale viene letto o convertito.
+
+**Asserzioni e risultati attesi:** 105 cartelle totali, 100 righe e 105 destinazioni nello snapshot iniziale; poi una sola cartella autorizzata con tutte le 105 destinazioni A e numerazione troncata. Lo snapshot precedente conserva valori e numero di righe; le azioni obsolete non avviano Activity.
+
+**Comportamento verificato:** Lo snapshot pubblicato resta stabile, limita le righe Foto senza troncare il piano e rifiuta comandi provenienti da righe non più correnti.
+
+**Limiti:** Robolectric e attese su condizioni Compose; non dimostra SAF di sistema, process death, codec JNI o fluidità sul dispositivo.
+
+<details>
+<summary>Corpo esatto del test: dati, sequenza, chiamate e asserzioni</summary>
+
+```kotlin
+@Test fun permissionSnapshotsBoundRowsKeepAllDestinationsAndRejectStaleActions() {
+        compose.runOnIdle {
+            val images = compose.activity.images
+            repeat(105) {
+                images.state.inputs.add("content://unknown-photo/$it")
+                images.state.names.add("Foto $it.jpg")
+            }
+            images.state.clamp(); images.render()
+        }
+        compose.waitUntil(5_000) { !compose.activity.images.compose.state.permissions.checking }
+        val previous = compose.activity.images.compose.state.permissions
+        assertEquals(105, previous.total)
+        assertEquals(100, previous.rows.size)
+        assertEquals(105, previous.destinations.size)
+        assertFalse(previous.ready)
+        compose.runOnIdle {
+            ShadowContentResolver.registerProviderInternal("destinations", MediaDestinationsTest.Directories())
+            MediaDestinationsTest.grant(compose.activity, MediaDestinationsTest.A)
+            compose.activity.images.setFolder(MediaDestinationsTest.A)
+            compose.activity.images.compose.authorize(previous.rows.first())
+            assertNull(shadowOf(compose.activity).nextStartedActivity)
+        }
+        compose.waitUntil(5_000) { compose.activity.images.destinations.ready() }
+        compose.runOnIdle {
+            val current = compose.activity.images.compose.state.permissions
+            assertEquals(1, current.total)
+            assertEquals(1, current.authorized)
+            assertEquals(1, current.rows.size)
+            assertEquals(List(105) { MediaDestinationsTest.A }, current.destinations)
+            assertTrue(current.rows.single().numbers.endsWith("… (105 foto)"))
+            assertEquals(100, previous.rows.size)
+            assertEquals(105, previous.total)
+            compose.activity.images.compose.authorize(previous.rows.first())
+            assertNull(shadowOf(compose.activity).nextStartedActivity)
+        }
+    }
+```
+
+</details>
+
+<!-- /test -->
+
+<!-- test: PhotoComposeTest.detailsCollapseDoesNotDropAnExternalGapAtDisposal -->
+<a id="test-13159caddfea9163"></a>
+### `PhotoComposeTest.detailsCollapseDoesNotDropAnExternalGapAtDisposal`
+
+**Categoria:** B. Analisi statica; esiti di esecuzione separati.
+
+**Dati e preparazione:** Un JPEG temporaneo con addPhotos e pagina Foto su Robolectric native graphics. Attende la fine della lettura dell’inventario; anteprime disattivate dal setup, per mantenere stabili i dati durante la misura.
+
+**Sequenza delle operazioni:** Misura l’altezza non ritagliata del pannello selezionato chiuso, apre i dettagli e completa l’ingresso. Ferma l’avanzamento automatico del clock, chiude i dettagli e campiona 24 fotogrammi; identifica il primo senza il nodo dei dettagli. Ripristina sempre autoAdvance in finally.
+
+**Metodi applicativi e percorso:** PhotoFilesPane raggruppa pulsanti e PhotoFold in una Column senza spaziatura esterna; il padding superiore di 12 dp è dentro il contenuto animato. PhotoFold e PhotoDetailsPane mantengono le transizioni precedenti.
+
+**File, mock e simulazioni:** JPEG reale piccolo sul PC; Activity, frame clock e rendering Android simulati da Robolectric. Nessun provider di sistema, codec JNI o telefono.
+
+**Asserzioni e risultati attesi:** Il pannello aperto cresce di oltre 100 dp, i dettagli escono dalla composizione e il pannello ritorna all’altezza iniziale entro 1 dp. La differenza fra ultimo fotogramma con dettagli e primo senza dettagli è al massimo 2 dp, tollerando arrotondamenti e residuo dell’animazione.
+
+**Comportamento verificato:** La rimozione del riquadro Dettagli non sottrae istantaneamente il margine esterno che causava lo scalino finale. Il layout precedente fallisce con un salto misurato di 12,5 dp nella fixture.
+
+**Limiti:** È un controllo geometrico deterministico del collasso esterno dei dettagli; non misura jank/GPU sul Samsung. Mostra tutto, destinazioni e opzioni avanzate non sono modificati né certificati da questa prova.
+
+<details>
+<summary>Corpo esatto del test: dati, sequenza, chiamate e asserzioni</summary>
+
+```kotlin
+@Test fun detailsCollapseDoesNotDropAnExternalGapAtDisposal() {
+        addPhotos(1)
+        compose.onNodeWithTag("photo-new").performClick()
+        compose.waitUntil(5_000) { !compose.activity.images.state.reading }
+        val panel = compose.onNodeWithTag("photo-selected-panel")
+        fun height() = panel.getUnclippedBoundsInRoot().let { (it.bottom - it.top).value }
+        val closedHeight = height()
+        compose.onNodeWithTag("photo-details").performClick()
+        compose.mainClock.advanceTimeBy(500)
+        assertTrue(height() > closedHeight + 100f)
+        compose.mainClock.autoAdvance = false
+        try {
+            compose.onNodeWithTag("photo-details").performClick()
+            var lastPresentHeight = height()
+            var removed = false
+            var removalJump = Float.NaN
+            repeat(24) {
+                compose.mainClock.advanceTimeByFrame()
+                val height = height()
+                val present = compose.onAllNodesWithTag("photo-details-panel").fetchSemanticsNodes().isNotEmpty()
+                if (!removed && !present) {
+                    removalJump = lastPresentHeight - height
+                    removed = true
+                }
+                if (present) lastPresentHeight = height
+            }
+            assertTrue("Details must leave composition after the exit", removed)
+            assertEquals(closedHeight, height(), 1f)
+            assertTrue("Last-frame height jump: $removalJump dp", kotlin.math.abs(removalJump) <= 2f)
+        } finally {
+            compose.mainClock.autoAdvance = true
+        }
+    }
+```
+
+</details>
+
+<!-- /test -->
 
 <a id="class-savingsboundarytest"></a>
 ## SavingsBoundaryTest

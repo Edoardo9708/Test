@@ -55,7 +55,9 @@ Il controllo iniziale risolve tutti i conflitti della coda prima di avviare il s
 
 ## Immagini
 
-`ImageActivity` è una `ComponentActivity`: delega lifecycle/risultati e installa `PhotoComposeHost`. `PhotoWorkspace`, `PhotoFilesPane` e `PhotoCompressionPane` presentano lo stato e inviano azioni ai coordinatori Java. `ImageScreen` costruisce soltanto i controlli View ancora visibili tramite `AndroidView` (permessi, avanzamento/report e diagnostica), non una seconda pagina Foto/Compressione nascosta.
+`ImageActivity` è una `ComponentActivity`: delega lifecycle/risultati e installa `PhotoComposeHost`. `PhotoWorkspace`, `PhotoFilesPane` e `PhotoCompressionPane` presentano lo stato e inviano azioni ai coordinatori Java. `ImageScreen` costruisce soltanto i controlli View ancora visibili tramite `AndroidView` (avanzamento/report e diagnostica), non una seconda pagina Foto/Compressione nascosta.
+
+`OriginDirectoryAccess` risolve in Java i permessi cartelle e pubblica snapshot immutabili: Foto li presenta in `PhotoPermissionsPane`, mentre le sezioni View usano ancora `OriginDirectoryPanel`.
 
 `ImageController` gestisce worker, generazioni, render ed esportazione; `ImageSelection` gestisce SAF e lo snapshot della sorgente del report, salvato nel Bundle anche durante il selettore. `ImageState` e `ImageDraftStore` conservano la selezione indipendente. `JpegInventory` legge in streaming senza decodificare pixel; `ImageReport` esporta l'inventario JSON con i payload originali. Il motore HEIC separato esiste già, come descritto sotto: l'inventario non equivale a una conversione o a una verifica dei pixel.
 

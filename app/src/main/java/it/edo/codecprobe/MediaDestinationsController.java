@@ -25,6 +25,9 @@ final class MediaDestinationsController {
     private final Host host;
     private final MediaDestinationsView view;
     private final OriginDirectoryPanel panel;
+    private final OriginDirectoryAccess access;
+    private OriginDirectoryAccess.State permissions=OriginDirectoryAccess.State.waiting(false);
+    final PhotoDestinationState photo;
     private boolean choosing,ready,closed;
     private String source,parent,requested;
     private ArrayList<String> targets=new ArrayList<>();
@@ -37,9 +40,15 @@ final class MediaDestinationsController {
     private DestinationPlan.Snapshot panelPlan;
 
     MediaDestinationsController(Host host,MediaDestinationsView view,MediaKind kind,Bundle saved){
-        this.host=host;this.view=view;
+        this(host,view,kind,saved,null);
+    }
+    MediaDestinationsController(Host host,Bundle saved){
+        this(host,null,MediaKind.IMAGE,saved,new PhotoDestinationState(saved));
+    }
+    private MediaDestinationsController(Host host,MediaDestinationsView view,MediaKind kind,Bundle saved,PhotoDestinationState photo){
+        this.host=host;this.view=view;this.photo=photo;
         if(saved!=null){choosing=saved.getBoolean("destinationChoosing");source=saved.getString("destinationSource");parent=saved.getString("destinationParent");requested=saved.getString("destinationRequested");origin=saved.getBoolean("destinationOrigin");ArrayList<String> restored=saved.getStringArrayList("destinationTargets");if(restored!=null)targets=restored;}
-        panel=new OriginDirectoryPanel(host.ui().activity,view.originRows,new OriginDirectoryPanel.Listener(){
+        OriginDirectoryPanel.Listener listener=new OriginDirectoryPanel.Listener(){
             public void authorize(String parent,String representative,boolean origin,String folder){authorizeFolder(parent,representative,origin,folder);}
             public void changed(boolean valid,ArrayList<String> folders,ArrayList<String> notes){
                 if(closed)return;ready=valid;resolved=new ArrayList<>(folders);host.changed();
@@ -49,9 +58,30 @@ final class MediaDestinationsController {
                     else if(!valid)host.toast("Autorizza le cartelle indicate prima di riprovare");
                 }
             }
-            public void error(String message){host.toast("Cartella: "+message);}
-        },host.ui(),kind);
-        view.pickFolder.setOnClickListener(v->{if(view instanceof PhotoDestinationsView&&((PhotoDestinationsView)view).general)pick(ALL,null);else if(!host.inputs().isEmpty())pick(FILE,host.inputs().get(host.selected()));});
+            public void error(String message){afterReady=null;host.toast("Cartella: "+message);}
+        };
+        if(view!=null){
+            panel=new OriginDirectoryPanel(host.ui().activity,view.originRows,listener,host.ui(),kind);
+            access=panel.access;
+        }else{
+            panel=null;
+            access=new OriginDirectoryAccess(host.ui().activity,kind,new OriginDirectoryAccess.Listener(){
+                public void changed(OriginDirectoryAccess.State state){
+                    permissions=state;
+                    listener.changed(state.ready,new ArrayList<>(state.destinations),new ArrayList<>(state.notes));
+                }
+                public void error(String message){listener.error(message);}
+            });
+        }
+        if(view!=null)bindView(view);
+    }
+    OriginDirectoryAccess.State permissions(){return permissions;}
+    void authorizePhoto(OriginDirectoryAccess.Row row){
+        if(closed||photo==null||!permissions.rows.contains(row))return;
+        authorizeFolder(row.parent,row.representative,row.origin,row.requestedFolder);
+    }
+    private void bindView(MediaDestinationsView view){
+        view.pickFolder.setOnClickListener(v->{if(!host.inputs().isEmpty())pick(FILE,host.inputs().get(host.selected()));});
         view.pickAllFolder.setOnClickListener(v->pick(ALL,null));
         view.videoOrigin.setOnCheckedChangeListener((v,value)->{
             if(view.updating||host.busy()||choosing||host.inputs().isEmpty())return;
@@ -60,12 +90,30 @@ final class MediaDestinationsController {
         view.applyAllDestinations.setOnCheckedChangeListener((v,value)->{
             if(view.updating||host.busy()||choosing)return;plan().applyAll=value;edited();
         });
-        if(view instanceof PhotoDestinationsView){PhotoDestinationsView photo=(PhotoDestinationsView)view;photo.changed=host::changed;photo.exceptionEdited=value->{if(host.busy()||choosing)return;DestinationPlan plan=plan();for(int n:host.selectedIndices())plan.exception(n,value);edited();};photo.originEdited=value->{if(host.busy()||choosing)return;DestinationPlan plan=plan();if(photo.general)plan.all.origin=value;else for(int n:host.selectedIndices()){plan.exception(n,true);plan.files.get(n).origin=value;}edited();};}
         view.allOrigin.setOnCheckedChangeListener((v,value)->{
             if(view.updating||host.busy()||choosing)return;plan().all.origin=value;edited();
         });
     }
-    private DestinationPlan plan(){host.draft().sync(host.inputs(),host.defaultFolder());DestinationPlan plan=host.draft().plan;if(view instanceof PhotoDestinationsView)plan.enableExceptions();return plan;}
+    void photoGeneral(boolean value){
+        if(host.busy()||choosing||!value&&host.inputs().isEmpty())return;
+        photo.general=value;host.changed();
+    }
+    void photoException(boolean value){
+        if(host.busy()||choosing||host.inputs().isEmpty())return;
+        DestinationPlan plan=plan();for(int index:host.selectedIndices())plan.exception(index,value);edited();
+    }
+    void photoOrigin(boolean value){
+        if(host.busy()||choosing||!photo.general&&host.inputs().isEmpty())return;
+        DestinationPlan plan=plan();
+        if(photo.general)plan.all.origin=value;
+        else for(int index:host.selectedIndices()){plan.exception(index,true);plan.files.get(index).origin=value;}
+        edited();
+    }
+    void choosePhotoFolder(){
+        if(photo.general)pick(ALL,null);
+        else if(!host.inputs().isEmpty())pick(FILE,host.inputs().get(host.selected()));
+    }
+    private DestinationPlan plan(){host.draft().sync(host.inputs(),host.defaultFolder());DestinationPlan plan=host.draft().plan;if(photo!=null)plan.enableExceptions();return plan;}
     boolean choosing(){return choosing;}
     boolean ready(){return ready&&!choosing&&!host.inputs().isEmpty()&&resolved.size()==host.inputs().size();}
     ArrayList<String> snapshot(){if(!ready())throw new IllegalStateException("Attendi la verifica di tutte le cartelle");return new ArrayList<>(resolved);}
@@ -76,17 +124,17 @@ final class MediaDestinationsController {
     void render(){
         if(closed)return;
         DestinationPlan plan=plan();
-        if(view instanceof PhotoDestinationsView)((PhotoDestinationsView)view).renderGroup(plan,host.inputs().size(),host.selected(),host.selectedIndices(),host.busy(),choosing);
+        if(photo!=null)photo.update(plan,host.inputs().size(),host.selected(),host.selectedIndices());
         else view.render(plan,host.inputs().size(),host.selected(),host.busy(),choosing);
         int groupSize=host.selectedIndices().size();
-        if(groupSize>1&&!(view instanceof PhotoDestinationsView)){view.videoDestinationTitle.setText("DESTINAZIONE · "+groupSize+" FILE CORRENTI");view.videoDestinationHelp.setText(plan.applyAll?"È attiva la regola di tutta la coda. Disattivala per gestire il gruppo.":"La cartella scelta verrà applicata a tutti i file selezionati.");}panel.setBusy(host.busy()||choosing);
+        if(groupSize>1&&view!=null){view.videoDestinationTitle.setText("DESTINAZIONE · "+groupSize+" FILE CORRENTI");view.videoDestinationHelp.setText(plan.applyAll?"È attiva la regola di tutta la coda. Disattivala per gestire il gruppo.":"La cartella scelta verrà applicata a tutti i file selezionati.");}if(panel!=null)panel.setBusy(host.busy()||choosing);
         if(panelPlan==null||!panelInputs.equals(host.inputs())||!panelNames.equals(host.names())||!panelPlan.matches(plan)){
             panelInputs=new ArrayList<>(host.inputs());panelNames=new ArrayList<>(host.names());panelPlan=new DestinationPlan.Snapshot(plan);
-            panel.setInputs(panelInputs,panelNames,plan.effectiveOrigins(),plan.effectiveFolders());
+            access.setInputs(panelInputs,panelNames,plan.effectiveOrigins(),plan.effectiveFolders());
         }
     }
-    void refresh(){if(closed)return;render();panel.refresh();}
-    private void edited(){ready=false;host.persist();render();host.changed();}
+    void refresh(){if(closed)return;render();access.refresh();}
+    private void edited(){ready=false;host.persist();if(photo==null)render();host.changed();}
     private void pick(int code,String source){
         if(closed||host.busy()||choosing)return;
         if(code==FILE){targets.clear();for(int index:host.selectedIndices())targets.add(host.inputs().get(index));if(source!=null&&!targets.contains(source)){targets.clear();targets.add(source);}}
@@ -116,8 +164,8 @@ final class MediaDestinationsController {
             if(flags!=(Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_WRITE_URI_PERMISSION))throw new SecurityException("Servono lettura e scrittura permanenti");
             host.ui().activity.getContentResolver().takePersistableUriPermission(data.getData(),Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
             if(code==AUTHORIZE){
-                if(origin&&source!=null)panel.accept(parent,source,data.getData());
-                else if(requested!=null&&!requested.isEmpty())panel.acceptFixed(parent,requested,data.getData());
+                if(origin&&source!=null)access.accept(parent,source,data.getData());
+                else if(requested!=null&&!requested.isEmpty())access.acceptFixed(parent,requested,data.getData());
             }else if(code==ALL){plan().setAllFolder(data.getData().toString());edited();}
             else{
                 int index=host.inputs().indexOf(source);
@@ -130,5 +178,5 @@ final class MediaDestinationsController {
         clearPending();refresh();host.changed();return true;
     }
     private void clearPending(){source=null;parent=null;requested=null;origin=false;targets.clear();}
-    void close(){closed=true;afterReady=null;panel.close();if(dialog!=null)dialog.dismiss();}
+    void close(){closed=true;afterReady=null;access.close();if(dialog!=null)dialog.dismiss();}
 }

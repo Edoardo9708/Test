@@ -40,10 +40,14 @@ internal data class PhotoUiState(
     val smaller: Boolean,
     val quality: Int,
     val preset: String,
-    val tune: String
+    val tune: String,
+    val nameAddition: String,
+    val namePrefix: Boolean,
+    val permissions: OriginDirectoryAccess.State,
+    val selectionCount: Int
 )
 
 internal enum class PhotoCommand {
-    NEW, RESUME, SETTINGS, ADD_FILES, ADD_FOLDER, CLEAR, REMOVE, REREAD, DETAILS,
+    NEW, RESUME, SETTINGS, ADD_FILES, ADD_FOLDER, CLEAR, REMOVE, REREAD, DETAILS, END_SELECTION,
     CURRENT, ALL, ORIGIN, DESTINATION, CHOOSE_FOLDER, BACK, NEXT, VIDEO, AUDIO, ANALYSIS
 }
