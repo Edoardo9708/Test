@@ -1,0 +1,1656 @@
+{
+  "application_inputs": {
+    "app/build.gradle": "b915494703540ef164e7e2bd3e01a65c7c6144ca6d16cc4accfb196e5752c71e",
+    "app/src/main/AndroidManifest.xml": "672937c7d7a54390faf9cbbed773ef6f513f274b3dfefb26699360261213e233",
+    "app/src/main/assets/ffmpeg-LGPLv2.1.txt": "246041b6ecf9bc32d718a62c57877c78b5eb397b6467e74ed7ae2626ab189c30",
+    "app/src/main/assets/flac-COPYING.txt": "7866ee98760fc1f0156b4fe6bf530257e02be487ab3fd94e2b63799dd32d6b2c",
+    "app/src/main/assets/libheif-LGPL.txt": "fa81ce652315b013359d6e8e4744335f31a50c7c192907176d3632f78a3b4596",
+    "app/src/main/assets/libopusenc-COPYING.txt": "93b17ab56b8230127fea532be0dcb4e6d71e66ab5e8ce5d6ae8785d7288b164f",
+    "app/src/main/assets/opus-COPYING.txt": "01e1167d54a096d123cf6dfbbeb19587278845c6481d2d66d545669846079551",
+    "app/src/main/assets/taglib-LGPL.txt": "dc626520dcd53a22f727af3ee42c770e56c97a64fe3adb063799d8ab032fe551",
+    "app/src/main/assets/taglib-MPL.txt": "53692a2ed6c6a2c6ec9b32dd0b820dfae91e0a1fcdf625ca9ed0bdf8705fcc4f",
+    "app/src/main/assets/tinyxml2-LICENSE.txt": "6a29f688fe4aef433b73340deb4a4f9e9f6c59768e41db3f417cf11a65d16f05",
+    "app/src/main/assets/ui-third-party-notices.txt": "b3bd761c6c40ea98d4c9aeed5e7ff69177b422ea29605f5f1cba8c762704a413",
+    "app/src/main/assets/utfcpp-LICENSE.txt": "beb8e42e9d6b4284e03304d05a81a0755200a965fc8d0a5e0aea1e84cf805d6e",
+    "app/src/main/assets/x265-COPYING.txt": "0fb09d55438bc238f9c97d67d4c8fedd36ac67dd794b010d1d944a6f64dfe4b8",
+    "app/src/main/assets/x265-revision.txt": "7dcea947418dd74dd4a5132caa40eb6ccf44e1268c3735c22b4adb47556fd011",
+    "app/src/main/cpp/CMakeLists.txt": "8d17d6549a7185db5dc35d7d6051fbf2c08300cc5562bfbc5e1d78205ad46ff6",
+    "app/src/main/cpp/audio/CMakeLists.txt": "ea052833b7e9900c0755a05a1f3525da97856cd8f4349301b1bb7c41f330445c",
+    "app/src/main/cpp/audio/audio_encoder.cpp": "d3d2c86ca4c5afad8a9f5f65212eee3c81c8484a0b6362e18635f020984a1781",
+    "app/src/main/cpp/audio/audio_encoder.h": "ef671f612a6fe3e412ce2d930c5a856743a2587abad29224cb5e515afc7be862",
+    "app/src/main/cpp/audio/audio_jni.cpp": "0d249d11414fdbf610ae996b45a5eca4a5c4ba530cf5ed1101d4a7fccf13718e",
+    "app/src/main/cpp/audio/audio_metadata.cpp": "0ffca1441087a306c0c70d97f1659c8f20566d2b9a4ce557911ec4baf08a4e6e",
+    "app/src/main/cpp/audio/audio_metadata.h": "12e3719cbd261d2854d8de8de511d3db45bdf72744bc27fc00cd91edc5534afe",
+    "app/src/main/cpp/audio/audio_pcm_smoke.cpp": "c4fc11c78aac83743f208e7aea3243137ac5dfd398d7158bd65d0fd95e48e826",
+    "app/src/main/cpp/audio/audio_smoke.cpp": "28dfe69ef41467e373e1b6ce96383533f18802eef152fb3bb7033d697905a460",
+    "app/src/main/cpp/audio/audio_stream.cpp": "9b1e472b5e3bc9d75ce606f07dc4a99e50aa1d3da04f937b7772e6c8d93e507e",
+    "app/src/main/cpp/audio/audio_stream.h": "15117f3e2d0aa48e18c79fc9564c67110e6422c8dd0632492f2fc285fbd48dc7",
+    "app/src/main/cpp/audio/audio_taglib.cpp": "80c0d6f26b23bc66c3d256911a4745b0591ba65064d70d466c9474ade22c4144",
+    "app/src/main/cpp/bridge.cpp": "d745287bcb5891dce749d1c62aa60b3456757deb7288d01b8bfae50dc3ef531e",
+    "app/src/main/cpp/encoder.cpp": "9f08a838a93045078a156452e656357ea75947502f695dabaf4358bfd00768ca",
+    "app/src/main/cpp/encoder.h": "46119dd479ed95346145a8ec07be3cfbe283544cfdbc6164992acd4fd1ab835a",
+    "app/src/main/cpp/hdr/CMakeLists.txt": "28de36b3e10fad2219cb552d1dd93f3b062a3f2ed27ab0c536d9d09a2dc5a806",
+    "app/src/main/cpp/hdr/README.md": "a9a790f94e7d83b614b1a8a440d8b9f4533d8ceba74c208c80832ece20f96bca",
+    "app/src/main/cpp/hdr/hdr_encoder.cpp": "db66dc265f374a3854bf0912b465f58dcbccbfb93a6c636fe232122ba2bff949",
+    "app/src/main/cpp/hdr/hdr_encoder.h": "376546463b780f38a3d8462ca802cd90c1503c0b32aa404e843a2c29b356929c",
+    "app/src/main/cpp/hdr/hdr_jni.cpp": "1cf860b53e9210635f6519c38225a11517ad4a6f9e93beb8afc86c1330de46aa",
+    "app/src/main/cpp/hdr/hdr_smoke.cpp": "2311b58c4d7b956ee065406a2252bd1ebefe30eff09baf7b7a0d925946397479",
+    "app/src/main/cpp/images/CMakeLists.txt": "eb7f87e3b2995e6a351d0826251860c5ac5d8328084b10729d1b7c67a22dab50",
+    "app/src/main/cpp/images/image_core.h": "9288a6ddbd2c833c8c279d2726485ec78fa53514cfb85880804190ac82f3cee5",
+    "app/src/main/cpp/images/image_encode.cpp": "ac91ec59c273faf1fb19ff3276940f736912532312690068561c1ce6dac116a1",
+    "app/src/main/cpp/images/image_exif.cpp": "1fcb560dd3238c0368749bd9fb79a144067c918bb264ef57137797efbf2fa887",
+    "app/src/main/cpp/images/image_exif.h": "5b1bc69e047769c5c906acb852f3753848cdf01fbebc0a36d346ecc26ed38540",
+    "app/src/main/cpp/images/image_gainmap.cpp": "c228e3e774d3b736e6fb86c9d0a4c0705cd5290a715c794c6494e341d0e38f03",
+    "app/src/main/cpp/images/image_gainmap.h": "517c054e0457e3f35525e0d76411235023ca1b9469a8efb00ede4cc6a818d0a9",
+    "app/src/main/cpp/images/image_gainmap_metadata.cpp": "4d784bb7fbf06113a5c9c095f2430ab55d1c119b27cd097d11d0ea974338b3b0",
+    "app/src/main/cpp/images/image_heif_aux.cpp": "1a471908ae8a383ee48518f1d592d66a6df37be0dbf3794303f802bf4bd38024",
+    "app/src/main/cpp/images/image_jni.cpp": "2a6fafc27a985d0bd1584cc355dc91a8ab256f941784cfe3da2dae80c6a46107",
+    "app/src/main/cpp/images/image_jpeg.cpp": "0074eea8d966ff164c52b5aeeca7b1dbbef9e4fcdd9d6fad8894729f67a68276",
+    "app/src/main/cpp/images/image_jumbf.cpp": "605ca3c35461fbde89a5903c8dde881792ab63310d1bffe2834ded464617ed12",
+    "app/src/main/cpp/images/image_jumbf.h": "bab9acaf5e7b7fa0695edb2efe82af8dc3a494942c7104e46be373e02d2d7358",
+    "app/src/main/cpp/images/image_metadata.cpp": "13fa8127f3f68ae99849114a4169c97ed8dc14536a88038ea237c093f9436109",
+    "app/src/main/cpp/images/image_metadata.h": "14b03aa56c18a824259e0393308c03e7c2331935aec66729aad64c093e89fb1c",
+    "app/src/main/cpp/images/image_motion.cpp": "a50f4806b592d9100467add251f3523c11a3d70bb95516ed0708f898a1e98a2c",
+    "app/src/main/cpp/images/image_motion.h": "04dd5475809d0bb4bc4d2b84c867d6031c70732934afe83ea0035d94a7aceca9",
+    "app/src/main/cpp/images/image_motion_xmp.cpp": "582d9eba72f7f38c4d89bcb4f92794fa6c48b395a3d371cd988e5e5ad2003d80",
+    "app/src/main/cpp/images/image_sef.cpp": "298e77a4a06f957eb0b9c705887f9e24384bd42bb979a502fc5a2dd0c2258bcd",
+    "app/src/main/cpp/images/image_sef.h": "002f386c801deaf8085c6eac1797deecc0a5f0d0b503b8956e9d7076b119b4ea",
+    "app/src/main/cpp/images/image_smoke.cpp": "f22e34d122beb9f915935424d1882a672fcf783b1ddae75a8198d41d36d121e3",
+    "app/src/main/cpp/images/image_thumbnail.cpp": "9c206030c66841db3c034b456d31ecc25901b2f6b24c426f222a92a1c1961599",
+    "app/src/main/cpp/images/image_verify.cpp": "5944c8197c972dd77743745e632aae6dad93668d92143016654d988cc6ec8581",
+    "app/src/main/cpp/images/xml/tinyxml2.cpp": "73b240fe0702e5616b2646314f5c43306c0ccecf89dd11f7d6713f4fa89673cf",
+    "app/src/main/cpp/images/xml/tinyxml2.h": "955f168a3ee3062e9c75a413af075af72da00a92fb89bf3ad8ee5244b4aa4732",
+    "app/src/main/cpp/memory_protection.h": "1f7b5977f1812ce90c1e5f748d706592e3dfd77fcf9ea853925bcb9836ad94b1",
+    "app/src/main/cpp/memory_protection_check.h": "ca2633d7896344f5cd63f2daf4865da0103c01b696cadbded8fe32ac3de41517",
+    "app/src/main/cpp/smoke.cpp": "62eee276fba741f51ea2ab182647cf78762e4ca9d3f775eddd9691e01852839c",
+    "app/src/main/cpp/stream_bridge.cpp": "32cc14952f9d92a13fa4ae99375482aa9c3cdc15362469ddbb75a5117cd8f5a0",
+    "app/src/main/cpp/stream_encoder.cpp": "19387fa5172fcecf12e81b2e2cf2fa7049d05aff6504d27d862c324af3b238a9",
+    "app/src/main/cpp/stream_encoder.h": "eaf5c90c78cb95039187ff9de2efc4165b3d2a88c9976b6654cef7155feb02fe",
+    "app/src/main/cpp/video/CMakeLists.txt": "ced5f455061df6a830abdaa7e12651df018e267ece7d1765d7bbb7bfb31fc831",
+    "app/src/main/cpp/video/decoder_jni.cpp": "f21fba25e4d877e6506a6becca74a38f3eef4e39733c8fd01ba0ebf4f26bc154",
+    "app/src/main/cpp/video/hevc_decoder.cpp": "2adbfec7e8869a3076303f7d31b762381d9ee0c21704ea3df07e1d1e9708b333",
+    "app/src/main/cpp/video/hevc_decoder.h": "36e8bffaa2008e0fcd7110a5237f5c3b427b6c4a4761a11004aec54a45d6433b",
+    "app/src/main/java/it/edo/codecprobe/AnalysisActivity.java": "6d8e53f961f26740e8a21dec32edd6809f988da3561ae97329c261f2694cd41c",
+    "app/src/main/java/it/edo/codecprobe/AnalysisController.java": "ac0d24946032cc59e3b8d02d6775424b972b3465c74d4cb03e364738543e703f",
+    "app/src/main/java/it/edo/codecprobe/AnalysisDetail.java": "34148b7d0d6c5aadeab08f6053b46ff20e02900625a1ad3a59f2cde1acb37713",
+    "app/src/main/java/it/edo/codecprobe/AnalysisDetailReader.java": "e0af01deed5121948de89f99f602c9831f0a8395d1c2ae7338a014d8d66d06bc",
+    "app/src/main/java/it/edo/codecprobe/AnalysisField.java": "75bb5c7351390dd596189ef8e696eb60b6204725645b3731a53c8a03fa6e74dd",
+    "app/src/main/java/it/edo/codecprobe/AnalysisInput.java": "f6e598725c0cb0f5323fd05621022157c7614cc1d9f588c8e2019394e689ed55",
+    "app/src/main/java/it/edo/codecprobe/AnalysisLabels.java": "def290eba26caa541e5d595b5eaf73b2868cf62f3b13c70a61d733c3ff300ff2",
+    "app/src/main/java/it/edo/codecprobe/AnalysisNode.java": "d4487f7a5f9c69e01f3df0b4d98e27c2757ce1841155901e524c990969769aa7",
+    "app/src/main/java/it/edo/codecprobe/AnalysisParser.java": "77f6424649d5d8e5491acf59e2293bfd76ad344efa18000b73ff099b1b136a16",
+    "app/src/main/java/it/edo/codecprobe/AnalysisReader.java": "6008c5a89f65df8b84fec795286e80ea9f781c0efce590d21990a2e5f3d54133",
+    "app/src/main/java/it/edo/codecprobe/AnalysisScreen.java": "8baedf7fc239ef27103c9c530f6fa52a4e1aa8cf852bb81aae40c38c3405eb34",
+    "app/src/main/java/it/edo/codecprobe/AnalysisSources.java": "44a146ee458b3a58b2785472b7e93fe0ff1bca5f2689ca92caaf229d16466548",
+    "app/src/main/java/it/edo/codecprobe/AppHeader.java": "d669f94fc5e7bfbb21dc6a779fe1a85cf2b2570966180939fa9fd772544ff496",
+    "app/src/main/java/it/edo/codecprobe/AppNavigation.java": "2842aec58dd28a8c432b901a9892b35f9404b5a71f5b1609c393f31edc80a5c0",
+    "app/src/main/java/it/edo/codecprobe/AppSections.java": "e8e755ac8340f12e5f92c126e2dc13335bdeeded131f953aa041bcea8416deec",
+    "app/src/main/java/it/edo/codecprobe/AppSettings.java": "ed3b22a8badbc3cf5c6f8b3dec4e2d997c166b12209669b17aadb1edf9fff98a",
+    "app/src/main/java/it/edo/codecprobe/AppUi.java": "b4fc1af967a0b608f75c9c18602a415be3945fe83daa9d2940040f7453226de5",
+    "app/src/main/java/it/edo/codecprobe/AudioActions.java": "a84bcbb8f590bccbddc9eb206bec16d89d16bcf5ff5c2382a16a5b7a7b6abf6d",
+    "app/src/main/java/it/edo/codecprobe/AudioActivity.java": "fe5fd5d543cdea7ff39f2ab8b6646b468a8d2e268e615eccfc61d380f69ba629",
+    "app/src/main/java/it/edo/codecprobe/AudioAnalysisParser.java": "834bff54d980860f3b426bdf7550cb9e260055cc9b78668bc320ea838f84c2d7",
+    "app/src/main/java/it/edo/codecprobe/AudioCodec.java": "cffa184584c510fe6473405f50a717cf50a132af55daa5e4c0621c5539202a91",
+    "app/src/main/java/it/edo/codecprobe/AudioController.java": "fd8407652f0e56f8ca67acac56e77c46d07d55105a6cec38ef7d64e592c3eb87",
+    "app/src/main/java/it/edo/codecprobe/AudioConversionService.java": "ba88bb74213583a1563ce70cbaad8ff8272cfe143ca5720d66e6d7cc4022b69f",
+    "app/src/main/java/it/edo/codecprobe/AudioConverter.java": "6f4b302f52e8a5e46eb8a2f2061b2496824d0c3d9340a0663678366a20ff8ac8",
+    "app/src/main/java/it/edo/codecprobe/AudioDraftStore.java": "1f4fcd3f0a6883d0c9e5966c8e1d8b200576873c446758fa1dbd53c9d808232e",
+    "app/src/main/java/it/edo/codecprobe/AudioInputInfo.java": "1ab6ef24c44fc2428c18336cb6a5d08c418054496ea56fb67db42d5eef6927af",
+    "app/src/main/java/it/edo/codecprobe/AudioLog.java": "c17c82697c6d537ea7745dfa72530c087fdf7b2416caccf80289c95e7b6aca88",
+    "app/src/main/java/it/edo/codecprobe/AudioLyrics.java": "b30a6ecf88f1d815fa51c4556a0332ccd94b441f13dcc123341bb0c976eb4e03",
+    "app/src/main/java/it/edo/codecprobe/AudioMediaDecoder.java": "8d0c37f5d2962c18b4e67f47a4c582da420c9b0226afb3f37f02d93213dc826c",
+    "app/src/main/java/it/edo/codecprobe/AudioOutput.java": "de313aa5c2b12561c79c35a663f261a0a26dd49a10d1106138abb3cad181ef55",
+    "app/src/main/java/it/edo/codecprobe/AudioPacketCopier.java": "2612bdb471828c97223faff5dfd3eac9d709e1f7a556980cc7e2f8f24b9797ec",
+    "app/src/main/java/it/edo/codecprobe/AudioPcm.java": "4bee4b1dae0130a228a981676f9c6b139dc9f7b290ecfbca6163e467121e12a4",
+    "app/src/main/java/it/edo/codecprobe/AudioReport.java": "8bd7b8d259455860f9b8eeb1dbd310638b625e5146c4f0c796d7b43f42f77e38",
+    "app/src/main/java/it/edo/codecprobe/AudioRunState.java": "085fe30fc7a4bbe1a7f8d310330b91cb37d095f1e1c0d0d03d9613b562780721",
+    "app/src/main/java/it/edo/codecprobe/AudioScreen.java": "6bc533766413d9a2d94db923b3eb8e36920f7e6bf2ac093c0803ba6974318e1b",
+    "app/src/main/java/it/edo/codecprobe/AudioSelection.java": "5794d6254a850e969e9af282f6468f496b08cbbcc82bc6bdb3a6620f4d2bfd3c",
+    "app/src/main/java/it/edo/codecprobe/AudioSettings.java": "69b2785ccaf45a084f8057e88de550088fe1b9aaf3b805e9c6f49e2c94959625",
+    "app/src/main/java/it/edo/codecprobe/AudioSettingsScreen.java": "811a1dc1a60b647676d27b27810d402b78a54beee9c56b14c52800547c3fb5dc",
+    "app/src/main/java/it/edo/codecprobe/AudioState.java": "9dc350a587fda6efc7eaf5bb9076c3c9a10ad215498186d60646c93b67c2f160",
+    "app/src/main/java/it/edo/codecprobe/AudioVerifier.java": "4ce578d757abecf59b97c8a59ead9d570d9661538fe911e4f2ed9aef5b7d950a",
+    "app/src/main/java/it/edo/codecprobe/BatchProgress.java": "8db78092de7cbf5ab2474f70f7fc26f904b383203d39d11087e1911020a3ad9f",
+    "app/src/main/java/it/edo/codecprobe/BatchRetry.java": "059459cf390f98763f80d53bc4512ed20ce5cb639c97703189a3579697d39883",
+    "app/src/main/java/it/edo/codecprobe/ChoiceSlider.java": "b0bd877d24bd3691cab7f01bf1d90c756143d7cc6db29978b1ba9992450006bc",
+    "app/src/main/java/it/edo/codecprobe/ColorVui.java": "0c23f815ea059e25198ad8ff22b9f3023c68193c7e49a391b538c783e2cf7a68",
+    "app/src/main/java/it/edo/codecprobe/CompactLog.java": "5386ff6982e33b22637f6ff7d268a65b85831c1f833663ad18fe92698270a7b7",
+    "app/src/main/java/it/edo/codecprobe/CompressionSummary.java": "296888f09296ae9caea16e78d549c7c7d73f6da67a4ff00b9d37829e3427deb4",
+    "app/src/main/java/it/edo/codecprobe/ContainerColor.java": "30902d48a1cb04f0f915b7ca9217e762979320b83ee70150771698a8e92f1318",
+    "app/src/main/java/it/edo/codecprobe/ConversionCleanup.java": "5ce6afb522611fc8e2c5a5d70253e82304e804921264bdecd5626230e3e540ee",
+    "app/src/main/java/it/edo/codecprobe/ConversionControl.java": "854ea69928bd24c3b8ff899fd371767d1e88bd0a725872a750239eab903b482d",
+    "app/src/main/java/it/edo/codecprobe/ConversionDashboard.java": "c6fe4364c7bc8516fdf45119d66f2cbe22470766af19d86d60ac0012c3084e39",
+    "app/src/main/java/it/edo/codecprobe/ConversionFailure.java": "c7ae837ba006c9573e39616e57d372fba48c27eb3f9079a66cede1f375a03d34",
+    "app/src/main/java/it/edo/codecprobe/ConversionOptionsView.java": "1e5e4bfc12265a96c937f475858d287ba83cafaf44bed84038cf5b52b3edb685",
+    "app/src/main/java/it/edo/codecprobe/ConversionResources.java": "8e85a0c3a8b2c7bc8bfb0b990a375e6fc77505ee7560832d78b118501fb5368a",
+    "app/src/main/java/it/edo/codecprobe/ConversionRunGate.java": "4035eb55da333a0e730266390af401054c5e510e1081d4f2e0246c0f606baef6",
+    "app/src/main/java/it/edo/codecprobe/ConversionService.java": "5f7e6e22795d91de24abb5034680944dfe10b52a9199c57921376445ca463d1b",
+    "app/src/main/java/it/edo/codecprobe/ConversionSessionState.java": "e3651dbd84725e761bbdc624bec8235fa3cd5ea5f10c49c10f576cc30bcc6e07",
+    "app/src/main/java/it/edo/codecprobe/CpuModeButtons.java": "861836b01e82fc2db9ced9a831ef56a62cf24e64528501e41c10e8b0267a70e5",
+    "app/src/main/java/it/edo/codecprobe/CreationDatePolicy.java": "cb5d96ab8153cee7432a76ed9feabb62e26bc23b5ae8b2f5092c961e93d9757a",
+    "app/src/main/java/it/edo/codecprobe/DashboardMetrics.java": "79eb90fc86beca31824328513b822e17d719936640c149670fb06c684203eb34",
+    "app/src/main/java/it/edo/codecprobe/DestinationDraft.java": "f1f7d1d22a0aa2c135c02b2c673f5330750d8c8ba327166c94ab7aa3b4a73b9f",
+    "app/src/main/java/it/edo/codecprobe/DestinationPlan.java": "743a61ed025e875b8955ded120a2de7c599acc484f5fdb4511eb9eeec98492fa",
+    "app/src/main/java/it/edo/codecprobe/EncoderPresetPreview.java": "b0bee0cf52a2a086d8cbc1fc13dfb65efcaa9fedab9fffa73aaa9deb18da5407",
+    "app/src/main/java/it/edo/codecprobe/ExifAnalysisParser.java": "a05b9bda807b13fdf96ba724dc2a10c0bd424c4b5234732003cac34f359f6ded",
+    "app/src/main/java/it/edo/codecprobe/ExifTagDictionary.java": "b91ca53b2ee7052862019e9f0afa62c1bb4564e838195df7bca7e3b637e40424",
+    "app/src/main/java/it/edo/codecprobe/ExifValueInterpreter.java": "689fdede9bd12602c6f5e9e8d49a55186445574214867e2b984632d397d2cf16",
+    "app/src/main/java/it/edo/codecprobe/FolderPaths.java": "ef776da0da2795c9ea2bee219b71c42c0ec289615d23b7a0e107024a5e512004",
+    "app/src/main/java/it/edo/codecprobe/FolderPickerActivity.java": "72711b967bd7dbd83128d3c95ee092f28e103bae410179e1a808b05154e30bcb",
+    "app/src/main/java/it/edo/codecprobe/HdrCodec.java": "3dd0894e4c198d1e4aeaece2189391d8936de0f748f3f33995451bbaf286668e",
+    "app/src/main/java/it/edo/codecprobe/HdrHevcInfo.java": "837c1a0bb827b5f94fb9389a112b7f3db15bd27d88e78c06824b073631c95f7c",
+    "app/src/main/java/it/edo/codecprobe/HdrMetadataLedger.java": "acf501d1da7fcb3bdf8b92e093b025b1456c59855d0ef6a0d7016bf78be16030",
+    "app/src/main/java/it/edo/codecprobe/HdrP010Packer.java": "e31bb636987a664f9f94101c8b449ae7113bb145b76088dceb144cb93f46a5d2",
+    "app/src/main/java/it/edo/codecprobe/HdrProbe.java": "3d40e1c6622bad247f910b750c05999f35824d82bcfe8412adbc47642d2e2aed",
+    "app/src/main/java/it/edo/codecprobe/HdrSei.java": "48ce5c5356c0e87cdf0a0a104b6acb0db2a40b4ff6961d1e6cf9bc9f814bf8bf",
+    "app/src/main/java/it/edo/codecprobe/HdrTranscoder.java": "ccab7e20527c976f2920ee62ca159b5dfb3cfd4e020c659786ff4d7ad10be93c",
+    "app/src/main/java/it/edo/codecprobe/HomeCompression.java": "bb45ff01cccd6e3b2c1098ed1f71ad792bade3f5e839ae8ab26b3ef8f13cb310",
+    "app/src/main/java/it/edo/codecprobe/HomeCompressionSection.java": "6fbdb3d33fbde8fb2faf7f8d11cf4ddd27e48c5db5c37a0fd2d9fab74e50219f",
+    "app/src/main/java/it/edo/codecprobe/HomeController.java": "93c80a982c04fda291b855d871628f4de16da1354db8117f7a2d14f7ab6db686",
+    "app/src/main/java/it/edo/codecprobe/HomeConversion.java": "c3780c85a2e2583cb66c2bf64882356c2747533b02eebbffb52635568d0dff49",
+    "app/src/main/java/it/edo/codecprobe/HomeConversionSection.java": "233549dca4a4bc04683c5ff8491bb59da02e2612658898d3c49a655096770558",
+    "app/src/main/java/it/edo/codecprobe/HomeDestinations.java": "1d67da2fe17ec4a83c8b1f3e46bf4bc90e6839de48af6a4e48fca75dbd37c5f6",
+    "app/src/main/java/it/edo/codecprobe/HomeDestinationsSection.java": "cd5e486780c98861349515ef638d9fb04a715c5c8057201c90fda4cb3dc9f797",
+    "app/src/main/java/it/edo/codecprobe/HomeDiagnostics.java": "b1b0beddff79f647cb83491dd2c56441ffdfa1f814b143edaeaaa864cde60d94",
+    "app/src/main/java/it/edo/codecprobe/HomeDiagnosticsSection.java": "14d8b38a2c41f2e1f629a9591c0df7cbda200b26406c5b6956ba1a83366dcd6c",
+    "app/src/main/java/it/edo/codecprobe/HomeDirectoryRow.java": "47a36437b984acc65f6462293991dc363e4948551c6a93811e2aec9fb2dc89fb",
+    "app/src/main/java/it/edo/codecprobe/HomeFailureReport.java": "db7e10fb9621233f083161213dbbcfcbe46d911e9d9e3b5cc2550b875bf86310",
+    "app/src/main/java/it/edo/codecprobe/HomeFilesSection.java": "8a6ba9d586c51a04232c1c1e4b6ebf3ae8a8d6d5131df3b7379b670aca6c3758",
+    "app/src/main/java/it/edo/codecprobe/HomeOutputCheck.java": "2646e000ff919d4cc9863e1d12caa141c3fbeefd65638c29595799b58104a3f3",
+    "app/src/main/java/it/edo/codecprobe/HomePlaybackControls.java": "a45c4a8f9ea7c9acc25a92333ff9c352cf28d7b3140c472af2338997d4ef5d21",
+    "app/src/main/java/it/edo/codecprobe/HomeRecoveredSelection.java": "8a7018bf8c8cee2baee9ca26bc841f085f874db94019839de33a24a1e647c878",
+    "app/src/main/java/it/edo/codecprobe/HomeRequests.java": "1205ff5b0322c6959285e135e907c517b37dd3a2ad762ee600303e344f01d349",
+    "app/src/main/java/it/edo/codecprobe/HomeReset.java": "15ee4a660ee8e7205ff9e5413f2afa34d56ddfd69f4e75b224807b6a78be2183",
+    "app/src/main/java/it/edo/codecprobe/HomeRetry.java": "fc689ff7af3fdcd5f22f132082e6e2ada9570869fa68250ce110265d380aaee0",
+    "app/src/main/java/it/edo/codecprobe/HomeSavedSession.java": "3ed8f65ca30522ecc6758fc43889218965265f61707af42c554f2db189891dad",
+    "app/src/main/java/it/edo/codecprobe/HomeSavedState.java": "36e46f9c207cbbf8ecebbe086faba93c217b5e6a012b6c89f1d2486ea9392a50",
+    "app/src/main/java/it/edo/codecprobe/HomeScreen.java": "5f2637d967b08f3a755d2472f6946deeefb72ce15bd15d9bc4432280e0473175",
+    "app/src/main/java/it/edo/codecprobe/HomeSections.java": "292b89335c7e644ed004446045ca0d8e344b7881770fdb06b0ab3922ecc3aef1",
+    "app/src/main/java/it/edo/codecprobe/HomeSelection.java": "92dd65994c352e629e47b76b9ee5e0b74f83ea9c36cab5140bd29e8df1f06b14",
+    "app/src/main/java/it/edo/codecprobe/HomeState.java": "43699e2f43701bd6b5664a549f40702b7395fce99998c72aa6b42e5a2fe2c024",
+    "app/src/main/java/it/edo/codecprobe/HomeSystemMonitor.java": "121095017b72394aa4e9e1fb0efa7bf275f1cb6790ef9dd82057032aed848c74",
+    "app/src/main/java/it/edo/codecprobe/ImageActions.java": "e82f9c01435ea5883b73fd53993aa1c31094dda48908d98e592f5553a2006140",
+    "app/src/main/java/it/edo/codecprobe/ImageActivity.java": "2bea4d5d304a09d91b43cdaf34394303afc2da2b88254eff7a24f49192b139f7",
+    "app/src/main/java/it/edo/codecprobe/ImageController.java": "ce9b7fb51c37e8b3e09357e9268aba1708f059aa020862ffff6f315178290a21",
+    "app/src/main/java/it/edo/codecprobe/ImageConversionService.java": "2115ed84745c989a4a12423c99a7933cbc295d3786d7b5a0b0e2b9ba7b7e0959",
+    "app/src/main/java/it/edo/codecprobe/ImageConverter.java": "23c980ec297ab4057eb1dd5b4d003d4f480fd24c629bf3259db2a901efc8245a",
+    "app/src/main/java/it/edo/codecprobe/ImageDraftStore.java": "6c62190f911deb9b44ccc410e1659fb07fe06535bb8178cb3cde8a64b90b1dcc",
+    "app/src/main/java/it/edo/codecprobe/ImageFailureStore.java": "f892c6a75b9904823f432c9080218f52a9333bcc9c3d28102fafd9bcce20d0e6",
+    "app/src/main/java/it/edo/codecprobe/ImageFiles.java": "fc1805d4e2c1edd5e10a97a29c272b6a53aff842862faedd94397a2e7a06fa4a",
+    "app/src/main/java/it/edo/codecprobe/ImageFingerprint.java": "deca2e7259940c55769abdf89b8a3e5f05840699bad50f9de59d48d2ea9e2b8b",
+    "app/src/main/java/it/edo/codecprobe/ImageFolderReader.java": "3392a17c245151e55a3304e0a6d46725a00b8245fbb8516d5ec8427bc82601e2",
+    "app/src/main/java/it/edo/codecprobe/ImageLogExport.java": "6e169dc6a7dccfa41f1a31aaae44fc93e06f8b3a89e76c5b278db8f1665f78ae",
+    "app/src/main/java/it/edo/codecprobe/ImageLogPreview.java": "568d273926e908675b9a6117aa849f90d1a57e8dfbe65daaebcdd3cbebb44ff9",
+    "app/src/main/java/it/edo/codecprobe/ImageLogStore.java": "dcb01fea00db614e1bcff687d78dec7ccc73ed485194b3ed0592d17c6e878922",
+    "app/src/main/java/it/edo/codecprobe/ImageMetadataCache.java": "8302af76c927c4e7536943068b7a1f802176f0cc32bd60f27e271248512f9e9f",
+    "app/src/main/java/it/edo/codecprobe/ImageMetadataCheck.java": "b99fd38d5844e3725793d9bc413ea082804fe0c7762dc802a214ff2ef96ec643",
+    "app/src/main/java/it/edo/codecprobe/ImageNative.java": "8934b61d511b127796c4dc44a631926bce9a61272832a6a22a97497e1132a731",
+    "app/src/main/java/it/edo/codecprobe/ImageOptions.java": "d8e02745eb5f058acf7ec5bd49f49e97e9862b8a2d0e4ff316ca366fbfb6f00f",
+    "app/src/main/java/it/edo/codecprobe/ImageOutput.java": "a2b678c8c0fa4ee2ff382d653f7331e8f40fb95934acffa7922ad6ed5cd63318",
+    "app/src/main/java/it/edo/codecprobe/ImageProgressJournal.java": "0640d1b9cdf8ac9bf9755e847794268245557854aec6b8ea8936d40538af227d",
+    "app/src/main/java/it/edo/codecprobe/ImageQualityControls.java": "2ca1683e0d98c95fc8704b1b9cf09229e7cb2fc318ffac8280b19416f548f2f2",
+    "app/src/main/java/it/edo/codecprobe/ImageQueueStore.java": "5bc9803f8757eed0bf946e0eedb10ed3eb76cb966ed924f760055fd9bbb3a067",
+    "app/src/main/java/it/edo/codecprobe/ImageReport.java": "9e2e82f1948cab68ea14d93c132a644c16d719c17d4950a8aa2ef9dbad7a730d",
+    "app/src/main/java/it/edo/codecprobe/ImageResultList.java": "dda79f680957c0539ca32b5a51e7a7235478fa9cc0c551b8989152c9efe00116",
+    "app/src/main/java/it/edo/codecprobe/ImageRunPresenter.java": "a97b6ecba5825000ebd6239e30c640337e4db3f9891e5e3c7ba51a7de6b24ac7",
+    "app/src/main/java/it/edo/codecprobe/ImageRunState.java": "1eca4e26ad8c55112fa97c00a2436cd475551cc36af65b0224bec37b2568d245",
+    "app/src/main/java/it/edo/codecprobe/ImageScreen.java": "f6892d495046b5fbc6e8f14a4ace65bb929dd52dac66231a1bda0ba7bbec5a91",
+    "app/src/main/java/it/edo/codecprobe/ImageSelection.java": "28037eef620b23c82886b98ed1b294f782d47f4fc5afb797a6d50c499973f7e8",
+    "app/src/main/java/it/edo/codecprobe/ImageSessionStore.java": "01a05441f5c5c9a79f7fe7dde3458917b716bdd93cfd017856759d32d8a98c8e",
+    "app/src/main/java/it/edo/codecprobe/ImageSettingsActivity.java": "24083ac2124bb49d98ed9a7ce45bc394a43ed4cac1ffbb1771628aebaebc9c0b",
+    "app/src/main/java/it/edo/codecprobe/ImageSettingsScreen.java": "406e0af7b0e63a199626c4d6fca1f7e6b2967c98f6ad996b2fd79289673a92ba",
+    "app/src/main/java/it/edo/codecprobe/ImageState.java": "dc1d7a7d4813d018772bfe4e9666e2fc2286425fa3a8f21ee846cca8e77da87c",
+    "app/src/main/java/it/edo/codecprobe/ImageSteps.java": "3fe64e8baf482f08b2718c7c06236a1c4bb4fcd53575302c3f710b5d25573606",
+    "app/src/main/java/it/edo/codecprobe/ImageWorkReport.java": "f26aa5047f15a356b74b154c32148478e46f29233effa0d00621e00fe45f4f47",
+    "app/src/main/java/it/edo/codecprobe/InputCreationDate.java": "1387d2376874a01d40988bdffaeac1468a52043ecbb1ff1ab6c0db083db8fe5d",
+    "app/src/main/java/it/edo/codecprobe/InputInspector.java": "ab1eb2554cb8e6f6fec1cce3eaf70e6fd789606d2d49a8b36e2deb89e3abd37a",
+    "app/src/main/java/it/edo/codecprobe/IsoAnalysisParser.java": "cea7c794fe41672aa4e113fb1ffb5692daaa8459285a33e8785b095599ec4b8d",
+    "app/src/main/java/it/edo/codecprobe/JpegAnalysisParser.java": "43244430105a7bbb9c0e2c52f9cfe444c67840dd05dfbd914389c2f65130a2db",
+    "app/src/main/java/it/edo/codecprobe/JpegInventory.java": "678d3a1021ed53a93602a1833f3d7bacab0d70255edabc3abfcced49188446b3",
+    "app/src/main/java/it/edo/codecprobe/LogPanelView.java": "70ee9e50563c13b285c6143ac992b828d679b6c63b21d358bb89c7fcd4804771",
+    "app/src/main/java/it/edo/codecprobe/MainActivity.java": "a08860ecf56a2cec894c133ab461cf6d2c9eb12be2cb5219fc594492055f90a7",
+    "app/src/main/java/it/edo/codecprobe/MediaConversionGate.java": "aac085f6c0869b21609e6a7cbd0c2c215b22c1e67a4ac15412153351af447c25",
+    "app/src/main/java/it/edo/codecprobe/MediaDestinationsController.java": "6e1d38c6fce946c7c1b45b669d896d8921a3200291072d0e0509b53d25a38440",
+    "app/src/main/java/it/edo/codecprobe/MediaDestinationsView.java": "bec71dc803ca3940f21f718fddbce3215f3bac9e4cb2c213c65065df4aa2c7d9",
+    "app/src/main/java/it/edo/codecprobe/MediaFileSizes.java": "c26aee015778608c3ce2fabe74e59b4220dcae05b49a0e198c79a9b6b5365ab7",
+    "app/src/main/java/it/edo/codecprobe/MediaKind.java": "f837966382eaab2946ba01947a57c10e82ebad25b9d2d4e78435689996027545",
+    "app/src/main/java/it/edo/codecprobe/MemoryProtection.java": "2da538d30eeac921ce70cb8c9c4119249838555892d9d3a9c3ab007e3d2c3b67",
+    "app/src/main/java/it/edo/codecprobe/MetadataDump.java": "cc20cfb43d588b464631872de345f3d65e364883f128ae06003d71c9136f3e27",
+    "app/src/main/java/it/edo/codecprobe/MetadataMemoryCache.java": "4e6f2b59ad3935c3b20741a8a7ecf478073efefbbb8063ad73ef365599c1f5b2",
+    "app/src/main/java/it/edo/codecprobe/Mp4Boxes.java": "15ef1879944162caabe2c48b92ab53f552658fec16e0aff29622c92573477722",
+    "app/src/main/java/it/edo/codecprobe/Mp4Metadata.java": "11ab23db48f2d79e299c4f81175f34f2286acf8fca582b60ff2b73e25956c0e9",
+    "app/src/main/java/it/edo/codecprobe/Mp4MetadataInventory.java": "3361739b23162176914acb08c5da82800e26b719f7695aec60310e9d39587c71",
+    "app/src/main/java/it/edo/codecprobe/NumberValues.java": "ea588ce1b449d104f7febe5d033a00978c5e72223551953dda12944a152a76bc",
+    "app/src/main/java/it/edo/codecprobe/OriginDirectoryPanel.java": "95ab435313d08530448a2e0e32f69afea997f5184bdba56200c73753f9f4f07f",
+    "app/src/main/java/it/edo/codecprobe/OriginalMedia.java": "acbff6c3922f21f1827f15786409c3ddc44d378ef8cfbf5518205597340475e7",
+    "app/src/main/java/it/edo/codecprobe/OutputDocuments.java": "868058b4321805c1661636d3e984b9a576c7de55774d270de4ed6ab8f2b3457b",
+    "app/src/main/java/it/edo/codecprobe/OutputName.java": "431854331578c15e7481ba61e47a744ccc4c0f52701098d3473e34baaa170047",
+    "app/src/main/java/it/edo/codecprobe/OutputPlan.java": "ceaabaa0b6d42921a2d0442bab755227dfd0130bff1b02ee6a8d9d5ee1fc7223",
+    "app/src/main/java/it/edo/codecprobe/PhotoBackdrop.java": "23502a620e645b3caef80a34da85a2f495b2c7fd6f01d6d072b87117f9ef1275",
+    "app/src/main/java/it/edo/codecprobe/PhotoBasicDetails.kt": "f56cb57adf2002eef50dd7099177b025272c5a36e1dcd0feb5fb1231a2a716c6",
+    "app/src/main/java/it/edo/codecprobe/PhotoComponents.kt": "47229f287a364749b2825cd851bac84b6e63d72535cddb6321cbf1aa8df95c1d",
+    "app/src/main/java/it/edo/codecprobe/PhotoComposeHost.kt": "cb5d288cd6b81979ed46c70c895ccb6c89ccfe1b4ee81df15b659654e344d276",
+    "app/src/main/java/it/edo/codecprobe/PhotoCompressionPane.kt": "31a5483bc74d35810ec60a4573ec41cff881b80cb48480264e1d53c764314099",
+    "app/src/main/java/it/edo/codecprobe/PhotoDestinationState.java": "6cf39a05c25acb2d8860f548e99e57348b40f97503cca5b10f2745c008cb9f9a",
+    "app/src/main/java/it/edo/codecprobe/PhotoDetailsLoader.kt": "f6e481f09a08eb5ae7bc490057328ecc83444fbf31dc24daa2aec2c054919ba2",
+    "app/src/main/java/it/edo/codecprobe/PhotoDetailsPane.kt": "cf95165bea18b45f816c0c00e1252c7df3f5607a8c50be96ac799afde9fbce1e",
+    "app/src/main/java/it/edo/codecprobe/PhotoFilesPane.kt": "6c87b7d3c9dadb5cda48d0b074bbd40466701dc75b71f65a909db72906306163",
+    "app/src/main/java/it/edo/codecprobe/PhotoInventoryText.java": "f27a61a3c77a180f1fa94ee0247954f37c5586ef5a1de7f920c0b699579a8269",
+    "app/src/main/java/it/edo/codecprobe/PhotoStyle.java": "7d24be1ea1b0ddc493ec67f02f9f39b2b43ce431b083de860768871076f368eb",
+    "app/src/main/java/it/edo/codecprobe/PhotoSwitch.java": "81f00f0ec15c12bf4914fb81d653caf6970baa1e42644d451b77f71ca934bc08",
+    "app/src/main/java/it/edo/codecprobe/PhotoThumbnails.java": "f7f2306cd7d2c1385d7b023e6c89446f370d522fcba7e106e523155a835142c1",
+    "app/src/main/java/it/edo/codecprobe/PhotoUiState.kt": "c82f1211b6fbeed331f62d4e2ca56034dbdc8082fe516f14be01c21e0af21e69",
+    "app/src/main/java/it/edo/codecprobe/PhotoWorkspace.kt": "a782d9ca5c7db9d97f61b40b431c56e821831e29cfd42d15862ac148ed46e610",
+    "app/src/main/java/it/edo/codecprobe/ProcessSystemMonitor.java": "6a4f829c3f9b803e0060e56b261720529113846bef42d5059234f716a767f6b5",
+    "app/src/main/java/it/edo/codecprobe/QualityButtons.java": "f47b38ebb3e834dc2a0da037b78f22fb1379e993ab6a74d7dd1934ddcd38f861",
+    "app/src/main/java/it/edo/codecprobe/QueueDestinations.java": "b34d12ca2305c8d78fbee6c19cdcda3e2d05605cce875e51c21bec348217f043",
+    "app/src/main/java/it/edo/codecprobe/ResultDialog.java": "9e98880ffac57e606eb62185bcc62083a8caaa1535468903d7352946ef2522bb",
+    "app/src/main/java/it/edo/codecprobe/ResultReportRow.java": "8c760e4c5b840ebcc0b6388dccf99bd5ecb1899492898a0a45ca182c6420cea9",
+    "app/src/main/java/it/edo/codecprobe/ResumeParameters.java": "7bf3c2d3a9f8c257eb7bdd0110bd1e37338a3abd505ed83e218f65a4e128f5cd",
+    "app/src/main/java/it/edo/codecprobe/SamsungSef.java": "646c33c15324f42317304a0a24f65bd9a3c965c37eff0fdb82803443fbfff22f",
+    "app/src/main/java/it/edo/codecprobe/SamsungSefCatalog.java": "794d9d11efa146bc8fbbb4633c09df733061cc8414fa0dd5624e50a7dc46722a",
+    "app/src/main/java/it/edo/codecprobe/SamsungSefDiagnostics.java": "b8365c36d2fbe663048534987c7094ee7b2be598df21654bba8b4a717d286e5d",
+    "app/src/main/java/it/edo/codecprobe/SamsungSefDirectory.java": "51612e439530e7ff71b6b231fd5b7959f6c30b5ca981532bec9b739cf588e277",
+    "app/src/main/java/it/edo/codecprobe/SamsungSefEditor.java": "9aa26780f29e88551193f2b479fbacdf56867c0bfba834151c6608962f6d8919",
+    "app/src/main/java/it/edo/codecprobe/SamsungSefMotion.java": "79227932ca5391fc258f0273190a2cab0865bd4035020079e51d90958348c924",
+    "app/src/main/java/it/edo/codecprobe/SamsungSefSchemas.java": "a93b082b39acf3ba52b12e07a618623a44b38ff330851e030bb84518861f1aa8",
+    "app/src/main/java/it/edo/codecprobe/SavedSession.java": "dba73c6d17f6f8694d1e1307eb7e19b1824b6df8daf230fe0045c8b9a46b41af",
+    "app/src/main/java/it/edo/codecprobe/SavingsPolicy.java": "7676fbd5e73a0e86b0043cf5f42aca0d6afa62887f0040ad8b9791b5deaa2649",
+    "app/src/main/java/it/edo/codecprobe/SelectedItemView.java": "af4c998d94f11c4ef1c47533935329759198b0c49665ef2a7a5d628108d6206c",
+    "app/src/main/java/it/edo/codecprobe/SelectedMetadataReport.java": "f6948cbcf9878933dc5c9710e5d65fb5bc9c3b4e46faf10265da58de7fd5ba1a",
+    "app/src/main/java/it/edo/codecprobe/SessionClock.java": "769f003eeab3dc20418fc473325f9c30f2ae3bd8fd8644179ea50d9e67f6a734",
+    "app/src/main/java/it/edo/codecprobe/SettingsActivity.java": "a8b37f873786a5a8ebfdf98726f03acbe0253b8997e7776623211c72b9346f3a",
+    "app/src/main/java/it/edo/codecprobe/SettingsPage.java": "b062f45a5ccc97db575b414889973c52e62ea05b1f78e7464a6d6c8eae710679",
+    "app/src/main/java/it/edo/codecprobe/SoftwareHevcDecoder.java": "bfbc21cab4826d4cf0d4235de0676570479f38c93aedf317672544a664bc01bb",
+    "app/src/main/java/it/edo/codecprobe/SourceFolder.java": "0b4b8759db128b7615c358f683dc47a03d48bdbffa9aa9afbed953d09345e730",
+    "app/src/main/java/it/edo/codecprobe/TrialIcons.java": "f13374de9c6b8959cc61232c97f53dfdff311c967c525ed9cf27ed1d890f8e41",
+    "app/src/main/java/it/edo/codecprobe/UiText.java": "944899f7524081358239385baab50e380741f0e765ad1ca29dc643dfed1ab0e7",
+    "app/src/main/java/it/edo/codecprobe/VideoConverter.java": "6723b2759e03e66b740067d1045339bf4d23f7fb11317d909a1f827f38483708",
+    "app/src/main/java/it/edo/codecprobe/VideoDateAudit.java": "5ccc6b71586854fb9f013e9effd1f1a1b655b1fecb071418eee50febee29b2a5",
+    "app/src/main/java/it/edo/codecprobe/VideoMetadataCache.java": "6a12af60434bc8f871858dc2ac1dc86995cdc99c0730d6005219be54bb10f2e2",
+    "app/src/main/java/it/edo/codecprobe/WorkReportView.java": "0e586049b8c9d55c4af45c0642b52b22a4f7d6e120154d67a4558ad57ff25e2e",
+    "app/src/main/java/it/edo/codecprobe/X265Probe.java": "f66fbcbce70ede85c38c7b7dd38c6e1023dd55e39262dd3b768cc3c4838f73ae",
+    "app/src/main/java/it/edo/codecprobe/YuvPacker.java": "0e9b69df798c4e7b95805f37fe7b09860f8f694db92c0eb7692c4ef632ab0168",
+    "app/src/main/res/anim/workspace_fade_in.xml": "c6cee3b2b2da27e839cc81aa48d3f16c978643f6b71d5e45259475f6526f52d3",
+    "app/src/main/res/anim/workspace_fade_out.xml": "6df0c4add972fc5e6f248ec134c7bc2ddd0b8b4413782d1d607765ac53cec9a4",
+    "app/src/main/res/drawable-nodpi/minion_01.webp": "76430f2ecb3565d89dd8c6d89099ed7798b5ea70c8396662211322dc8831bb1c",
+    "app/src/main/res/drawable-nodpi/minion_02.webp": "a170549dbf61bde562af61676838487dc14397c69f4caf9905e5dc3b1d9a1d0e",
+    "app/src/main/res/drawable-nodpi/minion_03.webp": "23a10eec973cd7a67e5ed378ea92c4e2250a9814d74dd837c90579b511e10a13",
+    "app/src/main/res/drawable-nodpi/minion_04.webp": "70ca14ca2a2c42d0732b4a1a02485d5e3544a26f3ac8f03399e49d7064664511",
+    "app/src/main/res/drawable-nodpi/minion_05.webp": "5038d7349e605788ea0159ababacbc87f3a93546722dea53299e3944bd4455b4",
+    "app/src/main/res/drawable-nodpi/minion_06.webp": "beb670266e36154246b53223ce3aef2b44b43c91ef5543eaf421d29f4ed523c5",
+    "app/src/main/res/drawable-nodpi/minion_07.webp": "2b640a0e7566bf8fde29b757da3b584018abd60b00bd3fe6715f37f05e834137",
+    "app/src/main/res/drawable-nodpi/minion_08.webp": "21507e9a86592f191e46c5bb0e39bb0fb0bfa42e0e0a1d84ba3cc8329859243c",
+    "app/src/main/res/drawable-nodpi/minion_09.webp": "ae43cb20c35931b298d8b6a2ac0c2ffd7ff8bbab598412d26985d02f5126e5e2",
+    "app/src/main/res/drawable-nodpi/minion_10.webp": "6288a063e074d0829135cfa19722a81e577cb3cfae531a7e4439e689bd7756e5",
+    "app/src/main/res/drawable-nodpi/minion_11.webp": "9129fb2d7da5427ad5177508eba1df0293f32cf138f57549ecd409e1710cc754",
+    "app/src/main/res/drawable-nodpi/minion_12.webp": "f4e41c406c9fcbd07ef7462cf1069e4ab7cd256892287f228e0bb38ca421d86d",
+    "app/src/main/res/drawable-nodpi/minion_13.webp": "c360b6ff26c749b0561c431172943bfb47172768c20c1742a5311d707232764e",
+    "app/src/main/res/drawable-nodpi/minion_14.webp": "edd141c5437d0664c099ed582cdbef3382dda83228e5e89ccea732a06b2c6ddf",
+    "app/src/main/res/drawable-nodpi/minion_15.webp": "62ce68ef56716f535d092b31549129f509d45fa9648b51fccd14b248449c898f",
+    "app/src/main/res/drawable-nodpi/minion_16.webp": "606e86d130abe7333c803e1ec69ba380d238790d8ee8864af81b47ba884b9df2",
+    "app/src/main/res/drawable-nodpi/minion_17.webp": "13994353956f578fa38c73c3ac85d117e49bc790aa8a0363a192f18810c90d04",
+    "app/src/main/res/drawable-nodpi/minion_18.webp": "efdca37f6d43ec19ba065d220ff543c9b08374c4b3b90b3a17d56e547e41a62f",
+    "app/src/main/res/drawable-nodpi/minion_19.webp": "303c93ac62e5bb11abb10de7bbc49756a2ad02f56af3be5ae628a0c2ed56df57",
+    "app/src/main/res/drawable-nodpi/minion_20.webp": "129b1ac142d1ab60eeb520427ec6ca97bb84064e4eca3c29c548d21b505fec6b",
+    "app/src/main/res/drawable/dialog_background.xml": "2273dd3589708a940ea6a6b9cacfe3b4d545cc3a8e9ec41586b50ba9b22d7895",
+    "app/src/main/res/drawable/ic_notification_audio.xml": "c7297daacb7d75d512d934f0c76fff885d84c171c58024e6545fe8633a6edfa0",
+    "app/src/main/res/drawable/ic_notification_image.xml": "f5a8f67f9048d6ad35f9e236881f4f72da20629290e791018084b56befd4c52d",
+    "app/src/main/res/drawable/ic_notification_video.xml": "195008e50b18e485f14b48e86bafb6d966c994cca8879377a95751f1b5905368",
+    "app/src/main/res/drawable/trial_add.xml": "452c34a52529698ab2a5485f8af96a25c891b43b8a8d50d38de9ba032e8ed25c",
+    "app/src/main/res/drawable/trial_back.xml": "eb48b6b513075a6a6c30e858b18f4cb8f0eb31caa0e59f82d2e88b92d43b5ec4",
+    "app/src/main/res/drawable/trial_bin.xml": "6f1580c8f005726de1827948f49f5b6b58a40c4cbcf3b4d613c22afabdda10b0",
+    "app/src/main/res/drawable/trial_folder.xml": "701228d23158c38eb0e88d6edfc3383c555ada3aa40c1f2ba032731987d91ed6",
+    "app/src/main/res/drawable/trial_grid.xml": "278bced282e5782c92f8e4b0b802c6fc92421b0ee2bff74cf0d1003abdb9500f",
+    "app/src/main/res/drawable/trial_info.xml": "c0839e9fa1dc9debc6248683c58018d41b009692625a76a79277b67c10cd2c08",
+    "app/src/main/res/drawable/trial_music.xml": "134b434e1182df8955241dffe339511961b3353caa07da3e44735f27cc65eb69",
+    "app/src/main/res/drawable/trial_next.xml": "9e5133dfbe605e720f74df6e3100c52ffe6d7d10c54c5821382d28814f7b2258",
+    "app/src/main/res/drawable/trial_photo.xml": "b34d89fdf0a49fb6413e1c06220925605d5543147d8a7464080643126a05345f",
+    "app/src/main/res/drawable/trial_play.xml": "806149a14fc84aa7399b0412d02db30816d3d93326f1e368d642d5f618249dca",
+    "app/src/main/res/drawable/trial_settings.xml": "2410d2fbb19596c953423801df5c015c0671c426e47457f92097669715c5c5eb",
+    "app/src/main/res/drawable/trial_sliders.xml": "a44a3c8836e82b504f5ccfed0cd2bdcf3472e002d016de8dfb91484bda52bd35",
+    "app/src/main/res/drawable/trial_video.xml": "9078db8c9625bd40152fb40651634c9b44bdd74f832c8c955f21cd42e6a6d29a",
+    "app/src/main/res/values-night/colors.xml": "0d1dbfb9652504975b74881a5bb3791bc2d139f4ce7d1deafce03a9b5e807428",
+    "app/src/main/res/values-night/styles.xml": "01a9598b125acdf6f30ec249b12285525f792fc84a37740e727b54f605efb846",
+    "app/src/main/res/values/colors.xml": "e5ba08aabc65dca41f5c9721017c5c3fa803473495b657e89149744afbb7b502",
+    "app/src/main/res/values/compose_ids.xml": "52e722e7962f99f4333305a06b23a10820d9ecf824781c6e3f42142898a9ef8b",
+    "app/src/main/res/values/styles.xml": "2abb7260def08ecc0bd3315aa95a187702b55e7a234afcb3a77d1fee50c9cafe",
+    "build.gradle": "6008a5ca7905e34e860b1847c595b3db76da2b446643131fa079789aa81c006e",
+    "gradle.properties": "3a4d8c88e0823dbb235bfcbec4dd98dd0700118f7f7c1307c5d2848214cba3b5",
+    "gradle/wrapper/gradle-wrapper.jar": "497c8c2a7e5031f6aa847f88104aa80a93532ec32ee17bdb8d1d2f67a194a9c7",
+    "gradle/wrapper/gradle-wrapper.properties": "3bd25ed161cc4dd201df37990b9dcfc7173eff6ea9174ff57d5acfdd9455cb1c",
+    "settings.gradle": "4328944ce01f18992ca8e8211124af224a1fcd3f12fdf7380154cc4f03d3d26a"
+  },
+  "origin": "Transfer of static audit: 332 methods / 94 classes; no new app test execution",
+  "schema": 1,
+  "tests": {
+    "AnalysisDetailReaderTest.boxAnatomySeparatesAsciiIdAndBigEndianLength": {
+      "card_digest": "71e3b7bbb6422eb5f0c9d14e89a2095870a773856cf8d3b4f43af22eef556bf3",
+      "fingerprint": "61052e7c1e4411042e1fcb0ed45a3df55d4659bb81eb158d3958629c3f3d8115"
+    },
+    "AnalysisDetailReaderTest.changedDirectoryHeaderIsRejectedInsteadOfShowingCachedClaims": {
+      "card_digest": "583b933c2207afe56727dc76daf232a135b3e6cc24206d92a75a7f1e165ce131",
+      "fingerprint": "a813ef633266b8a9808bdd91fc008f22622a877c627ec0f16ae4f3e8b2f6d361"
+    },
+    "AnalysisDetailReaderTest.everyOrientationHasAConcreteMeaningAndUnknownValuesAreNotGuessed": {
+      "card_digest": "3b812dd3cc92758a7182a391d57ac99eed75eda452adf089fa2b905fb6723827",
+      "fingerprint": "bc4c57c7dc57111243c6780950be4a0dd1c3d660c3925d5ca004abb3809e17de"
+    },
+    "AnalysisDetailReaderTest.externalAsciiFollowsTheOffsetAndPreservesItsTagIdentity": {
+      "card_digest": "ab65f15abd5a464255d143a4b2a9edddc121eacbd9dc0ae672f5254c56a110df",
+      "fingerprint": "6e11df52d3de8a16cde89ad6598aa758a00a23f2a4619139aee7deb29a86cfc3"
+    },
+    "AnalysisDetailReaderTest.jpegLengthExcludesMarkerAndIncludesLengthField": {
+      "card_digest": "255c568e9b2691c3cc80b6c23b8a203edf05741f69fe03a8dc4f6ab5ef04bcdb",
+      "fingerprint": "2ae2bde1c379c54c0d6060dfba1c24772d7cfc428706acae411882b837263544"
+    },
+    "AnalysisDetailReaderTest.littleAndBigEndianAreExplainedUsingActualBytes": {
+      "card_digest": "12b98fd407b636a7457bdd726c4d17888f55a211f1db294f3a1a2758359f1962",
+      "fingerprint": "7a78436fce49eaac9ceb4d06d2507283fc57e5ccf1841f1e8ae6bf2992e8e3a4"
+    },
+    "AnalysisDetailReaderTest.truncatedSelectedRangeIsRejected": {
+      "card_digest": "f4928f4d94d9124c4b8f77e26f40efa3e35d701bcffafef640eab107f1aa9ec3",
+      "fingerprint": "37fbd71e1af260ce8fdc323213ab9c55646ec78eaf70495b9f6185ad6f8a34ae"
+    },
+    "AnalysisDetailReaderTest.unknownTiffTypeDoesNotInventAnExternalDataSize": {
+      "card_digest": "dc44921afd455a0cc573664d3b68dafa324df2c8116dda38b1445ec4b04a0329",
+      "fingerprint": "18e5513820b172f1bcda07be1c4c98ee3c709700d7f95ea25c5e1e0ecf743d89"
+    },
+    "AnalysisLabelsTest.exifFactsExplainTypeAndOrientationWithoutChangingRawValue": {
+      "card_digest": "1c1bd91d0ac80d22dd91a5e2235a5525099864555d6de456100b59b2959698ff",
+      "fingerprint": "071510f83a989563202682d467aec1777a6638234f54aefc340f0b9991d79331"
+    },
+    "AnalysisLabelsTest.exifTagAndExternalValueKeepTheirMeaning": {
+      "card_digest": "4c9a89dc3b339ee63eb2f4ff7ae339d0eed80ad84d81d639f9e2749d4f9e06e2",
+      "fingerprint": "5156c803d10a2801ba097c3807366cc1c4dbc40a39f4384b62a20932aa93ca26"
+    },
+    "AnalysisLabelsTest.malformedOrTextOrientationIsNotInterpretedAsANumber": {
+      "card_digest": "6c663974f7c22875150b8f1e51034ca2806b14b56c464924313f25ac2570ef4b",
+      "fingerprint": "02a19eda8f4aa859c4826b033cd51bcfb1b265e74ed946b37be511d2fdca896c"
+    },
+    "AnalysisLabelsTest.referencesAreNotDescribedAsImagePayloads": {
+      "card_digest": "5e67d34e7c6ac879d44e9a0779858bfdc38d52caca6dfc2d483f78aa78157dac",
+      "fingerprint": "24d1b2163b8ee46981f94ae1463ee80eccb3ffe72fc84b0357f1aad7b5298d68"
+    },
+    "AnalysisLabelsTest.technicalIdentifiersHaveReadableNamesWithoutInventingUnknownContent": {
+      "card_digest": "964f35d63b6a417c78dd74f7ac55dd83136a88bd7d67669ef9c09b7c2e095d39",
+      "fingerprint": "43ee4fa2832e7d1965438fc937f0e65f23010df8a57dd58ccab39b92be435e4d"
+    },
+    "AnalysisParserTest.fileStructuresAndBoundedReads": {
+      "card_digest": "bfb23c67a1de64c3de1bb868474ac4af3f1874da10c0032bbabd44906a05b5d3",
+      "fingerprint": "e839bf10caefb27de4829b8ab66d23557067ea78080fd5383482bc37fac67051"
+    },
+    "AnalysisRenderTest.blocks": {
+      "card_digest": "98576e6c70f93672cf92270162d03e7c7e7b95623402e7f7981e50a01c9778cc",
+      "fingerprint": "f215bb39059f7f4cee0786e71ba746acec101f2e21e97eb4f995953006e38fde"
+    },
+    "AnalysisRenderTest.files": {
+      "card_digest": "9fdb58d2b6284ff57cc083420fd9173c9cfda318036716e5b07e0bab5d0f7fb4",
+      "fingerprint": "1bc5509328f74d1359557905f3641d55f7d528c5a2bec1e8aa426c7b67d838f7"
+    },
+    "AnalysisRenderTest.hexDark": {
+      "card_digest": "21be55cde4c04647aeee13a62b2ba02a2371c40791730ca52e337061a0397105",
+      "fingerprint": "ad366cca53d5b930bdf55d3f570c1ba7ebacdd17db1cf56979d14e0ec78de11f"
+    },
+    "AnalysisRenderTest.nestedHeic": {
+      "card_digest": "e637204edb0694218fcf481dbabd34d6c6511dbfd185396a0367bbffe997c09d",
+      "fingerprint": "96cad1028e9d4fb5850578aff3089734e20751556954ce621edb0a5cab7e8b52"
+    },
+    "AnalysisRenderTest.popupLight": {
+      "card_digest": "111db8f45f0e65a05963e60b23a71d4b0462f758769560438b3ce55aa2eb8050",
+      "fingerprint": "792c42d3ff3e5fd0586ff3affbde3594de7a3282ede933d12c02e0ae73b72c8c"
+    },
+    "AnalysisWorkspaceTest.blockNavigationHexAndRecreationKeepSourceUnchanged": {
+      "card_digest": "8bdf150b37665118b1d8b536b424ea1d6a93c365df09041ffb90dfd5e44ad9c7",
+      "fingerprint": "5211618a27b2e54d142b1befa94f49609b843f45c5e4268a785199daa98aa1b6"
+    },
+    "AnalysisWorkspaceTest.exifValueOpensItsExplanationAtTheTopOfAPopup": {
+      "card_digest": "13fb79cc2a0a59c7f869332f5d6c08a2183ebde3f37e9ca209cc1b7bb1e8ac11",
+      "fingerprint": "4001e34fe3063ceb5288d34f588ae4ed6fa57f8b9236d2120b6efdae42c126d2"
+    },
+    "AnalysisWorkspaceTest.fourthTabPublishesCurrentVideoSelectionBeforeOpening": {
+      "card_digest": "da72a6a5548c777f396d6664cc87be3d34ebd62dd1165e6162cc1b819cff6294",
+      "fingerprint": "eede6bb0884185a486dc397ae65a3713dd503baed5e4067c81210ea8b262d821"
+    },
+    "AnalysisWorkspaceTest.missingSourceIsReadableErrorAndAllowsReturn": {
+      "card_digest": "62d2d4785581ec370d53243d8333bbf22872ca634090ccef8e4d72e7ced4b10c",
+      "fingerprint": "87244b43721c0fcc90461c364d923ade05a79f3ea8d03dd7873f2120560b902f"
+    },
+    "AnalysisWorkspaceTest.selectionListUsesReferencesWithoutOpeningMissingFiles": {
+      "card_digest": "874e3e1133f49833ff3cdccb70a86e4c632f1e01aa883b2f12e03a8cd4e62c87",
+      "fingerprint": "847b5182cb91c9fd0945fc41a4b860f6d7b9323808adc05fa30a946a689b7503"
+    },
+    "AudioConversionTest.audioAndVideoUseTheSameLeaseUntilCleanup": {
+      "card_digest": "e0009964dfb03ea30ca6f2d611ef88a65fd11ed2c90c55fd4498820efdd25d29",
+      "fingerprint": "848a81308e012404a0eeb69eaed993e0a9e57caf4255ff400892897d355cb017"
+    },
+    "AudioConversionTest.audioLogIsBoundedAndPreservesReadableSteps": {
+      "card_digest": "35b9b4e96d9d18a3485a7e76dfe01a1cf142b7f7ba3048993a30b64144bdf093",
+      "fingerprint": "07a0fe87c9873398db1c06706bb217d9d30b7561a4714395d512e55faa7070ab"
+    },
+    "AudioConversionTest.busySharedLeaseRejectsAudioBeforeLoadingNativeCode": {
+      "card_digest": "57f5640dc53e617099dff0306ed9e3a3ccf7aad0a3c325c8d7c076a558fed513",
+      "fingerprint": "44a868f02b666f4324bfc59d1b66b34e191d75c10338c594c4bbde56db62b940"
+    },
+    "AudioConversionTest.outputNamesNeverOverwriteAndKeepOriginalBase": {
+      "card_digest": "d5663315c14305e70462de10923b80e230c8be3eca7fd88de2bbcf4dd5773988",
+      "fingerprint": "3b289ca0d177743476e468c66a824c8f8239a468993ac67bb6325e6fbb7b76f0"
+    },
+    "AudioConversionTest.resetClearsAudioDraftWithoutChangingVideoOrSettings": {
+      "card_digest": "5e2cebdf83d76ada3b7bcf3bdea5dacfac408aaf14f2fd25b2f5e6ea668f3ec7",
+      "fingerprint": "b139d296f8fb8fa0dcc31d438e6b32190fa8298345c784d25592974e5cb1d2c8"
+    },
+    "AudioConversionTest.staleCancelCannotChangeAnotherAudioRun": {
+      "card_digest": "4296a6bef1099fa77a6b0994dfb50b61666ba580c644761e7bf84dfd777c1654",
+      "fingerprint": "95190ee077ab41769d84565ce439e974f5e2f38b8a6a9710a0c64b80c6a30a48"
+    },
+    "AudioDestinationFlowTest.audioUsesVerifiedPerFileFoldersAndKeepsThemAcrossRecreation": {
+      "card_digest": "1d7ee200919453681af014d8875603d61cd7a39161248afd758d09f1f8e68445",
+      "fingerprint": "e0a0bc6194f4cce7b5238c0365ba94c06f6d8cecf16b4bde4f68d71b0a708b08"
+    },
+    "AudioFlowTest.ambiguousLyricsAreReportedBeforeStartingTheEncoder": {
+      "card_digest": "8835e2348d5b17203b3d135ee66208b763e1e3f3ad5973fd9906608f470b3ba1",
+      "fingerprint": "8a65cd15eab77a97318ce8d08309548bc804f077cacf9944fa5cf7f690d1f5cd"
+    },
+    "AudioFlowTest.cancelledAndUnsavedTracksAreNotPresentedAsFailuresAndDoNotRetry": {
+      "card_digest": "014df8c0b3b39a19fe9e9812d1ecacf30af20229049471cb29fab96151b95787",
+      "fingerprint": "363b14b35f62a839f595806cf9c89e8225caeeada38a4073208bc969a683b02b"
+    },
+    "AudioFlowTest.everySelectedTrackCanBeInspectedAndRemoved": {
+      "card_digest": "35a9eeccc494bcf32102a586bea22716f0ce633e490bc2da0a8df964481c37e7",
+      "fingerprint": "0dce9e0bc2cb43a08a28e9f9deab62839bed337a2738ced42e720ef5fffeb03d"
+    },
+    "AudioFlowTest.filenameReadInterruptedByRecreationIsRestarted": {
+      "card_digest": "9f7c27abd754cfba59bed2172a7a2f86e59484b37daa0bf06f7805023f2b9bca",
+      "fingerprint": "6d6214505207da7eb693d719be6ec8d32b9a795a42123af710856793c2cffc04"
+    },
+    "AudioFlowTest.invalidNewLyricsSelectionCannotLeaveOldLyricsSilentlySelected": {
+      "card_digest": "400ab1e6cf1a7ada5d0dbaccfa9c7bc36170bdde72628d28f58f8a340f60b394",
+      "fingerprint": "74b99259a6aa7ee2c3ec47fc56e15292a93adf4f967d1b5cd2d75972c649714a"
+    },
+    "AudioFlowTest.newRunWithSameResultCountReplacesThePreviousReport": {
+      "card_digest": "de23ca81b3a1bebcffead91acfc2c3d515cee98ba3dd2449c23f646a9b1b999f",
+      "fingerprint": "f890acc977b2b1db901a782efb956cc025efdf34ca3251d3dee49e9fd5b2afdf"
+    },
+    "AudioFlowTest.preflightFreezesParametersAndPreventsDoubleStart": {
+      "card_digest": "0a70087648a78edcfe9d6511e7d6d434d8fc6adb778f4cb18913163c38b70693",
+      "fingerprint": "b0cfee35a8bdcb5c9736eb853d1b9848e77a41c3fb8f475235d3591ab8555c6a"
+    },
+    "AudioFlowTest.progressReservesVerificationAndReportsIncompleteQueue": {
+      "card_digest": "4364b3ffb27d32e14ac70fa517ac80f6fa37ff410e0217115fc359085982aaab",
+      "fingerprint": "6de1441a87e69a692a24f453f66db6cd424a95420b7de8ce92294c11ecce441b"
+    },
+    "AudioFlowTest.screenFlagIsScopedToVisibleRunningAudioAndResetKeepsSettings": {
+      "card_digest": "9227ac81e4ced14f992e9d118a245889cebd5587822dfaaeb29782fd47c56709",
+      "fingerprint": "cab992bba9514e6c9c62b76e41e2a4da228bbd36c325ee082cbeedef9c6d67c8"
+    },
+    "AudioMetadataFlowTest.failedReadbackRemovesBothNewFiles": {
+      "card_digest": "2ddb26159235b196b3206bd053f721a43f07540461c67ada62e8b2a9f31d1bbc",
+      "fingerprint": "35388b2eb303a23e88061a1e56a55ac69a5743e63bf4beb3be3b179344e2c9f6"
+    },
+    "AudioMetadataFlowTest.lyricsDraftIsIndependentAndSurvivesReopen": {
+      "card_digest": "b554eca78b98816061a86644772add34dad9d9dbeb142bf98f6b227b8d4e163a",
+      "fingerprint": "1c8bc28bb1c195ebf4cc6a3a02a5cfdd84809e2801f26883b297638500f8c3fe"
+    },
+    "AudioMetadataFlowTest.matchingPrefersSameParentAndRejectsAmbiguousTitles": {
+      "card_digest": "c5a732d801d35afa26e5b68fb502c35a89031cbc639933ba2658d2d714d1f5bf",
+      "fingerprint": "6ba2bd028e2b641c373b665826d54e7607632631472e440379b604b74ecd5118"
+    },
+    "AudioMetadataFlowTest.savesMatchingPairWithOriginalBytesAndHash": {
+      "card_digest": "d65835e9c8ac3f72132a35227ca77df339dcc25b44bfd76de1304f9785be447c",
+      "fingerprint": "0ae40094afcdc02a85c2a98a85bb51ca115b1a4ef7c66f91ad6eb43d5f2d6ee2"
+    },
+    "AudioMetadataFlowTest.sidecarFailureRollsBackNewAudioAndKeepsExistingFiles": {
+      "card_digest": "2de8056bd59fab93baa4245db58b6bae85dfbc834923a41e60e93cb258e2b9c4",
+      "fingerprint": "8d6e57379c1c30a21340c7afb8f8c0d4f428eb7aae5c85a8b96f6184b97b4635"
+    },
+    "AudioPacketCopierTest.cancellationStopsBeforeReadingNextPacket": {
+      "card_digest": "dda4406060134a2dcfcb79f22f6d1fc0254d882f3bad9b37ac13dbbb49017ae2",
+      "fingerprint": "add11ea4e72c2e83875110b8b3c46f2b8c3062e9563ca22ca4fb62ef3b200b65"
+    },
+    "AudioPacketCopierTest.diagnosticsAreBoundedButCopyContinues": {
+      "card_digest": "bceccbfc3e60a68fc9d23be4e6a0ea83409c0dce638e1346f85f870f60be1c0e",
+      "fingerprint": "8a32bf453250e2b9a9234a74b44dba04fe2bb3e54b1e0e4c4a16db1162a2ce26"
+    },
+    "AudioPacketCopierTest.emptyAndMalformedSourcesAreErrorsInsteadOfSilentAudioLoss": {
+      "card_digest": "e9b7079e33556efcc8c1e8556ff4d3c5f5b57457fc05d1667c9e4528126876d4",
+      "fingerprint": "4122c1b7ec4f4b784b11d5740dce5e16645d80c270cb1bf9987676f0fa8e698d"
+    },
+    "AudioPacketCopierTest.minusOneIsAValidTimestampWhenSampleExists": {
+      "card_digest": "88bd57f015e404df34c574d3b4d6faaffe864216eeb7cc8f26c48ea149b0b028",
+      "fingerprint": "a59bf44fb631f155f9e02b2cce0aa58f1b8f10c211e0f31435ccb626457529cd"
+    },
+    "AudioPacketCopierTest.negativePrerollZeroAndPositivePacketsKeepEveryByteAndTimestamp": {
+      "card_digest": "751625095a749bb67adb4aaffafdfb3ab3a664eb4cdf7cf4b1f4f021d026336d",
+      "fingerprint": "ec24e9b3137bde61414eac28798ff633648697443b58e9d20d129a564aacd0be"
+    },
+    "AudioPacketCopierTest.positiveStartingTimeIsNotRebased": {
+      "card_digest": "b7a7c8434b4e2b4874d087030329219816e765649152e42de670f175f1ed9586",
+      "fingerprint": "2569a4db7067209cd591365d6c11db114b53aee8c8d6baa180a0f0292b325460"
+    },
+    "AudioPacketCopierTest.unsupportedMuxerReportsTheOriginalNegativeTimestamp": {
+      "card_digest": "392aff7ad4116002bd03c9d40fe62d9a425f7d6435b1e6aa5311a7bf2fd5f09d",
+      "fingerprint": "fd48b1c8f92816220b541fe22fd56097e219a35505448df165efcb2d07ddfac4"
+    },
+    "AudioPcmTest.decodesSignedAndUnsignedSamplesWithCorrectScale": {
+      "card_digest": "30c71f7c1439e6599bc9aa95d206d6e63d7106e4bb1a6affc09d91f6f3174f0d",
+      "fingerprint": "acf4487d388df313fd9b864b7bac7fe7c78db0bd6a12786bc7e04b51a8302210"
+    },
+    "AudioPcmTest.detectsSupportedInputsWithoutChangingFlacRoute": {
+      "card_digest": "e855cc978b931d334c236f551b8b8849843ecf9c79370a7e1713481e0052ed31",
+      "fingerprint": "db64cf6631119ea35dd6b2f5cf02d0fbd7fc770127d93753147fa71ecdba6a4c"
+    },
+    "AudioPcmTest.handlesFloatOffsetsAndRejectsCorruption": {
+      "card_digest": "26a3caf2974fad6044928254ce82abdcf075e430234a1b3d3eda576eca13f01f",
+      "fingerprint": "56ce3b52bbf437eff0f295b738e6eed74befe05221f4ec360fbdb5ddeb2e1c25"
+    },
+    "AudioRenderTest.files": {
+      "card_digest": "0087a1b2af7456f87436705256a3f46de1b5b56e6a70d65ed764f27ee8c3934d",
+      "fingerprint": "70992c29d4b5080ded915b2730c5a70009dcdb899b7fc0f1175fd0e6202e248f"
+    },
+    "AudioRenderTest.qualityDark": {
+      "card_digest": "9a5f6f031c71b0ec4526b255bf9a900e5a5813abf1df4fef349a69842e8ac13c",
+      "fingerprint": "6253a9c910d65be9300a7009b707cc85923239e8c22caeebf89fd7275e7f4751"
+    },
+    "AudioRenderTest.settingsPage": {
+      "card_digest": "7675609439e81bf404f8c2d128c8a8a9288ab2f5d3b3cf1d29582ac8a60f7a0e",
+      "fingerprint": "752206504bfa808d0470d122040a8b138d1783184a4171b99851449bac9e4e6b"
+    },
+    "AudioRenderTest.verifying": {
+      "card_digest": "d25df955111db7b7803c52417a51f4dd98ceb1a3610fbf4fb15a0c1d8af3e3be",
+      "fingerprint": "d5d98f7469d5b4492620e66a814a12deddfcaf9268ddd860c1fa7106d6f772b1"
+    },
+    "AudioSettingsTest.copyCurrentAndFolderCancelOnlyChangeUnsavedForm": {
+      "card_digest": "1d10e62c2b46b4ebc1e7775cb9e65c4156852d896c17cfc6932409299dfb2236",
+      "fingerprint": "8c5912a7305674a2d917f0d6b24b25131ba8c55d378573e5dc6969cf1bf09aa6"
+    },
+    "AudioSettingsTest.defaultsSavedDuringConversionApplyOnlyAfterItsEnd": {
+      "card_digest": "830cfd99d34d67baa9ce412c81f56862e995756702de25ec9d5aee8bc89c8c68",
+      "fingerprint": "56facce190bd686c1780d209065be4d3c166ef306321cff73503ced8993723ca"
+    },
+    "AudioSettingsTest.explicitFolderRemovalDoesNotFallBackToOldDraftAndDefaultsStaySeparate": {
+      "card_digest": "b3029694fe6ff90b510ce72493b127d4b02b0ecc021d00e838db80dc5e90876d",
+      "fingerprint": "fa27cf5c49b587d5613c324db4cf4bbfaea86d35d0055349e195a5edefc61b31"
+    },
+    "AudioSettingsTest.headerOpensDedicatedAudioPageWithCurrentConfiguration": {
+      "card_digest": "f7132de569e92adc15d3aad3c37944a3690e5ccfda50cf8ebcd661e89afb1cde",
+      "fingerprint": "491a76307082e81aa19a5ed6ce1bddf71bebb3d730224d1d47b2307740846c6d"
+    },
+    "AudioSettingsTest.savedDefaultsUpdateAudioHomeWithoutChangingSelectedFilesOrVideo": {
+      "card_digest": "3d8e29b3de2f78dd1bddc7514546462b1ac8beff29a49488e7184a3f09a05575",
+      "fingerprint": "2b8e475501b9037c3ba652275ec5017ddb30396cd5533264a6b01c09fe67eed1"
+    },
+    "AudioSettingsTest.unsavedEditsSurviveRecreationButBackDoesNotSave": {
+      "card_digest": "83a3835d72ceed90404558ac2bfc886e98a99f2a7dbbec8438f4dd779345c70f",
+      "fingerprint": "f5d9a31e6494a9f0ebfc77e385787d9fcb48f89fa8e91b33d4ed10949f34742f"
+    },
+    "AudioWorkspaceTest.independentAudioDraftAndSharedViewsSurviveReopeningWithoutChangingSavedVideo": {
+      "card_digest": "b84c3f75d2d199ffff840b14cd049ef28df7703d3a19c15bef9bf2bc2c427733",
+      "fingerprint": "599075075f282b03e4a56d1ec3ce6b3246b2b0ce34e6a8a5f2b8c02a42e0aaaf"
+    },
+    "AudioWorkspaceTest.lateFilenameCallbackCannotRepopulateClearedAudioSelection": {
+      "card_digest": "fc5f9b35ab47a88f02658e0313d5f7c104d6604742e489da99a574f802709ee5",
+      "fingerprint": "6e69f3ee51552487f6259f31dd8c0c38d0b9fb82443ddafb75848eff00c23d58"
+    },
+    "AudioWorkspaceTest.multipleAudioFilesUseOnlyAudioPickerAndCancelledSelectionKeepsDraft": {
+      "card_digest": "5f14a3b77049b902017e71c3119d901814c5581fe82e7cbc74fb79b963d2bf7a",
+      "fingerprint": "9a0455d8f4c18719dbb808859e4a81215f530252e339df010dd73f0ca6157834"
+    },
+    "AudioWorkspaceTest.navigationKeepsVideoSelectionAndDoesNotTouchServiceState": {
+      "card_digest": "f44f38de1e90827e94e09035a2d9700e251f085199b42b478b54ea9d9ed8c935",
+      "fingerprint": "51b5b5b692a4d20298aaddd46c7227e26fbee3a23c519878fcd0401f9b2ac390"
+    },
+    "BatchRetryTest.privateStoreSurvivesReloadAndRejectsCorruptData": {
+      "card_digest": "b9a8e2716a5c1e0cbf3395d5d860ba0215bf0831ee3e1b514205e4525e937088",
+      "fingerprint": "db44686886032145c1940ccfb2699035ebdb714c617d371c17e94faacf0fa0ce"
+    },
+    "BatchRetryTest.selectedFailuresKeepTheMatchingDestinationsApprovedNamesAndSettings": {
+      "card_digest": "5bb51e1bf221b93c98ffd0fb267fa2b4e91629d161a427dedaf72fd0b293c2da",
+      "fingerprint": "52028b9f7582780fd49ac2a4c5b39b2f14044e071008cfbb92069c7480e76694"
+    },
+    "CancellationConfirmationTest.continueOrDismissDoesNotCancel": {
+      "card_digest": "7e4ffc84159d88481a0f8ec7f30cebd07deabe1a54603fb5806da32813edf9e5",
+      "fingerprint": "282f575223941a520873a8695283d9610f11b54cfed7fe1f1212779f1bd423b8"
+    },
+    "CancellationConfirmationTest.notificationOpensConfirmationActivityInsteadOfStoppingService": {
+      "card_digest": "1ac4403604323e60997e955f8041a1f5104a4d393abe23f589d43a5e07bd3a1e",
+      "fingerprint": "342f18c4b21019527d185280383f7003698628a7ac834848cf249c7070352f08"
+    },
+    "CancellationConfirmationTest.onlyPositiveConfirmationCancels": {
+      "card_digest": "c9c80cbec3d4adff8d27a4ea2edfec1494f3a3ded3784e4231772536f88d5efc",
+      "fingerprint": "c9855da9dff256890f3c94d741cce3d3dd625ba3feb709266f5e129fc9bec3c9"
+    },
+    "CancellationConfirmationTest.staleNotificationDoesNotShowCancelDialog": {
+      "card_digest": "3e3bb7e64ff9d1c1ca4f2820f058e47eb644aba1e83720a606819a0706366ecc",
+      "fingerprint": "bd0f1a18d0e822d3a8117909bf69b8eeb02239d723450a7fb453e1cb013a2ba3"
+    },
+    "CollapsibleCardsTest.focusConversionAndRecreationKeepExpansion": {
+      "card_digest": "57bb94b8bb133bae159fef1f55cca8fd35ef6014eaa8df5dd5b3916cbc2bc257",
+      "fingerprint": "110866d7f6d20ca52ef0111279cd0720407e1895483bf304bdfe7905fa5964b7"
+    },
+    "CollapsibleCardsTest.onlyFirstCardOpensAndCollapseKeepsValues": {
+      "card_digest": "00f4d5b9b5167ec3f20a9f1663d4faed92a48048ffb4cdf7bb7826b6be6c52f9",
+      "fingerprint": "7830b5c9fbc1a010e888f034591d3c35a402944cf0783964105b3fb811c23c08"
+    },
+    "CompactLogExportTest.reopenedAppExportsOldVerboseLogCompactlyWithoutReplacingIt": {
+      "card_digest": "273bbefbbfaee9b70bcb9dbbd0788821ac62b035511ca758f9b051322af21476",
+      "fingerprint": "2374932cf49e7830218c7d7a820c6c915d98cdc93f9f652f62dd85ee2b208de0"
+    },
+    "CompactLogExportTest.zipChoiceContainsCompleteCompactTextAndUsesZipMime": {
+      "card_digest": "4f37706d4b0daab4ffb8b44d5f267d305ad7e421f7c239704eb1b4e982bef3b1",
+      "fingerprint": "307073b35c3dc91cc3e8db51a458db522791af9b535d6f5f900053433f497b4c"
+    },
+    "CompactLogTest.exportUsesTheRealStreamInsteadOfAssumingAvailableIsItsLength": {
+      "card_digest": "459e271e483ee772919c715826299cdfddf0a4c6616f8488336675cac41c0070",
+      "fingerprint": "b0f2bece4921b53d483d4224cd487691c23c98790005b60c1d212d02d0cf5881"
+    },
+    "CompactLogTest.hdrMultilineAndAbruptEndAreFlushedAndLargeSamplesAreBounded": {
+      "card_digest": "daa6d03033186dce9636782d8acc91f910cafda51b1bd01beb9499f39ddbd3f0",
+      "fingerprint": "c96701565679c92de8e437085986f2cc0a2adef7296432b9638eedf19f7e03a6"
+    },
+    "CompactLogTest.legacyExportKeepsEveryFileAndErrorAndHandlesTimestampRestart": {
+      "card_digest": "4d619fda4f1d9f5365c8dca59876e815609967edb0b3aa5fe4c6d68a13a6da19",
+      "fingerprint": "49d617b037bba8829743ddb279af1e877d84f3dca54b25e9dcdfb90912213aab"
+    },
+    "CompactLogTest.negativeCodecResultsAreNeverSampledAway": {
+      "card_digest": "6d07944718f1938a4e10ba8330e13812d2178e3e273329d3fe6f0941bfa7a036",
+      "fingerprint": "5d037aaff6dd76e0449681de34144292d4ac1cb20e86f2fbf1453a8945092ab3"
+    },
+    "CompactLogTest.repeatedP010FormatsAndHdrVerificationAreCompactedToo": {
+      "card_digest": "40d6c9ca1b333dfe5c6e204a4a77a409050ac47d2abf3d2ee056951fc90a6167",
+      "fingerprint": "6fb24c1544363c2ac0f9274a5ab1bc6d550e6b70c06ce7a100b688c7c478c127"
+    },
+    "CompactLogTest.repeatedSuccessesAreSummarizedButWarningsErrorsAndUnknownMessagesSurvive": {
+      "card_digest": "676cce0a1ed0ca84c82e2d0f9a3eba6aba49ab1ef4fc0071c0e442d2379d01f3",
+      "fingerprint": "12130e03f0ad154a8a4ecf6bf0b2ebf9013d3674ab017bbddaa2e6b2a02cdad2"
+    },
+    "CompressionSummaryTest.cancelledAndSkippedHaveNoInventedSavings": {
+      "card_digest": "b8530346b876918c6f5d314f317d23bb7820ab37af0faa0419353103972ca77a",
+      "fingerprint": "194d388268819d3afe0e0b9f0503944b59b6a7c3a34bffd0c914d317ae5f8c57"
+    },
+    "CompressionSummaryTest.finalReportDoesNotLeaveFilesRunningOrWaiting": {
+      "card_digest": "143f25af05187ce1f82ee57045cedb8e45d9fc9dd97408dd4ea97fc6cba38443",
+      "fingerprint": "973e4f98fb98c02a02ed9c41680906cceaa354a0f2496f8a74a9e674ea78dde3"
+    },
+    "CompressionSummaryTest.growthIsPositiveAndUsesAdditionalSpace": {
+      "card_digest": "db8ce291893b8a52e7e70b3d7640e954a2c6cf05ea1b33409cf87e9c588d14c4",
+      "fingerprint": "cd6274f88df4f4b45878f83beab72c5a2130d52a798ac4e61fe8e9df42f6ddc6"
+    },
+    "CompressionSummaryTest.halfSizeIsMinusFifty": {
+      "card_digest": "7bb08086dae3cb19b8ca999856d28f9b8a749e5e1b0b05ff08b3bdf8bf5ca599",
+      "fingerprint": "c7281ca11b259360641acdbffc9466f9c2fd8731e2af13e579488766e0b34372"
+    },
+    "CompressionSummaryTest.initialReportWaitsForActualCompletedOutput": {
+      "card_digest": "5c8ebb8670cd23b2686d6a5c4053e50300650dc502f72a97f9860056d51ceae0",
+      "fingerprint": "f34c7fb6594dddefc171e856f1dbb45f43719c8dd9a71090d808c79c948d656a"
+    },
+    "CompressionSummaryTest.runningReportIncludesFinishedVideoAndDistinguishesPendingFiles": {
+      "card_digest": "bc395db2e6bfd56b4a877f8cc6b05119c7d5e5f04d54de153ee3f33227446022",
+      "fingerprint": "2f742654a4250d88183726c94a02ea7486f9952ae11e62ae113d13f3b24266dc"
+    },
+    "CompressionSummaryTest.totalsUseBytesNotAverageOfPercentages": {
+      "card_digest": "0fa06fd0d85bb14ef293cab30b7716d40696fc625bb9ae28056b7069c427bcb4",
+      "fingerprint": "6bc80c840405f7362d3699085c00d1ff6edfb3b34e974a7969496c501512b1e1"
+    },
+    "CompressionSummaryTest.unknownSizeIsExcludedAndReported": {
+      "card_digest": "68c1a39099176216f721f11fdf258835e0fc1540590406d58bbb4ef708456dac",
+      "fingerprint": "c1dd572b438769d8f9cdd4a4af44805e43ebfc8140adcbe116c12c3876d16202"
+    },
+    "CompressionSummaryTest.zeroInputDoesNotDivideByZero": {
+      "card_digest": "945323839b5fbb4b8db2824ee76d7ff1c2917f1204a702db32668e13f6472c0b",
+      "fingerprint": "1b02591523aeb05103d9f02f911b8addd2ab20271d2141ab68218d18024fc64c"
+    },
+    "ConversionControlBoundaryTest.cancellationBeforeTheFirstFileNeverEntersPauseOrAcceptsSkip": {
+      "card_digest": "5817f08eb2ec7e8041f63d6c73051c202bfd032e1adde9071a6c49d3ed61d68d",
+      "fingerprint": "cd62bfe428068cbc3fecb1e78ce5ff5a2a9bf9e350c37c182caf43bd392f192d"
+    },
+    "ConversionControlBoundaryTest.completedFileRejectsLateSkipWithoutCancellingTheNextFile": {
+      "card_digest": "b8808818f5f88678f10856c821c1c6c9dc607b68ae91c6817d4d6e598ffe0bfe",
+      "fingerprint": "a667df970ea2f431017f6f10a4aadd6aab94c71e69c5592c2638fa0f063db6c1"
+    },
+    "ConversionControlBoundaryTest.interruptingAPausedWorkerCancelsAndRestoresItsInterruptStatus": {
+      "card_digest": "4c3c1e8c1698a951320b62dcd97c2e5bb3d258b561c156ac096b7caee7af35d4",
+      "fingerprint": "264b15d3abddb023cebfb0febc996ee3a631c23b26ef7a70e6ac802f61c51254"
+    },
+    "ConversionControlTest.cancellationWakesPausedWorkerAndCannotCommitAFile": {
+      "card_digest": "51b746d691a6c20b9face98dcb283393777714b0c69527075585306c18839825",
+      "fingerprint": "74d253553720a10c2d34e64aac1f200ee040b5de1032533cfd09b85f61d3ce4e"
+    },
+    "ConversionControlTest.pauseWaitsAndExcludesTimeFromDecoderWatchdog": {
+      "card_digest": "71e7b535bb8aec3f00debe4700d978c5b873bf920b93959910eaf123ff73d37d",
+      "fingerprint": "81b9b4e9f3267e4ef6704ed55e6567c1c4d073763fd66cf8f7161538cb61c12b"
+    },
+    "ConversionControlTest.resumeCommandDoesNotWaitForWorkerAcknowledgementLogging": {
+      "card_digest": "77731126315db7f3b5d1dffadfe1a6b66a16f6b45a8046455ee1ec3b99fe89dc",
+      "fingerprint": "ad23eb2dd4675770428afa70a21887bba1bf16680dcce402887a6650ed8eecb2"
+    },
+    "ConversionControlTest.skippingWhilePausedKeepsNextFilePausedAndRejectsOldFileCommands": {
+      "card_digest": "c45035419812a8a7d81ca9acdd51eb179d172a73367ef19ede1a23a8408cf6aa",
+      "fingerprint": "2e32f17b89ddde96081b458b1e62f874e8996f838cb4e033c98a2f83fe4d1f45"
+    },
+    "ConversionDashboardTest.showsFileProgressAndFrozenConfigurationInSeparateRows": {
+      "card_digest": "b3a123db1905f5be7e46fdcd6db5fd6e5875b561573d7bf94db51b92b6b07fc9",
+      "fingerprint": "69217bccd5b8a5324c120e4bb43158132cb315a7d8c62422e3b539ad320c37a0"
+    },
+    "ConversionRunGateTest.concurrentStartsHaveOneOwnerAndOldOwnerCannotReleaseItsSuccessor": {
+      "card_digest": "20971fdac88ed56c0cb50d2adcb85b8a8a8383aa254b3e0278d4917484a9ecd6",
+      "fingerprint": "dfe0038e86b28fd271af0279346ede3846a5d68f5b55e3100e6d35830fda9cd7"
+    },
+    "ConverterControlTest.cleanupReportsAnUndeletableTemporaryAndStillDeletesOtherFiles": {
+      "card_digest": "5d3ec2f611f647ec9b65e0edd14507fbb1acebe4c9710aec915bccc6bd4c7d94",
+      "fingerprint": "ee03e0589008fe7e76d86f3492306d052aca217af4a9b7165714f4a9cf807fdd"
+    },
+    "ConverterControlTest.sdrAndHdrCancellationCallbacksUseTheSamePauseGate": {
+      "card_digest": "86912940002ad93dc1e6ec73659cafec90e4c30f0b0dfb752bba6a3d62299d42",
+      "fingerprint": "43f73425a44929ccac11a79fdc7e85c890292f19e689ed38c930e1410c441469"
+    },
+    "ConverterControlTest.skipBeforeOpeningInputDeletesWorkingFileAndNeverCreatesOutput": {
+      "card_digest": "0fa66bfee59850966c784d244d2d37273c0931a6f1ff1942116fe43062255bcb",
+      "fingerprint": "28965bb65061251ee690358fcde0f09a8833e5a4f0e148e7ebda528c3d804ed5"
+    },
+    "CpuModeButtonsTest.directChoiceSelectsExactlyOneButtonAndKeepsIndexes": {
+      "card_digest": "c50b4f771438c2ef6d261ae8b0e9afaa5ef1e5cbb4dc207c73162789dec4e2b1",
+      "fingerprint": "ab20180e993751c71601026390c6c60d19c9e49702efb9e531772bcdc58772b4"
+    },
+    "CpuModeButtonsTest.disablingDuringConversionBlocksAllThreeChoices": {
+      "card_digest": "c99fca366a58d93d7831ed23cc72877fd438279ae9c905ead593f6c446765eab",
+      "fingerprint": "b35bad273bd5766759c67595884b91f54eeae476df28eac8368ef41c9da5684d"
+    },
+    "CpuModeButtonsTest.settingsReadExistingCpuValueAndSaveNewDirectChoice": {
+      "card_digest": "8ddb12fdc4b3beae7574ef416ab2e460e76416dcd7689018f2600856ccd88b2e",
+      "fingerprint": "1bddee0556ed660c08f01c5916e02f51551be0b78f3ba9ede588c26e86c23c65"
+    },
+    "CreationDateTest.absentAndroidDateLeavesZeroUntouched": {
+      "card_digest": "30371c66ae9e25dd3d913eadceb5c60e6498e105a9b2e8fcc86b0dd085fd4df8",
+      "fingerprint": "0dcefc4ed816d3a0e3615a723c503d23b3db7fe62ef91c97d6bc67305dbc918a"
+    },
+    "CreationDateTest.onlyMissingAndZero1904DatesUseAndroidFallback": {
+      "card_digest": "e37925c77f9a801d6089b3d94903a01fcf5e99034b819709c6e2839d82aafba4",
+      "fingerprint": "d001391f77c7c674127183caf02e7043f8a5c637a25aca9d6bbcf2dbb8218ab5"
+    },
+    "CreationDateTest.roundTripFillsOnlyMissingCreationDatesAndPreservesMediaAndOtherMetadata": {
+      "card_digest": "887925e38ea393fe0ee32238f32031fcd4eeb57e1c8aba629d50745e68df9d86",
+      "fingerprint": "12387bbc0c97b8f5f4cc61fe5f1a8857f7814a528728bdbf094d67a51a96e388"
+    },
+    "DashboardMetricsTest.clockContinuesInBackgroundAndFreezesAtEnd": {
+      "card_digest": "36837d31d8c41c6cedc63f658533041ea939c1023d16d2c3731c9b91555e5504",
+      "fingerprint": "bed3d6873f03c5d4bbc7416e67c096504a7b8e8a6a38a15110702bd270648f48"
+    },
+    "DashboardMetricsTest.colorsHaveExplicitBoundariesAndUnknownValues": {
+      "card_digest": "999ff3ad22e3f91e64f88e971b85ee7739efe26af640193d0c7bbfbf595d5099",
+      "fingerprint": "963f9b93b69b9f2ab8e8fa7a3359f0994b4ad7b142b3b02a615f3faeb599e97e"
+    },
+    "DashboardMetricsTest.serviceSnapshotKeepsClockAndStartedConfiguration": {
+      "card_digest": "3bbdf78044627a94a534446e33e373dceca328aee66a3100e2de32445ca96118",
+      "fingerprint": "ebfcaee9bbbf267e7e86b3239d06cedc91590c5668c5cb25e2081e0f7ea61149"
+    },
+    "ExifDictionaryTest.accelerationUsesMilligalRatherThanTreatingRawValueAsSiUnits": {
+      "card_digest": "c6c892ae433009a36aaa040eabeb6880643022d4b9dec1596c4e5235074be0f7",
+      "fingerprint": "e54d7fb6a1590ed0d7bc139e9c9636714425ba0c9f7ad3fa6cb25d82c336382f"
+    },
+    "ExifDictionaryTest.enumValuesAreHighlightedButWrongSchemasAndUnknownCodesAreNotGuessed": {
+      "card_digest": "d3b5305dc96abe1006ee450b2e57e6267bcf555d6fdd8b969572bbe0d593f291",
+      "fingerprint": "742d56c00752a19e49bebeebeca1c9306167c675a349ee71455b4641f8623133"
+    },
+    "ExifDictionaryTest.everyIdInTheReferenceSnapshotHasAnItalianExplanation": {
+      "card_digest": "7951c1812ae98d6411d20e0357acd21d1c8aba0f3c9f9c3d67c43a522b22f6fb",
+      "fingerprint": "8a069cb01f2cb6514798895d5304476615a0b1467585724be062667140b0e4f4"
+    },
+    "ExifDictionaryTest.exposureAndSignedEvHaveUnitsAndZeroDenominatorsStayVisible": {
+      "card_digest": "d1f64360b26a8d8aa24e1a583e76abfdbee08332b90e93f48941c36431a384dd",
+      "fingerprint": "2b8813e26d4c4883a32a27618bffb344d0d583ac0532c6176ff1826ed1a9dbc2"
+    },
+    "ExifDictionaryTest.flashBitsAndCoordinatesDescribeActualComponents": {
+      "card_digest": "6bb5106bf706a230d0726638b3b8b9cf41a02031b51885f547e18af86f9e5875",
+      "fingerprint": "016b5b3ebc73d8508108a043bf6616e7340e8659d367ca2ae6efd8068ffa1cec"
+    },
+    "ExifDictionaryTest.knownUndefinedLayoutsAreDecodedAndOpaquePayloadsRemainExplicit": {
+      "card_digest": "fe687dedc0ccf7ddaefbc3cfb77c8b3ea4ca3f71bf65a780bd8e19c6beced8e4",
+      "fingerprint": "eaffa9ad8f3a44d9ed6be61c1aa9842d7d6914d7573bb762cd8ca892cf464295"
+    },
+    "ExifDictionaryTest.sameNumericIdGetsTheMeaningOfItsOwnDirectory": {
+      "card_digest": "e2acdc7649cd106e818667bf19f41eea037c536a2ee4fe45b8b7554ebb7e81bd",
+      "fingerprint": "80c32a0a66581c1ee3c11ffeecf3b9afcc633257211385ed79e4f99e924b57e1"
+    },
+    "ExifDictionaryTest.standardCoverageAndDirectoryNamespacesAreExplicit": {
+      "card_digest": "a538ac56004137aa94038290aae244ad234858c34157ce17b721c1cc9aad116f",
+      "fingerprint": "f4c510d74fe66c52dca521533e93534ec009283e4c864792ec0316ddbf823156"
+    },
+    "FailedQueueServiceTest.actualFailureIsPersistedButExplicitlyIgnoredVideoIsExcluded": {
+      "card_digest": "4aac2570c832f3a110b482720a850cd25b9c19ad2cd6cbf75feb2c950b051bdb",
+      "fingerprint": "575e2abce0b3ec059c90edaaee5338abef80ab190289002dfcaf1ed6f251390f"
+    },
+    "FailureDetailsTest.absentOrBlankMessagesFallBackToTheRealExceptionType": {
+      "card_digest": "0384a0521fa3fb3f40e154b73e10a7e3e803fe5d21cbef912ad1f7a2526ead93",
+      "fingerprint": "e96335b17fdeab4e80489fdb00e906f676ee0a01a2bbe36ccc2e4a7034e30cfe"
+    },
+    "FailureDetailsTest.cancellationDetailsAreNotRewrittenAsAnUnrelatedIoError": {
+      "card_digest": "a44255c21d71b7bb66a4ce0fefdcc0fe6b0bf293a1ca282c75d337474ea438a7",
+      "fingerprint": "57285fd7493ca0fe962b314a780bebf962863cf187d5ebee8336096edb7540a0"
+    },
+    "FailureDetailsTest.multilineFilenameCannotInjectAnExtraDiagnosticHeading": {
+      "card_digest": "8968e3679671d2465ca78b552282775d1bbd34a5aaefa0be3cc8c540f5c802a5",
+      "fingerprint": "b5dc4043647e4d2561b57fc249dde05b98c20912e2c8abb114210f5f86d39a45"
+    },
+    "FailureDetailsTest.rootCauseAndRollbackFailureBothRemainCopyable": {
+      "card_digest": "9a07c5f5c0e4c36e4edafa60d7c4f7d79fe0fa55879333a144048a0444fba6cd",
+      "fingerprint": "3a13a2cc18e2734dd9f51535e18cbb8ca2936f903c06eb4a979356232afb81f4"
+    },
+    "FolderPickerActivityTest.cancellationReturnsToCallerWithoutClaimingAProvidedFolder": {
+      "card_digest": "58e508f6ccac4297a29b79213936dc756b2130878e769f2d813eb426c6a45dda",
+      "fingerprint": "f618e5398bc9b58580e3874351d7465673422e6bc69391b4121229b9c7d62ed3"
+    },
+    "FolderPickerActivityTest.opensSystemPickerOnceAndDoesNotReopenOnResume": {
+      "card_digest": "1965f29f2ce0a7c09ce7f4d8db65ca042f71fdfa93ab0b4434fc6b6410758dc9",
+      "fingerprint": "ace75558309979218174c6a51f6ca1c9a2b0ff7de3ceb188697ce1f8f076577c"
+    },
+    "FolderPickerActivityTest.readOnlyResponseIsReportedAsAnError": {
+      "card_digest": "8155da25a6bc9a6b5e42c151714fddbf7014f2818c16a488c651c2161f9f2b59",
+      "fingerprint": "070eed295a9b51fceff9d871ee88883c04c358abb33007cc1cf2c8e9260e15f8"
+    },
+    "FolderPickerActivityTest.restoresPendingSystemPickerWithoutLaunchingAnother": {
+      "card_digest": "912d3bae5f6d7042cbb6ad7d1146d92906d11b18f7247b06b7db022d5b265e68",
+      "fingerprint": "3eef009eb381c30e780705546bae47b1f7ba75691f1d2426f02125ebf0a08c8c"
+    },
+    "FolderPickerActivityTest.successfulGrantIsPersistedAndReturnedToCaller": {
+      "card_digest": "3316be759ba0fbb055c3c40bbfd8b393bec6885f7551adc423ef477204d32686",
+      "fingerprint": "9e1c743d9fb4e8e1b4a2c6605d029c3131f909172ad1384e4ec83edecdad23c0"
+    },
+    "HomeFailureReportTest.absentExceptionMessageStillHasUsefulText": {
+      "card_digest": "aa75188bf7b2d514f464fb420266c1582507d3eb21d96035656ce5805ae53f43",
+      "fingerprint": "6d81d5a2d36cb0c719a5fae6c93a43f75807510b00440716cf2d5408ecb079ad"
+    },
+    "HomeFailureReportTest.failedFileOpensItsOwnErrorAndCopiesCollapsedDetailsWithoutClosing": {
+      "card_digest": "ad0007416ba0a833b4da16534ec74462856eed2a6257dade78ecec8774ab12b4",
+      "fingerprint": "3366247c77b50f4b34df071ee66d41f42295c60d288afdb7c44d7bbd9ada0511"
+    },
+    "HomeFailureReportTest.renderDarkError": {
+      "card_digest": "645c90fcac19a5d62cb901e4f5b8e5e446612dc466c1b957d86d944efff749ff",
+      "fingerprint": "22d0dd4fb0002b4f76344c1393e0b18ad4286cbc69c8dd5af1865d58f546e3c2"
+    },
+    "HomeFailureReportTest.renderLightError": {
+      "card_digest": "1bcec4e1e8325f0622a7bcd5f0898fedb4f73e2059c1bf4bf4375df73936513b",
+      "fingerprint": "f565bed76361fa19470363ee076d8b238c7a333862f7531d36bbfca927e21e1f"
+    },
+    "HomeLayoutTest.narrowLayoutWithLargeFontKeepsButtonLabelsAndTouchTargets": {
+      "card_digest": "ccc8c0de0ecbc76785f842c7ba837be9a16314a0fbaeb630c66ce8d41dba6a41",
+      "fingerprint": "ebd40448f8d8275adb074fac99c244811b968bc51e506e80ef01d3dc5bfa297d"
+    },
+    "HomeLayoutTest.qualityShortcutsAndManualSliderKeepOneConsistentSelection": {
+      "card_digest": "f84c880033194ee2dfb37f8d2bb93abefe69e5a7bcaa5923ed5640a61b033fca",
+      "fingerprint": "127ccf7f5a6245b40d3b8246bc8c26e1ed1ca7c8332f9474bffa996bd86408ed"
+    },
+    "HomeLayoutTest.wideDarkLayoutLimitsContentWidthAndUsesDarkSystemIconsPolicy": {
+      "card_digest": "e9bb867989ec6c30c0e3e58017f8bf237d23fefc3d03d3e798865d639eb7a919",
+      "fingerprint": "9e29d0b884ff53baedc924d75d8c70f049a6672aeb31530e73ee65321b8ed65b"
+    },
+    "HomeLifecycleTest.cancellingTxtPickerDeletesOnlyItsTemporarySnapshot": {
+      "card_digest": "e80418d9604292476030a19344738d7aab7ae346f9400f062d16996e2aa72905",
+      "fingerprint": "e31cbf094c2ec8e81dc5c7649bd330234c5a76cd0784466f23625835302836c1"
+    },
+    "HomeLifecycleTest.pickVideosAndOpenSettingsReachTheCorrectAndroidActions": {
+      "card_digest": "4b44cdf228416f5d3fc33320980c0518db3af1ef03b685afb7aaec7f53563616",
+      "fingerprint": "201cbf8fca204fd439a6c6ae5b50a667f30e531467aacb51d4d26392e3689ee6"
+    },
+    "HomeLifecycleTest.recreationKeepsParametersDetailsAndPendingFolderRequest": {
+      "card_digest": "5de521ccf9cf7556ec48e78daf5d5ab8e8cdc40ed3fec4e85c28b8187b9aaeae",
+      "fingerprint": "b008bf7563aeb51ce17027155969f5712cf49bb32a6ad3acc3a31c1114239b21"
+    },
+    "HomeLifecycleTest.reopeningAnActiveSessionShowsConversionAndClosingDoesNotCancelIt": {
+      "card_digest": "ed78ab7de48a4530bfab0a73437b3756d6c5fdcf2763838411810057cef56a39",
+      "fingerprint": "19c03ab54b273cfc2fbf1238b5c0d3726f65956855d1e7a377874f38f3e3544a"
+    },
+    "HomePlaybackControlsTest.pauseAndResumeSendSessionCommandsAndSkipRequiresCurrentFileConfirmation": {
+      "card_digest": "65aebdd4eae5c63e59ad3ee2f5b94b965ba194445c03109113b0d6841870939d",
+      "fingerprint": "336cde1b968606f5cad43f10100a0ab8c087dd28dcd3edaa19009534ef6f9aca"
+    },
+    "HomeRenderTest.activeConversion": {
+      "card_digest": "064fc030787aa181d5831205668d51fae0306c8911cb7c243ff0089c7ff204c6",
+      "fingerprint": "cc77f79b0a4d88f08b2998f4f148f47eaba04d18394e8f7b50c2132924791c89"
+    },
+    "HomeRenderTest.batchResults": {
+      "card_digest": "227ee4cab708dccc704ac417052211ae8e9825074d259233ff53b9d285a73ca3",
+      "fingerprint": "919aa1b1f968ed0cd669f3cfa3c72aff4e1c28545182dbc9a5dff7c256e9ec08"
+    },
+    "HomeRenderTest.clearedHome": {
+      "card_digest": "6789c5a4b7732c0830423200789266050cff260af9c33608e851679814552f12",
+      "fingerprint": "3013641829b21234c01c5211f0941454fd8e1b32c36befe2fd18a10b38fbcfa4"
+    },
+    "HomeRenderTest.compressionDark": {
+      "card_digest": "55ada37a295f26751d8cce37b20f1d742a9d9ff90c560988d0900297dfa06640",
+      "fingerprint": "d0a54361f31b58c37f9081f3031a50c0356f0b6139461a386045cc29268eadb8"
+    },
+    "HomeRenderTest.inputPage": {
+      "card_digest": "8c1730d67ebb6f3a34b34958f629c3342aad857e8e1011c54d7f904b6f2ba726",
+      "fingerprint": "ccb812faddf129909853e5d135a1a3d6030b178e97c06c497b00489939f78dd0"
+    },
+    "HomeResetTest.activeOrPausedQueueCannotBeClearedEvenByCallingTheActionDirectly": {
+      "card_digest": "bea16a0ee4123de4880af39646be079e9071ed62720e0747724986f0e400eaa9",
+      "fingerprint": "e866b17f3e253459b6bd248b8caaaeeea7cb4b188d67fc9e9a9a200cffcba273"
+    },
+    "HomeResetTest.clearRemovesSelectionAndReportWithoutDeletingMediaSettingsOrLogAndSurvivesRecreation": {
+      "card_digest": "f2039b9d5722977d0ef2dff61bf2a34c015d1c341cca73a5a808327849a52805",
+      "fingerprint": "d67539e144391c082857a265b1cafbfa8656387afdf156daabb6b2c4684c31d5"
+    },
+    "HomeResetTest.metadataReadCannotBeClearedUntilItFinishes": {
+      "card_digest": "e4d9a47a906ab9b7a5408a1d4dcceae39409aaf8bb369bc03370b77f818bcbbe",
+      "fingerprint": "e7936c4e1036c78fb6506f20fb9b93006764250f981d3f56212d98c1b8444ddc"
+    },
+    "HomeSavedSessionTest.eachSuccessfulReportButtonOpensExactlyItsOwnFile": {
+      "card_digest": "b296541aa6149a1e6062183d56bc4a34895ed001ffe8d99e42c3feafc787e6b1",
+      "fingerprint": "d2342c5a6883ac98db8983139d850ace47bf3d0213e9bba74290360f21f4f421"
+    },
+    "HomeSavedSessionTest.freshActivityShowsRecoveryWithoutStartingAndNewQueueRequiresReplacementConfirmation": {
+      "card_digest": "bcdd56465bc0cfeba0371a47f0a1af9a2fba30be0bbfb9a42c289e5ba536e326",
+      "fingerprint": "80b07dd7f4edc8fcce692643a1d3173d52dcd950ff026cbb4a142b7749e39d63"
+    },
+    "HomeSavingsRetryTest.retryUsesOnlySavedFailuresAndRunsFilenamePreflightAgain": {
+      "card_digest": "2d57c1e5bdb185259971f0ab45629958429713b9e6560984cef424783743029e",
+      "fingerprint": "db30713a7940644f8af78617c9e7f2d4bc38c7c6a9efeb3a1e253e84ab7386c3"
+    },
+    "HomeSavingsRetryTest.savingsCheckboxIsRememberedAndFrozenDuringConversion": {
+      "card_digest": "b14b01343916a624a727c949b7751bc217e538f7cd15b8c66a3f56574d10c400",
+      "fingerprint": "ed0aa2129513074b57ea43cb1d06fe7a7cd5b0e682318ae4030c0355ad3f2757"
+    },
+    "ImageCarouselCacheTest.carouselReusesPhotoMetadataAcrossNavigationAndActivityRecreationUntilReload": {
+      "card_digest": "7a2525a874f9708e7d925950fdcf8ea5e96603dcd7b8d459ddcc6e38088a9aad",
+      "fingerprint": "6aa4d7e018b76797efffe6d3f1c98b0f9022c1423d71c7ad77b0b6e8e3e3dadc"
+    },
+    "ImageDestinationFlowTest.photosUseSameFolderFlowAndFreezeTheCorrectPerFileDestinations": {
+      "card_digest": "3ff007fea31017116edd8502320046331ae9e0595830fb919ad2e3d82ecacbca",
+      "fingerprint": "30f8b804ad7bf56e1851e687f6dcb3547090440bccf4e607ee84d448342794da"
+    },
+    "ImageFolderImportTest.folderListingImportsAllJpegsWithoutReadingPhotoBytes": {
+      "card_digest": "fa59f23f4d73ca3e5eb9e74adced0a94d7e7b7f5d447d77395ed6d72387718cf",
+      "fingerprint": "c7f612da1faa4c5ef0bc55f28522a8fe2faa81b624ef00d975665a406a81f7a4"
+    },
+    "ImageFolderImportTest.oneFolderPickerResultBuildsTheWholeQueueAndOnlyOneHundredChips": {
+      "card_digest": "ac7384bdaff5e4f28f176082dc06682412743610cee058f7b80e9743836e56d9",
+      "fingerprint": "8ddc0970afb9ccb449d0944c8018e5b2a3a5a10272ef14e39941aeb22667f423"
+    },
+    "ImageLargeQueueTest.carouselShowsAllSmallQueuesAndOnlyOneHundredPlusEllipsisForLargeQueues": {
+      "card_digest": "3363ec3eabfb40f57e6a786e5e5677501a6e9f4a3e3c4e994edd3eba7d65a41e",
+      "fingerprint": "70ed108b78b0256f875b421457e02074882a27df465bcc7eee61ef749cbea49e"
+    },
+    "ImageLargeQueueTest.diskLogKeepsEarlyErrorsBeyondTheOldTwoMibRotationLimit": {
+      "card_digest": "099046fbd4aac1896cf53a665cb657e6098536bf85d0dd9d092f7023c3745545",
+      "fingerprint": "a4228449125a049f4e4ffc4c8451094ac5bfa33f128766290e0553ff947235e4"
+    },
+    "ImageLargeQueueTest.failureArchiveSurvivesHistoryEvictionAndContainsRetryInputs": {
+      "card_digest": "7cad0b967e039d05ee3c7fa7578db3d9b9545c86d87b3c6304f21736c6f33822",
+      "fingerprint": "83058225d1dcdddcad63c57eecee7dc9fe2d95c035c70286ecb7b1265b090999"
+    },
+    "ImageLargeQueueTest.fiveThousandOutcomesKeepOnlyOneHundredDetailsAndExactTotals": {
+      "card_digest": "dff58dfcb8c3268482661fcaf712f81291b380549237847d9d07ee203e12e9e5",
+      "fingerprint": "6696b1b9557ae4c293eb6c4a55511677ed2712bde8b2f4d377dac331b79fe01b"
+    },
+    "ImageLargeQueueTest.fullQueueIsOnDiskAndTheIntentContainsOnlyItsIdentifier": {
+      "card_digest": "234acc7ea1e9a333c307866debae8378dcfffa1598426a64f9db9bf095c951c0",
+      "fingerprint": "93786e1f3e1187202a61f22715cb652bfe215ba42f827612d1187caa6c8962fe"
+    },
+    "ImageLargeQueueTest.largeDraftRestoresAllFiveThousandReferences": {
+      "card_digest": "a49fcf0e0a10e70e1d97592e3706ee9176d714b9373061bc42cb2bd0b195df23",
+      "fingerprint": "7aa43dd5bad7c0b35011b2ef20a2018a3daaac363b39907a0543b332bdd9786e"
+    },
+    "ImageLargeQueueTest.reportCentersCurrentPhotoAndStillIncludesTotalsAfterEviction": {
+      "card_digest": "5bee5c4b80aff4ce607da146d402669eea8a0a3eec878e011d054ce56d2e76c8",
+      "fingerprint": "fe72a55789625329621a5be2c0ce720b76fee816cc9c56e7132691bddc666c4f"
+    },
+    "ImageLargeQueueTest.serviceContinuesAfterMoreThanOneHundredFailuresAndPreservesEveryError": {
+      "card_digest": "f209663f6ad7f0f9c42a9e69c4e2ccabcf14149de8f0ea0570847ef46cd22ad4",
+      "fingerprint": "6193033fde28344a6f40bffd083daebb49c367900955895ab2b99763e954a74a"
+    },
+    "ImageLiveLogTest.concurrentEventsProduceCompletePrefixSnapshotsWithoutLosingAnyEvent": {
+      "card_digest": "665a816d78f17ae1d399d5c9abc6f10fa1b6fb9994ec75077e253051faa73e31",
+      "fingerprint": "22e8eb9fd2c90f929cc3d540c9c0c6cc4b7d4f57d99949eac0bac54de8c4495a"
+    },
+    "ImageLiveLogTest.failedExportCleansUpAndAllowsRetryWhileTheQueueRuns": {
+      "card_digest": "d54ea7e9265e646dc786776daa866f93df5f7efa1f42fc4b0c7db5ef8db7463c",
+      "fingerprint": "c22c8f41e97770b530da446f50a8cbe5d7ed93be0b43f6eca09c01fe2084eecc"
+    },
+    "ImageLiveLogTest.pickerRecreationAndCancellationKeepTheSourceAndDeleteTheSnapshot": {
+      "card_digest": "59d012b492f9a347b356c98fdcd4581e92d2133328b21113f3e2ebebf6e0fdcb",
+      "fingerprint": "e13e8d3095a46faea59b852bd7eb7286fac20e073ae6d1105acd1e68151390c5"
+    },
+    "ImageLiveLogTest.runningFailureArchiveExportContainsOnlyWholeJsonRecords": {
+      "card_digest": "711f515b834ac5fac0d09f9414ceb9dea1004103ea1bc8e06795ab3b3743ceee",
+      "fingerprint": "29af329fceb5be0218b24e120891566daf435d1cf8b42882ddc3c1bbd1b569a3"
+    },
+    "ImageLiveLogTest.runningQueueExportsTheClickSnapshotAndShowsAllCumulativeCounts": {
+      "card_digest": "b4316fb8a5d450120943b3439408db991087af8f6810675cef323e2a695dd7bc",
+      "fingerprint": "a5e7c2138eb75577f3364c00deb7ea257ef3717c24458da9e8a0a0036281291a"
+    },
+    "ImageLiveLogTest.slowDestinationDoesNotHoldTheEventWriterLock": {
+      "card_digest": "650ecaf3edc8af96a053b7d745da7e617b8d7bc1d05b35f03b1bf5709ec86a98",
+      "fingerprint": "6000889cebcb624d382226a58714e0f367ba1bc520c4486cda8301a46084f0a1"
+    },
+    "ImageMetadataCheckTest.checkPausesResumesAndKeepsRetryableProblemsSeparateFromConversionOutcomes": {
+      "card_digest": "34355dabf588c4deeba06fffa588572754fce2e5ac48d5dc3bdc7c8ffcd781fd",
+      "fingerprint": "0c545f09a1e044a164464f205c059c060ed028f90cc0aba9391cd7095aedaa86"
+    },
+    "ImageMetadataCheckTest.checkedCountersStaySeparateAndSurviveBoundedResultWindow": {
+      "card_digest": "d087e5bc5e14c3f6744b99ed93eaeb3a65aa5d43998ea4bf8f6e028cceb35ef0",
+      "fingerprint": "3cb6631313ea85411c789a40bc2d8d7052aabce7f86bf88d8ee70a82dc949c7e"
+    },
+    "ImageMetadataCheckTest.compatibilityButtonStartsWithoutFolderAndUsesDiskQueue": {
+      "card_digest": "e1827cfa5dda37e4c1828efb0451934d0bdd0c4b72f4f31306311d59c7fd2729",
+      "fingerprint": "0d2bb7db81bfd389ce4053bd01bbd65c585bada4bed037fc04d13e9d0e3dfc96"
+    },
+    "ImageMetadataCheckTest.inspectionQueueNeedsNoDestinationAndKeepsLargeSelection": {
+      "card_digest": "0931210544da21df5e1057d42dcf39a660a8990d3e6ad77bc655f983e5048b2c",
+      "fingerprint": "3a70922cd3758a3a7363c9f386d57a75cb129387ec4aaa09a751c1613002991a"
+    },
+    "ImageNotificationTest.rapidStagesAreCoalescedButPauseCommandPublishesImmediately": {
+      "card_digest": "4680d4a6dfe31d837635492d4956ca3580b8b2937fca4bc9342d34e89089ba10",
+      "fingerprint": "a441632d0039e670f981bea546c5952543b247b4c74c7355ed116554e2e02bfd"
+    },
+    "ImageOutputFailureTest.failedRollbackRetainsThePrimaryErrorAndItsDiagnosticCause": {
+      "card_digest": "399f70de8aaa00c4e699950da47cfd0c9259b09857617b469c9563a4605317a3",
+      "fingerprint": "53d2e66b505209b48748a3602beb777dc839a727dcfd6a9a4be043bca01e685f"
+    },
+    "ImageOutputFailureTest.missingStagedFileNeverCreatesAnOutputOrDeletesTheExistingName": {
+      "card_digest": "74e92ba99ec27095e3b0f8d2c9500bbfcaa9f86f1e3c049d5f43e304da933719",
+      "fingerprint": "00b3dff636a88660c9ab2cc26155ec535fa59b951b4b9cfb25872138c65f9d12"
+    },
+    "ImageOutputFailureTest.revokedCreatePermissionIsReportedWithoutOverwritingAnExistingFile": {
+      "card_digest": "63acef3d9efc5ebf0a90e4f3fca3dcc58cc175edeb06196ca8834be807a52fcd",
+      "fingerprint": "de84559c44d7970c983d61b4f8aa61642a8a0c1ff516d223f56c4b436741a96a"
+    },
+    "ImageOutputFailureTest.unreadableOutputIsNotDeclaredSavedAndIsRolledBack": {
+      "card_digest": "9ac9fb0d59fe08012ba5754657efdf6ffbd7e12434969d8d93e7a6b0cc340ec0",
+      "fingerprint": "ac8e96debf0adc93ce832c7e93933e733c47267c2002e923520d4e4b3819bc9b"
+    },
+    "ImageOutputFailureTest.writeFailureRollsBackOnlyTheNewDocument": {
+      "card_digest": "e2829349fdb9ed6633cc614eda7d99b4f2a3a30caf2ade3abfd72d37ce809ac5",
+      "fingerprint": "060669495aa46f51db8719e0267065660f785ef72c257b21a6f8474e60fa71e0"
+    },
+    "ImageOutputTest.cancellationPublishesNothing": {
+      "card_digest": "1b32e4071aed204e3c61811ac1b0a63205d94b04e57411c7e24f7c94d85ce9eb",
+      "fingerprint": "e395b1221554421c76ed90f8f8e5f8ac0ffaa13c014f3b5040b940d421bb4df6"
+    },
+    "ImageOutputTest.motionNamesKeepMpSuffixAcrossCollisionsAndHeaderScanSkipsPayload": {
+      "card_digest": "b7f0fd667ba9228c54ddca07519e4c9709eae36adb1f12e49481a1a84b05745c",
+      "fingerprint": "26c930325acb9b139750616c3dfdcf291919ef23211ee111f45aff0313a6fa39"
+    },
+    "ImageOutputTest.sameLengthCorruptionRollsBackTheNewDocument": {
+      "card_digest": "c62515f765e9682138fc1787229a4af6ad52a9ac4c97a748771cf50b053afc84",
+      "fingerprint": "364e021fb37c58e2f71375caf3a3c95758afbc8a5540236b57c6563106e52efd"
+    },
+    "ImageOutputTest.savesReReadsAllBytesAndAddsSuffixInsteadOfOverwriting": {
+      "card_digest": "92e02b4acaebbc06f252526f589e0cce7d055ff86ebd1e796fae7d17db247a4c",
+      "fingerprint": "8fe671d0e2631203e4540a3fb0554ab2489ffe6004cfd8df9d1098cfc392091e"
+    },
+    "ImageOutputTest.wholeBatchListsDestinationOnceAndRetainsCaseInsensitiveReservations": {
+      "card_digest": "3ed43c23a64e52784bf506465cd0d65bfb28dc494b067fe3e3f5c36a5f99687a",
+      "fingerprint": "956dbed3a1590b7f9fd3fc3b5cd0eae554dd75d97888e0b228dedef6e25ff296"
+    },
+    "ImagePauseTest.cancellingWhilePausedWakesTheWorkerAndDoesNotStartAnotherPhoto": {
+      "card_digest": "0e26f857900a59265625b5b4e8a636a072c41636fa872de80355e4bbc2bd1192",
+      "fingerprint": "cee89662e4c56ac116e7637b03fb20bde9c798d7fe57c8e9a2cc10cdff740090"
+    },
+    "ImagePauseTest.destroyingAPausedServiceDoesNotLeaveItsWorkerWaiting": {
+      "card_digest": "1d5285a979f22d1dabd426a90fc37095a02694137244f96efe3175bea680b013",
+      "fingerprint": "8f2c3679b6243fb23534545e0b66ad50f30d84ed9175637ec8a2acac4b9ea891"
+    },
+    "ImagePauseTest.pauseFinishesTheCurrentPhotoAndResumeKeepsQueueAndCounters": {
+      "card_digest": "fb26eb0446c2aa88b106b1a3bee816d6b63202042d52e848e021d43a77ade16f",
+      "fingerprint": "4b998e357df6dbf5ecec8dd063014a6d8866391dcd4e8764e306ef8a4aabd500"
+    },
+    "ImagePauseTest.resumeCanWithdrawAPauseBeforeTheCurrentPhotoFinishes": {
+      "card_digest": "dc56272214520bfbb3684c17f27096e1a591e87381cccbc36662d17c6d38636c",
+      "fingerprint": "55cac79849d34be44d501a480d36e7461ad5a8419b147c15f79dee979a24aff5"
+    },
+    "ImagePauseTest.screenAndNotificationCommandsAreBoundToTheActiveQueue": {
+      "card_digest": "c2fa05b3f96220db83d0d0be73d7d130bef6d975cd010425b0a6920452d6bc32",
+      "fingerprint": "517fc373be7d27e46dbb0d98c9db125ea48c6298a2ce473eb13b95d692b8f915"
+    },
+    "ImagePreviewSchedulingTest.selectedPhotoAnalysisFinishesWhileBulkNameProviderIsStillBlocked": {
+      "card_digest": "bc6407ef68d83c8c10f484dd93c7d2cbbb33102d8235e2eac44a8288ad684f3b",
+      "fingerprint": "caeb3b837afbc5e862569467faa372d0b5aa8dbb6b64558e12f8f931adac8766"
+    },
+    "ImageProgressJournalTest.completeLargeFolderHandoffKeepsAllEntriesAndDraftSurvivesRecreation": {
+      "card_digest": "916b3af2460675a3ad14a768c9bdddbe926171ad3493880db062a5c18d645d0e",
+      "fingerprint": "e52268c217abc7d174b583f9492263626d49d66ca695da5211e4791c97440a15"
+    },
+    "ImageProgressJournalTest.eightThousandFiveHundredRecordsOccupyLessThanTwentyMb": {
+      "card_digest": "ad2b45bdd19c4d01972d8a9216201f580faea2345d2672ade957c514eb8d53a7",
+      "fingerprint": "cb59b653c4ed388d5892ef4f73308b693d5feb75a11efd0e0e2da197bacc309a"
+    },
+    "ImageProgressJournalTest.inspectionFailuresRemainRetryableWithoutErasingConversionHistory": {
+      "card_digest": "d1a9c7c68c559ae4e6180ca98356c5908d014145bd10b61999d22fabd2f00116",
+      "fingerprint": "a064eb47bf52fd341e00df6cefcdd666862ede7e0555ac2f01a76aa684ee107b"
+    },
+    "ImageProgressJournalTest.latestOutcomeReplacesThePreviousOneAndFailuresCanBeLoadedWithoutDetails": {
+      "card_digest": "a8d779f187911bf88939e7087dbb966e0cc1a257e7dfe052a6fa2390de2f7f8d",
+      "fingerprint": "3c0f2730b528181c2000b9b2189dce2b1cc3a3b689b568c3264ec00b7cd9377b"
+    },
+    "ImageProgressJournalTest.reuseChecksBothFileContentsAndSettingsEvenWhenSizeDoesNotChange": {
+      "card_digest": "7a00742d081f1d32f4c6037912577d41b41b05efe20def6edc5d4b1ad3ae7897",
+      "fingerprint": "86e25d52421f0551cda4cbef93f0ccd742cd98c7a6dd70729f8bed7893f2f294"
+    },
+    "ImageProgressJournalTest.reusedOutputsContributeOnceToCurrentBatchSavings": {
+      "card_digest": "e26e7c96105eb2baeb4010ca94b096a06285f1a39b8fb4146e3c6f750f2c9232",
+      "fingerprint": "f8e4a6e1d94adc4e357222046724b0c463a3dcc78247b63cb114a23e49496e68"
+    },
+    "ImageProgressJournalTest.upgradesVersionOneWithoutLosingExistingRecords": {
+      "card_digest": "a3246533fe2347a971ac55fbd458f798300e3112f088c5f8890338b94f169fcc",
+      "fingerprint": "b85217999d5d358fe580bd4dc9d700a1189d244fb268142a079c9649c0c893dc"
+    },
+    "ImageRenderTest.settings": {
+      "card_digest": "328b8452873ab8cbd1e30ca8fda0b0b31975fb744c690d4ebc7727d41219818d",
+      "fingerprint": "d4343ab9f4550d57cfd81043ac82f91f012d38cf1bd240496662173f98d8101e"
+    },
+    "ImageResponsivenessTest.cachedPersistenceKeepsAllFilesAndDetectsIndividualDestinationEdits": {
+      "card_digest": "3244acdec8e39cca9e94b4d0e40e859538dde5b658b1cd8b116312cc1d0d4e41",
+      "fingerprint": "fe6c62b4370baf9162bd9dea767d7c2f5c40bbbaa72a5586cf1f86aafefa7920"
+    },
+    "ImageResponsivenessTest.manualSelectionReturnsWhilePermissionWorkIsPending": {
+      "card_digest": "f504539600e9fa09b290433a102c1b190d2fc1aa9f082a2a4ff21982351a8e9a",
+      "fingerprint": "2285eb4ff0c08a82cecf1e52540901f746604b1d6c70d930010d55eadeba6300"
+    },
+    "ImageResponsivenessTest.progressTicksLeaveTheSelectionUntouchedAndReuseReportRows": {
+      "card_digest": "32719f323e830bab1901e91c21b999a8b7abedf47164028d3af6c1d0061ebc2b",
+      "fingerprint": "61b51376ec8cb64279c52ca8f078b888aa428ebcec65f0468142bd8ca533d334"
+    },
+    "ImageResponsivenessTest.reusedResultButtonsTargetTheNewFileAfterTheWindowMoves": {
+      "card_digest": "8edb68ca5f53454042c116d27c969d19e0eeef12460765c8ceae1f2f6006f738",
+      "fingerprint": "7925f5c625edfb122a856a8a1ad622ffe5ac3c7b826e59093c141da322a45ec2"
+    },
+    "ImageResponsivenessTest.unchangedLargeCarouselDoesNotReadHiddenNamesOrReplaceButtonBackgrounds": {
+      "card_digest": "2eaaeef547985b03b3bed60b5258abda5c210d63296f4bc616591abae78926ce",
+      "fingerprint": "2545bfff634e06000fddbbf5338ebdb9424ab776b80e543f6b7a2e38eee9002d"
+    },
+    "ImageSessionServiceTest.fatalLogFailureKeepsQueueAndPreviousCursorForRetry": {
+      "card_digest": "1ab5d87a7a90b2a723567fa0914ae1057b2b1b7a913b05981ad5fd7822fd9187",
+      "fingerprint": "7906ac094baf4447bbd200ea9522e881984c540ccaf4e78786ed4f6599dad21d"
+    },
+    "ImageSessionServiceTest.freshServiceResumesAfterCursorPreservesTotalsAndAppendsLog": {
+      "card_digest": "f201f30bb58bf7fa629a6f6c96dde327f1aa5c83c700addd87aa0d0e10952ee7",
+      "fingerprint": "8db5218e3bdef0ea58e0c80a62d4c54c5cde004f7b95db0162beafb8db3f2398"
+    },
+    "ImageSessionStoreTest.freshLoadKeepsQueueOptionsCursorAndCumulativeTotalsWithoutGrowingWithDetails": {
+      "card_digest": "ba8787fb413a2230f0226e054fd579bea46310732951599e760071114ee6c5e2",
+      "fingerprint": "719aba521640e3a6382adcb7bc16c3f6e79d7f40d242d050e57500abdadde22b"
+    },
+    "ImageSessionStoreTest.interruptedAtomicWriteKeepsPreviousCheckpointAndExplicitDiscardRemovesQueue": {
+      "card_digest": "17cef3deed299355beb758c09124e98a6cfc642f57c375f9483dd3a9386ac97b",
+      "fingerprint": "73756608904df689d936e8deb9d251e375bb4b9ee4d3537f88cc99440197a9ad"
+    },
+    "ImageSessionStoreTest.missingQueueIsReportedWithoutSilentlyDroppingTheSession": {
+      "card_digest": "b470b5fa3949b2ed8f4ba23bf6b52d46c48e73fac18107b2a2ddae7c3154e89a",
+      "fingerprint": "d408bceee0c14aa8321f165d38149f790f439b3caff8aa5ccaa43ab06f682bd7"
+    },
+    "ImageSettingsTest.headerOpensDedicatedSettingsAndUnsavedEditsSurviveRecreation": {
+      "card_digest": "a780ef21c6c5fefad6ab497e1fd57088e0cca93f10861dc3ad442b4dfa30447c",
+      "fingerprint": "91fbf36b3a0e676f2de8d713d91ef3c8ffb8d5b0248898557bb01bf6c4c9ff8f"
+    },
+    "ImageSettingsTest.imageDraftIsSeparateAndFolderCancellationKeepsChoice": {
+      "card_digest": "6eaa226ebbf33f638409d6d7d79b3f5bdc00fd876771a463ad12ac66a50c30ed",
+      "fingerprint": "d42bc6128739f3b985fe347ebd2e14d03c316c0a72962342825afa30aeafca0f"
+    },
+    "ImageSettingsTest.leaseRejectsImagesBeforeNativeAndStaleCancellationCannotStopAnotherRun": {
+      "card_digest": "e70b080f7c328349837c9003d2a6c6eb200dc7162c02c98a6a2c8d280af88f95",
+      "fingerprint": "69fc3706361b2cb1728bb912313c1c2ca1e0e91e1ef03f32247d608042a3a7ca"
+    },
+    "ImageSettingsTest.savedDefaultsApplyAfterActiveQueueAndKeepSelection": {
+      "card_digest": "4b28ce000274d45b9aa09765d6ef523311ccb1a9601758cf618a3d32b5860dc0",
+      "fingerprint": "1051debfac26202948c8353dcbb9284dd4a1969402f41e674cd2bf32d243650c"
+    },
+    "ImageSettingsTest.screenAwakeOptionRemainsLiveDuringPhotoConversionAndClearsOnPause": {
+      "card_digest": "be96941e43fbdb1ca6e72c9fcfa384d22b6c4fdefa7efafa6eb4612e97d8b5ff",
+      "fingerprint": "e5d12e66e5d9ada28ba9428ae12a71883a588fc22e6cc0929ba7df4b667ff511"
+    },
+    "ImageUiTrialTest.addingFilesKeepsFocusNamesAndExistingMetadataCache": {
+      "card_digest": "65d71725923edd81ebc4f86be1d395ee84543fbd1d2ce88553f0da3cbbb83940",
+      "fingerprint": "eb0f71597c744faa1dd8f25eb849eb5068bde5756ecedf9e29d98dac97ce83d7"
+    },
+    "ImageUiTrialTest.composeIsTheOnlyWorkspaceRootAndNoHiddenPhotoPanelsAreBuilt": {
+      "card_digest": "ae1fd554136e6fd69ba6b1515e23492e256e5a651f948cf9ab0e6bbf7c290afd",
+      "fingerprint": "d10e8a2cdabd5c36908fe20e3be9dfb2e1958a8e91e68ac60f614c8694e47ea2"
+    },
+    "ImageUiTrialTest.folderImportIsAdditiveAndKeepsExistingDestinationEvenForDuplicates": {
+      "card_digest": "888cc98d754e27476cf4f5840171755d6818c0d8eb6b874ec7f411aa19f2410e",
+      "fingerprint": "940d484ac3ae2546790c92aad04462c7de7d53f49f4ca4aaedd808476d14da2f"
+    },
+    "ImageUiTrialTest.folderPickerFreezesSelectedGroupAcrossRecreation": {
+      "card_digest": "d3ef3001b11e3d2fcdb3b3000ca5eb29304fc91fadc8bbecd6b10bccc1b117a9",
+      "fingerprint": "c982394e78067dddce0b5a0ecb6317542497397d7cc0b01e826cfdd90806eacf"
+    },
+    "ImageUiTrialTest.longPressSelectionUsesGroupAndRequiresConfirmationBeforeRemoval": {
+      "card_digest": "78f834fbc2a38b618b47318c2e9ff57fca90fa13056edee3e1c9e495b3aaaec6",
+      "fingerprint": "75cdcfa201ae643a81b9fa8ce1c6e5a7fae3c6b1fa666f38f2ee6cd8ecb2f3cb"
+    },
+    "ImageUiTrialTest.navigationRetainsDraftAndQualityAcrossRecreation": {
+      "card_digest": "17dcfeb39c5e32633c00c4d1beca9f1bb808a22e5601519992441e16f421c5d8",
+      "fingerprint": "31c4bc8c78f34789672e9ac53e0445b079176dd45da3c252cc13fe22001cdd37"
+    },
+    "ImageVirtualReportTest.hiddenProgressAndLogAreNotRewrittenByTheTimer": {
+      "card_digest": "0f611ea318fa54b74a11a777743e16a5bc5ed4de11002cebc42d2f85e1c2ccf1",
+      "fingerprint": "4cff6c23851722b3185a181677eae59ebc9ce79a0690e8abced3d0fc2b012cec"
+    },
+    "ImageVirtualReportTest.oneHundredResultsUseOnlyAVisibleSubsetOfViewsAndRecycleTheirActions": {
+      "card_digest": "642e853017be5330fa92df5beae964b46042a6118a08bc7cfa32a8662544cc52",
+      "fingerprint": "292774c64b8033d2e40e3304c1a606834fcbb3e5db0c8bb4a0590d38501b0de9"
+    },
+    "ImageVirtualReportTest.visibleLogPreviewIsBoundedAndContainsTheNewestEvent": {
+      "card_digest": "66db87f30ff76f6d6edb310c33c93740f0fd42230a1da91cc5e098979214a855",
+      "fingerprint": "da6b75b9ffb3111d9574d0f6b0f86c9370b3b4a212a54860c756cc9929cc1c1d"
+    },
+    "ImageWorkReportTest.savedOutputOpensWithReadPermissionAndFailuresHaveCopyableDetails": {
+      "card_digest": "e9558dc541d31fc71456af9f52a162f40f639664e49632265cab2ed6eb51983c",
+      "fingerprint": "45360cb7ee9664434f9ac6c14b6af9ed9dcedee51388848a8a234bb670ffa847"
+    },
+    "ImageWorkspaceTest.cancelledSelectionKeepsDraftAndUnsupportedFileCannotExport": {
+      "card_digest": "5148bf3e3314a592b54f832d76f3683f0890f56e687b346d8439bcccb22b19e3",
+      "fingerprint": "61d72535871ff08ea05f143a30648de69e5149e6bf7ce96c9548f841a71c45fa"
+    },
+    "ImageWorkspaceTest.imagesAreReachableFromBothExistingWorkspaces": {
+      "card_digest": "41ba0ca6ecda249f2e9eda41fa87ab7e004b7cc8cd5cadbb8eedaafa5a8e7bbc",
+      "fingerprint": "6bdb35603ecd9bbee1f8528c487b1600aaa07e23892aef54b7d7eee04a5b454b"
+    },
+    "ImageWorkspaceTest.jpegAnalysisExportAndDraftAreIndependentFromAudioVideo": {
+      "card_digest": "096b9d2e92d2ddd5736eed19935926d3ec129fc289c40ff587f6a18ddecaae46",
+      "fingerprint": "5a75ec4e2d40871a0962fe941d543b3a63e3c87fb4653290704a3936b8565ad3"
+    },
+    "ImageWorkspaceTest.pendingExportSurvivesRecreationAndSourceCannotBeOverwritten": {
+      "card_digest": "c6969fccf94b662d6c4cfdb5e8ecbc1815b77486512079c214197bd7f85d0940",
+      "fingerprint": "2c9b32b1600010f063fc37f3488e960943768824d43cf52cda09c5178138e7ca"
+    },
+    "ImageWorkspaceTest.threeTabsSelectImagesAndSwitchWithoutGrowingSecondaryBackStack": {
+      "card_digest": "1095cb85548a7705a51c04e141e3ca37fd77fbdfb17be306d56d96ceff47dcce",
+      "fingerprint": "089e8000c8ea243d7a330d61beb9f318057078fbcdd3e8aa9c16bf2628a73d83"
+    },
+    "IncrementalReportTest.reportIsVisibleWhileRunningAndUpdatesWithoutWaitingForQueueEnd": {
+      "card_digest": "cac5043ec402ed0082199e128124ea62761aed1ea83967374521a04a6054129e",
+      "fingerprint": "3840d131160ce7e047b1f97357628d8c693444d3635f1a357474d3ba6c1c52a6"
+    },
+    "InputCreationDateTest.readsOriginalDateAddedInSecondsOnlyWhenInternalDateMissing": {
+      "card_digest": "15207e9e91042661cc83ab3090cec1543a0157deb94ad246def7cf96b332bdbf",
+      "fingerprint": "5e008c69db4080cc2a5a06e28b0c2058c12d050c4bc0684bfd50589897a115e8"
+    },
+    "MediaDestinationsRenderTest.sameDestinationComponentRendersVerifiedAndMissingAccessForEveryMedia": {
+      "card_digest": "d2399dd09a19ed07c3a7110f1617d57255cfb2c2ada5782d3406b3d9a77fcc8e",
+      "fingerprint": "25db5a31d2c973135d29c6f8c2936f887512c485edefbceae25bffe89d0cc755"
+    },
+    "MediaDestinationsTest.choicesFollowSourceUrisAndOverrideDoesNotEraseThem": {
+      "card_digest": "b33392089a660e7f413342bcf0e6462fdc9de71fcc6b16fa09b4e07fac7f3515",
+      "fingerprint": "3d2a652d58198eedf6bf51332d007796480c91a0912704ec9f09135c6076a81e"
+    },
+    "MediaDestinationsTest.samePanelHidesEmptySelectionVerifiesAccessAndRestoresPendingPicker": {
+      "card_digest": "cfcaaef8d18d6400797ef8253c94d85683df4f433ba69f4bf9bae20ffe4a0270",
+      "fingerprint": "942e7874ceae6a34af202043582db19fd801e1aae122485a123820919a4a7cc9"
+    },
+    "MediaDestinationsTest.serviceBoundaryCopiesPerFileFoldersAndRejectsMissingEntries": {
+      "card_digest": "e0a7476b5c8fb6e2e6839b484ce1dcf630ab0314df9c964d8826a12d0feaf269",
+      "fingerprint": "8f6d38f937eb0440c8062c3919604812ef7d459c91217dec42343028d6a7919d"
+    },
+    "MemoryProtectionTest.detectsUhdOrientationAndCropWithoutChangingSmallerVideos": {
+      "card_digest": "07f658dc979e0542052bbdf92648972c1ef1a3a2b594dcab18b0be40afdbb266",
+      "fingerprint": "ea5cb0a03132f3e693d0decd99a9a93b6a13afb0bbfc3937294bfb62133048ef"
+    },
+    "MemoryProtectionTest.effectiveLabelSurvivesCheckpointThenResetsForNextFileAndResume": {
+      "card_digest": "953b4b29fbef60aeefcda880d53bd9fcbc7476c0909fae7ff6be27f77af38a75",
+      "fingerprint": "27a73f2da0d021ccde5e0b38c1f7b6d9adbc065003b555b92fd513a292f32ced"
+    },
+    "MetadataMemoryCacheTest.byteBudgetEvictsLeastRecentlyUsedMetadata": {
+      "card_digest": "3cfcbdb2c19eae5fe6c437afbaffbc9419b21a53633abf0b0600bf1fdc9af153",
+      "fingerprint": "047fafcbac7091717919164ce653c36dac77715a7d3e9f8053ce4ad2f23fe12a"
+    },
+    "MetadataMemoryCacheTest.reloadAndClearRejectInFlightOldReads": {
+      "card_digest": "c957858daa119dc1ef57c9264a285b27886c4657bcfc7ffc1520105895925743",
+      "fingerprint": "20d0b202f741b52986218991d8b405022ef1e83b83425508c28f07670d055fd7"
+    },
+    "Mp4MetadataDiagnosticsTest.missingAndDuplicateMoovHaveCountsSizeAndRootLayout": {
+      "card_digest": "21d052562949fb5af1cfa6274cb54d588f14df925fa1db4ccf79043a44a8978c",
+      "fingerprint": "bda35c9e8088360ff7e1e0cd5d469e48f191d59b53f41e0cff3b3842ae5a8308"
+    },
+    "Mp4MetadataInventoryTest.completeSefExportRemainsCancellableBetweenChunks": {
+      "card_digest": "ee069e38dfbae8fd0ff34e924eb2dc5c904726d83a427e0d36c3a269f2c583a6",
+      "fingerprint": "726b47f643eccd10351a4731f558f0a8255fea9e9ee6a9ae50f114b297a9d5ed"
+    },
+    "Mp4MetadataInventoryTest.datesVersionZeroAndOneAndNestedTextAreReadable": {
+      "card_digest": "b5dc363351b851577343126104d388dd0d79ee15aef81f943b560122d6754cc1",
+      "fingerprint": "db887a3efc2000fe580e4ab315596e5ad3868cafb84480b8e95d66fe1ed2ea1c"
+    },
+    "Mp4MetadataInventoryTest.malformedNestedMetadataStillLeavesCompleteRootSefAvailable": {
+      "card_digest": "d20beb5930670fc63d023878d7297af6d44ec60229fc2fdf0999b4045aea6204",
+      "fingerprint": "3c93492a29901e2404a6f0f206da58f9990e60ab818dc065d0ffc3f2ae336629"
+    },
+    "Mp4MetadataInventoryTest.malformedSefStillExportsExactBytesAndLargeBlocksHaveExplicitLimit": {
+      "card_digest": "814814382d3a630e04145601122ff8a9a25b9e97f0b7e1c7e83af9d0cf8d73af",
+      "fingerprint": "62e86c32e76399703efeb80e884c6ba3a603d030ba45ab327d28a22e3cc1bebe"
+    },
+    "Mp4MetadataInventoryTest.opaqueMetadataHashSurvivesRelocationAndPreviewIsBounded": {
+      "card_digest": "a6ec066b5a79db019faceac1f7e1062321744ff843e17f4af4f9b9c5ff3856df",
+      "fingerprint": "7204b867010644ac2e86e3778eedd5849891e1ce1aa3283e823f3078f7342b64"
+    },
+    "Mp4MetadataInventoryTest.quickTimeMetaWithoutFullBoxFlagsCannotHideFollowingSef": {
+      "card_digest": "ad57a266de214837b7669126c0e2394a645dad688c7fd77d5cd51a295f6219fa",
+      "fingerprint": "65b5007f8e21f98decb8ae92757746a2432f300b3059ba30ed3f52d1e383f6fe"
+    },
+    "Mp4MetadataInventoryTest.sparseMediaIsSkippedAndMalformedOrCancelledReportsFailClearly": {
+      "card_digest": "b709d9f61729cad98e748747f405b236e11e5906b7886e22b8cf79caaa106d15",
+      "fingerprint": "a8422db4fe0cc7a71a76662711b620eec9028cf9701e59008e02e6f247e60ecd"
+    },
+    "Mp4MetadataInventoryTest.unknownEditorRecordsExportEveryByteAndCompleteJson": {
+      "card_digest": "7c485c7d4654c374ca0bace05c3ee9dc1cc0c04b3baa1a31cfe860b3193e827c",
+      "fingerprint": "c409843ab03a7cc00d6a0faa9abc8d7581b1392ba0cd83913c86b1022b039fde"
+    },
+    "OutputCollisionTest.backCancelsPreflightWithoutConversion": {
+      "card_digest": "b0fbb97199e802ee4c786cfd8f3a6dbaeb4ea4a8c271850993ac627eedf4cac9",
+      "fingerprint": "0bddfae986d70414750c2dcd841d7e929d561b2dfc9671e22791e3dccb4b3963"
+    },
+    "OutputCollisionTest.renameValidatesNameBeforeStartingService": {
+      "card_digest": "30198d0f89ec42a8b68af921ee9cfe482911f1fc2e32a6144f6b74adf11b0720",
+      "fingerprint": "896e3b18686351fd9161678c95b6fd791a727f4103b0c463abbcad3c7404ad46"
+    },
+    "OutputCollisionTest.renderDarkCollisionDialog": {
+      "card_digest": "93fe2331d989811ecc6285d9595c70730b6b8d102ecd1a6620bda13b9113b319",
+      "fingerprint": "1c7891ba6edcb32400cd1a09635bbc9720beb1a7810aed1129ecda5d7cc2afe0"
+    },
+    "OutputCollisionTest.renderLightCollisionDialog": {
+      "card_digest": "393b3a04a3a8f676e6a2b38a89a0682b501a08ac07cdb772d6184a78e5f99742",
+      "fingerprint": "3e2565e68f86635b11d6038a504a6259616b933c182aa6c676e20478d1a87ce4"
+    },
+    "OutputCollisionTest.sharedButtonsHaveNoPlatformElevationAnimator": {
+      "card_digest": "99f2366b88c6c2509b09e6138b432cf924528cd957d93c49547cefe7e1d1186c",
+      "fingerprint": "0006ffa9d9a2e44c265d3caef69eae79818afddbf7ca8dce74ce843c802fab3c"
+    },
+    "OutputCollisionTest.skipRecordsDecisionAndCancelDoesNotLaunch": {
+      "card_digest": "4976158fe4f933093e697a0a4453b7c142a0d8db276d7eb325505d3e4b047697",
+      "fingerprint": "b8cb5e6cd745eacf0ad179dcc3e3dcfb939541ca6c9959919f0ebc911b1d1b75"
+    },
+    "OutputNamingSafetyTest.collisionComparisonDoesNotDependOnTurkishDefaultLocale": {
+      "card_digest": "d3c0dc8e1ad6620efc7e105724a7b5382c743fa076fd0f59d3d799fbe2ce1021",
+      "fingerprint": "081cea494ec9a3343fe4b9e6b25e0e9cbb703e28e2e6aa820970dc43861da196"
+    },
+    "OutputNamingSafetyTest.emptyDirectoryAndEmptyQueueDoNotInventCollisions": {
+      "card_digest": "0829d4a1a55958c0dfe319f7cdcb4d77b17d4898ef56846ccd45327c55690fdc",
+      "fingerprint": "c30d025b84cad5524df640a1ec99a1e64ae687b20669b2b81657d48ec7c43a9b"
+    },
+    "OutputNamingSafetyTest.firstAvailableSuffixIsChosenWithoutModifyingReservations": {
+      "card_digest": "effc10f777d421a3ba1865cdf059e6cdbf3920cd456f696c9ed4aaf297203382",
+      "fingerprint": "665dc33ae906f0226066577720758bcf3a99500d841225b8974b83fdf215a91f"
+    },
+    "OutputNamingSafetyTest.generatedNamesKeepWholeUnicodeCodePointsAndRemoveTraversal": {
+      "card_digest": "c37e47e39aa972f91537b46522f5c319504d15162ca774ebd99e7819f925cd7f",
+      "fingerprint": "4932412a22e93d628a6fa00277159cad15983228c19dad91a978da89a9b79f10"
+    },
+    "OutputNamingSafetyTest.manualUtf8LimitAccepts240BytesAndRejects242Bytes": {
+      "card_digest": "8ea5fe50d6b540e1483471467af703a91014658e9043e4a6b7d9461d3bf7887f",
+      "fingerprint": "a89b39144dbd1d56a047245af76dc4ee66ebf09cf198c16f4929e487131aa7dc"
+    },
+    "OutputNamingSafetyTest.rejectedManualNameCannotConsumeAQueueSlot": {
+      "card_digest": "72bfa74a60f493093e7d0068d9f564f36866c9e610696edf3159bccc7fd9d1d5",
+      "fingerprint": "663223b730e9e5b51330898a9d2ba62f6e7413eecd0620f1fd76891e5ad4f67a"
+    },
+    "OutputNamingSafetyTest.reservationsDoNotMutateTheProviderListingOrAnotherDirectory": {
+      "card_digest": "16e44aada9bb4b1f7cddb03725d33d1ead8c9e0e18416bb4038633c13633b864",
+      "fingerprint": "e5a4e2384bd87231dee58a6264f61021061e8d8ace880e295b544aa2744397a9"
+    },
+    "OutputPlanTest.existingNamesAndQueueReservationsShareNamespace": {
+      "card_digest": "7c76e1dc3040df75872fef6ae254b1b8cf7d496ced01a301e4665f41f18db38c",
+      "fingerprint": "6d974e8910740d6b4642a57c646500c4391ef6d385a460d4a954fd8ffba3a732"
+    },
+    "OutputPlanTest.manualNamesKeepMp4AndRejectPathsAndOversizedNames": {
+      "card_digest": "89e178e6117066aca26bc9da7ac03aa44df6493a748d76b8c2deaa51f93fe356",
+      "fingerprint": "761da94c3278b3161eacb960d73ddd4120f8cb9b109711a80d9e0b03e1a0fdf7"
+    },
+    "OutputPlanTest.omittedFilesAreReportedWithoutSavingsOrFailure": {
+      "card_digest": "43969ac42cc161a54b4a1c62aa4fa4ec729de372c9c3f1399f63353a65851e2d",
+      "fingerprint": "85d1d2cbee27ad10b61ebb784bb70dd0359c43531a2a8d5288fce4376ef07605"
+    },
+    "PhotoBasicDetailsTest.readsTheFivePreviewFieldsWithoutAFullJpegInventory": {
+      "card_digest": "81c08282fac8290ec75a3e39d814a28bc6482a6d9f3759271c5e905782b52a7b",
+      "fingerprint": "1d3edcf3397671919b372910af142f88af2f55061b24cc5259bb7f8a3c345e8f"
+    },
+    "PhotoBasicDetailsTest.unreadableSourceProducesCopyableErrorAndUnavailableValues": {
+      "card_digest": "e5eb1738af36e14a046e09438fbc3363cfd5c5c729f9ff0c5679998f2007b37e",
+      "fingerprint": "fb501fa3684ef16d299cf15effa485c8102b8f1e7aef992cc694fba5480569dd"
+    },
+    "PhotoComposeRenderTest.basicDetailsCard": {
+      "card_digest": "816bdeab38f70be3c76c3a5f4034361139047823e5fd548a87db4f8dd794bd87",
+      "fingerprint": "bf829e49e44857e7cd4aa2f87659aa43cfa19506a86cc747b51102859a4b343b"
+    },
+    "PhotoComposeRenderTest.floatingDark": {
+      "card_digest": "ea6e11e93de78d784f95cb96c1622da2e0effd556317170f36f23ecdfb934b8d",
+      "fingerprint": "c0f04d50ef32d5a47e358484fdec6abe87b95b91a378d1d39f7916cfd33d1b8f"
+    },
+    "PhotoComposeRenderTest.floatingWorkspaceFrame": {
+      "card_digest": "c8d8bd5744e296c16296c6602043d928ff6d760a579b26ed25376107212f6208",
+      "fingerprint": "837da025139072d69208c31f48a616d62f5a62aec0f024493511386c9f376de7"
+    },
+    "PhotoComposeRenderTest.metadataDark": {
+      "card_digest": "34b0a72d23ea116372a079b296d53626899f635e463f8e34eb8719c502506678",
+      "fingerprint": "20a8e67b83411d5b04a7296d07b44dc4843963579fbc50ad6fd554ff51830558"
+    },
+    "PhotoComposeRenderTest.progressInterop": {
+      "card_digest": "f5dc61be71d86d92f481334a45be0b909e4e77a1b7dfae33ff9b602d1753fccd",
+      "fingerprint": "4d3ed11e15c49b7f6d0cde3ed67827ae654cff164b1a4c63c435753280f0f1da"
+    },
+    "PhotoComposeRenderTest.qualityDark": {
+      "card_digest": "2044b580e4f431ef73206c35ae20bac80e5fadb719e76f3a0a748a8c308a07e7",
+      "fingerprint": "f7f535602460a1c35b19fbd5e1731648efa197f75c89498aa7407471f94ca227"
+    },
+    "PhotoComposeRenderTest.savingAndPermissions": {
+      "card_digest": "52313218c666a25bf40672c42d5fc20dcd6ba97f65e06ff19f93d9e803c7d973",
+      "fingerprint": "54fd0f35c9d85e4fddcc91921db272229d7bd563356111ebe673fef5a515b4a0"
+    },
+    "PhotoComposeTest.clearUsesExistingConfirmationAndNeverDeletesOriginals": {
+      "card_digest": "7a899b1a1bed1e80972eedad5d6a7b21463b3f6cb409f91bce826dc0acc3e629",
+      "fingerprint": "7809cd8ad24236907c9668695f52e58b32062386faa19defe2998219602cbb97"
+    },
+    "PhotoComposeTest.composeIsInstalledAndBackPreservesQuality": {
+      "card_digest": "9ebacd8e8ae29e81e3a4ac733ec5a92d6e526d1ad2f1dbccca389d11932eefdd",
+      "fingerprint": "6bb452617b0774fa0c23bfe01ff7fef3c5e4870f90a841753ae19c44fddabf0f"
+    },
+    "PhotoComposeTest.detailsKeepFiveFieldsAndASeparateCardWhileLoadingAndAfterSelection": {
+      "card_digest": "1d5c6b5817231a82043dfc3b4bcd9e12d8699bc95b93945b84b40db7a54458ac",
+      "fingerprint": "8905e7459bf69444fd3a8e0afee7ab2e24e21e4a7468dae586768cc4fdb1d75a"
+    },
+    "PhotoComposeTest.longPressAndSwitchApplyExceptionsToExactlyTheSelectedFiles": {
+      "card_digest": "16e191307f142465e954f2105c6464fd39afbdfe2894af5eda4298e4ebe48539",
+      "fingerprint": "a199169f66625041ade1ff3873a125152af1015da1ac622c90a2b96d7421fc70"
+    },
+    "PhotoComposeTest.multiSelectionDetailsListNamesAndDoNotShowThePreviousPhotoMetadata": {
+      "card_digest": "d6f77e0010648b1a6491090a5c31305ba15ea5289c3a3d25f6cfcb97d9f7616a",
+      "fingerprint": "680dc30ea63978cb4d928c1fddfa5328d97fb72aac989a01008c84818b2a814c"
+    },
+    "PhotoComposeTest.pressingAGroupedChoiceWidensItAndCancellationDoesNotChangeQuality": {
+      "card_digest": "0ec1ee23f1dcf83ae684536cac3abb40f94c9afa7371e505b7f48ff5c76060ed",
+      "fingerprint": "e4e28c1b16081f16a050fe38f7569a7c4c78b2fca4615b80cd9186f41124ae4e"
+    },
+    "PhotoComposeTest.scrollingToTheEndKeepsPermissionsAboveFloatingButtons": {
+      "card_digest": "3aa9daa642f97469dbe7544567d987f5020f6d9237cb3f47a136b9c478e9e011",
+      "fingerprint": "2db0ffaf478136d5c4b4530d36e3e59fe968af22072c25877ed97f16caed0831"
+    },
+    "PhotoDetailsLoaderTest.changingViewportCancelsObsoleteWorkAndKeepsAtMost32SmallEntries": {
+      "card_digest": "cc86ae5b9d2626bf9d398124c2a47c64f7b5bf7045004d5ef5bc1bf4ec4fa65a",
+      "fingerprint": "2f51184bc1c558abb6880964868256be3588c4e0477071b5a8de171f1e0dfc22"
+    },
+    "PhotoDetailsLoaderTest.visibleMetadataIsReusedAndReloadInvalidatesOnlyRequestedSources": {
+      "card_digest": "4d1114afde08cd1d9adda3963b136d95173a577484d6060ef69d5f3677891222",
+      "fingerprint": "581edad65863adfd78d71c4e30f6c3efc6e314df553136f2a1ce778a3d1bc998"
+    },
+    "PhotoReferenceTest.documentIdentifiersAreNeverDisplayedAsFullNames": {
+      "card_digest": "8a5f6f30a20c2850bcbf011d85eb7e0ae5d8cc2d94e7d7d8ce52895d1d9a010e",
+      "fingerprint": "381e328d3d98f33fb7f619bcbbb8c498552744e0c4652fb75eb445f1b138cb82"
+    },
+    "PhotoReferenceTest.draftKeepsExceptionsWithTheirSourceAfterReordering": {
+      "card_digest": "36bf5529442b0719daa29bac7f4031053593e9bd87fb9d8925ad8bdf55bf6227",
+      "fingerprint": "c188778235bf0d1cdaa196f56a5933cc5e66aa37b4fb780980b34ca2d7b19f23"
+    },
+    "PhotoReferenceTest.generalDestinationNeverOverridesExceptions": {
+      "card_digest": "4427f8d1d020e3865b9d28df20e5d970142e6d5aa6bca068a99070cf3065ed80",
+      "fingerprint": "3a07c22cf95dee80ea9852da9be0a027cdee2cc6e8bcaef4aff3573209c65f2c"
+    },
+    "PhotoReferenceTest.selectingMixedGroupPreservesExistingExceptions": {
+      "card_digest": "c8bc82cd8aaa5b3b47bc079469c9c008159939d81eaff99e648b1fedd363b636",
+      "fingerprint": "ead7bdb898c5d96096e5ded40746a592654a36e43067dc54afd4217c1d426e04"
+    },
+    "QueuePlaybackServiceTest.pauseSkipResumeKeepsNotificationAndExcludesSkippedFileFromRetry": {
+      "card_digest": "ff8ffd17ec167915e52ebce77f6057ea12a67ac3277fa5f7ca1205c52c049ddf",
+      "fingerprint": "62ecca3d1ecc60927010a4f1fb6ea2ffa45bcbc9e0b9e54601eccfd2dd907cc2"
+    },
+    "RecoveryLifecycleTest.destroyedWorkerRetainsLeaseUntilCleanupAndRepeatedStartsCannotOverlap": {
+      "card_digest": "b10dbc3ec0dc16286ffbcfb4856c1c63e6c71469437b4db5736d80053367ecbd",
+      "fingerprint": "f1183ee368becb2af3bc86375755a151085376bd3f0f2fbe8fd646343cef9a40"
+    },
+    "RecoveryLifecycleTest.restoredBundleStartsEmptyWithoutMetadataScanAndBothTimersUseAccumulatedTime": {
+      "card_digest": "34d4f618a86cec0b05eee3f2e5a47f3a6f213bd29c59f42109a0af22a4c04ddf",
+      "fingerprint": "d69d9281a768dfacb5b96015dc2816c70d0799674a120a93f781ccecf52b4d3e"
+    },
+    "RecoveryPresentationTest.explicitResumeRestoresNamesImmediatelyAndUsesOneBackgroundReaderAcrossRecreation": {
+      "card_digest": "6602fac620db56809f1d661df91a1fdfabbfd07b8d977397128f850c45d9f0e3",
+      "fingerprint": "c7ec56f5838054c86722ccd12cb0612eac7a946db99c8deed1e2d246b97215d8"
+    },
+    "RecoveryPresentationTest.pendingRecoveryHidesFileMetricsWithoutLosingReportOrJournal": {
+      "card_digest": "a2d53587fbe31f84be7aa5c62b81ec3f7b4fc16f638e816bbc20e32462867952",
+      "fingerprint": "7d9c5df658b7ecbdf41733be65f6ef57e84777931c8ba47a5b9c65b56e10270f"
+    },
+    "ResumeParametersTest.currentChoiceChangesOnlyTabTwoAndPersistsWithRecoveredReport": {
+      "card_digest": "8a74883c434d4935bad406a370c1a7dca1bea69073cac2cb33b36d354f1b4640",
+      "fingerprint": "5d9a0b137af1d340daf7cf9cd0ace6b0ad67a96acbaef67ede6600e6c1697c18"
+    },
+    "ResumeParametersTest.popupChoiceSurvivesRecreationAndPermissionDenialLeavesDiskUnchanged": {
+      "card_digest": "3cef3ed5a7f9ce3a191e1e25e05370db81b725f6b7094080974a12be6934db28",
+      "fingerprint": "8a1c38cc443e363a4cc157b70cf12b9721bed3a5f12f62652c17eb907cb8e806"
+    },
+    "SamsungSefEditorTest.observedVersionsCopyWithoutChangingProjectOrReferences": {
+      "card_digest": "211d733f7861df60ec184b58691eef7f9295f253a928bdf3368c2ad7ecc69f28",
+      "fingerprint": "ee0b4e6732c7b6220dd67a0463f2c7696aedfc87fa580149da71dfb8e1ed2504"
+    },
+    "SamsungSefEditorTest.originalKeyIsAnExternalReferenceNotAnOutputHash": {
+      "card_digest": "8e9594db80e30115d71b57cd77e5e06e894a788821a4b60c17f333afb5ea1630",
+      "fingerprint": "86d22f26f3638276028078a02679dad6e47a817475c98bbd93a1c32a9baa295a"
+    },
+    "SamsungSefEditorTest.unexpectedFieldsVersionsReferencesAndInvalidJsonRemainBlocked": {
+      "card_digest": "5aec026028e319d4acd527a9764b58a761302167e3a1bccdefcda837e2da534c",
+      "fingerprint": "23ffb503f0a7179b36d460b9cee53a04c0395386f583553d0b5412308f76a833"
+    },
+    "SamsungSefMotionTest.completeLogPayloadsAndRelocation": {
+      "card_digest": "27a5bafbe05e76d3b66535162f98d84b25c4b19ad198ffc4175051b2058254da",
+      "fingerprint": "a19972640d5109389d1f0ec4df70c9e94314c79de887541f6d715885a8b7e717"
+    },
+    "SamsungSefReportTest.fullDiagnosticSurvivesFailureCopyAndSavedSessionWithoutRecentLog": {
+      "card_digest": "49b1b33955c70cf9090875a59f69411f676f2e00354b11c323101bf8eafb3f0f",
+      "fingerprint": "d9ea2f648860b9756fdae8e14a682138990d9b993e271115552b95e22005f343"
+    },
+    "SavedSessionServiceTest.durableStopAndFreshProcessRecoverySkipCompletedFileAndKeepWholeReport": {
+      "card_digest": "8342c5c320583dd5cd1f7a4f3d7f4084895384eb44c405d9737369b13cc228a2",
+      "fingerprint": "4e89bbc5d0b5bb28d450881312ac21e766f5462b25c30facbd307293b7356b66"
+    },
+    "SavedSessionTest.interruptedAtomicWriteKeepsPreviousSessionAndCompletedQueueOnlyRestoresReport": {
+      "card_digest": "93d1723f0faa243bed8fcbbcb2d864107cac8f86433bf9e485390aacb9ef3a48",
+      "fingerprint": "339ee4024ce9540f03d3614bd77825196cccc7b5daadfc85657cf93a392deed9"
+    },
+    "SavedSessionTest.invalidSessionIsReportedAndPreservedForDiagnosis": {
+      "card_digest": "1b06f5aa35911ad8d2bdbae64ebeffb25da893067d2f1432c4bf962541038ec9",
+      "fingerprint": "f857f1c9601bde75809de9c5611b1bda0917b07e3740e9b4578fe3b91749ddcd"
+    },
+    "SavedSessionTest.roundTripPreservesReportErrorsProgressOptionsAndPerFileUris": {
+      "card_digest": "0620ff2eb4637104bccdd5909d9a1da37ef9f4fe92810c35580123343379579c",
+      "fingerprint": "c2e1df6351b7802c4ed7f187f31288fa7c9f97f036d34b0cc9d8bd0d02b88d40"
+    },
+    "SavingsBoundaryTest.notSavedReasonsKeepTheirCategoryAndOriginalMeasurements": {
+      "card_digest": "29582023e20b4ffad91888f3cc2e718e0a6840d93cdcf58546918c7a3909c4b1",
+      "fingerprint": "bf0ebe99d7c523aabfe1e5d201f29aba74552d801d5e0f8362a93945627bee9f"
+    },
+    "SavingsBoundaryTest.overflowingTotalsAreUnavailableRatherThanNegativeOrInvented": {
+      "card_digest": "ec52128242be4d6b8fd0633d1ae4e04777e175425333c2bb733d61ba5e9f2b6f",
+      "fingerprint": "a010e2fc009caf2e836a747f36c78809bc65f2f9268106280f963ec60f6d2176"
+    },
+    "SavingsBoundaryTest.unknownAndExtremeSizesCannotBecomeFalseSavings": {
+      "card_digest": "85c1aab6b1b59ba2ab5966415dedbc52214d5f45902b17c8f0470cfe02676f0d",
+      "fingerprint": "d73795bf1fec214b14f17434b211cd429c9b2d49a38b802ce5d83407409be091"
+    },
+    "SavingsPolicyTest.onlyStrictlySmallerKnownFilesPassTheEnabledGate": {
+      "card_digest": "553af4b101dcba17e941481175f97d6a60558dece3fef24d878a5b39b5605175",
+      "fingerprint": "30ab737940f81abcba815287871ee5924840e88c506763ad0281d588c5894f01"
+    },
+    "SavingsPolicyTest.unsavedCandidatesAreExcludedFromActualSavingsTotals": {
+      "card_digest": "b977800194c2dd0c485e9dbc7359c8958b463ca73e95f2b03d4283a33bf5762d",
+      "fingerprint": "82e34005a91b5410acb47ca14b0687b87945076e496c04c6969770677b949c8b"
+    },
+    "SelectedMetadataReportTest.exportCapturesEverySelectedFileAndKeepsConversionSessionUntouched": {
+      "card_digest": "74f1d974b2cc58dd7f58a71a0a41d1ee9b9305709af25566c1c2f9b1f55d252d",
+      "fingerprint": "1235edf5995a6a56ac63989ed60ec521a515a0576c44324a9243db42649067df"
+    },
+    "SelectedMetadataReportTest.oneUnreadableFileDoesNotHideOthersAndCancellationDoesNotBecomeSuccess": {
+      "card_digest": "820b48a441997156ef4f7a1a8afb46ec64f33db2d48302a5ef0ffa8f6361b443",
+      "fingerprint": "81ad7cc4df2dd3861f14c3d6392607e49a742c4c325abcc5fd0c73c70457bf7b"
+    },
+    "VideoCarouselTest.removingSelectedVideoKeepsTheRemainingFileAndItsDestination": {
+      "card_digest": "63dea978f13dcb68c3943754f1cea11dfd21a592fd2123b1a6f29e4c52207c95",
+      "fingerprint": "a5fec531f212e2dc4b10ff3144637a04488c971ea06f6c6d47ea38b4399b7f4b"
+    },
+    "VideoCarouselTest.scrollingDoesNotSelectAndCachedSelectionDoesNotReadAgain": {
+      "card_digest": "39456b93e4e5e3da47c23a977ed505c042f3c799213ce9dab36d90549670016b",
+      "fingerprint": "57871a793d45addba8ca9f0a396ac5aa18955beac4e57cef93fadb94e15d69d7"
+    },
+    "VideoDateAuditTest.dateChangeExposedByAndroidFailsEvenIfHeaderMatches": {
+      "card_digest": "dc45d4113c4534fc4c0b9f3b8cfa83c0cc022e2c5c7ff3d3f094bbc32e08987b",
+      "fingerprint": "ba722a66544cd33f36e5dfd2f8ef63813ed6a088f9924224e576798673c39253"
+    },
+    "VideoDateAuditTest.headerChangeFailsAndExplicitFallbackIsVerified": {
+      "card_digest": "4950b675dd05145c8efd26572092a9eae38cc85e4c266ff807131548afbc66e8",
+      "fingerprint": "13fccd78d1e97b7be794e1d49189e7c9c353a38641d5cef76142df72c29f29f2"
+    },
+    "VideoDateAuditTest.identicalInternalDatesDoNotHideThreeMinuteIndexDifference": {
+      "card_digest": "4cf0f18ae8b460c8308954d7547e22b46bddba9a9fbc5605f4972de67dc78ccd",
+      "fingerprint": "0057631c4b6a2f661cdd63de4969feed45345edf2d7ff50602cf1c0613c0aa45"
+    },
+    "VideoDateAuditTest.indexReadsNullableNamedColumnsWithoutWritingAndHandlesUnavailableProviders": {
+      "card_digest": "2489f00d8342abb61db666aee8de75e05816f180fe1ff20be75580b0af389961",
+      "fingerprint": "53914451c4632d9b3106ea5da5675a062eaff1bb4e70f9a4439fce47938e6762"
+    },
+    "VideoDateAuditTest.missingOrUnparseableDatesNeverClaimGalleryVerified": {
+      "card_digest": "d55170247bb23e380b75f8e5809babaffe20394d013f1e4870fec3c107f019eb",
+      "fingerprint": "99ae98951c3c15ad4ab2670be6b0d58bf16f03a6eae62ae3f3d20055a7b50680"
+    },
+    "VideoMetadataCacheTest.boundedCacheRetainsRecentlyViewedEntry": {
+      "card_digest": "28676699501266225d56f1974131df96a907d98443f62144321fe1ab57a75265",
+      "fingerprint": "ba467159b525957f77282fa934b861df80d88f52e2d89a21d3aab89113fe725e"
+    },
+    "VideoMetadataCacheTest.explicitReloadRejectsOlderWorker": {
+      "card_digest": "ac3d8eae90794762d46e59696b864a52ab85af04d1767e02c63f05797f4a96bd",
+      "fingerprint": "42b1f573357b8731479203b877efc9b3da0462ce8dbccd5dcfb3dff06d33ef9b"
+    },
+    "VideoMetadataCacheTest.permissionChangeInvalidatesGpsAndRejectsLateResult": {
+      "card_digest": "d8cf10747686f1f678de63f065e1904e6a23c1670e5517e0319c90e9128f3613",
+      "fingerprint": "28baa5fa92533f61526a8f3594fd17fd291c2ca146cfb3f8b977ecfb09e57cf1"
+    },
+    "VideoMetadataCacheTest.reportCopiesMapsAndPreservesErrorStatus": {
+      "card_digest": "fc10387547e40584e55f58f098239d31586d965e7059a396a2021923a6da5d77",
+      "fingerprint": "350930b43ba4bfe78672e488bf49a1e2fa5852cfdaa5aa5d6756f089decbdb2f"
+    },
+    "VideoMetadataCacheTest.reusedEntryDoesNotLoseDetails": {
+      "card_digest": "fcf86562ad45572635e9e17c34d3660d183299914a8b6c5f8f55177858ae30ec",
+      "fingerprint": "3369b53d254c7f3c8a57435caa51ef1845078b45fde1e2689430f91e16f2a2aa"
+    },
+    "VideoSettingsParityTest.copyingCurrentIncludesFolderAndCommonOptionsAndOnlySaveWritesDefaults": {
+      "card_digest": "9886f8268ea822b06104fde9d5b0ed9251ac164ac839ce276f424eff49d43e48",
+      "fingerprint": "dc3fe461b9babd9bea833c0870713de60335f99930d47a591341439e0fcc852b"
+    },
+    "VideoSettingsParityTest.settingsFrameRender": {
+      "card_digest": "872cfbaf803df1a88dfd9d1886498ceb3162d897cd065e710b98bbf8f3d9745d",
+      "fingerprint": "fcec9d03d5d4a3e8ff6a6dc9aea0f8c6fae32fe0126a3b31373b00271f65619e"
+    },
+    "VideoSettingsParityTest.unsavedVideoSettingsSurviveRecreationAndBackDiscardsThem": {
+      "card_digest": "07620c587ad3deb5d9d28f24084f66eefa966ed30eeb9cd72dce7894407320e7",
+      "fingerprint": "ec1d81403cb2360bcaace7eb515a6ea601fd3a43ba8f224cd32cc2133a650c13"
+    },
+    "WorkspaceNavigationTest.backFromAudioAlsoUsesTheWorkspaceFade": {
+      "card_digest": "29b942d4a1bbc0aaf07171899007486bdb96d997cbf22cce3c1b4eeaac705aa5",
+      "fingerprint": "528b2e446488ac75dfeb05bfc3dc7a740f4135268da15dbfe00442fdb20eb1fb"
+    },
+    "WorkspaceNavigationTest.navigationIsTheFirstPageChildAndScrollsAwayWithContent": {
+      "card_digest": "aa4af8153296857aa7eac341dab12d96df4a6f63393c6d83ff5c0414aa78c21c",
+      "fingerprint": "33985f313a8cdbe30df859cee6acc759a0aefd5a132dc5c6f99573424be63728"
+    },
+    "WorkspaceNavigationTest.workspaceSwitchUsesFadeAndSelectedTabDoesNotLaunchAnotherScreen": {
+      "card_digest": "f715beb8e111f3c6480a3d0ed918e024a04ee539c905a1f679ad19a1f19f193c",
+      "fingerprint": "0dd1bf1e85afbb4086e2202196528fdeed6a7be2aa983bf46219cc5504632eb6"
+    }
+  }
+}

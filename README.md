@@ -1,5 +1,7 @@
 # v1.03 · code foto recuperabili e meno lavoro ripetuto
 
+[Documentazione tecnica dei test: inventario, copertura e manutenzione locale](docs/testing/README.md)
+
 - Punto di ripresa atomico per le immagini: conserva coda, opzioni, posizione e totali in caso di errore o chiusura del processo. «Riprendi coda interrotta» continua dall’ultimo punto salvato; «Scarta coda interrotta» elimina solo il recupero. Annulla resta un’interruzione definitiva della coda.
 - La ripresa conserva il log su disco; i dettagli dei risultati precedenti non vengono ricaricati in RAM. Il registro SHA-256 continua a verificare i risultati riutilizzati.
 - Nomi delle destinazioni caricati una volta per cartella nella fase di salvataggio, poi aggiornati in memoria; confronto dei nomi con un insieme, senza attraversare tutti i file per ogni foto. Il controllo preliminare dei permessi resta separato.
