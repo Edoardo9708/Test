@@ -1,5 +1,7 @@
 # CodecProbe — riferimenti visivi e specifica UX
 
+**Tipo di fonte:** requisiti visivi e riferimenti di progetto, da caricare solo per lavoro UI. Le note sulle prove precedenti sono storiche; lo stato del prototipo locale è in [foto-compose-migration.md](../foto-compose-migration.md), da confrontare con i sorgenti. Questa specifica non dimostra che una funzione o una prestazione siano già implementate.
+
 **Aggiornato:** 25 ottobre 2026  
 **Destinatari:** Codex, sviluppatori UI, revisione sul dispositivo.  
 **Priorità:** comportamento reale, coerenza e fluidità; imitare i principi visivi desiderati, **non** copiare ciecamente l'interfaccia di un'altra app.
@@ -92,7 +94,7 @@ Il prototipo ha già studiato componenti come `FloatingPillBar`, `GlassButton`, 
 
 - Riferimento al fondo Morphe con movimento lento e gradevole, anche evocativo di luna/pipistrelli, ma reinterpretato in modo originale e adatto a un convertitore multimediale.
 - Elementi decorativi **dietro** la pagina, a basso contrasto, adattivi al tema chiaro/scuro; non interferiscono con leggibilità o selezione file.
-- Nel prototipo il movimento decorativo è **limitato a 36 secondi**, si sospende quando la pagina non è visibile, durante la conversione e quando Android riduce/disattiva le animazioni. Non sostituirlo con un ciclo infinito pesante.
+- Nelle prove precedenti il movimento decorativo era limitato a **36 secondi**. Il prototipo ricostruito descritto in [foto-compose-migration.md](../foto-compose-migration.md) usa invece uno sfondo statico. Se si reintroduce movimento, sospenderlo fuori schermata, durante la conversione e con animazioni di sistema ridotte/disattivate; non introdurre un ciclo infinito pesante.
 - Evitare rendering/bitmap aggiuntivi per ogni pannello; preferire composizione efficiente.
 
 ## 4. Problemi di UX da NON reintrodurre

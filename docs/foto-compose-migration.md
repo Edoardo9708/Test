@@ -1,5 +1,7 @@
 # Migrazione Foto a Compose
 
+**Tipo di fonte:** descrizione del prototipo nel worktree locale, non requisito universale né garanzia di fluidità. Include modifiche che possono non essere committate/pubblicate: verificare sorgenti e stato Git. Per la specifica desiderata usare [design-references/README.md](design-references/README.md); le iterazioni precedenti sono raccolte nella sezione storica in fondo.
+
 La schermata Foto installata nell'Activity usa Kotlin, Jetpack Compose, Material 3 e Haze. La bozza approvata resta [foto-ui-reference.html](foto-ui-reference.html). Il motore JNI/C++ e i coordinatori Java restano gli stessi.
 
 ## Parti migrate

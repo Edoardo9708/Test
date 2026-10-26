@@ -1,3 +1,17 @@
+# CodecProbe
+
+App Android per analisi e gestione di file multimediali: Video, Audio, Foto e Analisi strutturale. Le funzioni effettivamente disponibili dipendono dal codice del branch/worktree.
+
+**Per gli agenti:** iniziare da [AGENTS.md](AGENTS.md) e [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md); caricare poi soltanto la documentazione pertinente indicata nella mappa. Non leggere questa cronologia integralmente a ogni sessione.
+
+- [Requisiti funzionali](docs/project-requirements.md) — obiettivi, non certificazione dell'implementazione.
+- [Architettura UI](docs/ui-architecture.md) e [prototipo Foto Compose](docs/foto-compose-migration.md) — confini e stato da confrontare con il codice locale.
+- [Documentazione dei test](docs/testing/README.md) — inventario e manutenzione; esiti storici separati dalle descrizioni.
+
+## Cronologia tecnica
+
+Le note seguenti conservano le versioni e le prove precedenti, incluse iterazioni locali non necessariamente pubblicate. Le affermazioni valgono nel contesto della rispettiva voce: non usarle come specifica corrente o come prova che il worktree coincida con GitHub. La cronologia preesistente è conservata integralmente.
+
 # v1.03 · code foto recuperabili e meno lavoro ripetuto
 
 [Documentazione tecnica dei test: inventario, copertura e manutenzione locale](docs/testing/README.md)

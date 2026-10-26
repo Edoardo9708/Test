@@ -1,5 +1,7 @@
 # Selezione dei controlli automatici
 
+**Ambito: CI, non selezione dei test locali.** Fonte d'implementazione: workflow e `scripts/ci-scope.py` del branch. Per i comandi locali consultare [local-testing.md](local-testing.md).
+
 La versione dell’app non cambia quando si modifica soltanto la CI.
 
 | Modifica | Controlli |

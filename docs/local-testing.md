@@ -1,6 +1,8 @@
 # Test locali di CodecProbe
 
-## Audit e confini verificati
+**Ambito:** selezione ed esecuzione locale delle suite. Le sezioni di audit e le tabelle di misure sono evidenze storiche, non risultati della sessione corrente; versioni e disponibilità dei task vanno confrontate con i file locali. Per la documentazione dei contratti usare [testing/README.md](testing/README.md). La selezione CI è distinta e descritta in [ci-checks.md](ci-checks.md).
+
+## Audit iniziale e confini osservati — storico
 
 Audit del 25 ottobre 2026 sul worktree `Test-morphe`, branch `ui/morphe-foto-prototype`, HEAD `bd4d78b`. Il worktree conteneva già le modifiche della migrazione Foto 1.05: non sono state annullate. Il worktree `Test` su `main` è separato e non viene modificato.
 
@@ -9,7 +11,7 @@ Audit del 25 ottobre 2026 sul worktree `Test-morphe`, branch `ui/morphe-foto-pro
 - **Foto:** Compose invoca i coordinatori Java; `ImageActions` congela opzioni/coda. `ImageConversionService`, `ImageConverter`, `ImageOutput` separano esecuzione, staging/JNI e pubblicazione con rilettura/hash e rollback. `ImageProgressJournal` governa il riuso tramite contenuto e opzioni.
 - Le politiche `OutputName`, `OutputPlan`, `SavingsPolicy`, `CompressionSummary`, `ConversionControl`, `ConversionRunGate` sono effettivamente compilabili senza Android. `ConversionFailure` richiede soltanto il `BuildConfig` Java generato, non widget/framework/JNI.
 - Strumenti esistenti: JUnit 4.13.2, Robolectric 4.17, Roborazzi 1.77.0 e test Compose. Prima dell'intervento l'ultima suite completa aveva 310 esiti. Esistono inoltre programmi Java autonomi in `tests/` e smoke test C/C++/FFmpeg, separati dalla suite Gradle.
-- Build attuale: Gradle 9.6, AGP 9.4.1, JDK 17. I codec vengono configurati da CMake e script di preparazione; alcune build esterne usano `--parallel 2`. I test JVM non hanno bisogno di `assembleDebug`, CMake o ricompilazione dei codec.
+- Build osservata nell'audit locale: Gradle 9.6, AGP 9.4.1, JDK 17. I codec vengono configurati da CMake e script di preparazione; alcune build esterne usano `--parallel 2`. I test JVM non hanno bisogno di `assembleDebug`, CMake o ricompilazione dei codec.
 - Non esistevano `app/src/androidTest` o un runner strumentato configurato. I test Robolectric su provider e lifecycle **non dimostrano** il comportamento di un provider SAF reale, del kernel Android o dell'hardware.
 
 ## Tre livelli

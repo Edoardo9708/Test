@@ -1,5 +1,7 @@
 # Controlli e tempi della build
 
+**Ambito: CI GitHub Actions.** Questo ordine descrive la pipeline configurata nel workflow, non dipendenze garantite di un generico comando Gradle locale. Verificare workflow e script del branch; per le prove locali usare [local-testing.md](local-testing.md), per la selezione CI [ci-checks.md](ci-checks.md). Non è documentazione da caricare per ogni modifica all'app.
+
 La build esegue prima compilazione Java, test Robolectric e lint. Solo se passano compila e firma l’APK: un errore Java o un test fallito non deve aspettare la compilazione dei codec.
 
 I test Java restano completi. Le anteprime generate sono dichiarate come output dei test, per recuperarle insieme ai risultati quando Gradle riusa una verifica identica. Gradle usa la propria cache delle attività; test o sorgenti diversi invalidano automaticamente i risultati relativi. La selezione confronta il codice con l’ultimo push verificato con successo, così include anche modifiche rimaste senza verifica per un annullamento o un errore precedente. Se il riferimento non è disponibile vengono eseguiti tutti i controlli. Gli smoke test nativi restano selezionati da `scripts/ci-scope.py`, con controllo completo per modifiche native, configurazioni sconosciute e richiesta manuale completa.

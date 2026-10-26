@@ -1,5 +1,7 @@
 # Prima prova nativa Foto
 
+**Storico:** descrive la prima prova View, non il workspace Compose locale. Per il prototipo successivo leggere [foto-compose-migration.md](foto-compose-migration.md); per i requisiti visivi [design-references/README.md](design-references/README.md).
+
 Branch `ui/morphe-foto-prototype`, base `1394f12`. Motore JPEG/HEIC invariato.
 
 ## Riferimenti approvati

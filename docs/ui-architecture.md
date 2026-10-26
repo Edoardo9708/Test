@@ -1,7 +1,10 @@
 # Organizzazione dell’interfaccia
 
-La schermata usa componenti Android nativi, senza nuove dipendenze grafiche.
-La divisione segue le responsabilità, non il numero di pulsanti.
+**Tipo di fonte:** mappa descrittiva dei confini, verificata staticamente sul worktree locale; non specifica grafica né risultato di una prova sul dispositivo. I sorgenti del branch prevalgono sulle descrizioni di implementazione. Regole generali in [AGENTS.md](../AGENTS.md), requisiti in [project-requirements.md](project-requirements.md).
+
+Video, Audio, Analisi e Impostazioni usano View Android; il workspace Foto usa Compose con interop `AndroidView`. La migrazione è parziale e sperimentale: dettagli in [foto-compose-migration.md](foto-compose-migration.md). La divisione segue le responsabilità, non il numero di pulsanti.
+
+## Video — componenti View
 
 | Modulo | Responsabilità |
 | --- | --- |
@@ -24,17 +27,17 @@ La divisione segue le responsabilità, non il numero di pulsanti.
 
 ## Regole per le prossime modifiche
 
-- Un pulsante viene costruito nella sua sezione; il comportamento viene collegato nel gestore della stessa funzione.
+- Nei componenti View un pulsante viene costruito nella sua sezione; nei componenti Compose la presentazione è nei composable. In entrambi i casi le azioni sono collegate al coordinatore della funzione, senza duplicare una pagina nascosta.
 - I moduli comunicano attraverso il coordinatore; non conservano riferimenti a una precedente Activity.
 - I task annullabili hanno controlli di generazione e di distruzione. Alla chiusura si rimuovono observer e callback e si chiudono gli executor.
-- La conversione appartiene a `ConversionService`: chiudere o ricreare la pagina non ferma la coda.
+- La conversione appartiene al servizio del relativo media (`ConversionService`, `AudioConversionService`, `ImageConversionService`), non alla pagina.
 - I parametri della conversione in corso si leggono dallo snapshot del servizio. Gli slider rappresentano la configurazione della schermata.
 - Le chiavi Bundle precedenti restano compatibili. La versione visibile deriva da `BuildConfig.VERSION_NAME`, generato da Gradle.
 - La grafica non chiama direttamente MediaCodec o x265. Il collegamento JNI per la sola anteprima dei preset è in `EncoderPresetPreview`.
 
 ## Verifiche
 
-I test Robolectric coprono riquadri, carosello, conferma annullamento, progresso, resoconto parziale, ripristino dei parametri e dei selettori, esportazione annullata, pulsanti su schermi stretti e limite di larghezza su schermi grandi. I test esistenti di conversione e metadati restano nella CI. `verify-ui-modules.py` controlla che il codice operativo non torni nella Activity o nei costruttori delle sezioni.
+Il [catalogo dei test](testing/README.md) documenta i contratti effettivamente verificati da JUnit/Robolectric e dalle interazioni Compose. Esiti storici e limiti sono separati dalle descrizioni; uno screenshot generato non dimostra fluidità o correttezza visiva completa. `verify-ui-modules.py` controlla alcuni confini lessicali della UI View Video, non tutta l'architettura Compose. I controlli CI dipendono dal workflow e dalla selezione, non da questa mappa.
 
 Il controllo iniziale risolve tutti i conflitti della coda prima di avviare il servizio. Un video ignorato non viene codificato e compare separatamente dai fallimenti. Il servizio riceve i nomi approvati; se un nome viene occupato in seguito, interrompe quel file senza sovrascriverlo. La ricreazione della pagina durante il controllo annulla solo la preparazione: prima dell’avvio non esiste ancora una conversione attiva.
 
@@ -46,14 +49,20 @@ Il controllo iniziale risolve tutti i conflitti della coda prima di avviare il s
 
 ## Navigazione tra sezioni
 
-`AppNavigation` costruisce le schede Video/Audio in cima al contenuto di `AppUi`, all’interno dello ScrollView. Le schede scorrono via con la pagina, condividono larghezza e stile e possono ospitare una futura terza sezione. Il cambio usa risorse alpha senza traslazione. Video resta la radice del task; il ritorno da Audio chiude la sola Activity, mentre la coda appartiene al servizio.
+`AppNavigation` offre Video, Audio, Immagini e Analisi nelle pagine View. Il workspace Foto ha la propria navigazione Compose in `PhotoWorkspace`; non tutte le sezioni usano la stessa barra. Il cambio resta fra Activity distinte, con Video come radice del task; non è un pager unico. Le code appartengono ai rispettivi servizi.
 
 ## Immagini
 
-`ImageActivity` delega soltanto il ciclo di vita. `ImageScreen` compone le View; `ImageController` gestisce worker, generazioni, render ed esportazione; `ImageSelection` gestisce SAF e lo snapshot della sorgente del report, salvato nel Bundle anche durante il selettore. `ImageState` e `ImageDraftStore` conservano la selezione indipendente. `JpegInventory` è Java senza Android: legge in streaming e non decodifica pixel. `ImageReport` scrive JSON con payload APP/COM originali in base64. Nessun motore foto o parametro di codifica viene presentato come funzionante. Il prossimo confine è un modulo HEIC separato: libheif/contenitore, pixel/colore, mapping metadati e verifica prima della pubblicazione; le classi video non devono diventare il convertitore foto.
+`ImageActivity` è una `ComponentActivity`: delega lifecycle/risultati e installa `PhotoComposeHost`. `PhotoWorkspace`, `PhotoFilesPane` e `PhotoCompressionPane` presentano lo stato e inviano azioni ai coordinatori Java. `ImageScreen` costruisce soltanto i controlli View ancora visibili tramite `AndroidView` (permessi, avanzamento/report e diagnostica), non una seconda pagina Foto/Compressione nascosta.
+
+`ImageController` gestisce worker, generazioni, render ed esportazione; `ImageSelection` gestisce SAF e lo snapshot della sorgente del report, salvato nel Bundle anche durante il selettore. `ImageState` e `ImageDraftStore` conservano la selezione indipendente. `JpegInventory` legge in streaming senza decodificare pixel; `ImageReport` esporta l'inventario JSON con i payload originali. Il motore HEIC separato esiste già, come descritto sotto: l'inventario non equivale a una conversione o a una verifica dei pixel.
+
+## Analisi
+
+`AnalysisActivity`, `AnalysisController` e `AnalysisScreen` collegano la navigazione View alla lettura strutturale dei file tramite i parser. Offset, box, tag e hex sono analisi dei dati, non una certificazione di decodifica o di compatibilità con la galleria.
 
 ## Motore immagini e coda
 
-`ImageOptions` è immutabile e salva i predefiniti separati dalla bozza. `ImageQualityControls` è condiviso tra workspace e `ImageSettingsScreen`; `ImageSettingsActivity` contiene solo lifecycle. `ImageActions` fa lo snapshot e il controllo cartella, `ImageConversionService` possiede foreground, wake lock, lease condivisa e coda. `ImageConverter` gestisce staging privato, JNI e confronto delle dimensioni; `ImageOutput` pubblica SAF con rilettura/hash e rollback. `ImageRunState` è lo snapshot del servizio, `ImageRunPresenter` si occupa soltanto della visualizzazione. La pagina non possiede il motore e non può cambiare una coda attiva.
+`ImageOptions` è immutabile e salva i predefiniti separati dalla bozza. `ImageQualityControls` serve la pagina View `ImageSettingsScreen`; il workspace presenta le opzioni con Compose. `ImageSettingsActivity` contiene solo lifecycle. `ImageActions` fa lo snapshot e il controllo cartella, `ImageConversionService` possiede foreground, wake lock, lease condivisa e coda. `ImageConverter` gestisce staging privato, JNI e confronto delle dimensioni; `ImageOutput` pubblica SAF con rilettura/hash e rollback. `ImageRunState` è lo snapshot del servizio, `ImageRunPresenter` si occupa soltanto della visualizzazione. La pagina non possiede il motore e non può cambiare una coda attiva.
 
-Il nativo è in cpp/images: image_jpeg legge e classifica JPEG/metadati e decodifica con FFmpeg; image_encode configura x265 tramite libheif e scrive HEIC; image_verify riapre e controlla metadati, profili, trasformazioni e decodifica; image_jni è il solo confine Java. Le librerie sono fissate e preparate da prepare-images.sh/prepare-video.sh/prepare-x265.sh. Il plugin libheif ha una patch minima e ripetibile per tune none; non si deve chiamare standard una codifica rimasta sul default upstream SSIM. Il formato CPJPEG1 contiene magic 8 byte, conteggio APP/COM u32 BE, record con marcatore u8/lunghezza u32 BE/payload, quindi lunghezza SEF u32 BE/payload. Le funzioni proprietarie non vengono dedotte dalla conservazione dei byte.
+Il nativo è in `app/src/main/cpp/images`: `image_jpeg` legge e classifica JPEG/metadati e decodifica con FFmpeg; `image_encode` configura x265 tramite libheif e scrive HEIC; `image_verify` riapre e controlla metadati, profili, trasformazioni e decodifica; `image_jni` è il confine Java. Librerie e patch dipendono dagli script di preparazione del branch: non dedurre le opzioni effettive dai soli default upstream. CPJPEG1 è uno dei formati di archivio: il codice contiene anche CPJPEG2/CPJPEG3 per altri casi, descritti nei documenti delle rispettive funzioni. Le funzioni proprietarie non vengono dedotte dalla conservazione dei byte.
