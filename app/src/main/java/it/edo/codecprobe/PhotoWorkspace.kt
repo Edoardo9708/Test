@@ -1,9 +1,14 @@
 package it.edo.codecprobe
 
+import android.animation.ValueAnimator
 import androidx.compose.foundation.*
+import androidx.compose.animation.*
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Settings
@@ -12,108 +17,62 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.*
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.runtime.withFrameNanos
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeSource
-
-internal const val PHOTO_DIAGNOSTIC_STATIC_CONTENT = true
-private val PHOTO_DIAGNOSTIC_BLOCK_HEIGHTS = listOf(
-    128.dp, 208.dp, 152.dp, 184.dp, 216.dp, 136.dp,
-    176.dp, 144.dp, 200.dp, 128.dp, 184.dp, 160.dp,
-    128.dp, 208.dp, 152.dp, 184.dp, 216.dp, 136.dp,
-    176.dp, 144.dp, 200.dp, 128.dp, 184.dp, 160.dp
-)
-private val PHOTO_DIAGNOSTIC_CONTENT = listOf(
-    "Preparazione" to listOf("Il contenuto resta fermo", "Nessun file viene letto", "Scorrimento di prova"),
-    "Origine dei file" to listOf("Percorso non elaborato", "Nessuna cartella aperta", "Dati solo dimostrativi", "Stato invariato"),
-    "Selezione" to listOf("Elementi non selezionabili", "Nessun tocco richiesto", "Riquadro statico"),
-    "Anteprima" to listOf("Nessuna immagine caricata", "Nessuna miniatura presente", "Spazio visivo costante", "Scroll continuo"),
-    "Dettagli elemento" to listOf("Testo senza aggiornamenti", "Nessun metadato letto", "Riga di controllo", "Layout invariato"),
-    "Nome file" to listOf("Nome puramente illustrativo", "Nessuna risorsa aperta", "Posizione successiva"),
-    "Dimensioni" to listOf("Valori non calcolati", "Contenuto statico", "Nessun lavoro in background", "Spazio regolare"),
-    "Opzioni" to listOf("Controlli non attivi", "Nessuna animazione", "Riquadro opaco"),
-    "Destinazione" to listOf("Percorso dimostrativo", "Nessuna scrittura avviata", "Stato non osservato", "Blocco successivo"),
-    "Salvataggio" to listOf("Nessun file salvato", "Testo fisso", "Contenuto di prova"),
-    "Qualità" to listOf("Valore non modificabile", "Nessuno slider attivo", "Dimensione costante", "Scroll di confronto"),
-    "Riepilogo" to listOf("Riga breve", "Una riga più lunga per", "confrontare il movimento"),
-    "Permessi" to listOf("Nessun controllo permessi", "Nessuna richiesta di accesso", "Stato statico"),
-    "Cartella" to listOf("Nessuna cartella consultata", "Nessuna lettura sul disco", "Pannello dimostrativo", "Ancora contenuto fisso"),
-    "Avanzamento" to listOf("Nessuna conversione in corso", "Nessun indicatore animato", "Solo testo statico"),
-    "Stato attività" to listOf("Nessun processo avviato", "Nessun dato aggiornato", "Riquadro di riferimento", "Tutto resta fermo"),
-    "Informazioni" to listOf("Descrizione breve", "Una frase di lunghezza media", "Testo senza dipendenze"),
-    "Controllo visivo" to listOf("Separatore ben visibile", "Margine interno regolare", "Altezza già definita", "Nessun effetto dinamico"),
-    "Sezione successiva" to listOf("Il numero resta stabile", "Il testo non cambia", "La lista usa lo stesso scroll"),
-    "Preferenze" to listOf("Nessuna preferenza caricata", "Nessuna opzione applicata", "Solo contenuto dimostrativo", "Scorrimento verticale"),
-    "Riquadro statico" to listOf("Nessuna immagine", "Nessun caricamento Coil", "Nessuna elaborazione", "Nessun aggiornamento periodico"),
-    "Prova di scorrimento" to listOf("Riferimento superiore", "Riferimento centrale", "Riferimento inferiore"),
-    "Ultimo riferimento" to listOf("Numero sempre leggibile", "Testo statico e breve", "Separatore inferiore"),
-    "Contenuto finale" to listOf("Il blocco mantiene altezza", "La spaziatura non cambia", "Fine della sequenza", "Nessuna azione collegata")
-)
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlin.math.sin
 
 /** One scroll viewport and one source for the fixed glass chrome. */
 @Composable
 internal fun PhotoWorkspace(host: PhotoWorkspaceHost) {
     val state = host.state
     val dark = androidx.compose.foundation.isSystemInDarkTheme()
-    val useGlass = host.blurEnabled && state.step != ImageScreen.FILES
-    PhotoTheme(dark) {
+    val useGlass = host.blurEnabled
+    val firstPage = state.step == null || state.step == ImageScreen.FILES
+    val filesStep = state.step == ImageScreen.FILES
+    val imeVisible = rememberPhotoImeVisible()
+    val hideFilesDock = filesStep && imeVisible
+    AppTheme(dark) {
         val source = remember { HazeState() }
         val pages = rememberSaveableStateHolder()
         var titleHeight by remember { mutableIntStateOf(0) }
         var dockHeight by remember { mutableIntStateOf(0) }
         val density = LocalDensity.current
-        CompositionLocalProvider(LocalPhotoGlass provides PhotoGlass(source, host.active && !state.busy, useGlass)) {
+        val backdrop = remember(dark) {
+            Brush.linearGradient(if (dark) listOf(Color(0xFF10151E), Color(0xFF182237), Color(0xFF211B31))
+                else listOf(Color(0xFFFAF4F0), Color(0xFFEEF1F8), Color(0xFFF3EDF7)))
+        }
+        CompositionLocalProvider(LocalAppGlassState provides AppGlassState(source, host.active && !state.busy, useGlass)) {
             Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)
-                .then(if (useGlass) Modifier.hazeSource(source) else Modifier)
                 .semantics { testTag = "photo-workspace" }) {
-                Box(Modifier.fillMaxSize().imePadding()) {
+              Box(Modifier.fillMaxSize().then(if (firstPage) Modifier.background(backdrop)
+                else Modifier.background(MaterialTheme.colorScheme.background))
+                .then(if (useGlass) Modifier.hazeSource(source) else Modifier)
+              ) {
+                if (firstPage) PhotoAmbientMotion(Modifier.fillMaxSize(), host.active && !state.busy)
+                Box(Modifier.fillMaxSize().then(if (filesStep) Modifier else Modifier.imePadding())) {
                     pages.SaveableStateProvider(state.step ?: "chooser") {
                         val scroll = rememberLazyListState()
-                        LazyColumn(state = scroll,
-                            modifier = Modifier.fillMaxSize()
-                            .semantics { testTag = "photo-scroll" },
-                            contentPadding = PaddingValues(start = 16.dp, end = 16.dp,
-                            top = with(density) { titleHeight.toDp() } + 12.dp,
-                            bottom = with(density) { dockHeight.toDp() } + 20.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            if (PHOTO_DIAGNOSTIC_STATIC_CONTENT && state.step == ImageScreen.FILES) {
-                                PHOTO_DIAGNOSTIC_BLOCK_HEIGHTS.forEachIndexed { index, height ->
-                                    item("photo-diagnostic-static-$index") {
-                                        val (title, lines) = PHOTO_DIAGNOSTIC_CONTENT[index]
-                                        Column(Modifier.fillMaxWidth().height(height)
-                                            .background(MaterialTheme.colorScheme.surfaceVariant)
-                                            .padding(horizontal = 12.dp, vertical = 4.dp)
-                                            .semantics { testTag = "photo-diagnostic-static-$index" },
-                                            verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                                            Row(verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                                                Text((index + 1).toString().padStart(2, '0'),
-                                                    color = MaterialTheme.colorScheme.primary,
-                                                    style = MaterialTheme.typography.titleMedium,
-                                                    fontWeight = FontWeight.Bold)
-                                                Text(title, color = MaterialTheme.colorScheme.onSurface,
-                                                    style = MaterialTheme.typography.titleSmall,
-                                                    fontWeight = FontWeight.SemiBold)
-                                            }
-                                            Box(Modifier.fillMaxWidth().height(1.dp)
-                                                .background(MaterialTheme.colorScheme.outline))
-                                            lines.forEach { line ->
-                                                Text(line, color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                    fontSize = 12.sp, lineHeight = 15.sp, maxLines = 1)
-                                            }
-                                            Box(Modifier.fillMaxWidth().height(1.dp)
-                                                .background(MaterialTheme.colorScheme.outline))
-                                        }
-                                    }
-                                }
-                            } else {
+                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+                            LazyColumn(state = scroll,
+                                modifier = Modifier.widthIn(max = 560.dp).fillMaxSize()
+                                    .then(if (filesStep) Modifier.imePadding() else Modifier)
+                                    .semantics { testTag = "photo-scroll" },
+                                contentPadding = PaddingValues(start = 16.dp, end = 16.dp,
+                                    top = with(density) { titleHeight.toDp() } + 12.dp,
+                                    bottom = if (hideFilesDock) 20.dp else with(density) { dockHeight.toDp() } + 20.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                 when (state.step) {
                                     null -> item("chooser") { PhotoChooser(state, host) }
                                     ImageScreen.FILES -> photoFilesItems(state, host)
@@ -130,11 +89,127 @@ internal fun PhotoWorkspace(host: PhotoWorkspaceHost) {
                             }
                         }
                     }
-                    PhotoTitle(host, Modifier.align(Alignment.TopCenter).onSizeChanged { titleHeight = it.height }, opaque = state.step == ImageScreen.FILES)
-                    PhotoDock(state, host, Modifier.align(Alignment.BottomCenter).fillMaxWidth()
+                }
+              }
+              Box(Modifier.fillMaxSize().then(if (filesStep) Modifier else Modifier.imePadding())) {
+                    AppTopBar("Foto", "JPEG → HEIC · v${BuildConfig.VERSION_NAME}",
+                        Modifier.align(Alignment.TopCenter).onSizeChanged { titleHeight = it.height }, edgeVisible = firstPage) {
+                        FilledTonalIconButton(onClick = { host.command(PhotoCommand.SETTINGS) }, modifier = Modifier.size(48.dp),
+                            colors = IconButtonDefaults.filledTonalIconButtonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                contentColor = MaterialTheme.colorScheme.primary)) {
+                            Icon(Icons.Rounded.Settings, "Impostazioni immagini", Modifier.size(23.dp))
+                        }
+                    }
+                    PhotoDock(state, host, hideFilesDock, Modifier.align(Alignment.BottomCenter).fillMaxWidth()
                         .onSizeChanged { dockHeight = it.height })
                     SideEffect {
-                        host.setSystemBarsAppearance(dark, state.step == ImageScreen.FILES)
+                        host.setSystemBarsAppearance(dark, opaque = firstPage && !useGlass)
+                    }
+              }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PhotoAmbientMotion(modifier: Modifier, enabled: Boolean) {
+    if (!enabled || !ValueAnimator.areAnimatorsEnabled()) return
+    val timeMs = remember { mutableLongStateOf(0L) }
+    LaunchedEffect(Unit) {
+        var previousFrame = 0L
+        var elapsedSinceDraw = 0L
+        while (true) {
+            withFrameNanos { frame ->
+                if (previousFrame != 0L) {
+                    elapsedSinceDraw += ((frame - previousFrame) / 1_000_000L).coerceIn(0L, 64L)
+                    if (elapsedSinceDraw >= 16L) {
+                        timeMs.longValue += elapsedSinceDraw
+                        elapsedSinceDraw = 0L
+                    }
+                }
+                previousFrame = frame
+            }
+        }
+    }
+    val primary = MaterialTheme.colorScheme.primary
+    val secondary = MaterialTheme.colorScheme.secondary
+    val tertiary = MaterialTheme.colorScheme.tertiary
+    Canvas(modifier) {
+        val width = size.width
+        val height = size.height
+        val time = timeMs.longValue
+        val twoPi = 6.2831855f
+        PHOTO_AMBIENT_CIRCLES.forEach { circle ->
+            val color = when (circle.palette) {
+                0 -> primary
+                1 -> secondary
+                else -> tertiary
+            }
+            val xPhase = (time % circle.xPeriodMs).toFloat() * twoPi / circle.xPeriodMs.toFloat()
+            val yPhase = (time % circle.yPeriodMs).toFloat() * twoPi / circle.yPeriodMs.toFloat()
+            val x = circle.x + circle.xTravel * sin(xPhase)
+            val y = circle.y + circle.yTravel * sin(yPhase)
+            drawCircle(
+                color = color.copy(alpha = circle.alpha),
+                radius = circle.radiusDp.dp.toPx(),
+                center = Offset(width * x, height * y)
+            )
+        }
+    }
+}
+
+private data class PhotoAmbientCircle(
+    val x: Float,
+    val y: Float,
+    val xTravel: Float,
+    val yTravel: Float,
+    val radiusDp: Float,
+    val alpha: Float,
+    val xPeriodMs: Long,
+    val yPeriodMs: Long,
+    val palette: Int
+)
+
+private val PHOTO_AMBIENT_CIRCLES = listOf(
+    PhotoAmbientCircle(.20f, .225f, .05f, .025f, 190f, .055f, 8_000, 7_000, 0),
+    PhotoAmbientCircle(.85f, .185f, .03f, .035f, 138f, .045f, 9_000, 6_500, 2),
+    PhotoAmbientCircle(.715f, .44f, .035f, .04f, 98f, .05f, 7_500, 8_500, 2),
+    PhotoAmbientCircle(.815f, .785f, .035f, .035f, 154f, .045f, 9_500, 7_200, 1),
+    PhotoAmbientCircle(.24f, .765f, .04f, .035f, 90f, .05f, 8_200, 6_800, 0),
+    PhotoAmbientCircle(.525f, .895f, .025f, .025f, 112f, .05f, 8_800, 7_800, 1)
+)
+
+@Composable
+private fun PhotoDock(state: PhotoUiState, host: PhotoWorkspaceHost, hideFilesDock: Boolean, modifier: Modifier) {
+    if (state.step == null || state.step == ImageScreen.FILES) {
+        PhotoFilesDock(state, host, hideFilesDock, modifier)
+    } else {
+        PhotoWorkflowDock(state, host, modifier)
+    }
+}
+
+@Composable
+private fun PhotoFilesDock(state: PhotoUiState, host: PhotoWorkspaceHost, hidden: Boolean, modifier: Modifier) {
+    Box(modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.navigationBars)) {
+        Box(Modifier.widthIn(max = 512.dp).fillMaxWidth().align(Alignment.Center)
+            .padding(horizontal = 12.dp, vertical = 6.dp).height(AppDesignTokens.Size.navigationBar), contentAlignment = Alignment.Center) {
+            AnimatedVisibility(
+                visible = !hidden,
+                modifier = Modifier.fillMaxSize().then(if (hidden) Modifier.clearAndSetSemantics {} else Modifier),
+                enter = fadeIn(tween(150, easing = FastOutSlowInEasing)),
+                exit = fadeOut(tween(120, easing = FastOutSlowInEasing)),
+                label = "photo-files-navigation"
+            ) {
+                Row(Modifier.fillMaxSize(), verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    val backVisible = state.step != null
+                    val nextVisible = state.step == ImageScreen.FILES || state.step == ImageScreen.COMPRESSION
+                    AppNavigationArrow(backVisible, !hidden, false, "photo-back", "Indietro", Modifier.size(AppDesignTokens.Size.navigationArrow)) {
+                        host.command(PhotoCommand.BACK)
+                    }
+                    PhotoSectionBar(Modifier.weight(1f), enabled = !hidden) { host.command(it) }
+                    AppNavigationArrow(nextVisible, !hidden, true, "photo-next", "Avanti", Modifier.size(AppDesignTokens.Size.navigationArrow)) {
+                        host.command(PhotoCommand.NEXT)
                     }
                 }
             }
@@ -143,82 +218,111 @@ internal fun PhotoWorkspace(host: PhotoWorkspaceHost) {
 }
 
 @Composable
-private fun PhotoTitle(host: PhotoWorkspaceHost, modifier: Modifier, opaque: Boolean) {
-    Row(modifier.fillMaxWidth()
-        .then(if (opaque) Modifier.background(MaterialTheme.colorScheme.surface) else Modifier.photoGlass(RoundedCornerShape(0.dp)))
-        .windowInsetsPadding(WindowInsets.statusBars).padding(horizontal = 22.dp, vertical = 18.dp),
-        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-        Column {
-            Text("Foto", fontSize = 32.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.semantics { heading() })
-            Text("Meno spazio, più ricordi. · v${BuildConfig.VERSION_NAME}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-        FilledTonalIconButton(onClick = { host.command(PhotoCommand.SETTINGS) }, modifier = Modifier.size(48.dp),
-            colors = IconButtonDefaults.filledTonalIconButtonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant, contentColor = MaterialTheme.colorScheme.primary)) {
-            Icon(Icons.Rounded.Settings, "Impostazioni immagini", Modifier.size(23.dp))
+private fun PhotoSectionBar(modifier: Modifier, enabled: Boolean, command: (PhotoCommand) -> Unit) {
+    AppNavigationSurface(modifier, AppNavigationSurfaceStyle.GlassOutlined) {
+        PhotoSectionItem("Video", R.drawable.trial_video, false, enabled, Modifier.weight(1f)) { command(PhotoCommand.VIDEO) }
+        PhotoSectionItem("Audio", R.drawable.trial_music, false, enabled, Modifier.weight(1f)) { command(PhotoCommand.AUDIO) }
+        PhotoSectionItem("Foto", R.drawable.trial_photo, true, enabled, Modifier.weight(1f)) {}
+    }
+}
+
+@Composable
+private fun PhotoSectionItem(text: String, icon: Int, selected: Boolean, enabled: Boolean, modifier: Modifier, click: () -> Unit) {
+    val colors = MaterialTheme.colorScheme
+    val container by animateColorAsState(
+        if (selected) colors.primaryContainer else Color.Transparent,
+        tween(180, easing = FastOutSlowInEasing), label = "photo-section-container"
+    )
+    val content by animateColorAsState(
+        if (selected) colors.onPrimaryContainer else colors.onSurfaceVariant,
+        tween(180, easing = FastOutSlowInEasing), label = "photo-section-content"
+    )
+    Surface(onClick = { if (enabled) click() }, enabled = enabled, modifier = modifier.height(52.dp)
+        .semantics { role = Role.Tab; this.selected = selected; contentDescription = text; testTag = "photo-nav-${text.lowercase()}"; if (!enabled) hideFromAccessibility() },
+        shape = CircleShape, color = container, contentColor = content) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Icon(painterResource(icon), null, Modifier.size(AppDesignTokens.Size.navigationIcon))
         }
     }
 }
 
 @Composable
-private fun PhotoDock(state: PhotoUiState, host: PhotoWorkspaceHost, modifier: Modifier) {
+private fun PhotoWorkflowDock(state: PhotoUiState, host: PhotoWorkspaceHost, modifier: Modifier) {
     val dockShape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
     val opaque = state.step == ImageScreen.FILES
     Box(modifier.fillMaxWidth()
-        .then(if (opaque) Modifier.background(MaterialTheme.colorScheme.surface, dockShape) else Modifier.photoGlass(dockShape))
+        .then(if (opaque) Modifier.background(MaterialTheme.colorScheme.surface, dockShape) else Modifier.appGlass(dockShape))
         .windowInsetsPadding(WindowInsets.navigationBars)) {
       Column(Modifier.widthIn(max = 440.dp).fillMaxWidth().align(Alignment.Center)
         .padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            PhotoButton("Indietro", { host.command(PhotoCommand.BACK) }, Modifier.weight(1f).heightIn(min = 52.dp),
+            AppButton("Indietro", { host.command(PhotoCommand.BACK) }, Modifier.weight(1f).heightIn(min = 58.dp),
                 icon = R.drawable.trial_back, tag = "photo-back", compact = true, chrome = !opaque)
-            if (state.step == ImageScreen.FILES || state.step == ImageScreen.COMPRESSION) {
-                PhotoButton(if (state.step == ImageScreen.FILES) "Procedi al punto 2" else "Procedi al punto 3",
-                    { host.command(PhotoCommand.NEXT) }, Modifier.weight(1f).heightIn(min = 52.dp), icon = R.drawable.trial_next,
+            AnimatedVisibility(
+                visible = state.step == ImageScreen.FILES || state.step == ImageScreen.COMPRESSION,
+                modifier = Modifier.weight(1f),
+                enter = expandHorizontally(tween(240, easing = FastOutSlowInEasing), expandFrom = Alignment.End) +
+                    fadeIn(tween(170, easing = FastOutSlowInEasing)),
+                exit = shrinkHorizontally(tween(220, easing = FastOutSlowInEasing), shrinkTowards = Alignment.End) +
+                    fadeOut(tween(140))
+            ) {
+                AppButton(if (state.step == ImageScreen.FILES) "Procedi al punto 2" else "Procedi al punto 3",
+                    { host.command(PhotoCommand.NEXT) }, Modifier.fillMaxWidth().heightIn(min = 58.dp), icon = R.drawable.trial_next,
                     primary = true, tag = "photo-next", compact = true)
             }
         }
-        val shape = RoundedCornerShape(28.dp)
-        Row(Modifier.fillMaxWidth().height(56.dp)
-            .then(if (opaque) Modifier.background(MaterialTheme.colorScheme.surfaceVariant, shape) else Modifier.photoGlass(shape))
-            .border(1.dp, MaterialTheme.colorScheme.outline, shape)
-            .padding(5.dp), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+        AppNavigationSurface(Modifier.fillMaxWidth(),
+            if (opaque) AppNavigationSurfaceStyle.OpaqueVariant else AppNavigationSurfaceStyle.Glass) {
             PhotoNavItem("Video", R.drawable.trial_video, false, Modifier.weight(1f)) { host.command(PhotoCommand.VIDEO) }
             PhotoNavItem("Audio", R.drawable.trial_music, false, Modifier.weight(1f)) { host.command(PhotoCommand.AUDIO) }
             PhotoNavItem("Foto", R.drawable.trial_photo, true, Modifier.weight(1f)) {}
-            PhotoNavItem("Analisi", R.drawable.trial_grid, false, Modifier.weight(1f)) { host.command(PhotoCommand.ANALYSIS) }
         }
       }
     }
 }
 
 @Composable
-private fun PhotoNavItem(text: String, icon: Int, selected: Boolean, modifier: Modifier, click: () -> Unit) {
-    val colors = MaterialTheme.colorScheme
-    val fill = if (selected) colors.primaryContainer else colors.surfaceVariant
-    val edge = if (selected) colors.primary else colors.outline
-    val ink = if (selected) colors.primary else colors.onSurfaceVariant
-    Surface(onClick = click, shape = RoundedCornerShape(50),
-        color = fill, contentColor = ink,
-        border = androidx.compose.foundation.BorderStroke(1.dp, edge),
-        modifier = modifier.fillMaxHeight()
-        .semantics { this.selected = selected; role = Role.Tab }) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-            Icon(painterResource(icon), null, Modifier.size(20.dp))
-            Text(text, fontSize = 11.sp, lineHeight = 13.sp)
-        }
+private fun rememberPhotoImeVisible(): Boolean {
+    val density = LocalDensity.current
+    val ime = WindowInsets.ime
+    var visible by remember { mutableStateOf(false) }
+    LaunchedEffect(density, ime) {
+        snapshotFlow { ime.getBottom(density) > 0 }
+            .distinctUntilChanged()
+            .collect { visible = it }
     }
+    return visible
+}
+
+@Composable
+private fun RowScope.PhotoNavItem(text: String, icon: Int, selected: Boolean, modifier: Modifier, click: () -> Unit) {
+    val colors = MaterialTheme.colorScheme
+    NavigationBarItem(
+        selected = selected,
+        onClick = click,
+        icon = { Icon(painterResource(icon), contentDescription = text, modifier = Modifier.size(AppDesignTokens.Size.navigationIcon)) },
+        label = null,
+        modifier = modifier,
+        alwaysShowLabel = false,
+        colors = NavigationBarItemDefaults.colors(
+            selectedIconColor = colors.onPrimaryContainer,
+            selectedTextColor = colors.onPrimaryContainer,
+            indicatorColor = colors.primaryContainer,
+            unselectedIconColor = colors.onSurfaceVariant,
+            unselectedTextColor = colors.onSurfaceVariant
+        )
+    )
 }
 
 @Composable
 private fun PhotoChooser(state: PhotoUiState, host: PhotoWorkspaceHost) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text("Da dove cominciamo?", Modifier.padding(top = 10.dp, bottom = 20.dp), style = MaterialTheme.typography.titleLarge)
-        PhotoButton("Nuovo lavoro", { host.command(PhotoCommand.NEW) }, Modifier.fillMaxWidth().height(104.dp),
-            icon = R.drawable.trial_add, shape = photoJoined(0), tag = "photo-new")
+        AppButton("Nuovo lavoro", { host.command(PhotoCommand.NEW) }, Modifier.fillMaxWidth().heightIn(min = 56.dp),
+            icon = R.drawable.trial_add, shape = appJoinedShape(0), tag = "photo-new")
         Spacer(Modifier.height(4.dp))
-        PhotoButton("Riprendi sessione", { host.command(PhotoCommand.RESUME) }, Modifier.fillMaxWidth().height(104.dp),
-            icon = R.drawable.trial_play, enabled = state.previousEnabled, shape = photoJoined(2), tag = "photo-resume")
+        AppButton("Riprendi sessione", { host.command(PhotoCommand.RESUME) }, Modifier.fillMaxWidth().heightIn(min = 56.dp),
+            icon = R.drawable.trial_play, enabled = state.previousEnabled, shape = appJoinedShape(2), tag = "photo-resume")
         Text(state.previousHint, Modifier.padding(12.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
@@ -231,14 +335,13 @@ internal fun PhotoStepHeading(number: String, title: String, subtitle: String? =
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(if (featured) 14.dp else 12.dp)) {
         if (number.isNotEmpty()) {
             if (featured) Box(Modifier.size(48.dp).background(colors.primary, RoundedCornerShape(50)), contentAlignment = Alignment.Center) {
-                Text(number, color = colors.onPrimary, fontSize = 16.sp, fontWeight = FontWeight.Bold,
+                Text(number, color = colors.onPrimary, style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                     modifier = Modifier.semantics { contentDescription = "Passaggio $number" })
             } else Text(number, color = colors.primary, style = MaterialTheme.typography.titleMedium)
         }
         Column {
             Text(title,
-                style = if (featured) MaterialTheme.typography.titleLarge.copy(fontFamily = FontFamily.SansSerif) else MaterialTheme.typography.titleMedium,
-                fontWeight = if (featured) FontWeight.SemiBold else FontWeight.Normal,
+                style = if (featured) MaterialTheme.typography.titleLarge else MaterialTheme.typography.titleMedium,
                 color = if (featured) colors.onSurface else colors.onSurfaceVariant,
                 modifier = Modifier.semantics { heading() })
             if (subtitle != null) Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)

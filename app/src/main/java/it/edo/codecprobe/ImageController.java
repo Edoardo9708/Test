@@ -13,7 +13,7 @@ final class ImageController {
     final ImageActivity activity;final ImageState state;final ImageScreen screen;final ImageSelection selection;final ImageActions actions;final ImageLogExport logExport;final ImageWorkReport report;final MediaDestinationsController destinations;
     private final ExecutorService worker=Executors.newSingleThreadExecutor();
     private final ExecutorService namesWorker=Executors.newSingleThreadExecutor();
-    private Future<?> analysis,exportTask,namesRead,folderTask;private int namesGeneration;private int generation;private boolean destroyed,visible,applying;
+    private Future<?> analysis,exportTask,namesRead,folderTask;private int namesGeneration;private int generation;private boolean destroyed,visible,applying;String infoUri="";
     private boolean renderedBusy;
     PhotoComposeHost compose;
     boolean detailsOpen;
@@ -114,7 +114,7 @@ final class ImageController {
         stopPreviewReads();
         HashMap<String,String> names=new HashMap<>();for(int n=0;n<state.inputs.size();n++)names.put(state.inputs.get(n),state.names.get(n));
         state.names.clear();state.inputs.clear();state.inputs.addAll(combined);for(String input:combined)state.names.add(names.getOrDefault(input,"Foto "+(state.names.size()+1)));state.clamp();state.destinations.sync(state.inputs,state.options.folder);
-        state.importing=true;state.reading=true;state.info=null;state.name="";state.notice="Acquisizione dell’accesso alle foto…";persist();render();
+        state.importing=true;state.reading=true;state.info=null;infoUri="";state.name="";state.notice="Acquisizione dell’accesso alle foto…";persist();render();
         folderTask=worker.submit(()->{
             boolean temporary=false;
             for(String value:added){
@@ -158,8 +158,9 @@ final class ImageController {
         int current=++generation;if(analysis!=null)analysis.cancel(true);
         state.clamp();
         String value=state.inputs.isEmpty()?null:state.inputs.get(state.selected);
+        infoUri="";
         ImageMetadataCache.Entry cached=value==null?null:ImageMetadataCache.memory.get(value);
-        if(cached!=null){showInput(cached);return;}
+        if(cached!=null){showInput(value,cached);return;}
         state.info=null;state.notice="";state.name="";state.reading=value!=null;persist();render();if(!state.reading)return;
         final long cacheEpoch=ImageMetadataCache.memory.epoch();
         analysis=worker.submit(()->{
@@ -169,10 +170,12 @@ final class ImageController {
             ImageMetadataCache.Entry result=new ImageMetadataCache.Entry(name,info,error);
             if(Thread.currentThread().isInterrupted())return;
             ImageMetadataCache.memory.put(value,result,result.weight(),cacheEpoch);
-            activity.runOnUiThread(()->{if(destroyed||current!=generation)return;showInput(result);});
+            activity.runOnUiThread(()->{if(destroyed||current!=generation)return;showInput(value,result);});
         });
     }
-    private void showInput(ImageMetadataCache.Entry entry){
+    private void showInput(String uri,ImageMetadataCache.Entry entry){
+        if(!uri.equals(state.inputs.get(state.selected)))return;
+        infoUri=uri;
         state.name=entry.name;state.info=entry.info;state.notice=entry.error;state.reading=false;
         state.names.set(state.selected,entry.name);persist();render();
     }

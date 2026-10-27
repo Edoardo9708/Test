@@ -31,6 +31,7 @@ internal interface PhotoWorkspaceHost {
     fun nameAddition(value: String)
     fun namePrefix(value: Boolean)
     fun authorize(row: OriginDirectoryAccess.Row)
+    fun changeFolder(row: OriginDirectoryAccess.Row)
     fun setSystemBarsAppearance(dark: Boolean, opaque: Boolean)
     @Composable fun progressContent()
     @Composable fun diagnosticsContent()
@@ -45,7 +46,6 @@ internal class PhotoComposeHost(private val images: ImageController) : PhotoWork
     private val thumbnailRevisions = mutableMapOf<String, Int>()
     private var visibleUris = emptyList<String>()
     private var inventory: JpegInventory.Info? = null
-    private var inventorySummary = ""
     private var inventoryDetails = ""
     private val previewDetails = PhotoDetailsLoader({ PhotoBasicDetails.read(images.activity, it) }) { uri ->
         if (images.state.inputs.getOrNull(images.state.selected) == uri) refresh()
@@ -56,13 +56,12 @@ internal class PhotoComposeHost(private val images: ImageController) : PhotoWork
         private set
     override var blurEnabled by mutableStateOf(PhotoAppearance.blurEnabled(images.activity))
         private set
-    override val imageLoader: ImageLoader? = if (PHOTO_DIAGNOSTIC_STATIC_CONTENT) null else
-        ImageLoader.Builder(images.activity)
-            .dispatcher(kotlinx.coroutines.Dispatchers.IO.limitedParallelism(1))
-            .bitmapFactoryMaxParallelism(1)
-            .memoryCache { MemoryCache.Builder(images.activity).maxSizeBytes(2 * 1024 * 1024).build() }
-            .diskCache(null)
-            .build()
+    override val imageLoader: ImageLoader? = ImageLoader.Builder(images.activity)
+        .dispatcher(kotlinx.coroutines.Dispatchers.IO.limitedParallelism(1))
+        .bitmapFactoryMaxParallelism(1)
+        .memoryCache { MemoryCache.Builder(images.activity).maxSizeBytes(2 * 1024 * 1024).build() }
+        .diskCache(null)
+        .build()
     val view = ComposeView(images.activity).apply {
         id = R.id.photo_compose
         setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
@@ -73,7 +72,7 @@ internal class PhotoComposeHost(private val images: ImageController) : PhotoWork
         androidx.core.view.WindowCompat.setDecorFitsSystemWindows(images.activity.window, false)
         val initialOpaque = state.step == ImageScreen.FILES
         val dark = (images.activity.resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) == android.content.res.Configuration.UI_MODE_NIGHT_YES
-        val initialBarColor = if (initialOpaque) photoSurfaceColor(dark).toArgb() else android.graphics.Color.TRANSPARENT
+        val initialBarColor = if (initialOpaque) appSurfaceColor(dark).toArgb() else android.graphics.Color.TRANSPARENT
         images.activity.window.statusBarColor = initialBarColor
         images.activity.window.navigationBarColor = initialBarColor
         images.activity.setContentView(view)
@@ -87,11 +86,6 @@ internal class PhotoComposeHost(private val images: ImageController) : PhotoWork
     fun refresh() { state = snapshot(); scheduleDetails() }
     override fun visiblePhotos(uris: List<String>) { visibleUris = uris; scheduleDetails() }
     private fun scheduleDetails() {
-        if (PHOTO_DIAGNOSTIC_STATIC_CONTENT) {
-            visibleUris = emptyList()
-            previewDetails.update(emptyList())
-            return
-        }
         val ready = active && !state.busy && state.step == ImageScreen.FILES
         val selected = images.state.inputs.getOrNull(images.state.selected)
         val first = images.state.inputs.take(ImageQueueStore.VISIBLE)
@@ -145,9 +139,10 @@ internal class PhotoComposeHost(private val images: ImageController) : PhotoWork
     override fun nameAddition(value: String) = images.nameAddition(value)
     override fun namePrefix(value: Boolean) = images.namePrefix(value)
     override fun authorize(row: OriginDirectoryAccess.Row) = images.destinations.authorizePhoto(row)
+    override fun changeFolder(row: OriginDirectoryAccess.Row) = images.destinations.changePhotoFolder(row)
 
     override fun setSystemBarsAppearance(dark: Boolean, opaque: Boolean) {
-        val color = if (opaque) photoSurfaceColor(dark).toArgb() else android.graphics.Color.TRANSPARENT
+        val color = if (opaque) appSurfaceColor(dark).toArgb() else android.graphics.Color.TRANSPARENT
         window.statusBarColor = color
         window.navigationBarColor = color
         val controller = androidx.core.view.WindowCompat.getInsetsController(window, window.decorView)
@@ -181,24 +176,37 @@ internal class PhotoComposeHost(private val images: ImageController) : PhotoWork
         val uri = data.inputs.getOrNull(data.selected).orEmpty()
         val preview = previewDetails.get(uri)
         val names = if (selected.size > 1) images.selectionIndices().map { data.names[it] }.sortedWith(String.CASE_INSENSITIVE_ORDER) else emptyList()
-        val info = data.info
+        val info = data.info?.takeIf { images.infoUri == uri }
         if (info !== inventory) {
             inventory = info
-            inventorySummary = if (info == null) "" else String.format(java.util.Locale.ITALY,
-                "%d × %d · %.2f MB · JPEG %d bit · %d componenti", info.width, info.height,
-                info.bytes / 1000000.0, info.precision, info.components)
             inventoryDetails = if (info == null) "" else PhotoInventoryText.format(info)
         }
         val name = if (names.isNotEmpty()) names.size.toString() + " foto selezionate"
             else data.name.ifEmpty { data.names.getOrNull(data.selected) ?: "Nessuna foto selezionata" }
-        val summary = if (names.isNotEmpty()) "Rimuovi, rileggi e destinazione agiscono sulla selezione." else inventorySummary
+        val summary = when {
+            names.isNotEmpty() -> "Rimuovi, rileggi e destinazione agiscono sulla selezione."
+            preview == null -> ""
+            preview.error.isNotBlank() && info == null -> ""
+            else -> photoMetadataSummary(preview, info)
+        }
         val notice = when {
             data.importing -> data.notice
             data.reading -> "Analisi della foto…"
             data.notice.isNotEmpty() -> data.notice
-            info != null -> "JPEG analizzato. La compatibilità completa verrà controllata prima della codifica."
+            info != null -> "JPEG analizzato. La compatibilità sarà verificata prima della conversione."
             else -> "Scegli le foto. Gli originali restano invariati."
         }
+        val metadata = PhotoMetadataUi(
+            uri = uri,
+            name = name,
+            summary = summary,
+            loading = uri.isNotEmpty() && names.isEmpty() && preview == null,
+            analyzing = data.reading && names.isEmpty(),
+            status = if (names.isEmpty()) notice else "",
+            // Basic dimensions and size stay bound to the URI-keyed preview result.
+            rows = (preview ?: PhotoBasicDetails()).rows(),
+            error = preview?.error.orEmpty()
+        )
         val allDetails = when {
             names.isNotEmpty() || data.reading -> ""
             info != null -> inventoryDetails
@@ -207,11 +215,9 @@ internal class PhotoComposeHost(private val images: ImageController) : PhotoWork
         }
         return PhotoUiState(
             step = screen.sections.current(), busy = images.busy(), total = data.inputs.size, items = items,
-            name = name, summary = summary, notice = notice,
+            metadata = metadata, notice = notice,
             detailsEnabled = data.inputs.isNotEmpty(), detailsOpen = images.detailsOpen,
-            currentUri = uri, reading = data.reading, previewLoading = uri.isNotEmpty() && preview == null,
-            detailRows = (preview ?: PhotoBasicDetails()).rows(if (names.isEmpty()) info else null),
-            detailError = preview?.error.orEmpty(), selectedNames = names, allDetails = allDetails,
+            reading = data.reading, selectedNames = names, allDetails = allDetails,
             previousEnabled = screen.sections.previousEnabled, previousHint = screen.sections.previousHint,
             general = destinations.general, currentLabel = destinations.currentLabel,
             allLabel = destinations.allLabel, allocation = destinations.allocation,
@@ -222,6 +228,22 @@ internal class PhotoComposeHost(private val images: ImageController) : PhotoWork
             nameAddition = data.options.nameAddition, namePrefix = data.options.namePrefix,
             permissions = images.destinations.permissions(), selectionCount = selected.size
         )
+    }
+
+    private fun photoMetadataSummary(preview: PhotoBasicDetails, info: JpegInventory.Info?): String {
+        val width = preview.width
+        val height = preview.height
+        val bytes = preview.bytes
+        val parts = mutableListOf<String>()
+        if (width > 0 && height > 0) parts += "$width × $height"
+        parts += CompressionSummary.size(bytes)
+        parts += "JPEG"
+        if (info != null) {
+            val component = if (info.components == 1) "componente" else "componenti"
+            parts += "${info.precision} bit"
+            parts += "${info.components} $component"
+        }
+        return parts.joinToString(" · ")
     }
 
 }

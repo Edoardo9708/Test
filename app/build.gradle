@@ -34,6 +34,11 @@ android {
         debug {
             if (System.getenv('CODECPROBE_STORE_FILE')) signingConfig signingConfigs.permanent
         }
+        release {
+            minifyEnabled true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            if (System.getenv('CODECPROBE_STORE_FILE')) signingConfig signingConfigs.permanent
+        }
     }
     externalNativeBuild {
         cmake { path 'src/main/cpp/CMakeLists.txt'; version '3.22.1' }

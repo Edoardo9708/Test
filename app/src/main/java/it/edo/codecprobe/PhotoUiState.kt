@@ -6,22 +6,30 @@ import androidx.compose.runtime.Immutable
 @Immutable
 internal data class PhotoItem(val uri: String, val name: String, val selected: Boolean, val revision: Int)
 
+/** One presentation snapshot whose identity, status, summary and rows all belong to the same URI. */
+@Immutable
+internal data class PhotoMetadataUi(
+    val uri: String,
+    val name: String,
+    val summary: String,
+    val loading: Boolean,
+    val analyzing: Boolean,
+    val status: String,
+    val rows: List<Pair<String, String>>,
+    val error: String
+)
+
 @Immutable
 internal data class PhotoUiState(
     val step: String?,
     val busy: Boolean,
     val total: Int,
     val items: List<PhotoItem>,
-    val name: String,
-    val summary: String,
+    val metadata: PhotoMetadataUi,
     val notice: String,
     val detailsEnabled: Boolean,
     val detailsOpen: Boolean,
-    val currentUri: String,
     val reading: Boolean,
-    val previewLoading: Boolean,
-    val detailRows: List<Pair<String, String>>,
-    val detailError: String,
     val selectedNames: List<String>,
     val allDetails: String,
     val previousEnabled: Boolean,
@@ -45,7 +53,15 @@ internal data class PhotoUiState(
     val namePrefix: Boolean,
     val permissions: OriginDirectoryAccess.State,
     val selectionCount: Int
-)
+) {
+    // Compatibility accessors for focused UI assertions; values are sourced from one snapshot.
+    val name get() = metadata.name
+    val summary get() = metadata.summary
+    val currentUri get() = metadata.uri
+    val previewLoading get() = metadata.loading
+    val detailRows get() = metadata.rows
+    val detailError get() = metadata.error
+}
 
 internal enum class PhotoCommand {
     NEW, RESUME, SETTINGS, ADD_FILES, ADD_FOLDER, CLEAR, REMOVE, REREAD, DETAILS, END_SELECTION,

@@ -16,16 +16,20 @@ private class PhotoWorkspacePreviewHost : PhotoWorkspaceHost {
             PhotoItem("preview://photo/3", "famiglia.jpg", false, 0),
             PhotoItem("preview://photo/4", "documento.jpg", false, 0)
         ),
-        name = "IMG_20261026_1420.jpg",
-        summary = "4032 × 3024 · 3,82 MB · JPEG 8 bit · 3 componenti",
+        metadata = PhotoMetadataUi(
+            uri = "preview://photo/1",
+            name = "IMG_20261026_1420.jpg",
+            summary = "4032 × 3024 · 3,82 MB · JPEG · 8 bit · 3 componenti",
+            loading = false,
+            analyzing = false,
+            status = "JPEG analizzato. La compatibilità verrà verificata prima della codifica.",
+            rows = listOf("Dimensioni" to "4032 × 3024", "Dimensione" to "3,82 MB"),
+            error = ""
+        ),
         notice = "JPEG analizzato. La compatibilità completa verrà controllata prima della codifica.",
         detailsEnabled = true,
         detailsOpen = false,
-        currentUri = "preview://photo/1",
         reading = false,
-        previewLoading = false,
-        detailRows = listOf("Dimensioni" to "4032 × 3024", "Dimensione" to "3,82 MB"),
-        detailError = "",
         selectedNames = emptyList(),
         allDetails = "",
         previousEnabled = false,
@@ -65,6 +69,7 @@ private class PhotoWorkspacePreviewHost : PhotoWorkspaceHost {
     override fun nameAddition(value: String) = Unit
     override fun namePrefix(value: Boolean) = Unit
     override fun authorize(row: OriginDirectoryAccess.Row) = Unit
+    override fun changeFolder(row: OriginDirectoryAccess.Row) = Unit
     override fun setSystemBarsAppearance(dark: Boolean, opaque: Boolean) = Unit
     @Composable override fun progressContent() = Unit
     @Composable override fun diagnosticsContent() = Unit

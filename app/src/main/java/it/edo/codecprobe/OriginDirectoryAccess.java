@@ -23,10 +23,12 @@ final class OriginDirectoryAccess {
     }
     static final class Row {
         final String key,label,numbers,parent,representative,requestedFolder;
+        final List<Integer> files;
         final boolean allowed,manual,origin,choose;
-        Row(String key,Group group,String representative,String numbers){
+        Row(String key,Group group,String representative,String numbers,List<Integer> files){
             this.key=key;label=group.label;this.numbers=numbers;parent=group.parent;
             this.representative=representative;requestedFolder=group.requestedFolder;
+            this.files=Collections.unmodifiableList(new ArrayList<>(files));
             allowed=group.destination!=null;manual=group.manual;origin=group.origin;
             choose=!origin&&(requestedFolder==null||requestedFolder.isEmpty());
         }
@@ -129,7 +131,7 @@ final class OriginDirectoryAccess {
             StringBuilder list=new StringBuilder();int numberLimit=kind==MediaKind.IMAGE?100:Integer.MAX_VALUE;
             for(int n=0;n<Math.min(group.files.size(),numberLimit);n++){if(n>0)list.append(", ");list.append(group.files.get(n)+1);}
             if(group.files.size()>numberLimit)list.append(", … (").append(group.files.size()).append(" foto)");
-            rows.add(new Row(entry.getKey(),group,sources.get(group.files.get(0)),list.toString()));
+            rows.add(new Row(entry.getKey(),group,sources.get(group.files.get(0)),list.toString(),group.files));
         }
         State result=new State(rows,destinations,notes,"",false,authorized,groups.size());
         return result;

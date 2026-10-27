@@ -80,6 +80,13 @@ final class MediaDestinationsController {
         if(closed||photo==null||!permissions.rows.contains(row))return;
         authorizeFolder(row.parent,row.representative,row.origin,row.requestedFolder);
     }
+    void changePhotoFolder(OriginDirectoryAccess.Row row){
+        if(closed||photo==null||host.busy()||choosing||!permissions.rows.contains(row))return;
+        ArrayList<String> groupFiles=new ArrayList<>();
+        for(int index:row.files)if(index>=0&&index<host.inputs().size())groupFiles.add(host.inputs().get(index));
+        if(groupFiles.isEmpty())return;
+        pick(FILE,row.representative,groupFiles);
+    }
     private void bindView(MediaDestinationsView view){
         view.pickFolder.setOnClickListener(v->{if(!host.inputs().isEmpty())pick(FILE,host.inputs().get(host.selected()));});
         view.pickAllFolder.setOnClickListener(v->pick(ALL,null));
@@ -136,8 +143,11 @@ final class MediaDestinationsController {
     void refresh(){if(closed)return;render();access.refresh();}
     private void edited(){ready=false;host.persist();if(photo==null)render();host.changed();}
     private void pick(int code,String source){
+        pick(code,source,null);
+    }
+    private void pick(int code,String source,List<String> explicitTargets){
         if(closed||host.busy()||choosing)return;
-        if(code==FILE){targets.clear();for(int index:host.selectedIndices())targets.add(host.inputs().get(index));if(source!=null&&!targets.contains(source)){targets.clear();targets.add(source);}}
+        if(code==FILE){targets.clear();if(explicitTargets!=null)targets.addAll(explicitTargets);else for(int index:host.selectedIndices())targets.add(host.inputs().get(index));if(source!=null&&!targets.contains(source)){targets.clear();targets.add(source);}}
         this.source=source;choosing=true;host.changed();
         try{host.ui().activity.startActivityForResult(new Intent(host.ui().activity,FolderPickerActivity.class),code);}
         catch(RuntimeException error){choosing=false;host.changed();host.toast("Selettore cartelle non avviato: "+error.getMessage());}

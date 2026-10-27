@@ -3,6 +3,7 @@ package it.edo.codecprobe
 import android.content.DialogInterface
 import android.content.Intent
 import android.app.Activity
+import android.graphics.Bitmap
 import android.net.Uri
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
@@ -17,6 +18,7 @@ import org.robolectric.shadows.ShadowAlertDialog
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.shadows.ShadowContentResolver
 import java.io.File
+import java.io.ByteArrayOutputStream
 
 /** Interactions on actual Compose nodes, not the retained Java command widgets. */
 @RunWith(RobolectricTestRunner::class)
@@ -64,7 +66,25 @@ class PhotoComposeTest {
         }
     }
 
-    @Test fun pressingAGroupedChoiceWidensItAndCancellationDoesNotChangeQuality() {
+    @Test fun compactFirstPageNavigationKeepsItsCenterAndOnlyShowsAvailableArrows() {
+        compose.onNodeWithTag("photo-back").assertDoesNotExist()
+        compose.onNodeWithTag("photo-next").assertDoesNotExist()
+        val chooserTab = compose.onNodeWithTag("photo-nav-foto").fetchSemanticsNode().boundsInRoot
+
+        compose.onNodeWithTag("photo-new").performClick()
+        compose.onNodeWithTag("photo-back").assertIsDisplayed()
+        compose.onNodeWithTag("photo-next").assertIsDisplayed()
+        val filesTab = compose.onNodeWithTag("photo-nav-foto").fetchSemanticsNode().boundsInRoot
+        assertEquals("Hiding arrows must not shift the central navigation", chooserTab.left, filesTab.left, 1f)
+        assertEquals(chooserTab.width, filesTab.width, 1f)
+        listOf("video", "audio", "foto", "analisi").forEach { compose.onNodeWithTag("photo-nav-$it").assertIsDisplayed() }
+
+        compose.onNodeWithTag("photo-next").performClick()
+        compose.onNodeWithTag("photo-next").performClick()
+        compose.onNodeWithTag("photo-next").assertDoesNotExist()
+    }
+
+    @Test fun pressingAGroupedChoiceKeepsItsWidthAndCancellationDoesNotChangeQuality() {
         compose.onNodeWithTag("photo-new").performClick()
         compose.onNodeWithTag("photo-next").performClick()
         val choice = compose.onNodeWithText("50")
@@ -72,7 +92,7 @@ class PhotoComposeTest {
         choice.performTouchInput { down(center) }
         compose.mainClock.advanceTimeBy(400)
         val held = choice.fetchSemanticsNode().boundsInRoot.width
-        assertTrue("A held choice should borrow width: $resting / $held", held > resting)
+        assertEquals("Press feedback must not change the button layout", resting, held, 1f)
         compose.runOnIdle { assertEquals(65, compose.activity.images.state.options.quality) }
         choice.performTouchInput { cancel() }
         compose.mainClock.advanceTimeBy(600)
@@ -87,9 +107,14 @@ class PhotoComposeTest {
         compose.onNodeWithTag("photo-new").performClick()
         compose.onNodeWithTag("photo-details").performClick()
         compose.onNodeWithTag("photo-details-panel").assertExists()
+        compose.onNodeWithTag("photo-details-card").assertExists()
         compose.onNodeWithTag("photo-details-loading").assertExists()
+        compose.onNodeWithTag("photo-details-skeleton").assertExists()
+        val cardHeightWhileLoading = compose.onNodeWithTag("photo-details-card").fetchSemanticsNode().boundsInRoot.height
         compose.runOnIdle { compose.activity.images.compose.onVisible(true) }
         compose.waitUntil(5_000) { !compose.activity.images.compose.state.previewLoading }
+        val cardHeightAfterLoading = compose.onNodeWithTag("photo-details-card").fetchSemanticsNode().boundsInRoot.height
+        assertEquals("Metadata loading must not collapse or resize the details card", cardHeightWhileLoading, cardHeightAfterLoading, 1f)
         compose.onNodeWithText("Dimensioni").assertExists()
         compose.onNodeWithText("Formato", substring = false).assertExists()
         compose.onNodeWithText("Dimensione file").assertExists()
@@ -114,7 +139,8 @@ class PhotoComposeTest {
         compose.onNodeWithTag("photo-0").performClick()
         compose.onNodeWithTag("photo-details").performClick()
         compose.onNodeWithTag("photo-details-panel").assertExists()
-        compose.onNodeWithText("File selezionati · 2").assertExists()
+        compose.onNodeWithTag("photo-details-card").assertExists()
+        compose.onNodeWithText("Dettagli della selezione").assertExists()
         compose.onNodeWithText(files[0].name).assertExists()
         compose.onNodeWithText(files[2].name).assertExists()
         compose.onNodeWithText("Fotocamera").assertDoesNotExist()
@@ -122,6 +148,141 @@ class PhotoComposeTest {
             assertEquals(listOf(files[0].name, files[2].name).sortedWith(String.CASE_INSENSITIVE_ORDER),
                 compose.activity.images.compose.state.selectedNames)
         }
+    }
+
+    @Test fun metadataSnapshotCannotPairNewSelectionWithPreviousInventory() {
+        addPhotos(2)
+        compose.runOnIdle {
+            val images = compose.activity.images
+            images.compose.onVisible(false)
+            val oldUri = images.state.inputs[0]
+            images.state.selected = 0
+            images.state.info = JpegInventory.read(ImageWorkspaceTest.fixture().inputStream())
+            images.infoUri = oldUri
+            images.state.name = files[0].name
+            images.render()
+
+            images.select(1)
+
+            val metadata = images.compose.state.metadata
+            assertEquals(images.state.inputs[1], metadata.uri)
+            assertEquals(files[1].name, metadata.name)
+            assertTrue("Uncached selected photo must immediately enter its own loading state", metadata.loading)
+            assertEquals("No previous-photo summary may survive the selection", "", metadata.summary)
+            assertEquals("Non disponibili", metadata.rows.first().second)
+            assertNull("Inventory from another URI must be discarded", images.state.info)
+        }
+    }
+
+    @Test fun cachedPhotoMetadataRunsAnEntranceTransitionOnEachUriChange() {
+        addPhotos(2)
+        compose.onNodeWithTag("photo-new").performClick()
+        compose.onNodeWithTag("photo-details").performClick()
+        compose.runOnIdle { compose.activity.images.compose.onVisible(true) }
+        compose.waitUntil(5_000) { !compose.activity.images.compose.state.previewLoading }
+
+        compose.onNodeWithTag("photo-1").performClick()
+        compose.waitUntil(5_000) { !compose.activity.images.compose.state.previewLoading }
+        compose.onNodeWithTag("photo-0").performClick()
+        compose.runOnIdle {
+            assertFalse("First photo metadata should already be cached", compose.activity.images.compose.state.previewLoading)
+        }
+
+        val settledCardHeight = compose.onNodeWithTag("photo-details-card").fetchSemanticsNode().boundsInRoot.height
+        val oldUri = compose.activity.images.compose.state.metadata.uri
+        val oldContent = "photo-metadata-content-${oldUri.hashCode()}"
+        compose.mainClock.autoAdvance = false
+        try {
+            compose.onNodeWithTag("photo-1").performClick()
+            val newMetadata = compose.activity.images.compose.state.metadata
+            assertEquals(compose.activity.images.state.inputs[1], newMetadata.uri)
+            assertEquals(files[1].name, newMetadata.name)
+            val newContent = "photo-metadata-content-${newMetadata.uri.hashCode()}"
+            compose.mainClock.advanceTimeBy(50)
+            compose.onNodeWithTag(oldContent).assertExists()
+            compose.onNodeWithTag(newContent).assertExists()
+            assertEquals(settledCardHeight,
+                compose.onNodeWithTag("photo-details-card").fetchSemanticsNode().boundsInRoot.height, 1f)
+            compose.mainClock.advanceTimeBy(100)
+            compose.onNodeWithTag(newContent).assertExists()
+            compose.mainClock.advanceTimeBy(250)
+            compose.onNodeWithTag(newContent).assertExists()
+            compose.onNodeWithTag(oldContent).assertDoesNotExist()
+            assertEquals(settledCardHeight,
+                compose.onNodeWithTag("photo-details-card").fetchSemanticsNode().boundsInRoot.height, 1f)
+        } finally {
+            compose.mainClock.autoAdvance = true
+        }
+    }
+
+    @Test fun rapidPhotoChangesKeepMetadataBoundToTheSelectedUriWithDetailsOpenAndClosed() {
+        val dimensions = listOf(64 to 48, 96 to 72, 128 to 80, 160 to 120)
+        addPhotosWithDimensions(dimensions)
+        compose.onNodeWithTag("photo-new").performClick()
+        compose.onNodeWithTag("photo-details").performClick()
+        compose.runOnIdle { compose.activity.images.compose.onVisible(true) }
+
+        // Warm all per-URI quick metadata entries before testing the cached A → B → C → A path.
+        dimensions.indices.forEach { index ->
+            if (compose.activity.images.state.selected != index) {
+                compose.runOnIdle { compose.activity.images.select(index) }
+            }
+            compose.waitUntil(5_000) { !compose.activity.images.compose.state.previewLoading }
+            compose.waitUntil(5_000) { !compose.activity.images.state.reading }
+        }
+
+        fun assertRapidSequence() {
+            compose.runOnIdle {
+                val images = compose.activity.images
+                listOf(1, 2, 3, 0).forEach { index ->
+                    images.select(index)
+                    val metadata = images.compose.state.metadata
+                    val uri = images.state.inputs[index]
+                    val (width, height) = dimensions[index]
+                    assertEquals(uri, metadata.uri)
+                    assertEquals(files[index].name, metadata.name)
+                    assertFalse("Cached URI must not enter loading while switching", metadata.loading)
+                    assertEquals("$width × $height px", metadata.rows.first().second)
+                    assertEquals("$width × $height", metadata.summary.substringBefore(" · "))
+                    assertEquals(String.format(java.util.Locale.ITALY, "%.2f MB", files[index].length() / 1_000_000.0),
+                        metadata.rows[2].second)
+                }
+            }
+            compose.waitForIdle()
+            compose.waitUntil(5_000) {
+                !compose.activity.images.compose.state.previewLoading && compose.activity.images.compose.state.metadata.uri ==
+                    compose.activity.images.state.inputs[0]
+            }
+        }
+
+        assertRapidSequence()
+        compose.onNodeWithTag("photo-details").performClick()
+        compose.mainClock.advanceTimeBy(500)
+        assertRapidSequence()
+    }
+
+    @Test fun namingFieldCanFinishEditingAndShowsTheTransformedExampleName() {
+        compose.onNodeWithTag("photo-new").performClick()
+        compose.runOnIdle { compose.activity.images.namePrefix(true) }
+        compose.onNodeWithTag("photo-scroll").performScrollToNode(hasTestTag("photo-name-addition"))
+        val nameField = compose.onNodeWithTag("photo-name-addition")
+        nameField.performClick().assertIsFocused()
+        nameField.performTextInput("titolo_")
+        compose.onNodeWithTag("photo-name-preview")
+            .assertTextContains("la mia magnifica foto.jpeg → titolo_la mia magnifica foto.heic", substring = true)
+        compose.onNodeWithTag("photo-name-finish").assertIsDisplayed().performClick()
+        compose.onNodeWithTag("photo-name-finish").assertDoesNotExist()
+    }
+
+    @Test fun savingOptionsArePresentedInsideOneGroupedSurface() {
+        compose.onNodeWithTag("photo-new").performClick()
+        compose.onNodeWithTag("photo-scroll").performScrollToNode(hasTestTag("photo-saving-group"))
+        val group = compose.onNodeWithTag("photo-saving-group")
+        group.assertExists()
+        group.assert(hasAnyDescendant(hasText("Cosa elaborare")))
+        group.assert(hasAnyDescendant(hasText("Dove salvare")))
+        group.assert(hasAnyDescendant(hasText("Nome dei file")))
+        group.assert(hasAnyDescendant(hasText("Conserva solo se più piccolo")))
     }
 
     @Test fun detailsCollapseDoesNotDropAnExternalGapAtDisposal() {
@@ -137,22 +298,21 @@ class PhotoComposeTest {
         compose.mainClock.autoAdvance = false
         try {
             compose.onNodeWithTag("photo-details").performClick()
-            var lastPresentHeight = height()
-            var removed = false
-            var removalJump = Float.NaN
+            val expandedHeight = height()
+            var previousHeight = expandedHeight
+            var largestFrameChange = 0f
+            var sawIntermediateHeight = false
             repeat(24) {
                 compose.mainClock.advanceTimeByFrame()
-                val height = height()
-                val present = compose.onAllNodesWithTag("photo-details-panel").fetchSemanticsNodes().isNotEmpty()
-                if (!removed && !present) {
-                    removalJump = lastPresentHeight - height
-                    removed = true
-                }
-                if (present) lastPresentHeight = height
+                val currentHeight = height()
+                largestFrameChange = maxOf(largestFrameChange, kotlin.math.abs(previousHeight - currentHeight))
+                if (currentHeight > closedHeight + 1f && currentHeight < expandedHeight - 1f) sawIntermediateHeight = true
+                previousHeight = currentHeight
             }
-            assertTrue("Details must leave composition after the exit", removed)
+            assertTrue("Closing details should pass through intermediate heights", sawIntermediateHeight)
+            assertTrue("Collapse should not remove the panel in one frame: $largestFrameChange dp",
+                largestFrameChange < (expandedHeight - closedHeight) * .4f)
             assertEquals(closedHeight, height(), 1f)
-            assertTrue("Last-frame height jump: $removalJump dp", kotlin.math.abs(removalJump) <= 2f)
         } finally {
             compose.mainClock.autoAdvance = true
         }
@@ -218,7 +378,7 @@ class PhotoComposeTest {
         assertFalse(row.allowed)
         compose.runOnIdle { assertFalse(compose.activity.images.screen.convert.isEnabled) }
         val action = "photo-authorize:${row.key}"
-        compose.onNodeWithTag("photo-scroll").performScrollToNode(hasTestTag(action))
+        revealAboveDock(action)
         compose.onNodeWithTag(action).assertIsEnabled().performClick()
         compose.onNodeWithTag(action).assertIsNotEnabled()
         compose.runOnIdle {
@@ -247,7 +407,7 @@ class PhotoComposeTest {
         compose.waitUntil(5_000) { !compose.activity.images.compose.state.permissions.checking }
         val row = compose.activity.images.compose.state.permissions.rows.single()
         val action = "photo-authorize:${row.key}"
-        compose.onNodeWithTag("photo-scroll").performScrollToNode(hasTestTag(action))
+        revealAboveDock(action)
         compose.onNodeWithTag(action).performClick()
         compose.runOnIdle { assertEquals(MediaDestinationsController.AUTHORIZE, shadowOf(compose.activity).nextStartedActivityForResult.requestCode) }
         compose.activityRule.scenario.recreate()
@@ -325,5 +485,31 @@ class PhotoComposeTest {
             images.state.names.addAll(files.map { it.name })
             images.state.clamp(); images.open()
         }
+    }
+
+    private fun addPhotosWithDimensions(dimensions: List<Pair<Int, Int>>) {
+        dimensions.forEachIndexed { index, (width, height) ->
+            val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+            bitmap.eraseColor(android.graphics.Color.rgb(24 + index * 35, 72 + index * 25, 150 - index * 20))
+            val output = ByteArrayOutputStream()
+            bitmap.compress(Bitmap.CompressFormat.JPEG, 85, output)
+            bitmap.recycle()
+            val file = File.createTempFile("compose-photo-$index-", ".jpg")
+            file.writeBytes(output.toByteArray())
+            files += file
+        }
+        compose.runOnIdle {
+            val images = compose.activity.images
+            images.state.inputs.addAll(files.map { Uri.fromFile(it).toString() })
+            images.state.names.addAll(files.map { it.name })
+            images.state.clamp(); images.open()
+        }
+    }
+
+    private fun revealAboveDock(tag: String) {
+        val scroll = compose.onNodeWithTag("photo-scroll")
+        scroll.performScrollToNode(hasTestTag(tag))
+        scroll.performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.ScrollBy) { it(0f, 100_000f) }
+        compose.onNodeWithTag(tag).assertIsDisplayed()
     }
 }

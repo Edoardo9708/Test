@@ -31,6 +31,7 @@ class PhotoComposeRenderTest {
             images.state.inputs.add("content://preview/photo/1")
             images.state.names.add("Una foto simpatica.jpg"); images.state.name = "Una foto simpatica.jpg"
             images.state.info = JpegInventory.read(ByteArrayInputStream(ImageWorkspaceTest.fixture()))
+            images.infoUri = "content://preview/photo/1"
             images.state.notice = ""; images.state.reading = false
             images.setFolder("content://dirs/tree/primary%3APictures%2FHEIC")
             images.render()
