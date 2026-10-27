@@ -26,6 +26,7 @@ internal object AppDesignTokens {
         val topBarVertical = 18.dp
         val dialogPadding = 20.dp
         val dialogContent = 14.dp
+        val startActionGap = 24.dp
     }
 
     object Size {
@@ -37,6 +38,9 @@ internal object AppDesignTokens {
         val navigationArrow = 56.dp
         val navigationIcon = 26.dp
         val thumbnail = 64.dp
+        val startActionMin = 112.dp
+        val startActionMax = 176.dp
+        val startActionSingleMax = 184.dp
     }
 
     object Motion {
@@ -48,6 +52,9 @@ internal object AppDesignTokens {
         const val foldSynchronizedExitFadeMs = 240
         const val navigationEnterMs = 170
         const val navigationExitMs = 130
+        const val startActionPressMs = 90
+        const val circularRevealExpandMs = 400
+        const val circularRevealFadeMs = 230
     }
 
     object Color {

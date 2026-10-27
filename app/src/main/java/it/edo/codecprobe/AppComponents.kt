@@ -3,11 +3,16 @@ package it.edo.codecprobe
 import androidx.compose.animation.*
 import androidx.compose.animation.core.FastOutLinearInEasing
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -20,9 +25,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.*
@@ -65,6 +74,7 @@ internal fun AppTopBar(
     subtitle: String? = null,
     modifier: Modifier = Modifier,
     edgeVisible: Boolean = true,
+    showSurface: Boolean = true,
     action: @Composable RowScope.() -> Unit
 ) {
     val glass = LocalAppGlassState.current
@@ -75,10 +85,13 @@ internal fun AppTopBar(
     }
     val edge = MaterialTheme.colorScheme.outline.copy(alpha = AppDesignTokens.Color.headerEdgeAlpha)
     Row(modifier.fillMaxWidth()
-        .then(if (edgeVisible) Modifier.background(MaterialTheme.colorScheme.surface.copy(alpha = scrim)) else Modifier)
-        .appGlass(RoundedCornerShape(0.dp))
-        .then(if (edgeVisible) Modifier.drawBehind {
-            drawLine(edge, Offset(0f, size.height), Offset(size.width, size.height), 1.dp.toPx())
+        .then(if (showSurface) {
+            Modifier
+                .then(if (edgeVisible) Modifier.background(MaterialTheme.colorScheme.surface.copy(alpha = scrim)) else Modifier)
+                .appGlass(RoundedCornerShape(0.dp))
+                .then(if (edgeVisible) Modifier.drawBehind {
+                    drawLine(edge, Offset(0f, size.height), Offset(size.width, size.height), 1.dp.toPx())
+                } else Modifier)
         } else Modifier)
         .windowInsetsPadding(WindowInsets.statusBars)
         .padding(horizontal = AppDesignTokens.Spacing.topBarHorizontal, vertical = AppDesignTokens.Spacing.topBarVertical),
@@ -201,6 +214,115 @@ internal fun AppCheckbox(
     enabled: Boolean = true
 ) {
     Checkbox(checked, onCheckedChange, modifier = modifier, enabled = enabled)
+}
+
+internal enum class StartActionVariant { Primary, Secondary }
+
+internal data class StartAction(
+    val icon: Int,
+    val text: String,
+    val variant: StartActionVariant = StartActionVariant.Primary,
+    val enabled: Boolean = true,
+    val tag: String = "",
+    val onClick: () -> Unit
+)
+
+/** Responsive, reusable action layout for the first screen of each media workspace. */
+@Composable
+internal fun StartActionLayout(
+    actions: List<StartAction>,
+    modifier: Modifier = Modifier,
+    onAction: ((StartAction, Offset, Color) -> Unit)? = null
+) {
+    if (actions.isEmpty()) return
+    BoxWithConstraints(modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+        val fontScale = LocalDensity.current.fontScale
+        val gap = AppDesignTokens.Spacing.startActionGap
+        val horizontal = actions.size == 1 ||
+            (fontScale < 1.4f && maxWidth >= AppDesignTokens.Size.startActionMin * actions.size + gap * (actions.size - 1))
+        val maximumSize = if (actions.size == 1) AppDesignTokens.Size.startActionSingleMax else AppDesignTokens.Size.startActionMax
+        val availableDiameter = if (horizontal) {
+            minOf((maxWidth - gap * (actions.size - 1)) / actions.size, maxHeight * .42f)
+        } else {
+            minOf(maxWidth * .68f, (maxHeight - gap * (actions.size - 1)) / actions.size)
+        }.coerceAtMost(maximumSize).coerceAtLeast(0.dp)
+        // Keep the preferred touch size where possible, but never overflow a short or narrow viewport.
+        val diameter = minOf(availableDiameter, maximumSize)
+            .coerceAtLeast(minOf(AppDesignTokens.Size.startActionMin, availableDiameter))
+
+        if (horizontal) {
+            Row(horizontalArrangement = Arrangement.spacedBy(gap), verticalAlignment = Alignment.CenterVertically) {
+                actions.forEach { action -> StartActionButton(action, diameter, onAction = onAction) }
+            }
+        } else {
+            Column(verticalArrangement = Arrangement.spacedBy(gap), horizontalAlignment = Alignment.CenterHorizontally) {
+                actions.forEach { action -> StartActionButton(action, diameter, onAction = onAction) }
+            }
+        }
+    }
+}
+
+/** Circular entry action. Its modifier stays exposed so a later route transition can wrap it. */
+@Composable
+internal fun StartActionButton(
+    action: StartAction,
+    size: Dp,
+    modifier: Modifier = Modifier,
+    onAction: ((StartAction, Offset, Color) -> Unit)? = null
+) {
+    val colors = MaterialTheme.colorScheme
+    val interactionSource = remember { MutableInteractionSource() }
+    var center by remember { mutableStateOf(Offset.Zero) }
+    val pressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (pressed && action.enabled) .96f else 1f,
+        animationSpec = if (pressed) tween(AppDesignTokens.Motion.startActionPressMs, easing = FastOutSlowInEasing)
+            else spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMediumLow),
+        label = "start-action-scale"
+    )
+    val containerTarget = when {
+        !action.enabled -> colors.surfaceVariant.copy(alpha = .55f)
+        action.variant == StartActionVariant.Primary -> colors.primary
+        else -> colors.surfaceVariant.copy(alpha = .82f)
+    }
+    val contentTarget = when {
+        !action.enabled -> colors.onSurface.copy(alpha = .38f)
+        action.variant == StartActionVariant.Primary -> colors.onPrimary
+        else -> colors.onSurfaceVariant
+    }
+    val container by animateColorAsState(containerTarget, tween(AppDesignTokens.Motion.controlMs, easing = FastOutSlowInEasing),
+        label = "start-action-container")
+    val content by animateColorAsState(contentTarget, tween(AppDesignTokens.Motion.controlMs, easing = FastOutSlowInEasing),
+        label = "start-action-content")
+    val edge = if (action.variant == StartActionVariant.Primary) colors.primary.copy(alpha = .42f)
+        else colors.outline.copy(alpha = .48f)
+    Surface(
+        onClick = {
+            if (onAction == null) action.onClick() else onAction(action, center, container)
+        },
+        enabled = action.enabled,
+        interactionSource = interactionSource,
+        modifier = modifier.size(size).graphicsLayer { scaleX = scale; scaleY = scale }
+            .onGloballyPositioned { coordinates ->
+                val position = coordinates.positionInRoot()
+                center = position + Offset(coordinates.size.width / 2f, coordinates.size.height / 2f)
+            }
+            .semantics { if (action.tag.isNotEmpty()) testTag = action.tag },
+        shape = CircleShape,
+        color = container,
+        contentColor = content,
+        border = BorderStroke(1.dp, edge)
+    ) {
+        Column(
+            Modifier.fillMaxSize().padding(horizontal = 10.dp, vertical = 12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Icon(painterResource(action.icon), contentDescription = null, modifier = Modifier.size(minOf(size * .34f, 52.dp)))
+            Spacer(Modifier.height(8.dp))
+            Text(action.text, style = MaterialTheme.typography.labelLarge, textAlign = TextAlign.Center, maxLines = 2)
+        }
+    }
 }
 
 internal fun appJoinedShape(position: Int, vertical: Boolean = true): RoundedCornerShape =

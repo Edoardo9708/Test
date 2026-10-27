@@ -84,6 +84,38 @@ class PhotoComposeTest {
         compose.onNodeWithTag("photo-next").assertDoesNotExist()
     }
 
+    @Test fun chooserShowsOnlyRecoverableActionsAndKeepsThemCircular() {
+        compose.runOnIdle {
+            val images = compose.activity.images
+            images.screen.sections.previousEnabled = false
+            images.compose.refresh()
+        }
+        compose.onNodeWithTag("photo-new").assertIsDisplayed()
+        compose.onNodeWithTag("photo-resume").assertDoesNotExist()
+        val newBounds = compose.onNodeWithTag("photo-new").fetchSemanticsNode().boundsInRoot
+        assertEquals("New action should be circular", newBounds.width, newBounds.height, 1f)
+
+        compose.runOnIdle {
+            val images = compose.activity.images
+            images.screen.sections.previousEnabled = true
+            images.compose.refresh()
+        }
+        compose.onNodeWithTag("photo-resume").assertIsDisplayed()
+        val pairedNewBounds = compose.onNodeWithTag("photo-new").fetchSemanticsNode().boundsInRoot
+        val resumeBounds = compose.onNodeWithTag("photo-resume").fetchSemanticsNode().boundsInRoot
+        assertEquals("Resume action should be circular", resumeBounds.width, resumeBounds.height, 1f)
+        assertEquals("Actions should remain symmetric", pairedNewBounds.width, resumeBounds.width, 1f)
+    }
+
+    @Test fun circularRevealRoutesToTheNewWorkPage() {
+        compose.onNodeWithTag("photo-new").performClick()
+        compose.waitUntil(5_000) {
+            compose.activity.images.screen.sections.current() == ImageScreen.FILES
+        }
+        compose.waitUntil(5_000) { compose.activity.images.compose.state.step == ImageScreen.FILES }
+        compose.onNodeWithTag("photo-next").assertIsDisplayed()
+    }
+
     @Test fun pressingAGroupedChoiceKeepsItsWidthAndCancellationDoesNotChangeQuality() {
         compose.onNodeWithTag("photo-new").performClick()
         compose.onNodeWithTag("photo-next").performClick()

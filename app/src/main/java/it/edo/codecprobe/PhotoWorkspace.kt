@@ -1,6 +1,5 @@
 package it.edo.codecprobe
 
-import android.animation.ValueAnimator
 import androidx.compose.foundation.*
 import androidx.compose.animation.*
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -17,7 +16,6 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.onSizeChanged
@@ -27,11 +25,9 @@ import androidx.compose.ui.semantics.*
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.runtime.withFrameNanos
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeSource
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlin.math.sin
 
 /** One scroll viewport and one source for the fixed glass chrome. */
 @Composable
@@ -39,6 +35,8 @@ internal fun PhotoWorkspace(host: PhotoWorkspaceHost) {
     val state = host.state
     val dark = androidx.compose.foundation.isSystemInDarkTheme()
     val useGlass = host.blurEnabled
+    val chooser = state.step == null
+    val revealState = rememberCircularRevealState()
     val firstPage = state.step == null || state.step == ImageScreen.FILES
     val filesStep = state.step == ImageScreen.FILES
     val imeVisible = rememberPhotoImeVisible()
@@ -54,13 +52,20 @@ internal fun PhotoWorkspace(host: PhotoWorkspaceHost) {
                 else listOf(Color(0xFFFAF4F0), Color(0xFFEEF1F8), Color(0xFFF3EDF7)))
         }
         CompositionLocalProvider(LocalAppGlassState provides AppGlassState(source, host.active && !state.busy, useGlass)) {
-            Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)
-                .semantics { testTag = "photo-workspace" }) {
+            CircularRevealTransition(
+              state = revealState,
+              contentKey = state.step ?: "chooser",
+              modifier = Modifier.fillMaxSize().semantics { testTag = "photo-workspace" }
+            ) {
+              Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
               Box(Modifier.fillMaxSize().then(if (firstPage) Modifier.background(backdrop)
                 else Modifier.background(MaterialTheme.colorScheme.background))
                 .then(if (useGlass) Modifier.hazeSource(source) else Modifier)
               ) {
-                if (firstPage) PhotoAmbientMotion(Modifier.fillMaxSize(), host.active && !state.busy)
+                if (firstPage) AppAnimatedBackground(
+                    modifier = Modifier.fillMaxSize(),
+                    enabled = host.active && !state.busy
+                )
                 Box(Modifier.fillMaxSize().then(if (filesStep) Modifier else Modifier.imePadding())) {
                     pages.SaveableStateProvider(state.step ?: "chooser") {
                         val scroll = rememberLazyListState()
@@ -74,7 +79,11 @@ internal fun PhotoWorkspace(host: PhotoWorkspaceHost) {
                                     bottom = if (hideFilesDock) 20.dp else with(density) { dockHeight.toDp() } + 20.dp),
                                 verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                 when (state.step) {
-                                    null -> item("chooser") { PhotoChooser(state, host) }
+                                    null -> item("chooser") {
+                                        PhotoChooser(state, host, Modifier.fillParentMaxHeight()) { action, origin, color ->
+                                            revealState.start(origin, color) { action.onClick() }
+                                        }
+                                    }
                                     ImageScreen.FILES -> photoFilesItems(state, host)
                                     ImageScreen.COMPRESSION -> photoCompressionItems(state, host)
                                     ImageScreen.HEIC -> {
@@ -93,7 +102,8 @@ internal fun PhotoWorkspace(host: PhotoWorkspaceHost) {
               }
               Box(Modifier.fillMaxSize().then(if (filesStep) Modifier else Modifier.imePadding())) {
                     AppTopBar("Foto", "JPEG → HEIC · v${BuildConfig.VERSION_NAME}",
-                        Modifier.align(Alignment.TopCenter).onSizeChanged { titleHeight = it.height }, edgeVisible = firstPage) {
+                        Modifier.align(Alignment.TopCenter).onSizeChanged { titleHeight = it.height },
+                        edgeVisible = firstPage, showSurface = !chooser) {
                         FilledTonalIconButton(onClick = { host.command(PhotoCommand.SETTINGS) }, modifier = Modifier.size(48.dp),
                             colors = IconButtonDefaults.filledTonalIconButtonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant,
                                 contentColor = MaterialTheme.colorScheme.primary)) {
@@ -106,78 +116,11 @@ internal fun PhotoWorkspace(host: PhotoWorkspaceHost) {
                         host.setSystemBarsAppearance(dark, opaque = firstPage && !useGlass)
                     }
               }
+              }
             }
         }
     }
 }
-
-@Composable
-private fun PhotoAmbientMotion(modifier: Modifier, enabled: Boolean) {
-    if (!enabled || !ValueAnimator.areAnimatorsEnabled()) return
-    val timeMs = remember { mutableLongStateOf(0L) }
-    LaunchedEffect(Unit) {
-        var previousFrame = 0L
-        var elapsedSinceDraw = 0L
-        while (true) {
-            withFrameNanos { frame ->
-                if (previousFrame != 0L) {
-                    elapsedSinceDraw += ((frame - previousFrame) / 1_000_000L).coerceIn(0L, 64L)
-                    if (elapsedSinceDraw >= 16L) {
-                        timeMs.longValue += elapsedSinceDraw
-                        elapsedSinceDraw = 0L
-                    }
-                }
-                previousFrame = frame
-            }
-        }
-    }
-    val primary = MaterialTheme.colorScheme.primary
-    val secondary = MaterialTheme.colorScheme.secondary
-    val tertiary = MaterialTheme.colorScheme.tertiary
-    Canvas(modifier) {
-        val width = size.width
-        val height = size.height
-        val time = timeMs.longValue
-        val twoPi = 6.2831855f
-        PHOTO_AMBIENT_CIRCLES.forEach { circle ->
-            val color = when (circle.palette) {
-                0 -> primary
-                1 -> secondary
-                else -> tertiary
-            }
-            val xPhase = (time % circle.xPeriodMs).toFloat() * twoPi / circle.xPeriodMs.toFloat()
-            val yPhase = (time % circle.yPeriodMs).toFloat() * twoPi / circle.yPeriodMs.toFloat()
-            val x = circle.x + circle.xTravel * sin(xPhase)
-            val y = circle.y + circle.yTravel * sin(yPhase)
-            drawCircle(
-                color = color.copy(alpha = circle.alpha),
-                radius = circle.radiusDp.dp.toPx(),
-                center = Offset(width * x, height * y)
-            )
-        }
-    }
-}
-
-private data class PhotoAmbientCircle(
-    val x: Float,
-    val y: Float,
-    val xTravel: Float,
-    val yTravel: Float,
-    val radiusDp: Float,
-    val alpha: Float,
-    val xPeriodMs: Long,
-    val yPeriodMs: Long,
-    val palette: Int
-)
-
-private val PHOTO_AMBIENT_CIRCLES = listOf(
-    PhotoAmbientCircle(.20f, .225f, .05f, .025f, 190f, .055f, 8_000, 7_000, 0),
-    PhotoAmbientCircle(.85f, .185f, .03f, .035f, 138f, .045f, 9_000, 6_500, 2),
-    PhotoAmbientCircle(.715f, .44f, .035f, .04f, 98f, .05f, 7_500, 8_500, 2),
-    PhotoAmbientCircle(.815f, .785f, .035f, .035f, 154f, .045f, 9_500, 7_200, 1),
-    PhotoAmbientCircle(.24f, .765f, .04f, .035f, 90f, .05f, 8_200, 6_800, 0),
-    PhotoAmbientCircle(.525f, .895f, .025f, .025f, 112f, .05f, 8_800, 7_800, 1)
-)
 
 @Composable
 private fun PhotoDock(state: PhotoUiState, host: PhotoWorkspaceHost, hideFilesDock: Boolean, modifier: Modifier) {
@@ -315,16 +258,29 @@ private fun RowScope.PhotoNavItem(text: String, icon: Int, selected: Boolean, mo
 }
 
 @Composable
-private fun PhotoChooser(state: PhotoUiState, host: PhotoWorkspaceHost) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text("Da dove cominciamo?", Modifier.padding(top = 10.dp, bottom = 20.dp), style = MaterialTheme.typography.titleLarge)
-        AppButton("Nuovo lavoro", { host.command(PhotoCommand.NEW) }, Modifier.fillMaxWidth().heightIn(min = 56.dp),
-            icon = R.drawable.trial_add, shape = appJoinedShape(0), tag = "photo-new")
-        Spacer(Modifier.height(4.dp))
-        AppButton("Riprendi sessione", { host.command(PhotoCommand.RESUME) }, Modifier.fillMaxWidth().heightIn(min = 56.dp),
-            icon = R.drawable.trial_play, enabled = state.previousEnabled, shape = appJoinedShape(2), tag = "photo-resume")
-        Text(state.previousHint, Modifier.padding(12.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+private fun PhotoChooser(
+    state: PhotoUiState,
+    host: PhotoWorkspaceHost,
+    modifier: Modifier = Modifier,
+    onAction: (StartAction, androidx.compose.ui.geometry.Offset, Color) -> Unit
+) {
+    val actions = buildList {
+        add(StartAction(
+            icon = R.drawable.trial_add,
+            text = "Nuovo lavoro",
+            variant = StartActionVariant.Primary,
+            tag = "photo-new",
+            onClick = { host.command(PhotoCommand.NEW) }
+        ))
+        if (state.previousEnabled) add(StartAction(
+            icon = R.drawable.trial_play,
+            text = "Riprendi",
+            variant = StartActionVariant.Secondary,
+            tag = "photo-resume",
+            onClick = { host.command(PhotoCommand.RESUME) }
+        ))
     }
+    StartActionLayout(actions, modifier, onAction)
 }
 
 @Composable
