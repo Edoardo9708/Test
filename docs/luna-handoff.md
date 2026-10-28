@@ -1,20 +1,26 @@
-Incarico `VIDEO-9C1-COLLAUDO-20261028-01`: **BLOCKED**, perché il Samsung SM-S916B non è raggiungibile tramite ADB.
+Incarico `VIDEO-9C1-COLLAUDO-20261028-01`: **DONE**, con i limiti di verifica indicati sotto. Ho ripreso lo stesso incarico su richiesta diretta dell’utente («Riprova»), dopo aver sincronizzato il worktree del report. Il Samsung SM-S916B era collegato e sbloccato; nessun servizio dell’app risultava attivo.
 
-Ho sincronizzato `Test-luna-handoff` con GitHub e letto il task `READY`. La diagnostica ha rilevato:
+Sul dispositivo, usando la Release già installata, ho verificato:
 
-- `adb devices -l`: nessun dispositivo.
-- Discovery mDNS funzionante, ma nessun servizio wireless disponibile.
-- Nessun telefono Samsung o dispositivo Android/ADB rilevato tra i dispositivi Windows collegati.
+- Apertura di Prepara, Compressione, Conversione e Diagnostica; frecce Avanti e Indietro fra i passaggi; ritorno da Diagnostica a Conversione tramite Indietro.
+- Ritorno alla home tramite il comando dell’intestazione e «Riprendi»: riapertura di Compressione con selezione e parametro conservati.
+- Selezione reale di un video di prova tramite picker, metadati presenti e Destinazioni riferite al video selezionato. La cartella di origine risultava da autorizzare; non ho modificato i grant.
+- Modifica temporanea CRF 23 → 18, conservazione dopo cambio pagina e home/Riprendi, quindi ripristino a 23.
+- Navigazione Video → Foto → Video, ritorno da Impostazioni e conservazione della pagina durante rotazione.
+- Scroll fino agli ultimi controlli di Compressione e Destinazioni, raggiungibili sopra la dock. Nessuna duplicazione visibile dei pannelli operativi nelle schermate esaminate.
+- Landscape e campione con font 1,5 nella pagina Conversione: intestazione, Impostazioni, dock e comandi superiori leggibili. Font ripristinato a 1,0 e autorotazione libera.
 
-Non è stato possibile verificare lo sblocco né eseguire il collaudo di Prepara, Compressione, Conversione, Diagnostica, navigazione, conservazione dei dati, scroll, rotazione, font ingranditi e ritorno da Impostazioni. Nessuno screenshot acquisito. Nessun nuovo test o build eseguito; i risultati precedenti non costituiscono un collaudo sul dispositivo.
+Osservazioni: senza selezione, Prepara mostra una piccola superficie vuota sotto File, corrispondente al gruppo Destinazioni non popolato. In landscape l’intestazione occupa molto spazio e lascia un’area di contenuto ridotta: è necessario scorrere frequentemente. Non ho osservato blocchi durante le operazioni eseguite; non ho misurato frame time o ricomposizioni.
 
-Nessun sorgente modificato, conversione avviata o dato dell'app cancellato. L'unico file aggiornato e pubblicato è `docs/luna-handoff.md`, conservando protocollo e incarico di ChatGPT e marcando quest'ultimo `BLOCKED`.
+Limiti: nell’ultimo controllo l’app non era più in primo piano e ho interrotto i tocchi. Non considero conclusa la verifica di Indietro da Prepara alla home. Non ho eseguito una matrice completa di tutti i pannelli con font ingranditi, né verificato integralmente lo scroll di Conversione e Diagnostica. Non sono stati provati conversioni attive, notifiche, recupero sessioni, report popolati, assegnazione di nuove destinazioni o process death. L’assenza di listener duplicati non è certificabile dal solo collaudo UI.
 
-Per ripristinare il collegamento: sbloccare il telefono e collegarlo con un cavo USB dati, attivando Debug USB e accettando l'autorizzazione del computer. In alternativa, attivare Debug wireless sulla stessa rete del PC; se occorre un nuovo abbinamento, usare esclusivamente indirizzo e porte mostrati dal telefono.
+Screenshot locali in `Test-morphe/build/reports/step9c1/`: `prepare.png`, `compression.png`, `conversion.png`, `compression-landscape.png`, `conversion-landscape.png`, `conversion-landscape-font1_5.png`, `prepare-landscape-destinations.png` e `prepare-landscape-bottom.png`. Gli screenshot restano locali; non sono stati pubblicati su GitHub.
 
-Prossimo intervento suggerito: riproporre il collaudo come task `READY` quando ADB rileva il dispositivo. Attendo un nuovo incarico `READY`; STEP 9C.2 non è stato iniziato.
+Nessun sorgente modificato, nuova build o test automatico eseguito. Nessuna conversione avviata, sessione cancellata o permesso modificato. La selezione di prova è stata lasciata disponibile. Modifiche locali, file non tracciati e branch di sviluppo sono preservati.
 
-[Report pubblicato correttamente su GitHub](https://github.com/Edoardo9708/Test/blob/reports/luna-handoff/docs/luna-handoff.md), nel branch `reports/luna-handoff`. Nessun codice pubblicato e nessuna modifica a `main`.
+Prossimo intervento suggerito: completare le verifiche residue e valutare la superficie vuota in Prepara e lo spazio disponibile in landscape prima di altre migrazioni. Attendo un nuovo task `READY`; STEP 9C.2 non è stato iniziato.
+
+[Report pubblicato correttamente su GitHub](https://github.com/Edoardo9708/Test/blob/reports/luna-handoff/docs/luna-handoff.md). Commit e push includono soltanto `docs/luna-handoff.md` nel worktree separato `Test-luna-handoff`, preservando protocollo e incarico. Nessun codice pubblicato e nessuna modifica a `main`.
 
 ---
 
@@ -33,7 +39,7 @@ Questo file è condiviso su \`reports/luna-handoff\`; non contiene il codice in 
 <!-- CHATGPT_TASK_BEGIN -->
 ### Incarico di ChatGPT → Luna
 - **id:** VIDEO-9C1-COLLAUDO-20261028-01
-- **stato:** BLOCKED — Samsung non raggiungibile: nessun dispositivo ADB e nessun servizio mDNS disponibile.
+- **stato:** DONE — collaudo ripreso su richiesta diretta; prove effettuate e limiti riportati nel resoconto.
 - **ambito:** solo collaudo manuale del workspace Video già installato; nessuna modifica al codice.
 
 **Obiettivo:** completare sul Samsung SM-S916B sbloccato il collaudo dello STEP 9C.1 prima di qualsiasi lavoro sullo STEP 9C.2.
