@@ -38,7 +38,7 @@ final class AnalysisScreen {
         HorizontalScrollView scroll=new HorizontalScrollView(ui.activity);hexText=new TextView(ui.activity);hexText.setTypeface(Typeface.MONOSPACE);hexText.setTextSize(12);hexText.setTextColor(ui.ink);hexText.setTextIsSelectable(true);scroll.addView(hexText);hexPanel.addView(scroll);
         pageLabel=ui.text(hexPanel,"",13);LinearLayout paging=ui.row(hexPanel);previous=ui.halfButton(paging,"← 256 byte",false);next=ui.halfButton(paging,"256 byte →",false);
         map.removeView(details);details.setVisibility(View.GONE);
-        ui.install(page,new AppNavigation(ui,AppNavigation.Workspace.ANALYSIS));
+        ui.install(page,new AppNavigation(ui,WorkspaceNavigator.Section.ANALYSIS));
     }
     void sources(List<AnalysisSources.Entry> entries,Consumer<AnalysisSources.Entry> select){
         files.removeAllViews();files.setVisibility(View.VISIBLE);map.setVisibility(View.GONE);

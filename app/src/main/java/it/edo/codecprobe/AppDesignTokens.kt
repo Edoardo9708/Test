@@ -18,6 +18,7 @@ internal object AppDesignTokens {
         val panelPadding = 16.dp
         val groupedPanels = 4.dp
         val groupContent = 10.dp
+        val navigationHorizontalInset = 12.dp
         val headingStart = 8.dp
         val headingTop = 20.dp
         val headingBottom = 10.dp

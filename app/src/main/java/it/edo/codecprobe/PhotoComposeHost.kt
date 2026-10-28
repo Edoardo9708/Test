@@ -112,9 +112,9 @@ internal class PhotoComposeHost(private val images: ImageController) : PhotoWork
             PhotoCommand.CHOOSE_FOLDER -> images.destinations.choosePhotoFolder()
             PhotoCommand.BACK -> images.back()
             PhotoCommand.NEXT -> images.next()
-            PhotoCommand.VIDEO -> images.navigate(MainActivity::class.java)
-            PhotoCommand.AUDIO -> images.navigate(AudioActivity::class.java)
-            PhotoCommand.ANALYSIS -> images.navigate(AnalysisActivity::class.java)
+            PhotoCommand.VIDEO -> images.navigate(WorkspaceNavigator.Section.VIDEO)
+            PhotoCommand.AUDIO -> images.navigate(WorkspaceNavigator.Section.AUDIO)
+            PhotoCommand.ANALYSIS -> images.navigate(WorkspaceNavigator.Section.ANALYSIS)
         }
     }
 

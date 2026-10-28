@@ -54,10 +54,7 @@ final class ImageController {
         else if(ImageScreen.DETAILS.equals(current))screen.sections.focusCard(ImageScreen.HEIC);
         else screen.sections.home();
     }
-    void navigate(Class<? extends android.app.Activity> target){
-        activity.startActivity(new android.content.Intent(activity,target).addFlags(android.content.Intent.FLAG_ACTIVITY_REORDER_TO_FRONT|android.content.Intent.FLAG_ACTIVITY_SINGLE_TOP));
-        activity.finish();AppNavigation.fade(activity);
-    }
+    void navigate(WorkspaceNavigator.Section target){WorkspaceNavigator.open(activity,target);}
     void toggleDetails(){if(state.inputs.isEmpty())return;detailsOpen=!detailsOpen;render();}
     void quality(int value){if(busy())return;ImageOptions old=state.options;setOptions(new ImageOptions(Math.max(40,Math.min(95,value)),old.preset,old.tune,old.folder,old.onlySmaller,old.keepScreenOn,old.revision,old.nameAddition,old.namePrefix));}
     void preset(int index){if(busy()||index<0||index>=PRESETS.length)return;ImageOptions old=state.options;setOptions(new ImageOptions(old.quality,PRESETS[index],old.tune,old.folder,old.onlySmaller,old.keepScreenOn,old.revision,old.nameAddition,old.namePrefix));}

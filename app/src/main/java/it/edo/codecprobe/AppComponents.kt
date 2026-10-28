@@ -172,6 +172,109 @@ internal fun AppNavigationArrow(
     }
 }
 
+internal enum class AppWorkspaceSection(val label: String, val icon: Int, val tag: String) {
+    VIDEO("Video", R.drawable.trial_video, "video"),
+    AUDIO("Audio", R.drawable.trial_music, "audio"),
+    PHOTO("Foto", R.drawable.trial_photo, "foto"),
+    ANALYSIS("Analisi", R.drawable.trial_grid, "analisi")
+}
+
+/** Shared visual workspace selector. Navigation and workflow actions remain caller-owned. */
+@Composable
+internal fun AppWorkspaceNavigationBar(
+    selected: AppWorkspaceSection,
+    onSectionSelected: (AppWorkspaceSection) -> Unit,
+    modifier: Modifier = Modifier,
+    style: AppNavigationSurfaceStyle = AppNavigationSurfaceStyle.GlassOutlined,
+    horizontalInset: Dp = 0.dp,
+    enabled: Boolean = true,
+    backVisible: Boolean = false,
+    backEnabled: Boolean = true,
+    onBack: (() -> Unit)? = null,
+    forwardVisible: Boolean = false,
+    forwardEnabled: Boolean = true,
+    onForward: (() -> Unit)? = null,
+    tagPrefix: String = "workspace-nav",
+    backTag: String = "$tagPrefix-back",
+    forwardTag: String = "$tagPrefix-next"
+) {
+    BoxWithConstraints(modifier) {
+        val hasArrowSlots = onBack != null || onForward != null
+        val compact = maxWidth < 380.dp
+        val arrowSize = if (compact) 48.dp else AppDesignTokens.Size.navigationArrow
+        val gap = when {
+            !hasArrowSlots -> 0.dp
+            maxWidth < 320.dp -> 0.dp
+            compact -> 4.dp
+            else -> 8.dp
+        }
+
+        Row(Modifier.fillMaxWidth()
+            .padding(horizontal = if (compact) 0.dp else horizontalInset)
+            .height(AppDesignTokens.Size.navigationBar),
+            verticalAlignment = Alignment.CenterVertically) {
+            if (hasArrowSlots) {
+                if (onBack != null) {
+                    Box(Modifier.size(arrowSize)) {
+                        AppNavigationArrow(backVisible, enabled && backEnabled, false, backTag, "Indietro",
+                            Modifier.fillMaxSize(), onBack)
+                    }
+                } else {
+                    Spacer(Modifier.size(arrowSize))
+                }
+                Spacer(Modifier.width(gap))
+            }
+
+            AppNavigationSurface(Modifier.weight(1f), style, AppDesignTokens.Size.navigationBar) {
+                AppWorkspaceSection.entries.forEach { section ->
+                    val selectedFill by animateColorAsState(
+                        if (section == selected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
+                        tween(AppDesignTokens.Motion.controlMs, easing = FastOutSlowInEasing),
+                        label = "workspace-nav-${section.tag}-fill"
+                    )
+                    val selectedInk by animateColorAsState(
+                        if (section == selected) MaterialTheme.colorScheme.onPrimaryContainer
+                        else MaterialTheme.colorScheme.onSurfaceVariant,
+                        tween(AppDesignTokens.Motion.controlMs, easing = FastOutSlowInEasing),
+                        label = "workspace-nav-${section.tag}-content"
+                    )
+                    Surface(
+                        onClick = { onSectionSelected(section) },
+                        enabled = enabled,
+                        modifier = Modifier.weight(1f).fillMaxHeight()
+                            .semantics {
+                                role = Role.Tab
+                                this.selected = section == selected
+                                contentDescription = section.label
+                                testTag = "$tagPrefix-${section.tag}"
+                            },
+                        shape = CircleShape,
+                        color = selectedFill,
+                        contentColor = selectedInk
+                    ) {
+                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Icon(painterResource(section.icon), contentDescription = section.label,
+                                modifier = Modifier.size(AppDesignTokens.Size.navigationIcon))
+                        }
+                    }
+                }
+            }
+
+            if (hasArrowSlots) {
+                Spacer(Modifier.width(gap))
+                if (onForward != null) {
+                    Box(Modifier.size(arrowSize)) {
+                        AppNavigationArrow(forwardVisible, enabled && forwardEnabled, true, forwardTag, "Avanti",
+                            Modifier.fillMaxSize(), onForward)
+                    }
+                } else {
+                    Spacer(Modifier.size(arrowSize))
+                }
+            }
+        }
+    }
+}
+
 @Composable
 internal fun AppDialogSurface(
     onDismissRequest: () -> Unit,

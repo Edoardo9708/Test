@@ -18,13 +18,12 @@
         <activity android:name=".AnalysisActivity" android:exported="false"/>
         <activity android:name=".ImageActivity" android:exported="false" android:configChanges="orientation|screenSize"/>
         <activity android:name=".ImageSettingsActivity" android:exported="false" android:configChanges="orientation|screenSize"/>
-        <activity android:name=".ComposeDesignPrototypeActivity" android:exported="true" android:configChanges="orientation|screenSize">
+        <activity android:name=".ComposeDesignPrototypeActivity" android:exported="false" android:configChanges="orientation|screenSize"/>
+        <activity android:name=".MainActivity" android:exported="true" android:configChanges="orientation|screenSize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
-        </activity>
-        <activity android:name=".MainActivity" android:exported="true" android:configChanges="orientation|screenSize">
         </activity>
     </application>
 </manifest>

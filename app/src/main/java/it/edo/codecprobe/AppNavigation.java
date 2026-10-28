@@ -1,7 +1,6 @@
 package it.edo.codecprobe;
 
 import android.app.Activity;
-import android.content.Intent;
 import android.content.res.ColorStateList;
 import android.graphics.Typeface;
 import android.graphics.drawable.RippleDrawable;
@@ -9,18 +8,17 @@ import android.widget.*;
 
 /** Scrollable page-top workspace tabs. Switching never changes either conversion session. */
 final class AppNavigation extends LinearLayout {
-    enum Workspace { VIDEO,AUDIO,IMAGES,ANALYSIS }
     final Button video,audio,images,analysis;
     AppNavigation(AppUi ui,boolean audioSelected){
-        this(ui,audioSelected?Workspace.AUDIO:Workspace.VIDEO);
+        this(ui,audioSelected?WorkspaceNavigator.Section.AUDIO:WorkspaceNavigator.Section.VIDEO);
     }
-    AppNavigation(AppUi ui,Workspace selected){this(ui,selected,false);}
-    AppNavigation(AppUi ui,Workspace selected,boolean compact){
+    AppNavigation(AppUi ui,WorkspaceNavigator.Section selected){this(ui,selected,false);}
+    AppNavigation(AppUi ui,WorkspaceNavigator.Section selected,boolean compact){
         super(ui.activity);setOrientation(HORIZONTAL);setBackgroundColor(ui.bg);
-        video=tab(ui,"Video",selected==Workspace.VIDEO,()->open(ui,selected,Workspace.VIDEO,MainActivity.class));
-        audio=tab(ui,"Audio",selected==Workspace.AUDIO,()->open(ui,selected,Workspace.AUDIO,AudioActivity.class));
-        images=tab(ui,"Immagini",selected==Workspace.IMAGES,()->open(ui,selected,Workspace.IMAGES,ImageActivity.class));
-        analysis=tab(ui,"Analisi",selected==Workspace.ANALYSIS,()->open(ui,selected,Workspace.ANALYSIS,AnalysisActivity.class));
+        video=tab(ui,"Video",selected==WorkspaceNavigator.Section.VIDEO,()->WorkspaceNavigator.open(ui.activity,WorkspaceNavigator.Section.VIDEO));
+        audio=tab(ui,"Audio",selected==WorkspaceNavigator.Section.AUDIO,()->WorkspaceNavigator.open(ui.activity,WorkspaceNavigator.Section.AUDIO));
+        images=tab(ui,"Immagini",selected==WorkspaceNavigator.Section.PHOTO,()->WorkspaceNavigator.open(ui.activity,WorkspaceNavigator.Section.PHOTO));
+        analysis=tab(ui,"Analisi",selected==WorkspaceNavigator.Section.ANALYSIS,()->WorkspaceNavigator.open(ui.activity,WorkspaceNavigator.Section.ANALYSIS));
         if(compact)images.setText("Foto");
         if(compact)for(Button b:new Button[]{video,audio,images,analysis}){
             LinearLayout column=(LinearLayout)b.getParent();column.removeViewAt(1);
@@ -31,14 +29,6 @@ final class AppNavigation extends LinearLayout {
             b.setBackground(new RippleDrawable(ColorStateList.valueOf(ui.border),pill,null));
             column.setLayoutParams(new LinearLayout.LayoutParams(0,-1,1));
         }
-    }
-    private static void open(AppUi ui,Workspace selected,Workspace target,Class<? extends Activity> screen){
-        if(selected==target)return;
-        if(ui.activity instanceof MainActivity){HomeState state=((MainActivity)ui.activity).home.state;AnalysisSources.video(state.selectedInputs,state.selectedNames);}
-        ui.activity.startActivity(new Intent(ui.activity,screen).addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT|Intent.FLAG_ACTIVITY_SINGLE_TOP));
-        // Video is the task root. Secondary pages persist their draft, then leave the stack.
-        if(selected!=Workspace.VIDEO)ui.activity.finish();
-        fade(ui.activity);
     }
     /** Equal-width tabs allow another workspace to be added without changing the host layout. */
     private Button tab(AppUi ui,String label,boolean selected,Runnable action){

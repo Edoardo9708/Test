@@ -53,6 +53,20 @@ private enum class DemoRunStatus(val label: String) {
     COMPLETE("Anteprima completata · nessun file convertito"), ERROR("Errore dimostrativo")
 }
 
+private fun PrototypeSection.toWorkspaceSection() = when (this) {
+    PrototypeSection.VIDEO -> AppWorkspaceSection.VIDEO
+    PrototypeSection.AUDIO -> AppWorkspaceSection.AUDIO
+    PrototypeSection.PHOTO -> AppWorkspaceSection.PHOTO
+    PrototypeSection.ANALYSIS -> AppWorkspaceSection.ANALYSIS
+}
+
+private fun AppWorkspaceSection.toPrototypeSection() = when (this) {
+    AppWorkspaceSection.VIDEO -> PrototypeSection.VIDEO
+    AppWorkspaceSection.AUDIO -> PrototypeSection.AUDIO
+    AppWorkspaceSection.PHOTO -> PrototypeSection.PHOTO
+    AppWorkspaceSection.ANALYSIS -> PrototypeSection.ANALYSIS
+}
+
 @Composable
 internal fun ComposeDesignPrototype(onExit: () -> Unit, onOpenPhoto: () -> Unit) {
     val systemDark = androidx.compose.foundation.isSystemInDarkTheme()
@@ -193,26 +207,14 @@ private fun nextPage(route: PrototypeRoute): PrototypePage = when (route.page) {
 
 @Composable
 private fun PrototypeBottomBar(selected: PrototypeSection, onSelected: (PrototypeSection) -> Unit) {
-    AppNavigationSurface(
+    AppWorkspaceNavigationBar(
+        selected = selected.toWorkspaceSection(),
+        onSectionSelected = { onSelected(it.toPrototypeSection()) },
         modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 8.dp)
             .windowInsetsPadding(WindowInsets.navigationBars),
-        style = AppNavigationSurfaceStyle.GlassOutlined
-    ) {
-        PrototypeSection.entries.forEach { section ->
-            Surface(
-                onClick = { onSelected(section) },
-                modifier = Modifier.weight(1f).height(AppDesignTokens.Size.navigationBar)
-                    .semantics { testTag = "prototype-tab-${section.name.lowercase()}" },
-                shape = CircleShape,
-                color = if (section == selected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
-                contentColor = if (section == selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
-            ) {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Icon(painterResource(section.icon), contentDescription = section.label, Modifier.size(AppDesignTokens.Size.navigationIcon))
-                }
-            }
-        }
-    }
+        style = AppNavigationSurfaceStyle.GlassOutlined,
+        tagPrefix = "prototype-tab"
+    )
 }
 
 @Composable

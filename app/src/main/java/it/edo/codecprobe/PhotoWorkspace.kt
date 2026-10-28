@@ -135,7 +135,7 @@ private fun PhotoDock(state: PhotoUiState, host: PhotoWorkspaceHost, hideFilesDo
 private fun PhotoFilesDock(state: PhotoUiState, host: PhotoWorkspaceHost, hidden: Boolean, modifier: Modifier) {
     Box(modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.navigationBars)) {
         Box(Modifier.widthIn(max = 512.dp).fillMaxWidth().align(Alignment.Center)
-            .padding(horizontal = 12.dp, vertical = 6.dp).height(AppDesignTokens.Size.navigationBar), contentAlignment = Alignment.Center) {
+            .padding(vertical = 6.dp).height(AppDesignTokens.Size.navigationBar), contentAlignment = Alignment.Center) {
             AnimatedVisibility(
                 visible = !hidden,
                 modifier = Modifier.fillMaxSize().then(if (hidden) Modifier.clearAndSetSemantics {} else Modifier),
@@ -143,48 +143,29 @@ private fun PhotoFilesDock(state: PhotoUiState, host: PhotoWorkspaceHost, hidden
                 exit = fadeOut(tween(120, easing = FastOutSlowInEasing)),
                 label = "photo-files-navigation"
             ) {
-                Row(Modifier.fillMaxSize(), verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    val backVisible = state.step != null
-                    val nextVisible = state.step == ImageScreen.FILES || state.step == ImageScreen.COMPRESSION
-                    AppNavigationArrow(backVisible, !hidden, false, "photo-back", "Indietro", Modifier.size(AppDesignTokens.Size.navigationArrow)) {
-                        host.command(PhotoCommand.BACK)
-                    }
-                    PhotoSectionBar(Modifier.weight(1f), enabled = !hidden) { host.command(it) }
-                    AppNavigationArrow(nextVisible, !hidden, true, "photo-next", "Avanti", Modifier.size(AppDesignTokens.Size.navigationArrow)) {
-                        host.command(PhotoCommand.NEXT)
-                    }
-                }
+                AppWorkspaceNavigationBar(
+                    selected = AppWorkspaceSection.PHOTO,
+                    onSectionSelected = { section ->
+                        when (section) {
+                            AppWorkspaceSection.VIDEO -> host.command(PhotoCommand.VIDEO)
+                            AppWorkspaceSection.AUDIO -> host.command(PhotoCommand.AUDIO)
+                            AppWorkspaceSection.PHOTO -> Unit
+                            AppWorkspaceSection.ANALYSIS -> host.command(PhotoCommand.ANALYSIS)
+                        }
+                    },
+                    modifier = Modifier.fillMaxSize(),
+                    style = AppNavigationSurfaceStyle.GlassOutlined,
+                    horizontalInset = AppDesignTokens.Spacing.navigationHorizontalInset,
+                    enabled = !hidden,
+                    backVisible = state.step != null,
+                    onBack = { host.command(PhotoCommand.BACK) },
+                    forwardVisible = state.step == ImageScreen.FILES || state.step == ImageScreen.COMPRESSION,
+                    onForward = { host.command(PhotoCommand.NEXT) },
+                    tagPrefix = "photo-nav",
+                    backTag = "photo-back",
+                    forwardTag = "photo-next"
+                )
             }
-        }
-    }
-}
-
-@Composable
-private fun PhotoSectionBar(modifier: Modifier, enabled: Boolean, command: (PhotoCommand) -> Unit) {
-    AppNavigationSurface(modifier, AppNavigationSurfaceStyle.GlassOutlined) {
-        PhotoSectionItem("Video", R.drawable.trial_video, false, enabled, Modifier.weight(1f)) { command(PhotoCommand.VIDEO) }
-        PhotoSectionItem("Audio", R.drawable.trial_music, false, enabled, Modifier.weight(1f)) { command(PhotoCommand.AUDIO) }
-        PhotoSectionItem("Foto", R.drawable.trial_photo, true, enabled, Modifier.weight(1f)) {}
-    }
-}
-
-@Composable
-private fun PhotoSectionItem(text: String, icon: Int, selected: Boolean, enabled: Boolean, modifier: Modifier, click: () -> Unit) {
-    val colors = MaterialTheme.colorScheme
-    val container by animateColorAsState(
-        if (selected) colors.primaryContainer else Color.Transparent,
-        tween(180, easing = FastOutSlowInEasing), label = "photo-section-container"
-    )
-    val content by animateColorAsState(
-        if (selected) colors.onPrimaryContainer else colors.onSurfaceVariant,
-        tween(180, easing = FastOutSlowInEasing), label = "photo-section-content"
-    )
-    Surface(onClick = { if (enabled) click() }, enabled = enabled, modifier = modifier.height(52.dp)
-        .semantics { role = Role.Tab; this.selected = selected; contentDescription = text; testTag = "photo-nav-${text.lowercase()}"; if (!enabled) hideFromAccessibility() },
-        shape = CircleShape, color = container, contentColor = content) {
-        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Icon(painterResource(icon), null, Modifier.size(AppDesignTokens.Size.navigationIcon))
         }
     }
 }
@@ -214,12 +195,20 @@ private fun PhotoWorkflowDock(state: PhotoUiState, host: PhotoWorkspaceHost, mod
                     primary = true, tag = "photo-next", compact = true)
             }
         }
-        AppNavigationSurface(Modifier.fillMaxWidth(),
-            if (opaque) AppNavigationSurfaceStyle.OpaqueVariant else AppNavigationSurfaceStyle.Glass) {
-            PhotoNavItem("Video", R.drawable.trial_video, false, Modifier.weight(1f)) { host.command(PhotoCommand.VIDEO) }
-            PhotoNavItem("Audio", R.drawable.trial_music, false, Modifier.weight(1f)) { host.command(PhotoCommand.AUDIO) }
-            PhotoNavItem("Foto", R.drawable.trial_photo, true, Modifier.weight(1f)) {}
-        }
+        AppWorkspaceNavigationBar(
+            selected = AppWorkspaceSection.PHOTO,
+            onSectionSelected = { section ->
+                when (section) {
+                    AppWorkspaceSection.VIDEO -> host.command(PhotoCommand.VIDEO)
+                    AppWorkspaceSection.AUDIO -> host.command(PhotoCommand.AUDIO)
+                    AppWorkspaceSection.PHOTO -> Unit
+                    AppWorkspaceSection.ANALYSIS -> host.command(PhotoCommand.ANALYSIS)
+                }
+            },
+            modifier = Modifier.fillMaxWidth(),
+            style = if (opaque) AppNavigationSurfaceStyle.OpaqueVariant else AppNavigationSurfaceStyle.Glass,
+            tagPrefix = "photo-nav"
+        )
       }
     }
 }
@@ -235,26 +224,6 @@ private fun rememberPhotoImeVisible(): Boolean {
             .collect { visible = it }
     }
     return visible
-}
-
-@Composable
-private fun RowScope.PhotoNavItem(text: String, icon: Int, selected: Boolean, modifier: Modifier, click: () -> Unit) {
-    val colors = MaterialTheme.colorScheme
-    NavigationBarItem(
-        selected = selected,
-        onClick = click,
-        icon = { Icon(painterResource(icon), contentDescription = text, modifier = Modifier.size(AppDesignTokens.Size.navigationIcon)) },
-        label = null,
-        modifier = modifier,
-        alwaysShowLabel = false,
-        colors = NavigationBarItemDefaults.colors(
-            selectedIconColor = colors.onPrimaryContainer,
-            selectedTextColor = colors.onPrimaryContainer,
-            indicatorColor = colors.primaryContainer,
-            unselectedIconColor = colors.onSurfaceVariant,
-            unselectedTextColor = colors.onSurfaceVariant
-        )
-    )
 }
 
 @Composable
