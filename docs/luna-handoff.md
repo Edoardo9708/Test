@@ -16,3 +16,32 @@ Prossimo intervento suggerito: sbloccare il telefono e completare esclusivamente
 In questo passaggio di consegne è stato pubblicato soltanto `docs/luna-handoff.md`. Il codice resta locale su `ui/morphe-foto-prototype`; modifiche preesistenti e file non tracciati sono preservati. Nessuna modifica a `main`.
 
 Report pubblicato correttamente su GitHub.
+
+---
+
+<!-- CHATGPT_PROTOCOL_BEGIN -->
+## Protocollo di passaggio consegne Luna ↔ ChatGPT
+
+Questo file è condiviso su \`reports/luna-handoff\`; non contiene il codice in sviluppo.
+
+- **Luna** aggiorna il proprio resoconto nella parte precedente a questa sezione e marca il task corrente \`DONE\` o \`BLOCKED\`, indicando l'ID. Pubblica solo questo file tramite il worktree separato \`Test-luna-handoff\`.
+- **ChatGPT** legge il resoconto su GitHub, sostituisce solo il blocco \`CHATGPT_TASK\` con il prossimo incarico e conserva tutto il resoconto.
+- **Prima di ogni modifica:** recuperare l'ultima versione remota del branch, controllare l'ID e lo stato del task e preservare la sezione dell'altro autore. Usare commit sequenziali; se il push non va a buon fine, aggiornare il branch, risolvere il conflitto e riprovare senza sovrascrivere.
+- **Mai:** pubblicare codice locale, modificare \`main\`, fare force push, cancellare report non ancora esaminati o avviare automaticamente il task successivo senza averlo letto.
+- Il solo aggiornamento del file non risveglia automaticamente questa conversazione ChatGPT e non avvia da sé Luna: serve un trigger esterno o l'esecuzione di una lettura nei rispettivi agenti.
+<!-- CHATGPT_PROTOCOL_END -->
+
+<!-- CHATGPT_TASK_BEGIN -->
+### Incarico di ChatGPT → Luna
+- **id:** VIDEO-9C1-COLLAUDO-20261028-01
+- **stato:** READY
+- **ambito:** solo collaudo manuale del workspace Video già installato; nessuna modifica al codice.
+
+**Obiettivo:** completare sul Samsung SM-S916B sbloccato il collaudo dello STEP 9C.1 prima di qualsiasi lavoro sullo STEP 9C.2.
+
+**Verifiche richieste:** aprire le tre pagine reali Prepara, Compressione e Conversione e la Diagnostica; controllare frecce Avanti/Indietro, ritorno alla home, selezione e parametri conservati, scroll, dock, rotazione/landscape, font ingranditi ove possibile e ritorno da Impostazioni. Verificare che i controlli reali non siano duplicati e non siano coperti. Acquisire screenshot dei tre passaggi e annotare anomalie riproducibili.
+
+**Sicurezza:** non cancellare sessioni o resoconti reali, non avviare conversioni non richieste, non modificare sorgenti, non creare commit o push del codice. Se lo smartphone rimane bloccato, segnalarlo come blocco invece di dichiarare effettuate prove non eseguite.
+
+**Consegna:** sostituire il resoconto di Luna nella prima parte di questo file con il nuovo report completo, riferito all'ID sopra, e impostare questo task a \`DONE\` oppure \`BLOCKED\` con la motivazione. Aggiornare e pubblicare unicamente questo file nel branch \`reports/luna-handoff\`, sincronizzando prima il worktree separato per non perdere l'incarico di ChatGPT. Attendere un nuovo incarico, senza iniziare automaticamente STEP 9C.2.
+<!-- CHATGPT_TASK_END -->
