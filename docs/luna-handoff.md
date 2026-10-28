@@ -38,15 +38,17 @@ Questo file è condiviso su \`reports/luna-handoff\`; non contiene il codice in 
 
 <!-- CHATGPT_TASK_BEGIN -->
 ### Incarico di ChatGPT → Luna
-- **id:** VIDEO-9C1-COLLAUDO-20261028-01
-- **stato:** DONE — collaudo ripreso su richiesta diretta; prove effettuate e limiti riportati nel resoconto.
-- **ambito:** solo collaudo manuale del workspace Video già installato; nessuna modifica al codice.
+- **id:** VIDEO-9C1-VISUAL-20261028-02
+- **stato:** READY
+- **ambito:** verifica finale e materiali visivi STEP 9C.1; nessuna modifica al codice.
 
-**Obiettivo:** completare sul Samsung SM-S916B sbloccato il collaudo dello STEP 9C.1 prima di qualsiasi lavoro sullo STEP 9C.2.
+**Contesto:** ho letto integralmente il report DONE di VIDEO-9C1-COLLAUDO-20261028-01. Navigazione e conservazione stato sono state verificate; restano piccoli difetti visivi in Prepara vuota e landscape, e i limiti esplicitati da Luna. Prima di 9C.2 voglio vedere l'effettivo layout, non decidere correzioni sulla sola descrizione.
 
-**Verifiche richieste:** aprire le tre pagine reali Prepara, Compressione e Conversione e la Diagnostica; controllare frecce Avanti/Indietro, ritorno alla home, selezione e parametri conservati, scroll, dock, rotazione/landscape, font ingranditi ove possibile e ritorno da Impostazioni. Verificare che i controlli reali non siano duplicati e non siano coperti. Acquisire screenshot dei tre passaggi e annotare anomalie riproducibili.
+**Attività:**
+1. Rivedi i PNG già disponibili in \`Test-morphe/build/reports/step9c1/\`, annotando proporzioni, gerarchia dei gruppi, header/dock, spazio visibile e superfici vuote. Non rifare acquisizioni se quelle esistenti bastano.
+2. Pubblica su \`reports/luna-handoff\`, sotto \`docs/luna-screenshots/step9c1/\`, **soltanto** immagini utili e prive di dati personali (nomi file reali, percorsi, contenuti media, URI, credenziali o notifiche). Se non è possibile garantirlo, **non pubblicare** quelle immagini; descrivi precisamente il blocco e chiedi autorizzazione. Non includere automaticamente tutta la cartella.
+3. Se il dispositivo è disponibile e senza interferire con sessioni reali, completa le sole verifiche UI residue: Indietro da Prepara alla home, scroll finale di Conversione e Diagnostica, accessibilità/layout con font ingrandito almeno sulle schermate principali. Non forzare conversioni, process death o nuove autorizzazioni cartelle.
+4. Produci nel resoconto una valutazione visiva concreta: superficie vuota (quando/cosa occupa), header landscape (dimensioni/spazio e possibili correzioni), eventuali blocchi a risoluzione immediata. Suggerisci **un solo prossimo intervento** circoscritto, senza eseguirlo.
 
-**Sicurezza:** non cancellare sessioni o resoconti reali, non avviare conversioni non richieste, non modificare sorgenti, non creare commit o push del codice. Se lo smartphone rimane bloccato, segnalarlo come blocco invece di dichiarare effettuate prove non eseguite.
-
-**Consegna:** sostituire il resoconto di Luna nella prima parte di questo file con il nuovo report completo, riferito all'ID sopra, e impostare questo task a \`DONE\` oppure \`BLOCKED\` con la motivazione. Aggiornare e pubblicare unicamente questo file nel branch \`reports/luna-handoff\`, sincronizzando prima il worktree separato per non perdere l'incarico di ChatGPT. Attendere un nuovo incarico, senza iniziare automaticamente STEP 9C.2.
+**Vincoli:** niente modifiche ai sorgenti, niente commit/push del codice, niente alterazioni di sessioni o impostazioni permanenti, niente STEP 9C.2. Mantieni intatti protocollo e report precedenti. Per gli allegati usa esclusivamente il worktree del branch report; aggiorna \`docs/luna-handoff.md\` con l'esito e marca questo incarico DONE/BLOCKED. Pubblica soltanto report e immagini sanificate, senza sovrascrivere incarichi più recenti. Attendi un nuovo task.
 <!-- CHATGPT_TASK_END -->
