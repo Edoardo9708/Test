@@ -1,3 +1,26 @@
+Incarico `VIDEO-9C1-VISUAL-20261028-02`: **BLOCKED soltanto per la pubblicazione delle immagini**, in attesa dell’autorizzazione al ritaglio tecnico richiesta all’utente. Revisione visiva e verifiche UI residue sono state effettuate; nessun sorgente modificato.
+
+Ho riesaminato gli screenshot disponibili in `Test-morphe/build/reports/step9c1/`, senza rifare acquisizioni. I PNG contengono icone di notifiche nella barra di stato; alcuni includono anche nomi di file e percorsi reali. Non li ho pubblicati, come richiesto dal task. Ho chiesto di autorizzare il ritaglio della sola barra di stato dai campioni privi di selezione e dati personali, senza alterare la grafica dell’app. Nessuna immagine è stata aggiunta al branch remoto.
+
+La valutazione visiva evidenzia:
+
+- In Prepara vuota, la card File ha una gerarchia chiara e pulsanti allineati; immediatamente sotto compare una superficie arrotondata senza testo, alta circa 55 pixel nello screenshot originale, circa 20 dp. È visibile quando Destinazioni non ha contenuti perché manca la selezione.
+- File e Destinazioni risultano gruppi separati quando è presente un video. Compressione e Conversione mantengono la grafica dei controlli View, mentre header e dock condividono lo stile Compose.
+- In landscape a 2340 × 1080, il viewport dei contenuti termina circa a y=888; il primo pannello inizia intorno a y=550. Restano circa 338 pixel, il 31% dell’altezza totale. L’area superiore, inclusi header, riga del passaggio e spaziature, occupa circa 450 pixel dopo la status bar. Il preset di Compressione quasi esaurisce lo spazio inizialmente visibile.
+- Con font 1,5 il campione Conversione landscape conserva etichette e pulsanti leggibili, ma richiede ancora più scroll. Non emerge una sovrapposizione della dock sugli ultimi comandi raggiunti; il limite principale è lo spazio disponibile.
+
+Sul Samsung collegato e sbloccato ho completato Indietro da Prepara alla home, verificando la pagina prima del comando. Con font 1,5 in verticale ho controllato Prepara e Compressione, raggiunto il fondo Conversione fino a «Info misure» e il fondo Diagnostica fino a «Mostra ultimi messaggi»: gli ultimi comandi erano sopra la dock. Non ho attivato cancellazioni, esportazioni o prove HDR. Il cambio iniziale di orientamento aveva reso inaffidabili le coordinate; ho interrotto i tocchi, riaperto esplicitamente Video e ripetuto la prova con orientamento stabilizzato.
+
+Font ripristinato a 1,0 e autorotazione libera, entrambi verificati. Nessuna conversione avviata, sessione cancellata o nuova autorizzazione concessa. Nessuna build o test automatico eseguito. La prova con font ingrandito è un controllo visivo e di raggiungibilità, non una certificazione completa di accessibilità.
+
+Unico prossimo intervento suggerito sul prodotto: compattare esclusivamente l’intestazione del workspace Video in landscape, riducendo la separazione verticale fra barra superiore e indicatore del passaggio, preservando inset, touch target e adattamento ai font. Non l’ho implementato. La superficie vuota di Prepara resta un’osservazione aperta; non ho rilevato un blocco funzionale che richieda una correzione immediata.
+
+[Report pubblicato correttamente su GitHub](https://github.com/Edoardo9708/Test/blob/reports/luna-handoff/docs/luna-handoff.md). È stato aggiornato soltanto `docs/luna-handoff.md` nel worktree separato, conservando protocollo, incarico e resoconto precedente. Nessun codice pubblicato, nessuna modifica a `main` e nessun avvio dello STEP 9C.2.
+
+---
+
+Resoconto precedente conservato integralmente:
+
 Incarico `VIDEO-9C1-COLLAUDO-20261028-01`: **DONE**, con i limiti di verifica indicati sotto. Ho ripreso lo stesso incarico su richiesta diretta dell’utente («Riprova»), dopo aver sincronizzato il worktree del report. Il Samsung SM-S916B era collegato e sbloccato; nessun servizio dell’app risultava attivo.
 
 Sul dispositivo, usando la Release già installata, ho verificato:
@@ -39,7 +62,7 @@ Questo file è condiviso su \`reports/luna-handoff\`; non contiene il codice in 
 <!-- CHATGPT_TASK_BEGIN -->
 ### Incarico di ChatGPT → Luna
 - **id:** VIDEO-9C1-VISUAL-20261028-02
-- **stato:** READY
+- **stato:** BLOCKED — verifiche UI e revisione completate; pubblicazione immagini in attesa del consenso al ritaglio tecnico.
 - **ambito:** verifica finale e materiali visivi STEP 9C.1; nessuna modifica al codice.
 
 **Contesto:** ho letto integralmente il report DONE di VIDEO-9C1-COLLAUDO-20261028-01. Navigazione e conservazione stato sono state verificate; restano piccoli difetti visivi in Prepara vuota e landscape, e i limiti esplicitati da Luna. Prima di 9C.2 voglio vedere l'effettivo layout, non decidere correzioni sulla sola descrizione.
